@@ -1,0 +1,77 @@
+{
+  "name": "onsentamago",
+  "displayName": "OnsenTamago",
+  "description": "Language support for OnsenTamago",
+  "version": "0.0.1",
+  "publisher": "onsentamago",
+  "private": true,
+  "preview": true,
+  "engines": {
+    "vscode": "^1.103.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "OnsenTamago",
+    "ontama",
+    "otm",
+    "language server"
+  ],
+  "activationEvents": [
+    "onLanguage:onsentamago",
+    "onCommand:onsentamago.restartLanguageServer"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "onsentamago",
+        "aliases": [
+          "OnsenTamago",
+          "ontama"
+        ],
+        "extensions": [
+          ".otm"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "onsentamago",
+        "scopeName": "source.onsentamago",
+        "path": "./syntaxes/onsentamago.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "onsentamago.restartLanguageServer",
+        "title": "OnsenTamago: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "OnsenTamago",
+      "properties": {
+        "onsentamago.server.path": {
+          "type": "string",
+          "default": "ontama",
+          "scope": "machine-overridable",
+          "description": "Path to the ontama executable. The extension always invokes it as 'ontama lsp --stdio'."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node test/e2e/run.js",
+    "package:vsix": "node scripts/package-vsix.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.0"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2"
+  }
+}

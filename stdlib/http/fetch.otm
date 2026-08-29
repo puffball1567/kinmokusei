@@ -1,0 +1,155 @@
+import go context from "context";
+import go errors from "errors";
+import go http from "net/http";
+import go io from "io";
+
+const defaultMaxResponseBytes: int64 = 4 * 1024 * 1024;
+const largestResponseLimit: int64 = 9223372036854775807;
+
+struct Response {
+  public status: int;
+  public headers: http.Header;
+  private body: byte[];
+
+  public function ok(): boolean {
+    return this.status >= 200 && this.status < 300;
+  }
+
+  public function header(name: string): string {
+    return this.headers.Get(name);
+  }
+
+  public function text(): string {
+    return string(this.body);
+  }
+
+  public function bytes(): byte[] {
+    const copied: byte[] = [];
+    return append(copied, this.body...);
+  }
+}
+
+function sendWith(client: *http.Client, request: *http.Request, maxResponseBytes: int64): Result<Response> {
+  if (client == nil) {
+    return fail(errors.New("fetch client must not be nil"));
+  }
+  if (request == nil) {
+    return fail(errors.New("fetch request must not be nil"));
+  }
+  if (maxResponseBytes < 0) {
+    return fail(errors.New("fetch response limit must not be negative"));
+  }
+
+  const response = client.Do(request)?;
+  defer response.Body.Close();
+
+  let readLimit = maxResponseBytes;
+  if (maxResponseBytes < largestResponseLimit) {
+    readLimit += 1;
+  }
+  const limited = io.LimitReader(response.Body, readLimit);
+  const body = io.ReadAll(limited)?;
+  if (int64(len(body)) > maxResponseBytes) {
+    return fail(errors.New("fetch response exceeds the configured byte limit"));
+  }
+
+  return ok(Response{
+    status: response.StatusCode,
+    headers: response.Header.Clone(),
+    body: body,
+  });
+}
+
+function send(request: *http.Request, maxResponseBytes: int64): Result<Response> {
+  return sendWith(http.DefaultClient, request, maxResponseBytes);
+}
+
+function fetchLimited(ctx: context.Context, url: string, maxResponseBytes: int64): Result<Response> {
+  const request = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)?;
+  return send(request, maxResponseBytes);
+}
+
+function fetch(ctx: context.Context, url: string): Result<Response> {
+  return fetchLimited(ctx, url, defaultMaxResponseBytes);
+}
+
+class Context {
+  constructor(
+    public writer: http.ResponseWriter,
+    public request: *http.Request,
+  ) {}
+
+  public function path(name: string): string {
+    return this.request.PathValue(name);
+  }
+
+  public function query(name: string): string {
+    return this.request.URL.Query().Get(name);
+  }
+
+  public function header(name: string): string {
+    return this.request.Header.Get(name);
+  }
+
+  public function context(): context.Context {
+    return this.request.Context();
+  }
+
+  public function cookie(name: string): Result<*http.Cookie> {
+    const cookie = this.request.Cookie(name)?;
+    return ok(cookie);
+  }
+
+  public function setCookie(cookie: *http.Cookie): void {
+    http.SetCookie(this.writer, cookie);
+  }
+}
+
+class App implements http.Handler {
+  private mux: *http.ServeMux;
+
+  constructor() {
+    this.mux = http.NewServeMux();
+  }
+
+  private static function routePattern(method: string, pattern: string): string {
+    return method + " " + pattern;
+  }
+
+  public function handle(method: string, pattern: string, handler: (ctx: Context) => void): void {
+    this.mux.HandleFunc(App.routePattern(method, pattern), (
+      writer: http.ResponseWriter,
+      request: *http.Request,
+    ): void => {
+      handler(new Context(writer, request));
+    });
+  }
+
+  public function get(pattern: string, handler: (ctx: Context) => void): void {
+    this.handle(http.MethodGet, pattern, handler);
+  }
+
+  public function post(pattern: string, handler: (ctx: Context) => void): void {
+    this.handle(http.MethodPost, pattern, handler);
+  }
+
+  public function put(pattern: string, handler: (ctx: Context) => void): void {
+    this.handle(http.MethodPut, pattern, handler);
+  }
+
+  public function patch(pattern: string, handler: (ctx: Context) => void): void {
+    this.handle(http.MethodPatch, pattern, handler);
+  }
+
+  public function delete(pattern: string, handler: (ctx: Context) => void): void {
+    this.handle(http.MethodDelete, pattern, handler);
+  }
+
+  public function handler(): http.Handler {
+    return this;
+  }
+
+  public function serveHTTP(writer: http.ResponseWriter, request: *http.Request): void {
+    this.mux.ServeHTTP(writer, request);
+  }
+}

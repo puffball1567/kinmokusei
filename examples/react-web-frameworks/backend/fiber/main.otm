@@ -1,0 +1,84 @@
+import { TodoStore, normalizedTitle } from "../store";
+import go fiber from "github.com/gofiber/fiber/v3";
+import go http from "net/http";
+import go log from "log";
+import go os from "os";
+import go strconv from "strconv";
+import go utf8 from "unicode/utf8";
+
+function fiberError(ctx: fiber.Ctx, status: int, message: string): error {
+  return ctx.Status(status).JSON({ error: message });
+}
+
+function fiberID(ctx: fiber.Ctx): { value: int, valid: boolean } {
+  const [value, err] = strconv.Atoi(ctx.Params("id"));
+  if (err != nil || value <= 0) {
+    return { value: 0, valid: false };
+  }
+  return { value: value, valid: true };
+}
+
+function NewApp(): *fiber.App {
+  const store = new TodoStore();
+  const app = fiber.New();
+
+  app.Get("/api/health", (ctx: fiber.Ctx): error => {
+    return ctx.JSON({
+      status: "ok",
+      language: "OnsenTamago",
+      framework: "Fiber",
+    });
+  });
+
+  app.Get("/api/todos", (ctx: fiber.Ctx): error => {
+    return ctx.JSON({ items: store.list() });
+  });
+
+  app.Post("/api/todos", (ctx: fiber.Ctx): error => {
+    let input = { title: "" };
+    const err: error = ctx.Bind().Body(&input);
+    if (err != nil) {
+      return fiberError(ctx, http.StatusBadRequest, "request body must be JSON with a title");
+    }
+    const title = normalizedTitle(input.title);
+    if (title == "") {
+      return fiberError(ctx, http.StatusBadRequest, "title is required");
+    }
+    if (utf8.RuneCountInString(title) > 80) {
+      return fiberError(ctx, http.StatusBadRequest, "title must be 80 characters or fewer");
+    }
+    const todo = store.create(title);
+    return ctx.Status(http.StatusCreated).JSON({ item: todo });
+  });
+
+  app.Patch("/api/todos/:id/toggle", (ctx: fiber.Ctx): error => {
+    const id = fiberID(ctx);
+    if (!id.valid) {
+      return fiberError(ctx, http.StatusBadRequest, "todo id must be a positive integer");
+    }
+    const result = store.toggle(id.value);
+    if (!result.found) {
+      return fiberError(ctx, http.StatusNotFound, "todo not found");
+    }
+    return ctx.JSON({ item: result.value });
+  });
+
+  app.Delete("/api/todos/:id", (ctx: fiber.Ctx): error => {
+    const id = fiberID(ctx);
+    if (!id.valid) {
+      return fiberError(ctx, http.StatusBadRequest, "todo id must be a positive integer");
+    }
+    if (!store.remove(id.value)) {
+      return fiberError(ctx, http.StatusNotFound, "todo not found");
+    }
+    return ctx.SendStatus(http.StatusNoContent);
+  });
+
+  return app;
+}
+
+function main(): void {
+  let port = os.Getenv("PORT");
+  if (port == "") { port = "8081"; }
+  log.Fatal(NewApp().Listen(":" + port));
+}

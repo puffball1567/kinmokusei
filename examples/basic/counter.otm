@@ -1,0 +1,13 @@
+import { CounterValue } from "./counter-contract";
+
+class Counter implements CounterValue {
+  constructor(private value: int) {}
+
+  public function increment(): void {
+    this.value = this.value + 1;
+  }
+
+  public function current(): int {
+    return this.value;
+  }
+}

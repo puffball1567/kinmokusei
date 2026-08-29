@@ -1,0 +1,3 @@
+interface CounterValue {
+  function current(): int;
+}

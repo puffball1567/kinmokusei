@@ -1,0 +1,8 @@
+function add(left: int, right: int): int {
+  return left + right;
+}
+
+function main(): int {
+  const value: int = add(1, 2);
+  return value;
+}

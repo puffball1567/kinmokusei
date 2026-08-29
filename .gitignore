@@ -1,0 +1,7 @@
+/.ontama/
+/ontama
+/ontama.out
+/ontama-example
+/editors/vscode/node_modules/
+/editors/vscode/.vscode-test/
+/editors/vscode/dist/

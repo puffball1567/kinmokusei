@@ -1,0 +1,7 @@
+function max(left: int, right: int): int {
+  if (left > right) {
+    return left;
+  } else {
+    return right;
+  }
+}

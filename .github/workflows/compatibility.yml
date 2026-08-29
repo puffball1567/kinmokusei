@@ -1,0 +1,110 @@
+name: Compatibility
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go ${{ matrix.go-version }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            go-version: 1.23.x
+          - os: ubuntu-latest
+            go-version: 1.26.x
+          - os: ubuntu-latest
+            go-version: 1.27.x
+          - os: macos-latest
+            go-version: 1.27.x
+          - os: windows-latest
+            go-version: 1.27.x
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      - if: matrix.os != 'ubuntu-latest' || matrix.go-version != '1.27.x'
+        run: go test ./...
+      - if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.27.x'
+        run: ./scripts/coverage.sh
+      - run: go vet ./...
+
+  race:
+    name: Race detector
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+      - run: go test -race ./...
+
+  editor:
+    name: Visual Studio Code client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/vscode
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.23.x
+          cache: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editors/vscode/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: xvfb-run -a npm run test:e2e
+      - run: npm run package:vsix
+
+  full-stack-example:
+    name: React with Gin and Fiber
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+          cache-dependency-path: |
+            go.mod
+            examples/react-web-frameworks/backend/.ontama/deps/go.sum
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: examples/react-web-frameworks/frontend/package-lock.json
+      - name: Build the OnsenTamago compiler
+        run: |
+          mkdir -p "${RUNNER_TEMP}/ontama-bin"
+          go build -o "${RUNNER_TEMP}/ontama-bin/ontama" ./cmd/ontama
+          echo "${RUNNER_TEMP}/ontama-bin" >> "$GITHUB_PATH"
+      - name: Compare Gin and Fiber with independent Go implementations
+        working-directory: examples/react-web-frameworks/backend
+        run: ./verify.sh
+      - name: Install the React dependencies
+        working-directory: examples/react-web-frameworks/frontend
+        run: npm ci
+      - name: Test the React state and API transitions
+        working-directory: examples/react-web-frameworks/frontend
+        run: npm run test:coverage
+      - name: Build the production React application
+        working-directory: examples/react-web-frameworks/frontend
+        run: npm run build
+      - name: Exercise the Vite proxy against both generated servers
+        working-directory: examples/react-web-frameworks
+        run: ./verify.sh

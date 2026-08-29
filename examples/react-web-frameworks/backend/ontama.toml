@@ -1,0 +1,12 @@
+[project]
+name = "react-web-frameworks-backend"
+version = "0.1.0"
+go-module = "example.com/onsentamago/react-web-frameworks-backend"
+go-version = "1.27"
+
+[target]
+cgo = "disabled"
+
+[go.dependencies]
+"github.com/gin-gonic/gin" = "v1.12.0"
+"github.com/gofiber/fiber/v3" = "v3.4.0"

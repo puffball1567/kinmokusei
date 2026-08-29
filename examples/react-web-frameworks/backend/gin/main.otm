@@ -1,0 +1,94 @@
+import { TodoStore, normalizedTitle } from "../store";
+import go gin from "github.com/gin-gonic/gin";
+import go http from "net/http";
+import go log from "log";
+import go os from "os";
+import go strconv from "strconv";
+import go utf8 from "unicode/utf8";
+
+function ginError(ctx: *gin.Context, status: int, message: string): void {
+  ctx.JSON(status, { error: message });
+}
+
+function ginID(ctx: *gin.Context): { value: int, valid: boolean } {
+  const [value, err] = strconv.Atoi(ctx.Param("id"));
+  if (err != nil || value <= 0) {
+    return { value: 0, valid: false };
+  }
+  return { value: value, valid: true };
+}
+
+function NewRouter(): *gin.Engine {
+  const store = new TodoStore();
+  const router = gin.New();
+  router.SetTrustedProxies(nil);
+  router.Use(gin.Recovery());
+
+  router.GET("/api/health", (ctx: *gin.Context): void => {
+    ctx.JSON(http.StatusOK, {
+      status: "ok",
+      language: "OnsenTamago",
+      framework: "Gin",
+    });
+  });
+
+  router.GET("/api/todos", (ctx: *gin.Context): void => {
+    ctx.JSON(http.StatusOK, { items: store.list() });
+  });
+
+  router.POST("/api/todos", (ctx: *gin.Context): void => {
+    let input = { title: "" };
+    const err: error = ctx.ShouldBindJSON(&input);
+    if (err != nil) {
+      ginError(ctx, http.StatusBadRequest, "request body must be JSON with a title");
+      return;
+    }
+    const title = normalizedTitle(input.title);
+    if (title == "") {
+      ginError(ctx, http.StatusBadRequest, "title is required");
+      return;
+    }
+    if (utf8.RuneCountInString(title) > 80) {
+      ginError(ctx, http.StatusBadRequest, "title must be 80 characters or fewer");
+      return;
+    }
+    const todo = store.create(title);
+    ctx.JSON(http.StatusCreated, { item: todo });
+  });
+
+  router.PATCH("/api/todos/:id/toggle", (ctx: *gin.Context): void => {
+    const id = ginID(ctx);
+    if (!id.valid) {
+      ginError(ctx, http.StatusBadRequest, "todo id must be a positive integer");
+      return;
+    }
+    const result = store.toggle(id.value);
+    if (!result.found) {
+      ginError(ctx, http.StatusNotFound, "todo not found");
+      return;
+    }
+    ctx.JSON(http.StatusOK, { item: result.value });
+  });
+
+  router.DELETE("/api/todos/:id", (ctx: *gin.Context): void => {
+    const id = ginID(ctx);
+    if (!id.valid) {
+      ginError(ctx, http.StatusBadRequest, "todo id must be a positive integer");
+      return;
+    }
+    if (!store.remove(id.value)) {
+      ginError(ctx, http.StatusNotFound, "todo not found");
+      return;
+    }
+    ctx.Status(http.StatusNoContent);
+  });
+
+  return router;
+}
+
+function main(): void {
+  let port = os.Getenv("PORT");
+  if (port == "") { port = "8080"; }
+  gin.SetMode(gin.ReleaseMode);
+  log.Fatal(NewRouter().Run(":" + port));
+}

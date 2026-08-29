@@ -1,0 +1,46 @@
+import go json from "encoding/json";
+import go http from "net/http";
+import go log from "log";
+
+function writeJSON(writer: http.ResponseWriter, status: int, body: { message: string }): error {
+  writer.Header().Set("Content-Type", "application/json; charset=utf-8");
+  writer.WriteHeader(status);
+  return json.NewEncoder(writer).Encode(body);
+}
+
+function respond(writer: http.ResponseWriter, status: int, body: { message: string }): void {
+  const err: error = writeJSON(writer, status, body);
+  if (err != nil) { log.Print(err.Error()); }
+}
+
+function health(writer: http.ResponseWriter, request: *http.Request): void {
+  if (request.Method != http.MethodGet) {
+    respond(writer, http.StatusMethodNotAllowed, { message: "method not allowed" });
+    return;
+  }
+  respond(writer, http.StatusOK, { message: "ok" });
+}
+
+function greet(writer: http.ResponseWriter, request: *http.Request): void {
+  if (request.Method != http.MethodGet) {
+    respond(writer, http.StatusMethodNotAllowed, { message: "method not allowed" });
+    return;
+  }
+  const name: string = request.URL.Query().Get("name");
+  if (name == "") {
+    respond(writer, http.StatusBadRequest, { message: "name is required" });
+    return;
+  }
+  respond(writer, http.StatusOK, { message: "hello " + name });
+}
+
+function newHandler(): http.Handler {
+  const mux: *http.ServeMux = http.NewServeMux();
+  mux.HandleFunc("/health", health);
+  mux.HandleFunc("/greet", greet);
+  return mux;
+}
+
+function main(): void {
+  log.Fatal(http.ListenAndServe(":8080", newHandler()));
+}

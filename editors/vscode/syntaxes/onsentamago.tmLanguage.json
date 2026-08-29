@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "OnsenTamago",
+  "scopeName": "source.onsentamago",
+  "fileTypes": ["otm"],
+  "patterns": [
+    {"include": "#comments"},
+    {"include": "#strings"},
+    {"include": "#declarations"},
+    {"include": "#keywords"},
+    {"include": "#types"},
+    {"include": "#builtins"},
+    {"include": "#constants"},
+    {"include": "#numbers"},
+    {"include": "#operators"}
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {"name": "comment.line.double-slash.onsentamago", "begin": "//", "end": "$"},
+        {"name": "comment.block.onsentamago", "begin": "/\\*", "end": "\\*/"}
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.onsentamago",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.onsentamago",
+              "match": "\\\\(?:[\\\\\\\"nrtbfv]|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})"
+            },
+            {"name": "invalid.illegal.escape.onsentamago", "match": "\\\\."}
+          ]
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(function)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
+          "captures": {
+            "1": {"name": "storage.type.function.onsentamago"},
+            "2": {"name": "entity.name.function.onsentamago"}
+          }
+        },
+        {
+          "match": "\\b(class|struct|interface|type|alias)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
+          "captures": {
+            "1": {"name": "storage.type.onsentamago"},
+            "2": {"name": "entity.name.type.onsentamago"}
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.onsentamago",
+          "match": "\\b(return|throw|if|else|while|for|of|select|switch|case|default|break|continue|defer|go|await|detach|try|catch|finally|super)\\b"
+        },
+        {
+          "name": "keyword.declaration.onsentamago",
+          "match": "\\b(function|const|let|class|struct|type|alias|distinct|constructor|interface|import|from|export)\\b"
+        },
+        {"name": "storage.modifier.onsentamago", "match": "\\b(public|private|protected|static|implements|extends|virtual|override|final)\\b"},
+        {"name": "storage.modifier.onsentamago", "match": "\\bpointer(?=\\s+function\\b)"},
+        {"name": "keyword.operator.word.onsentamago", "match": "\\b(as|new)\\b"},
+        {"name": "variable.language.this.onsentamago", "match": "\\bthis\\b"}
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.onsentamago",
+          "match": "\\b(void|boolean|string|int|int32|int64|uint16|uint32|uint64|float|float32|float64|number|byte|error)\\b"
+        },
+        {
+          "name": "support.type.collection.onsentamago",
+          "match": "\\b(Map|Result|Task|GoChannel|GoSendChannel|GoReceiveChannel)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.onsentamago",
+          "match": "\\b(len|cap|append|copy|delete|clear|min|max|makeSlice|makeMap|copyArray|viewArray|goChannel|closeGoChannel|ok|fail)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {"name": "constant.language.onsentamago", "match": "\\b(true|false|nil|null)\\b"}
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {"name": "constant.numeric.onsentamago", "match": "\\b\\d+(?:\\.\\d*)?\\b"}
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.onsentamago",
+          "match": "===|!==|==|!=|=>|<-|\\+\\+|--|<<=|>>=|&\\^=|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|&&|\\|\\||<<|>>|&\\^|<=|>=|[=+\\-*\\/%!<>&|^?]"
+        }
+      ]
+    }
+  }
+}
