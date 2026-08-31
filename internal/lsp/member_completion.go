@@ -210,7 +210,7 @@ func variableType(program *ast.Program, variable *ast.VariableDecl) (ast.TypeRef
 func expressionCompletionType(program *ast.Program, expression ast.Expression) (ast.TypeRef, bool) {
 	switch expression := expression.(type) {
 	case *ast.NewExpr:
-		return ast.TypeRef{Name: expression.ClassName, ResolvedDeclaration: expression.ResolvedDeclaration}, true
+		return ast.TypeRef{Name: expression.ClassName, GenericArguments: append([]ast.TypeRef(nil), expression.TypeArguments...), ResolvedDeclaration: expression.ResolvedDeclaration}, true
 	case *ast.GoCompositeLiteralExpr:
 		return expression.Type, true
 	case *ast.ClassUpcastExpr:
@@ -347,6 +347,8 @@ func visibleValueTypeInBlock(program *ast.Program, block *ast.BlockStmt, path st
 
 func nestedVisibleValueType(program *ast.Program, statement ast.Statement, path string, offset int, name string) (ast.TypeRef, bool) {
 	switch statement := statement.(type) {
+	case *ast.LabeledStmt:
+		return nestedVisibleValueType(program, statement.Statement, path, offset, name)
 	case *ast.BlockStmt:
 		return visibleValueTypeInBlock(program, statement, path, offset, name)
 	case *ast.IfStmt:
@@ -464,18 +466,21 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	declaration := sourceTypeDeclaration(program, ref)
 	switch declaration := declaration.(type) {
 	case *ast.ClassDecl:
+		bindings := genericClassTypeRefBindings(declaration, ref)
 		if declaration.Base != nil {
 			collectTypeMemberCompletions(program, *declaration.Base, owner, static, seen, add)
 		}
 		for _, field := range declaration.Fields {
 			if !static && memberVisible(program, owner, declaration.Name, field.Visibility) {
-				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(field.Type), SortText: "0_" + field.Name})
+				fieldType := substituteTypeRefParameters(field.Type, bindings)
+				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
 			}
 		}
 		if declaration.Constructor != nil {
 			for _, parameter := range declaration.Constructor.Parameters {
 				if parameter.IsField && !static && memberVisible(program, owner, declaration.Name, parameter.Visibility) {
-					add(completionItem{Label: parameter.Name, Kind: 5, Detail: visibilityName(parameter.Visibility) + " " + parameter.Name + ": " + formatTypeRef(parameter.Type), SortText: "0_" + parameter.Name})
+					parameterType := substituteTypeRefParameters(parameter.Type, bindings)
+					add(completionItem{Label: parameter.Name, Kind: 5, Detail: visibilityName(parameter.Visibility) + " " + parameter.Name + ": " + formatTypeRef(parameterType), SortText: "0_" + parameter.Name})
 				}
 			}
 		}
@@ -483,7 +488,12 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			if method.Static != static || !memberVisible(program, owner, declaration.Name, method.Visibility) {
 				continue
 			}
-			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, method.Parameters, method.ReturnType), SortText: "0_" + method.Name})
+			parameters := append([]ast.Parameter(nil), method.Parameters...)
+			for index := range parameters {
+				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
+			}
+			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
 		}
 	case *ast.StructDecl:
 		if static {
@@ -516,20 +526,109 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 				receiver = *receiver.Pointee
 			}
 			if receiver.Name == declaration.Name && memberVisible(program, owner, declaration.Name, method.Visibility) {
-				add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, method.Parameters, method.ReturnType), SortText: "0_" + method.Name})
+				methodBindings := externalReceiverTypeRefBindings(receiver, ref)
+				parameters := append([]ast.Parameter(nil), method.Parameters...)
+				for index := range parameters {
+					parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, methodBindings)
+				}
+				result := substituteTypeRefParameters(method.ReturnType, methodBindings)
+				add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
+			}
+		}
+	case *ast.TypeDecl:
+		if static || declaration.Alias {
+			return
+		}
+		for _, candidate := range program.Declarations {
+			method, ok := candidate.(*ast.MethodDecl)
+			if !ok || !method.External {
+				continue
+			}
+			receiver := method.ReceiverType
+			if receiver.IsPointer() && receiver.Pointee != nil {
+				receiver = *receiver.Pointee
+			}
+			if receiver.Name == declaration.Name && memberVisible(program, owner, declaration.Name, method.Visibility) {
+				methodBindings := externalReceiverTypeRefBindings(receiver, ref)
+				parameters := append([]ast.Parameter(nil), method.Parameters...)
+				for index := range parameters {
+					parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, methodBindings)
+				}
+				result := substituteTypeRefParameters(method.ReturnType, methodBindings)
+				add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
+			}
+		}
+	case *ast.EnumDecl:
+		if static {
+			for _, member := range declaration.Members {
+				add(completionItem{Label: member.Name, Kind: 20, Detail: declaration.Name + "." + member.Name, SortText: "0_" + member.Name})
+			}
+			return
+		}
+		for _, candidate := range program.Declarations {
+			method, ok := candidate.(*ast.MethodDecl)
+			if !ok || !method.External {
+				continue
+			}
+			receiver := method.ReceiverType
+			if receiver.IsPointer() && receiver.Pointee != nil {
+				receiver = *receiver.Pointee
+			}
+			if receiver.Name == declaration.Name && memberVisible(program, owner, declaration.Name, method.Visibility) {
+				parameters := append([]ast.Parameter(nil), method.Parameters...)
+				add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, parameters, method.ReturnType), SortText: "0_" + method.Name})
 			}
 		}
 	case *ast.InterfaceDecl:
 		if static {
 			return
 		}
+		bindings := genericInterfaceTypeRefBindings(declaration, ref)
 		for _, method := range declaration.Methods {
-			add(completionItem{Label: method.Name, Kind: 2, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), SortText: "0_" + method.Name})
+			parameters := append([]ast.Parameter(nil), method.Parameters...)
+			for index := range parameters {
+				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
+			}
+			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			add(completionItem{Label: method.Name, Kind: 2, Detail: functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
 		}
 	}
 }
 
+func externalReceiverTypeRefBindings(receiver ast.TypeRef, selected ast.TypeRef) map[string]ast.TypeRef {
+	bindings := map[string]ast.TypeRef{}
+	for index, argument := range receiver.GenericArguments {
+		if index >= len(selected.GenericArguments) || argument.Name == "" || argument.Qualifier != "" {
+			continue
+		}
+		bindings[argument.Name] = selected.GenericArguments[index]
+	}
+	return bindings
+}
+
 func genericStructTypeRefBindings(declaration *ast.StructDecl, instantiated ast.TypeRef) map[string]ast.TypeRef {
+	if len(declaration.TypeParameters) == 0 || len(declaration.TypeParameters) != len(instantiated.GenericArguments) {
+		return nil
+	}
+	bindings := make(map[string]ast.TypeRef, len(declaration.TypeParameters))
+	for index, parameter := range declaration.TypeParameters {
+		bindings[parameter.Name] = instantiated.GenericArguments[index]
+	}
+	return bindings
+}
+
+func genericClassTypeRefBindings(declaration *ast.ClassDecl, instantiated ast.TypeRef) map[string]ast.TypeRef {
+	if len(declaration.TypeParameters) == 0 || len(declaration.TypeParameters) != len(instantiated.GenericArguments) {
+		return nil
+	}
+	bindings := make(map[string]ast.TypeRef, len(declaration.TypeParameters))
+	for index, parameter := range declaration.TypeParameters {
+		bindings[parameter.Name] = instantiated.GenericArguments[index]
+	}
+	return bindings
+}
+
+func genericInterfaceTypeRefBindings(declaration *ast.InterfaceDecl, instantiated ast.TypeRef) map[string]ast.TypeRef {
 	if len(declaration.TypeParameters) == 0 || len(declaration.TypeParameters) != len(instantiated.GenericArguments) {
 		return nil
 	}
@@ -589,6 +688,14 @@ func sourceNamedType(program *ast.Program, name string) ast.Declaration {
 			if declaration.Name == name {
 				return declaration
 			}
+		case *ast.TypeDecl:
+			if declaration.Name == name {
+				return declaration
+			}
+		case *ast.EnumDecl:
+			if declaration.Name == name {
+				return declaration
+			}
 		}
 	}
 	return nil
@@ -604,6 +711,10 @@ func sourceTypeDeclaration(program *ast.Program, ref ast.TypeRef) ast.Declaratio
 			case *ast.StructDecl:
 				matched = sameSourceSpan(ref.ResolvedDeclaration, declaration.NameSpan)
 			case *ast.InterfaceDecl:
+				matched = sameSourceSpan(ref.ResolvedDeclaration, declaration.NameSpan)
+			case *ast.TypeDecl:
+				matched = sameSourceSpan(ref.ResolvedDeclaration, declaration.NameSpan)
+			case *ast.EnumDecl:
 				matched = sameSourceSpan(ref.ResolvedDeclaration, declaration.NameSpan)
 			default:
 				continue
@@ -627,6 +738,10 @@ func typeRefForDeclaration(declaration ast.Declaration) ast.TypeRef {
 		return ast.TypeRef{Name: declaration.Name, ResolvedDeclaration: declaration.NameSpan, Span: declaration.NameSpan}
 	case *ast.InterfaceDecl:
 		return ast.TypeRef{Name: declaration.Name, ResolvedDeclaration: declaration.NameSpan, Span: declaration.NameSpan}
+	case *ast.TypeDecl:
+		return ast.TypeRef{Name: declaration.Name, ResolvedDeclaration: declaration.NameSpan, Span: declaration.NameSpan, NativeNamed: !declaration.Alias}
+	case *ast.EnumDecl:
+		return ast.TypeRef{Name: declaration.Name, ResolvedDeclaration: declaration.NameSpan, Span: declaration.NameSpan, NativeNamed: true}
 	default:
 		return ast.TypeRef{}
 	}
@@ -645,6 +760,14 @@ func sourceVisibleNamedType(program *ast.Program, path, name string) ast.Declara
 					return declaration
 				}
 			case *ast.InterfaceDecl:
+				if declaration.Name == name {
+					return declaration
+				}
+			case *ast.TypeDecl:
+				if declaration.Name == name {
+					return declaration
+				}
+			case *ast.EnumDecl:
 				if declaration.Name == name {
 					return declaration
 				}
@@ -671,6 +794,14 @@ func sourceVisibleNamedType(program *ast.Program, path, name string) ast.Declara
 							return declaration
 						}
 					case *ast.InterfaceDecl:
+						if declaration.Name == name {
+							return declaration
+						}
+					case *ast.TypeDecl:
+						if declaration.Name == name {
+							return declaration
+						}
+					case *ast.EnumDecl:
 						if declaration.Name == name {
 							return declaration
 						}

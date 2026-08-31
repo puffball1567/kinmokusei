@@ -25,6 +25,12 @@ func TestDefinedTypeAndAliasSemanticMatrix(t *testing.T) {
 		{"untyped constant", `type Score = distinct int; function use(): Score { return 1; }`},
 		{"alias to class reference", `class Box {} alias BoxRef = Box; function use(value: Box): BoxRef { return value; }`},
 		{"contextual declaration words", `function use(type: int, alias: int, distinct: int): int { return type + alias + distinct; }`},
+		{"recursive pointer", `type Link = distinct *Link; function use(value: Link): Link { return value; }`},
+		{"recursive slice", `type Chain = distinct Chain[]; function use(value: Chain): int { return len(value); }`},
+		{"recursive map value", `type Tree = distinct Map<string, Tree>; function use(value: Tree): int { return len(value); }`},
+		{"recursive function", `type Visitor = distinct (next: Visitor) => void;`},
+		{"recursive channel", `type Stream = distinct GoChannel<Stream>;`},
+		{"mutual recursion through pointer", `type Left = distinct Right; type Right = distinct *Left;`},
 	}
 	for _, test := range success {
 		t.Run(test.name, func(t *testing.T) {
@@ -48,6 +54,10 @@ func TestDefinedTypeAndAliasFailureMatrix(t *testing.T) {
 		{"conversion arity", `type UserID = distinct string; function bad(): UserID { return UserID(); }`, "expects 1 argument"},
 		{"type used as value", `type UserID = distinct string; function bad(): void { const value = UserID; }`, "cannot be used as a value"},
 		{"direct cycle", `alias First = Second; alias Second = First;`, "type declaration cycle"},
+		{"direct distinct cycle", `type Loop = distinct Loop;`, "type declaration cycle"},
+		{"fixed array cycle", `type Loop = distinct [1]Loop;`, "type declaration cycle"},
+		{"mutual infinite cycle", `type First = distinct Second; type Second = distinct First;`, "type declaration cycle"},
+		{"recursive alias through pointer", `alias Loop = *Loop;`, "type declaration cycle"},
 		{"void alias", `alias Nothing = void;`, "cannot be used as the underlying type"},
 		{"Result alias", `alias Outcome = Result<int>;`, "cannot be used as the underlying type"},
 		{"distinct class", `class Box {} type OtherBox = distinct Box;`, "cannot yet be used as a distinct defined type"},

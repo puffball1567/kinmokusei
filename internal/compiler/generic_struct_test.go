@@ -32,6 +32,12 @@ struct Pair<T, U> {
 struct SliceBox<T> { public values: T[]; }
 struct Nested<T> { public inner: Box<T>; }
 struct Node<T> { public value: T; public next: *Node<T>; }
+struct ExternalBox<T> { public value: T; }
+struct ExternalPair<T, U> { public first: T; public second: U; }
+
+public function externalGet<U>(this: ExternalBox<U>): U { return this.value; }
+public function externalSet<U>(this: *ExternalBox<U>, value: U): void { this.value = value; }
+public function externalSecond<A, B>(this: ExternalPair<A, B>): B { return this.second; }
 
 function NewBox<T>(value: T): Box<T> { return Box<T> { value: value }; }
 function ReadBox<T>(box: Box<T>): T { return box.get(); }
@@ -77,6 +83,16 @@ function ClassBehavior(value: string): string {
 }
 function Lookup(values: Map<Box<int>, string>, key: Box<int>): string { return values[key]; }
 function Present<T>(value: T): Result<Box<T>> { return ok(NewBox(value)); }
+function ExternalReceiverBehavior(value: int, replacement: int): int {
+  let box = ExternalBox<int> { value: value };
+  const get = box.externalGet;
+  box.externalSet(replacement);
+  return get() * 100 + box.externalGet();
+}
+function ExternalPairBehavior(label: string, value: int): int {
+  const pair = ExternalPair<string, int> { first: label, second: value };
+  return len(pair.first) * 100 + pair.externalSecond();
+}
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +107,9 @@ function Present<T>(value: T): Result<Box<T>> { return ok(NewBox(value)); }
 		"type Pair[T any, U any] struct",
 		"type Node[T any] struct",
 		"Next  *Node[T]",
+		"func (this ExternalBox[U]) ExternalGet() U",
+		"func (this *ExternalBox[U]) ExternalSet(value U)",
+		"func (this ExternalPair[A, B]) ExternalSecond() B",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
@@ -109,6 +128,11 @@ type Pair[T, U any] struct { First T; Second U }
 type SliceBox[T any] struct { Values []T }
 type Nested[T any] struct { Inner Box[T] }
 type Node[T any] struct { Value T; Next *Node[T] }
+type ExternalBox[T any] struct { Value T }
+type ExternalPair[T, U any] struct { First T; Second U }
+func (box ExternalBox[U]) ExternalGet() U { return box.Value }
+func (box *ExternalBox[U]) ExternalSet(value U) { box.Value = value }
+func (pair ExternalPair[A, B]) ExternalSecond() B { return pair.Second }
 
 func NewBox[T any](value T) Box[T] { return Box[T]{Value: value} }
 func ReadBox[T any](box Box[T]) T { return box.Get() }
@@ -123,6 +147,8 @@ func UserIDBehavior(value string) string { box := NewBox(UserID(value)); return 
 func ClassBehavior(value string) string { box := NewBox(NewUser(value)); return box.Value.Name }
 func Lookup(values map[Box[int]]string, key Box[int]) string { return values[key] }
 func Present[T any](value T) (Box[T], error) { return NewBox(value), nil }
+func ExternalReceiverBehavior(value, replacement int) int { box := ExternalBox[int]{Value: value}; get := box.ExternalGet; box.ExternalSet(replacement); return get()*100 + box.ExternalGet() }
+func ExternalPairBehavior(label string, value int) int { pair := ExternalPair[string, int]{First: label, Second: value}; return len(pair.First)*100 + pair.ExternalSecond() }
 `
 	testSource := `package genericstruct_test
 
@@ -148,10 +174,12 @@ func TestGenericStructBehavior(t *testing.T) {
     if got, want := generated.MethodValueBehavior(generated.NewBox(values[0]), values[1]), reference.MethodValueBehavior(reference.NewBox(values[0]), values[1]); got != want { t.Errorf("MethodValueBehavior(%v) = %d, Go = %d", values, got, want) }
     if got, want := generated.NestedBehavior(values[0]), reference.NestedBehavior(values[0]); got != want { t.Errorf("NestedBehavior(%d) = %d, Go = %d", values[0], got, want) }
     if got, want := generated.NodeBehavior(values[0]), reference.NodeBehavior(values[0]); got != want { t.Errorf("NodeBehavior(%d) = %d, Go = %d", values[0], got, want) }
+    if got, want := generated.ExternalReceiverBehavior(values[0], values[1]), reference.ExternalReceiverBehavior(values[0], values[1]); got != want { t.Errorf("ExternalReceiverBehavior(%v) = %d, Go = %d", values, got, want) }
   }
   gotValues, wantValues := []int{4}, []int{4}
   if got, want := generated.SliceBehavior(generated.SliceBox[int]{Values: gotValues}), reference.SliceBehavior(reference.SliceBox[int]{Values: wantValues}); got != want || gotValues[0] != wantValues[0] { t.Errorf("SliceBehavior = (%d, %v), Go = (%d, %v)", got, gotValues, want, wantValues) }
   if got, want := generated.PairBehavior(generated.Pair[string, int]{First: "x", Second: 65}), reference.PairBehavior(reference.Pair[string, int]{First: "x", Second: 65}); got != want { t.Errorf("PairBehavior = %d, Go = %d", got, want) }
+  if got, want := generated.ExternalPairBehavior("温泉", 65), reference.ExternalPairBehavior("温泉", 65); got != want { t.Errorf("ExternalPairBehavior = %d, Go = %d", got, want) }
   gotKey, wantKey := generated.NewBox(7), reference.NewBox(7)
   if got, want := generated.Lookup(map[generated.Box[int]]string{gotKey: "value"}, gotKey), reference.Lookup(map[reference.Box[int]]string{wantKey: "value"}, wantKey); got != want { t.Errorf("Lookup = %q, Go = %q", got, want) }
 }

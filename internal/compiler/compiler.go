@@ -587,6 +587,8 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 			available[declaration.Name] = true
 		case *ast.TypeDecl:
 			available[declaration.Name] = true
+		case *ast.EnumDecl:
+			available[declaration.Name] = true
 		case *ast.InterfaceDecl:
 			available[declaration.Name] = true
 		}

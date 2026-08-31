@@ -23,6 +23,7 @@ type functionSymbol struct {
 	parameters         []Type
 	typeParameters     []Type
 	typeParameterScope map[string]Type
+	variadic           bool
 	result             Type
 	span               source.Span
 	declarationSpan    source.Span
@@ -80,15 +81,19 @@ type methodSymbol struct {
 }
 
 type classSymbol struct {
-	fields          map[string]fieldSymbol
-	methods         map[string]methodSymbol
-	constructor     []Type
-	implements      map[string]bool
-	goImplements    []gotypes.Type
-	declarationSpan source.Span
-	base            string
-	ancestors       []string
-	final           bool
+	fields              map[string]fieldSymbol
+	methods             map[string]methodSymbol
+	constructor         []Type
+	constructorVariadic bool
+	implements          map[string]bool
+	implementedTypes    []Type
+	goImplements        []gotypes.Type
+	typeParameters      []Type
+	typeParamScope      map[string]Type
+	declarationSpan     source.Span
+	base                string
+	ancestors           []string
+	final               bool
 }
 
 type structSymbol struct {
@@ -102,13 +107,24 @@ type structSymbol struct {
 
 type interfaceSymbol struct {
 	methods         map[string]methodSymbol
+	typeParameters  []Type
+	typeParamScope  map[string]Type
 	declarationSpan source.Span
 }
 
 type nativeTypeSymbol struct {
-	declaration *ast.TypeDecl
-	typeInfo    Type
-	state       uint8
+	declaration    *ast.TypeDecl
+	typeInfo       Type
+	goNamed        *gotypes.Named
+	methods        map[string]methodSymbol
+	typeParameters []Type
+	typeParamScope map[string]Type
+	state          uint8
+}
+
+type enumSymbol struct {
+	declaration *ast.EnumDecl
+	members     map[string]*ast.EnumMember
 }
 
 type goPackageSymbol struct {
@@ -145,39 +161,43 @@ type nullableFlowSnapshot struct {
 }
 
 type Checker struct {
-	diagnostics            []diagnostic.Diagnostic
-	functions              map[string]functionSymbol
-	globals                map[string]valueSymbol
-	scopes                 []map[string]valueSymbol
-	result                 Type
-	loopDepth              int
-	breakableDepth         int
-	classes                map[string]*classSymbol
-	structs                map[string]*structSymbol
-	interfaces             map[string]*interfaceSymbol
-	nativeTypes            map[string]*nativeTypeSymbol
-	currentClass           string
-	allowed                map[string]map[string]bool
-	goPackages             map[string]map[string]*goPackageSymbol
-	goImporter             gotypes.Importer
-	allowUnsafeGo          bool
-	inConstructor          bool
-	callableScopeBases     []int
-	capturedWrites         []map[source.Span]source.Span
-	loopFlowContexts       []loopFlowContext
-	breakFlowContexts      []breakFlowContext
-	suppressFlowEffects    int
-	memberFlow             map[memberFlowKey]memberFlowState
-	memberTypes            map[memberFlowKey]Type
-	usesTasks              bool
-	usesExceptions         bool
-	exceptionDepth         int
-	catchTargets           []int
-	taskOperandDepth       int
-	typeParameterScopes    []map[string]Type
-	functionTypeParameters map[*ast.FunctionDecl]map[string]Type
-	capturedMemberWrites   []source.Span
-	capturedMemberRoots    []map[source.Span]bool
+	diagnostics                []diagnostic.Diagnostic
+	functions                  map[string]functionSymbol
+	globals                    map[string]valueSymbol
+	scopes                     []map[string]valueSymbol
+	result                     Type
+	loopDepth                  int
+	breakableDepth             int
+	classes                    map[string]*classSymbol
+	structs                    map[string]*structSymbol
+	interfaces                 map[string]*interfaceSymbol
+	nativeTypes                map[string]*nativeTypeSymbol
+	enums                      map[string]*enumSymbol
+	currentClass               string
+	allowed                    map[string]map[string]bool
+	goPackages                 map[string]map[string]*goPackageSymbol
+	goImporter                 gotypes.Importer
+	allowUnsafeGo              bool
+	inConstructor              bool
+	callableScopeBases         []int
+	capturedWrites             []map[source.Span]source.Span
+	loopFlowContexts           []loopFlowContext
+	breakFlowContexts          []breakFlowContext
+	suppressFlowEffects        int
+	memberFlow                 map[memberFlowKey]memberFlowState
+	memberTypes                map[memberFlowKey]Type
+	usesTasks                  bool
+	usesExceptions             bool
+	nativeTypeIndirectionDepth int
+	exceptionDepth             int
+	catchTargets               []int
+	taskOperandDepth           int
+	typeParameterScopes        []map[string]Type
+	functionTypeParameters     map[*ast.FunctionDecl]map[string]Type
+	receiverTypeParameters     map[*ast.MethodDecl]map[string]Type
+	validFallthrough           map[*ast.BranchStmt]bool
+	capturedMemberWrites       []source.Span
+	capturedMemberRoots        []map[source.Span]bool
 }
 
 type GoInteropPolicy struct {
@@ -202,10 +222,12 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	}
 	c := &Checker{
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
-		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, allowed: allowed,
+		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe,
 		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
+		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
+		validFallthrough:       map[*ast.BranchStmt]bool{},
 	}
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
@@ -216,7 +238,6 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.declareTopLevel(program)
 	c.declareReceiverMethods(program)
 	c.validateStructValueCycles(program)
-	c.checkCABIExports(program)
 	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.VariableDecl); ok {
 			declared := Type{Kind: Invalid, Name: "<inferred>"}
@@ -238,6 +259,11 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		}
 	}
 	for _, decl := range program.Declarations {
+		if decl, ok := decl.(*ast.EnumDecl); ok {
+			c.checkEnum(decl)
+		}
+	}
+	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.ClassDecl); ok {
 			c.checkClass(decl)
 		}
@@ -249,11 +275,17 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	}
 	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.MethodDecl); ok {
+			c.pushTypeParameterScope(c.receiverTypeParameters[decl])
 			receiver := decl.ReceiverType
 			if receiver.IsPointer() && receiver.Pointee != nil {
 				receiver = *receiver.Pointee
 			}
-			c.checkStructMethod(decl, decl.ReceiverName, receiver.Name)
+			if _, exists := c.nativeTypes[receiver.Name]; exists {
+				c.checkNativeTypeMethod(decl, decl.ReceiverName, receiver.Name)
+			} else {
+				c.checkStructMethod(decl, decl.ReceiverName, receiver.Name)
+			}
+			c.popTypeParameterScope()
 		}
 	}
 	for _, decl := range program.Declarations {
@@ -261,6 +293,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 			c.checkFunction(decl)
 		}
 	}
+	c.checkCABIExports(program)
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
 	program.UsesTasks = c.usesTasks
@@ -269,35 +302,104 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 }
 
 func (c *Checker) checkCABIExports(program *ast.Program) {
+	program.CABIExports = nil
 	symbols := map[string]source.Span{}
+	targets := map[string]source.Span{}
+	functions := map[string]*ast.FunctionDecl{}
+	variables := map[string]*ast.VariableDecl{}
+	for _, declaration := range program.Declarations {
+		switch declaration := declaration.(type) {
+		case *ast.FunctionDecl:
+			functions[declaration.Name] = declaration
+		case *ast.VariableDecl:
+			variables[declaration.Name] = declaration
+		}
+	}
+	validate := func(export ast.CABIExport, generic bool) {
+		if generic {
+			c.report(export.NameSpan, "generic functions cannot be exported through the C ABI")
+		}
+		symbol := export.Symbol
+		if !validCABIIdentifier(symbol) {
+			c.report(export.SymbolSpan, fmt.Sprintf("C ABI symbol %q must start with an ASCII letter and contain only ASCII letters, digits, or '_'", symbol))
+		} else if gotoken.Lookup(symbol).IsKeyword() {
+			c.report(export.SymbolSpan, fmt.Sprintf("C ABI symbol %q is a Go keyword and cannot be generated", symbol))
+		} else if symbol == "main" || symbol == "init" {
+			c.report(export.SymbolSpan, fmt.Sprintf("C ABI symbol %q is reserved by the generated Go package", symbol))
+		}
+		if previous, exists := symbols[symbol]; exists {
+			c.report(export.SymbolSpan, fmt.Sprintf("duplicate C ABI symbol %q (first declared at %d:%d)", symbol, previous.Start.Line, previous.Start.Column))
+		} else {
+			symbols[symbol] = export.SymbolSpan
+		}
+		if previous, exists := targets[export.Name]; exists {
+			c.report(export.NameSpan, fmt.Sprintf("duplicate C ABI export target %q (first exported at %d:%d)", export.Name, previous.Start.Line, previous.Start.Column))
+		} else {
+			targets[export.Name] = export.NameSpan
+		}
+		for _, parameter := range export.Parameters {
+			if !c.isCABITypeRef(parameter.Type, false) {
+				c.report(parameter.Type.Span, fmt.Sprintf("C ABI parameter %q has unsupported type %s; use boolean, a fixed-width scalar, or an enum with a fixed-width integer underlying type", parameter.Name, formatTypeRefForDiagnostic(parameter.Type)))
+			}
+		}
+		if !c.isCABITypeRef(export.ReturnType, true) {
+			c.report(export.ReturnType.Span, fmt.Sprintf("C ABI result has unsupported type %s; use void, boolean, a fixed-width scalar, or an enum with a fixed-width integer underlying type", formatTypeRefForDiagnostic(export.ReturnType)))
+		}
+		program.CABIExports = append(program.CABIExports, export)
+	}
 	for _, declaration := range program.Declarations {
 		function, ok := declaration.(*ast.FunctionDecl)
 		if !ok || !function.CABIExport {
 			continue
 		}
-		if len(function.TypeParameters) != 0 {
-			c.report(function.NameSpan, "generic functions cannot be exported through the C ABI")
+		validate(ast.CABIExport{
+			Name: function.Name, NameSpan: function.NameSpan, Symbol: function.CABISymbol, SymbolSpan: function.CABISymbolSpan,
+			Parameters: function.Parameters, ReturnType: function.ReturnType, Span: function.CABIExportSpan,
+		}, len(function.TypeParameters) != 0)
+	}
+	for _, declaration := range program.Declarations {
+		exports, ok := declaration.(*ast.CABIExportDecl)
+		if !ok {
+			continue
 		}
-		symbol := function.CABISymbol
-		if !validCABIIdentifier(symbol) {
-			c.report(function.CABISymbolSpan, fmt.Sprintf("C ABI symbol %q must start with an ASCII letter and contain only ASCII letters, digits, or '_'", symbol))
-		} else if gotoken.Lookup(symbol).IsKeyword() {
-			c.report(function.CABISymbolSpan, fmt.Sprintf("C ABI symbol %q is a Go keyword and cannot be generated", symbol))
-		} else if symbol == "main" || symbol == "init" {
-			c.report(function.CABISymbolSpan, fmt.Sprintf("C ABI symbol %q is reserved by the generated Go package", symbol))
+		if len(exports.Symbols) != len(exports.Names) {
+			c.report(exports.Span, fmt.Sprintf("C ABI export list has %d symbols but %d names; counts must match positionally", len(exports.Symbols), len(exports.Names)))
 		}
-		if previous, exists := symbols[symbol]; exists {
-			c.report(function.CABISymbolSpan, fmt.Sprintf("duplicate C ABI symbol %q (first declared at %d:%d)", symbol, previous.Start.Line, previous.Start.Column))
-		} else {
-			symbols[symbol] = function.CABISymbolSpan
-		}
-		for _, parameter := range function.Parameters {
-			if !isCABITypeRef(parameter.Type, false) {
-				c.report(parameter.Type.Span, fmt.Sprintf("C ABI parameter %q has unsupported type %s; use byte, int32, int64, uint16, uint32, uint64, float32, float, float64, or number", parameter.Name, formatTypeRefForDiagnostic(parameter.Type)))
+		exports.ResolvedDeclarations = make([]source.Span, len(exports.Names))
+		count := min(len(exports.Symbols), len(exports.Names))
+		for index := 0; index < count; index++ {
+			name := exports.Names[index]
+			if function := functions[name]; function != nil {
+				exports.ResolvedDeclarations[index] = function.NameSpan
+				validate(ast.CABIExport{
+					Name: name, NameSpan: exports.NameSpans[index], Symbol: exports.Symbols[index], SymbolSpan: exports.SymbolSpans[index],
+					Parameters: function.Parameters, ReturnType: function.ReturnType, Span: exports.Span,
+				}, len(function.TypeParameters) != 0)
+				continue
 			}
-		}
-		if !isCABITypeRef(function.ReturnType, true) {
-			c.report(function.ReturnType.Span, fmt.Sprintf("C ABI result has unsupported type %s; use void, byte, int32, int64, uint16, uint32, uint64, float32, float, float64, or number", formatTypeRefForDiagnostic(function.ReturnType)))
+			variable := variables[name]
+			if variable == nil {
+				c.report(exports.NameSpans[index], fmt.Sprintf("undefined C ABI export target %q", name))
+				continue
+			}
+			exports.ResolvedDeclarations[index] = variable.NameSpan
+			if !variable.Constant {
+				c.report(exports.NameSpans[index], fmt.Sprintf("C ABI export target %q must be a const arrow function", name))
+				continue
+			}
+			arrow, ok := variable.Value.(*ast.ArrowExpr)
+			if !ok {
+				c.report(exports.NameSpans[index], fmt.Sprintf("C ABI export target %q must be a top-level function or const arrow function", name))
+				continue
+			}
+			if arrow.ReturnType == nil {
+				c.report(exports.NameSpans[index], fmt.Sprintf("C ABI arrow export %q requires an explicit return type", name))
+				continue
+			}
+			validate(ast.CABIExport{
+				Name: name, NameSpan: exports.NameSpans[index], Symbol: exports.Symbols[index], SymbolSpan: exports.SymbolSpans[index],
+				Parameters: arrow.Parameters, ReturnType: *arrow.ReturnType, Span: exports.Span,
+			}, false)
 		}
 	}
 }
@@ -318,17 +420,33 @@ func isASCIIAlpha(value byte) bool {
 	return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z'
 }
 
-func isCABITypeRef(ref ast.TypeRef, allowVoid bool) bool {
+func (c *Checker) isCABITypeRef(ref ast.TypeRef, allowVoid bool) bool {
 	if ref.Nullable || ref.Qualifier != "" || len(ref.GenericArguments) != 0 || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() {
 		return false
 	}
 	switch ref.Name {
-	case "byte", "int32", "int64", "uint16", "uint32", "uint64", "float32", "float", "float64", "number":
+	case "boolean", "byte", "uint8", "int8", "int16", "int32", "int64", "uint16", "uint32", "uint64", "float32", "float", "float64", "number":
 		return true
 	case "void":
 		return allowVoid
 	default:
-		return false
+		if c.enums[ref.Name] == nil {
+			return false
+		}
+		resolved := c.resolveType(ref)
+		if resolved.GoType == nil {
+			return false
+		}
+		basic, ok := gotypes.Unalias(resolved.GoType).Underlying().(*gotypes.Basic)
+		if !ok {
+			return false
+		}
+		switch basic.Kind() {
+		case gotypes.Int8, gotypes.Int16, gotypes.Int32, gotypes.Int64, gotypes.Uint8, gotypes.Uint16, gotypes.Uint32, gotypes.Uint64:
+			return true
+		default:
+			return false
+		}
 	}
 }
 
@@ -390,9 +508,6 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 		switch declaration := declaration.(type) {
 		case *ast.FunctionDecl:
 			claim(generatedIdentifier(declaration.Name), declaration.Span)
-			if declaration.CABIExport {
-				claim(declaration.CABISymbol, declaration.CABISymbolSpan)
-			}
 		case *ast.VariableDecl:
 			claim(generatedIdentifier(declaration.Name), declaration.Span)
 		case *ast.InterfaceDecl:
@@ -470,6 +585,18 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				c.report(declaration.Span, fmt.Sprintf("type name %q is a Go keyword and cannot be generated", declaration.Name))
 			}
 			claim(declaration.Name, declaration.Span)
+		case *ast.EnumDecl:
+			if gotoken.Lookup(declaration.Name).IsKeyword() {
+				c.report(declaration.Span, fmt.Sprintf("enum name %q is a Go keyword and cannot be generated", declaration.Name))
+			}
+			claim(declaration.Name, declaration.Span)
+			for _, member := range declaration.Members {
+				if member.Name == "_" {
+					c.report(member.Span, "enum member name cannot be '_'")
+					continue
+				}
+				claim(enumMemberGoName(declaration.Name, member.Name), member.Span)
+			}
 		case *ast.MethodDecl:
 			receiver := declaration.ReceiverType
 			if receiver.IsPointer() && receiver.Pointee != nil {
@@ -477,6 +604,9 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 			}
 			claimStructMember(receiver.Name, declaration.GoName, declaration.Span)
 		}
+	}
+	for _, export := range program.CABIExports {
+		claim(export.Symbol, export.SymbolSpan)
 	}
 	seenImports := map[string]bool{}
 	for _, imported := range program.Imports {
@@ -516,11 +646,18 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 		case *ast.ClassDecl:
 			class := declaration
 			if _, exists := c.classes[class.Name]; !exists {
-				c.classes[class.Name] = &classSymbol{declarationSpan: class.NameSpan}
+				typeParameters, typeParamScope := c.declareTypeParameters(class.TypeParameters, "generic class")
+				c.classes[class.Name] = &classSymbol{
+					declarationSpan: class.NameSpan, typeParameters: typeParameters, typeParamScope: typeParamScope,
+				}
 			}
 		case *ast.InterfaceDecl:
 			if _, exists := c.interfaces[declaration.Name]; !exists {
-				c.interfaces[declaration.Name] = &interfaceSymbol{declarationSpan: declaration.NameSpan}
+				typeParameters, typeParamScope := c.declareTypeParameters(declaration.TypeParameters, "generic interface")
+				c.interfaces[declaration.Name] = &interfaceSymbol{
+					methods: map[string]methodSymbol{}, typeParameters: typeParameters, typeParamScope: typeParamScope,
+					declarationSpan: declaration.NameSpan,
+				}
 			}
 		case *ast.StructDecl:
 			if _, exists := c.structs[declaration.Name]; !exists {
@@ -535,17 +672,100 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 			}
 		case *ast.TypeDecl:
 			if _, exists := c.nativeTypes[declaration.Name]; !exists {
-				c.nativeTypes[declaration.Name] = &nativeTypeSymbol{declaration: declaration, typeInfo: Type{Kind: Invalid, Name: declaration.Name}}
+				typeParameters, typeParamScope := c.declareDefinedTypeParameters(declaration)
+				symbol := &nativeTypeSymbol{
+					declaration: declaration, typeInfo: Type{Kind: Invalid, Name: declaration.Name}, methods: map[string]methodSymbol{},
+					typeParameters: typeParameters, typeParamScope: typeParamScope,
+				}
+				if !declaration.Alias {
+					object := gotypes.NewTypeName(gotoken.NoPos, nil, declaration.Name, nil)
+					symbol.goNamed = gotypes.NewNamed(object, nil, nil)
+					parameters := make([]*gotypes.TypeParam, 0, len(typeParameters))
+					for _, parameter := range typeParameters {
+						if goParameter, ok := parameter.GoType.(*gotypes.TypeParam); ok {
+							parameters = append(parameters, goParameter)
+						}
+					}
+					if len(parameters) == len(typeParameters) && len(parameters) != 0 {
+						symbol.goNamed.SetTypeParams(parameters)
+					}
+					symbol.typeInfo = Type{
+						Kind: GoNamed, Name: declaration.Name, GoType: symbol.goNamed,
+						TypeParameters: typeParameters, Generic: len(typeParameters) != 0,
+					}
+				}
+				c.nativeTypes[declaration.Name] = symbol
 			}
+		case *ast.EnumDecl:
+			if _, exists := c.nativeTypes[declaration.Name]; !exists {
+				typeDeclaration := &ast.TypeDecl{
+					Name: declaration.Name, NameSpan: declaration.NameSpan, Underlying: declaration.Underlying, Span: declaration.Span,
+				}
+				c.nativeTypes[declaration.Name] = &nativeTypeSymbol{
+					declaration: typeDeclaration, typeInfo: Type{Kind: Invalid, Name: declaration.Name}, methods: map[string]methodSymbol{},
+				}
+			}
+			members := make(map[string]*ast.EnumMember, len(declaration.Members))
+			for index := range declaration.Members {
+				member := &declaration.Members[index]
+				if _, duplicate := members[member.Name]; duplicate {
+					c.report(member.Span, fmt.Sprintf("duplicate enum member %q", member.Name))
+				} else {
+					members[member.Name] = member
+				}
+			}
+			c.enums[declaration.Name] = &enumSymbol{declaration: declaration, members: members}
 		}
 	}
 }
 
 func (c *Checker) declareNativeTypes(program *ast.Program) {
 	for _, declaration := range program.Declarations {
-		if declaration, ok := declaration.(*ast.TypeDecl); ok {
+		switch declaration := declaration.(type) {
+		case *ast.TypeDecl:
+			c.resolveNativeType(c.nativeTypes[declaration.Name])
+		case *ast.EnumDecl:
 			c.resolveNativeType(c.nativeTypes[declaration.Name])
 		}
+	}
+}
+
+func enumMemberGoName(enumName, memberName string) string {
+	return enumName + memberGoName(memberName, ast.Public)
+}
+
+func (c *Checker) checkEnum(declaration *ast.EnumDecl) {
+	symbol := c.nativeTypes[declaration.Name]
+	typeInfo := c.resolveNativeType(symbol)
+	underlying := c.resolveType(declaration.Underlying)
+	if underlying.Kind != Invalid && !underlying.IsInteger() {
+		c.report(declaration.Underlying.Span, fmt.Sprintf("enum underlying type must be an integer type, got %s", underlying.String()))
+	}
+	if len(declaration.Members) == 0 {
+		c.report(declaration.Span, "enum must declare at least one member")
+		return
+	}
+	previous := big.NewInt(-1)
+	for index := range declaration.Members {
+		member := &declaration.Members[index]
+		value := new(big.Int)
+		if member.Value == nil {
+			value.Add(previous, big.NewInt(1))
+		} else {
+			actual := c.checkExpressionExpectedSlot(&member.Value, typeInfo)
+			c.requireAssignable(typeInfo, actual, member.Value.GetSpan())
+			resolved, known := c.resolvedIntegerConstantValue(member.Value)
+			if !known || !c.integerExpressionIsCompileTimeConstant(member.Value) {
+				c.report(member.Value.GetSpan(), "enum initializer must be an integer constant expression without enum-member references")
+				continue
+			}
+			value.Set(resolved)
+		}
+		if typeInfo.Kind != Invalid && !integerConstantFitsFixedType(value, typeInfo) {
+			c.report(member.Span, fmt.Sprintf("enum value %s cannot be represented as %s", value.String(), declaration.Name))
+		}
+		member.ResolvedValue = value.String()
+		previous.Set(value)
 	}
 }
 
@@ -557,15 +777,28 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 		return symbol.typeInfo
 	}
 	if symbol.state == 1 {
+		if !symbol.declaration.Alias && symbol.goNamed != nil && c.nativeTypeIndirectionDepth > 0 {
+			return symbol.typeInfo
+		}
 		c.report(symbol.declaration.Underlying.Span, fmt.Sprintf("type declaration cycle contains %q", symbol.declaration.Name))
 		symbol.typeInfo = Type{Kind: Invalid, Name: symbol.declaration.Name}
 		return symbol.typeInfo
 	}
 	symbol.state = 1
+	c.pushTypeParameterScope(symbol.typeParamScope)
 	underlying := c.resolveType(symbol.declaration.Underlying)
+	c.popTypeParameterScope()
 	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null
+	if underlying.Kind == TypeParameter {
+		c.report(symbol.declaration.Underlying.Span, "a generic defined type cannot use a type parameter directly as its underlying type; wrap it in a slice, array, map, pointer, or other concrete type")
+		invalidBoundary = true
+	}
+	if symbol.declaration.Alias && len(symbol.typeParameters) != 0 {
+		c.report(symbol.declaration.Span, "generic aliases are not supported by the minimum Go target; use a distinct generic defined type")
+		invalidBoundary = true
+	}
 	if invalidBoundary {
-		if underlying.Kind != Invalid {
+		if underlying.Kind != Invalid && underlying.Kind != TypeParameter {
 			c.report(symbol.declaration.Underlying.Span, fmt.Sprintf("type %s cannot be used as the underlying type of %s", underlying.String(), symbol.declaration.Name))
 		}
 		symbol.typeInfo = Type{Kind: Invalid, Name: symbol.declaration.Name}
@@ -577,13 +810,96 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 			c.report(symbol.declaration.Underlying.Span, fmt.Sprintf("type %s cannot yet be used as a distinct defined type; use an alias or a native struct", underlying.String()))
 			symbol.typeInfo = Type{Kind: Invalid, Name: symbol.declaration.Name}
 		} else {
-			object := gotypes.NewTypeName(gotoken.NoPos, nil, symbol.declaration.Name, nil)
-			named := gotypes.NewNamed(object, gotypes.Unalias(underlyingGo).Underlying(), nil)
-			symbol.typeInfo = Type{Kind: GoNamed, Name: symbol.declaration.Name, GoType: named}
+			named := symbol.goNamed
+			if named == nil {
+				object := gotypes.NewTypeName(gotoken.NoPos, nil, symbol.declaration.Name, nil)
+				named = gotypes.NewNamed(object, nil, nil)
+				symbol.goNamed = named
+			}
+			if len(symbol.typeParameters) != 0 {
+				parameters := make([]*gotypes.TypeParam, len(symbol.typeParameters))
+				for index, parameter := range symbol.typeParameters {
+					goParameter, ok := parameter.GoType.(*gotypes.TypeParam)
+					if !ok {
+						c.report(symbol.declaration.TypeParameters[index].Span, "generic defined type parameter could not be represented in Go")
+						symbol.typeInfo = Type{Kind: Invalid, Name: symbol.declaration.Name}
+						symbol.state = 2
+						return symbol.typeInfo
+					}
+					parameters[index] = goParameter
+				}
+				if named.TypeParams().Len() == 0 {
+					named.SetTypeParams(parameters)
+				}
+			}
+			named.SetUnderlying(gotypes.Unalias(underlyingGo).Underlying())
+			symbol.typeInfo = Type{
+				Kind: GoNamed, Name: symbol.declaration.Name, GoType: named,
+				TypeParameters: symbol.typeParameters, Generic: len(symbol.typeParameters) != 0,
+			}
 		}
 	}
 	symbol.state = 2
 	return symbol.typeInfo
+}
+
+func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSymbol) Type {
+	base := c.resolveNativeType(symbol)
+	if base.Kind == Invalid {
+		return base
+	}
+	want := len(symbol.typeParameters)
+	got := len(ref.GenericArguments)
+	if want == 0 {
+		if got != 0 {
+			c.report(ref.Span, fmt.Sprintf("defined type %s is not generic", ref.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		return base
+	}
+	if got != want {
+		c.report(ref.Span, fmt.Sprintf("generic defined type %s expects %d type arguments, got %d", ref.Name, want, got))
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	arguments := make([]Type, got)
+	goArguments := make([]gotypes.Type, got)
+	valid := true
+	for index := range ref.GenericArguments {
+		arguments[index] = c.resolveType(ref.GenericArguments[index])
+		argument := arguments[index]
+		if argument.Kind == Invalid {
+			valid = false
+			continue
+		}
+		if argument.Kind == Void || argument.Kind == Result || argument.Kind == Task || argument.Kind == MultiValue || argument.Kind == GoPackage || argument.Kind == GoTypeName || argument.Kind == Nil || argument.Kind == Null {
+			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot be used as a generic defined type argument", argument.String()))
+			valid = false
+			continue
+		}
+		goArgument, ok := goTypeOf(argument)
+		if !ok {
+			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot yet be used as a generic defined type argument", argument.String()))
+			valid = false
+			continue
+		}
+		goArguments[index] = goArgument
+	}
+	if !valid {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	instantiated, err := gotypes.Instantiate(nil, base.GoType, goArguments, true)
+	if err != nil {
+		c.report(ref.Span, fmt.Sprintf("cannot instantiate generic defined type %s: %v", ref.Name, err))
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	names := make([]string, len(arguments))
+	for index := range arguments {
+		names[index] = arguments[index].String()
+	}
+	return Type{
+		Kind: GoNamed, Name: ref.Name + "<" + strings.Join(names, ", ") + ">", GoType: instantiated,
+		TypeArguments: arguments,
+	}
 }
 
 func (c *Checker) declareInterfaces(program *ast.Program) {
@@ -592,7 +908,13 @@ func (c *Checker) declareInterfaces(program *ast.Program) {
 		if !ok {
 			continue
 		}
-		symbol := &interfaceSymbol{methods: map[string]methodSymbol{}, declarationSpan: decl.NameSpan}
+		symbol := c.interfaces[decl.Name]
+		if symbol == nil {
+			symbol = &interfaceSymbol{methods: map[string]methodSymbol{}, declarationSpan: decl.NameSpan}
+			c.interfaces[decl.Name] = symbol
+		}
+		symbol.methods = map[string]methodSymbol{}
+		c.pushTypeParameterScope(symbol.typeParamScope)
 		for i := range decl.Methods {
 			method := &decl.Methods[i]
 			if _, exists := symbol.methods[method.Name]; exists {
@@ -601,19 +923,20 @@ func (c *Checker) declareInterfaces(program *ast.Program) {
 			}
 			parameters := make([]Type, len(method.Parameters))
 			for j, parameter := range method.Parameters {
-				parameters[j] = c.resolveType(parameter.Type)
-				c.rejectResultValueType(parameters[j], parameter.Type.Span, "parameters")
-				c.rejectTaskAPIType(parameters[j], parameter.Type.Span, "interface parameters")
+				resolved := c.resolveType(parameter.Type)
+				c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
+				c.rejectTaskAPIType(resolved, parameter.Type.Span, "interface parameters")
+				parameters[j] = c.callableParameterType(parameter, resolved)
 			}
 			result := c.resolveType(method.ReturnType)
 			c.rejectTaskAPIType(result, method.ReturnType.Span, "interface return types")
 			method.GoName = memberGoName(method.Name, ast.Public)
 			symbol.methods[method.Name] = methodSymbol{
-				typeInfo:   Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result},
+				typeInfo:   Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result},
 				visibility: ast.Public, goName: method.GoName, declarationSpan: method.NameSpan,
 			}
 		}
-		c.interfaces[decl.Name] = symbol
+		c.popTypeParameterScope()
 	}
 }
 
@@ -643,19 +966,21 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 			c.pushTypeParameterScope(typeParameterScope)
 			params := make([]Type, len(decl.Parameters))
 			for i, param := range decl.Parameters {
-				params[i] = c.resolveType(param.Type)
-				if params[i].Kind == Void {
+				resolved := c.resolveType(param.Type)
+				if resolved.Kind == Void {
 					c.report(param.Type.Span, "parameters cannot have type void")
 				}
-				c.rejectResultValueType(params[i], param.Type.Span, "parameters")
-				c.rejectTaskAPIType(params[i], param.Type.Span, "function parameters")
+				c.rejectResultValueType(resolved, param.Type.Span, "parameters")
+				c.rejectTaskAPIType(resolved, param.Type.Span, "function parameters")
+				params[i] = c.callableParameterType(param, resolved)
 			}
 			if _, exists := declared[name]; !exists {
 				result := c.resolveType(decl.ReturnType)
 				c.rejectTaskAPIType(result, decl.ReturnType.Span, "function return types")
 				c.functions[name] = functionSymbol{
 					parameters: params, typeParameters: typeParameters, typeParameterScope: typeParameterScope,
-					result: result, span: decl.Span, declarationSpan: decl.NameSpan,
+					variadic: hasVariadicParameter(decl.Parameters),
+					result:   result, span: decl.Span, declarationSpan: decl.NameSpan,
 				}
 			}
 			c.popTypeParameterScope()
@@ -666,9 +991,13 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 			c.declareStruct(decl)
 		case *ast.TypeDecl:
 			name = decl.Name
+		case *ast.EnumDecl:
+			name = decl.Name
 		case *ast.InterfaceDecl:
 			name = decl.Name
 		case *ast.MethodDecl:
+			continue
+		case *ast.CABIExportDecl:
 			continue
 		}
 		if previous, exists := declared[name]; exists {
@@ -695,8 +1024,18 @@ func (c *Checker) declareFunctionTypeParameters(decl *ast.FunctionDecl) ([]Type,
 }
 
 func (c *Checker) declareTypeParameters(parameters []ast.TypeParameter, context string) ([]Type, map[string]Type) {
-	constraint := gotypes.NewInterfaceType(nil, nil)
-	constraint.Complete()
+	return c.declareTypeParametersWithComparable(parameters, context, nil)
+}
+
+func (c *Checker) declareDefinedTypeParameters(declaration *ast.TypeDecl) ([]Type, map[string]Type) {
+	comparable := map[string]bool{}
+	collectComparableTypeParameters(declaration.Underlying, comparable)
+	return c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic defined type", comparable)
+}
+
+func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParameter, context string, comparable map[string]bool) ([]Type, map[string]Type) {
+	anyConstraint := gotypes.NewInterfaceType(nil, nil)
+	anyConstraint.Complete()
 	result := make([]Type, 0, len(parameters))
 	scope := make(map[string]Type, len(parameters))
 	for _, parameter := range parameters {
@@ -716,6 +1055,21 @@ func (c *Checker) declareTypeParameters(parameters []ast.TypeParameter, context 
 			c.report(parameter.Span, fmt.Sprintf("duplicate %s type parameter %q", context, parameter.Name))
 			continue
 		}
+		if parameter.Constraint != nil {
+			constraint := parameter.Constraint
+			if constraint.Qualifier != "" || constraint.Name != "comparable" || constraint.Nullable || constraint.IsArray() || constraint.IsPointer() || constraint.IsFunction() || constraint.IsObject() || constraint.IsGoStruct() || len(constraint.GenericArguments) != 0 {
+				c.report(constraint.Span, "native type parameter constraint must be comparable")
+				continue
+			}
+			if comparable == nil {
+				comparable = map[string]bool{}
+			}
+			comparable[parameter.Name] = true
+		}
+		constraint := gotypes.Type(anyConstraint)
+		if comparable[parameter.Name] {
+			constraint = gotypes.Universe.Lookup("comparable").Type()
+		}
 		object := gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil)
 		goParameter := gotypes.NewTypeParam(object, constraint)
 		typeInfo := Type{Kind: TypeParameter, Name: parameter.Name, GoType: goParameter}
@@ -723,6 +1077,79 @@ func (c *Checker) declareTypeParameters(parameters []ast.TypeParameter, context 
 		result = append(result, typeInfo)
 	}
 	return result, scope
+}
+
+func nativeTypeArgumentSatisfies(parameter, argument Type) bool {
+	goParameter, ok := parameter.GoType.(*gotypes.TypeParam)
+	if !ok {
+		return true
+	}
+	constraint, constraintOK := goParameter.Constraint().Underlying().(*gotypes.Interface)
+	if !constraintOK || constraint.Empty() {
+		return true
+	}
+	argument = defaultLiteralType(argument)
+	if constraint.IsComparable() {
+		return argument.IsComparable()
+	}
+	goArgument, ok := goTypeOf(argument)
+	return ok && gotypes.Satisfies(goArgument, constraint)
+}
+
+func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs []ast.TypeRef, fallback source.Span, owner string) bool {
+	valid := true
+	for index := range parameters {
+		if index >= len(arguments) || nativeTypeArgumentSatisfies(parameters[index], arguments[index]) {
+			continue
+		}
+		span := fallback
+		if index < len(refs) {
+			span = refs[index].Span
+		}
+		c.report(span, fmt.Sprintf("type %s does not satisfy %s type parameter constraint for %s", arguments[index].String(), parameters[index].Name, owner))
+		valid = false
+	}
+	return valid
+}
+
+func collectComparableTypeParameters(ref ast.TypeRef, result map[string]bool) {
+	if ref.Name == "Map" && len(ref.GenericArguments) == 2 {
+		collectTypeParametersRequiringComparability(ref.GenericArguments[0], result)
+	}
+	if ref.Element != nil {
+		collectComparableTypeParameters(*ref.Element, result)
+	}
+	if ref.Pointee != nil {
+		collectComparableTypeParameters(*ref.Pointee, result)
+	}
+	for _, argument := range ref.GenericArguments {
+		collectComparableTypeParameters(argument, result)
+	}
+	for _, parameter := range ref.Parameters {
+		collectComparableTypeParameters(parameter, result)
+	}
+	if ref.Return != nil {
+		collectComparableTypeParameters(*ref.Return, result)
+	}
+	for _, field := range ref.ObjectFields {
+		collectComparableTypeParameters(field.Type, result)
+	}
+}
+
+func collectTypeParametersRequiringComparability(ref ast.TypeRef, result map[string]bool) {
+	if ref.IsPointer() || ref.IsSlice() || ref.Name == "Map" || ref.IsFunction() || ref.Object || ref.GoStruct {
+		return
+	}
+	if len(ref.GenericArguments) == 0 && ref.Element == nil {
+		result[ref.Name] = true
+		return
+	}
+	if ref.Element != nil {
+		collectTypeParametersRequiringComparability(*ref.Element, result)
+	}
+	for _, argument := range ref.GenericArguments {
+		collectTypeParametersRequiringComparability(argument, result)
+	}
 }
 
 func (c *Checker) pushTypeParameterScope(scope map[string]Type) {
@@ -747,8 +1174,23 @@ func callableTypeForFunction(function functionSymbol) Type {
 	result := function.result
 	return Type{
 		Kind: Function, Name: "function", Parameters: function.parameters,
-		TypeParameters: function.typeParameters, Generic: len(function.typeParameters) != 0, Result: &result,
+		TypeParameters: function.typeParameters, Generic: len(function.typeParameters) != 0, Variadic: function.variadic, Result: &result,
 	}
+}
+
+func hasVariadicParameter(parameters []ast.Parameter) bool {
+	return len(parameters) != 0 && parameters[len(parameters)-1].Variadic
+}
+
+func (c *Checker) callableParameterType(parameter ast.Parameter, resolved Type) Type {
+	if !parameter.Variadic {
+		return resolved
+	}
+	if resolved.Kind != Array || resolved.Element == nil {
+		c.report(parameter.Type.Span, "rest parameter type must be a slice")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	return *resolved.Element
 }
 
 func (c *Checker) declareClasses(program *ast.Program) {
@@ -771,9 +1213,22 @@ func (c *Checker) declareClasses(program *ast.Program) {
 		state[decl.Name] = 1
 		if decl.Base != nil {
 			base := decl.Base
-			if base.Nullable || base.Qualifier != "" || base.Name == "" || base.IsArray() || base.IsPointer() || base.IsFunction() || base.IsObject() || len(base.GenericArguments) != 0 {
+			if len(decl.TypeParameters) != 0 {
+				c.report(base.Span, "generic classes cannot currently use extends; use composition or a generic interface")
+			} else if len(base.GenericArguments) != 0 {
+				if baseDecl := declarations[base.Name]; baseDecl != nil && len(baseDecl.TypeParameters) != 0 {
+					c.report(base.Span, fmt.Sprintf("generic base class %s cannot currently be extended; generic class inheritance is not yet supported", base.Name))
+				} else {
+					c.report(base.Span, "extends expects an unqualified class name")
+				}
+			} else if base.Nullable || base.Qualifier != "" || base.Name == "" || base.IsArray() || base.IsPointer() || base.IsFunction() || base.IsObject() {
 				c.report(base.Span, "extends expects an unqualified class name")
 			} else if baseDecl := declarations[base.Name]; baseDecl != nil {
+				if len(baseDecl.TypeParameters) != 0 {
+					c.report(base.Span, fmt.Sprintf("generic base class %s requires type arguments, but generic class inheritance is not yet supported", base.Name))
+					state[decl.Name] = 2
+					return
+				}
 				declare(baseDecl)
 				if baseDecl.Final {
 					c.report(base.Span, fmt.Sprintf("cannot extend final class %s", base.Name))
@@ -840,9 +1295,17 @@ func (c *Checker) installExceptionBuiltin() {
 }
 
 func (c *Checker) declareClass(decl *ast.ClassDecl) {
+	predeclared := c.classes[decl.Name]
 	symbol := &classSymbol{
 		fields: map[string]fieldSymbol{}, methods: map[string]methodSymbol{}, implements: map[string]bool{}, declarationSpan: decl.NameSpan, final: decl.Final,
 	}
+	if predeclared != nil {
+		symbol.typeParameters = predeclared.typeParameters
+		symbol.typeParamScope = predeclared.typeParamScope
+	}
+	c.classes[decl.Name] = symbol
+	c.pushTypeParameterScope(symbol.typeParamScope)
+	defer c.popTypeParameterScope()
 	if decl.Base != nil {
 		base := c.classes[decl.Base.Name]
 		if base != nil && base.fields != nil && decl.Base.Name != decl.Name {
@@ -859,6 +1322,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			for name := range base.implements {
 				symbol.implements[name] = true
 			}
+			symbol.implementedTypes = append(symbol.implementedTypes, base.implementedTypes...)
 			symbol.goImplements = append(symbol.goImplements, base.goImplements...)
 		}
 	}
@@ -901,23 +1365,28 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		declareField(field.Name, field.Type, field.Visibility, field.Span, field.NameSpan, func(name string) { field.GoName = name })
 	}
 	if decl.Constructor != nil {
+		c.validateLabels(decl.Constructor.Body)
 		symbol.constructor = make([]Type, len(decl.Constructor.Parameters))
 		for i := range decl.Constructor.Parameters {
 			parameter := &decl.Constructor.Parameters[i]
-			symbol.constructor[i] = c.resolveType(parameter.Type)
-			c.rejectResultValueType(symbol.constructor[i], parameter.Type.Span, "parameters")
-			c.rejectTaskAPIType(symbol.constructor[i], parameter.Type.Span, "constructor parameters")
+			resolved := c.resolveType(parameter.Type)
+			c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
+			c.rejectTaskAPIType(resolved, parameter.Type.Span, "constructor parameters")
+			symbol.constructor[i] = c.callableParameterType(*parameter, resolved)
 			if parameter.IsField {
 				declareField(parameter.Name, parameter.Type, parameter.Visibility, parameter.Span, declarationNameSpan(parameter.Name, parameter.Span), func(string) {})
 			}
 		}
+		symbol.constructorVariadic = hasVariadicParameter(decl.Constructor.Parameters)
 	}
 	for _, method := range decl.Methods {
+		c.validateLabels(method.Body)
 		parameters := make([]Type, len(method.Parameters))
 		for i, parameter := range method.Parameters {
-			parameters[i] = c.resolveType(parameter.Type)
-			c.rejectResultValueType(parameters[i], parameter.Type.Span, "parameters")
-			c.rejectTaskAPIType(parameters[i], parameter.Type.Span, "method parameters")
+			resolved := c.resolveType(parameter.Type)
+			c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
+			c.rejectTaskAPIType(resolved, parameter.Type.Span, "method parameters")
+			parameters[i] = c.callableParameterType(parameter, resolved)
 		}
 		result := c.resolveType(method.ReturnType)
 		c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
@@ -929,6 +1398,12 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if method.Static && (method.Virtual || method.Override) {
 			c.report(method.Span, "static methods cannot be virtual or override")
 		}
+		if len(symbol.typeParameters) != 0 && method.Static {
+			c.report(method.Span, "generic class static methods are not yet supported; use a top-level generic function")
+		}
+		if len(symbol.typeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
+			c.report(method.Span, "generic class virtual, override, and final methods are not yet supported")
+		}
 		if method.Virtual && method.Override {
 			c.report(method.Span, "override already remains virtual; remove the virtual modifier")
 		}
@@ -938,7 +1413,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if method.Virtual && method.Visibility == ast.Private {
 			c.report(method.Span, "virtual methods must be public or protected")
 		}
-		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
+		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
 		virtualOwner := ""
 		if replaces && inherited.declaringClass == decl.Name {
 			c.report(method.Span, fmt.Sprintf("duplicate method %q", method.Name))
@@ -986,7 +1461,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 	}
 	sort.Strings(decl.VirtualOwners)
 	for _, implemented := range decl.Implements {
-		if implemented.IsArray() || implemented.IsFunction() || len(implemented.GenericArguments) != 0 {
+		if implemented.IsArray() || implemented.IsFunction() {
 			c.report(implemented.Span, "implements expects an interface name")
 			continue
 		}
@@ -1015,31 +1490,42 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.validateGoInterfaceImplementation(decl.Name, symbol, contract, goInterface, implemented.Span)
 			continue
 		}
-		contract, exists := c.interfaces[implemented.Name]
-		if !exists {
+		if _, exists := c.interfaces[implemented.Name]; !exists {
 			c.report(implemented.Span, fmt.Sprintf("unknown interface %q", implemented.Name))
 			continue
 		}
-		if symbol.implements[implemented.Name] {
-			c.report(implemented.Span, fmt.Sprintf("duplicate implemented interface %q", implemented.Name))
+		contractType := c.resolveType(implemented)
+		if contractType.Kind == Invalid {
 			continue
 		}
-		symbol.implements[implemented.Name] = true
+		if contractType.Kind != Interface {
+			c.report(implemented.Span, fmt.Sprintf("unknown interface %q", implemented.Name))
+			continue
+		}
+		contract := c.interfaces[implemented.Name]
+		contractName := contractType.String()
+		if symbol.implements[contractName] {
+			c.report(implemented.Span, fmt.Sprintf("duplicate implemented interface %q", contractName))
+			continue
+		}
+		symbol.implements[contractName] = true
+		symbol.implementedTypes = append(symbol.implementedTypes, contractType)
+		bindings := nativeInterfaceBindings(contract, contractType)
 		for name, required := range contract.methods {
+			requiredType := substituteNativeTypeParameters(required.typeInfo, bindings)
 			actual, exists := symbol.methods[name]
 			switch {
 			case !exists:
-				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: missing method %s", decl.Name, implemented.Name, name))
+				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: missing method %s", decl.Name, contractName, name))
 			case actual.visibility != ast.Public:
-				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s must be public", decl.Name, implemented.Name, name))
+				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s must be public", decl.Name, contractName, name))
 			case actual.static:
-				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s cannot be static", decl.Name, implemented.Name, name))
-			case !exactType(actual.typeInfo, required.typeInfo):
-				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s has an incompatible signature", decl.Name, implemented.Name, name))
+				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s cannot be static", decl.Name, contractName, name))
+			case !exactType(actual.typeInfo, requiredType):
+				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s has an incompatible signature", decl.Name, contractName, name))
 			}
 		}
 	}
-	c.classes[decl.Name] = symbol
 }
 
 func (c *Checker) declareStruct(decl *ast.StructDecl) {
@@ -1091,18 +1577,19 @@ func (c *Checker) declareStructMethod(symbol *structSymbol, method *ast.MethodDe
 	}
 	parameters := make([]Type, len(method.Parameters))
 	for i, parameter := range method.Parameters {
-		parameters[i] = c.resolveType(parameter.Type)
-		if parameters[i].Kind == Void {
+		resolved := c.resolveType(parameter.Type)
+		if resolved.Kind == Void {
 			c.report(parameter.Type.Span, "parameters cannot have type void")
 		}
-		c.rejectResultValueType(parameters[i], parameter.Type.Span, "parameters")
-		c.rejectTaskAPIType(parameters[i], parameter.Type.Span, "method parameters")
+		c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
+		c.rejectTaskAPIType(resolved, parameter.Type.Span, "method parameters")
+		parameters[i] = c.callableParameterType(parameter, resolved)
 	}
 	result := c.resolveType(method.ReturnType)
 	c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
 	method.GoName = memberGoName(method.Name, method.Visibility)
 	symbol.methods[method.Name] = methodSymbol{
-		typeInfo:   Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result},
+		typeInfo:   Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result},
 		visibility: method.Visibility, pointerReceiver: method.PointerReceiver,
 		goName: method.GoName, declarationSpan: method.NameSpan,
 	}
@@ -1120,21 +1607,148 @@ func (c *Checker) declareReceiverMethods(program *ast.Program) {
 		if method.PointerReceiver && receiverRef.Pointee != nil {
 			receiverRef = *receiverRef.Pointee
 		}
-		if nullableReceiver || receiverRef.Nullable || receiverRef.Qualifier != "" || receiverRef.Name == "" || receiverRef.IsArray() || receiverRef.IsPointer() || receiverRef.IsFunction() || receiverRef.IsObject() || len(receiverRef.GenericArguments) != 0 {
-			c.report(method.ReceiverType.Span, "external method receiver must be a native struct value or pointer")
+		if nullableReceiver || receiverRef.Nullable || receiverRef.Qualifier != "" || receiverRef.Name == "" || receiverRef.IsArray() || receiverRef.IsPointer() || receiverRef.IsFunction() || receiverRef.IsObject() {
+			c.report(method.ReceiverType.Span, "external method receiver must be a native struct value or pointer, or a defined type value or pointer")
 			continue
 		}
 		structure := c.structs[receiverRef.Name]
-		if structure == nil {
-			c.report(method.ReceiverType.Span, fmt.Sprintf("external method receiver %s is not a native struct", formatTypeRefForDiagnostic(method.ReceiverType)))
+		if structure != nil {
+			if structure.declarationSpan.Path != method.Span.Path {
+				c.report(method.ReceiverType.Span, fmt.Sprintf("external method receiver %s must be declared in the same module", receiverRef.Name))
+				continue
+			}
+			typeParameterScope, valid := c.prepareReceiverTypeParameters(method, structure.typeParameters, receiverRef.GenericArguments, "generic struct")
+			if !valid {
+				continue
+			}
+			c.receiverTypeParameters[method] = typeParameterScope
+			c.pushTypeParameterScope(typeParameterScope)
+			c.declareStructMethod(structure, method)
+			c.popTypeParameterScope()
 			continue
 		}
-		if structure.declarationSpan.Path != method.Span.Path {
+		named := c.nativeTypes[receiverRef.Name]
+		if named == nil {
+			c.report(method.ReceiverType.Span, fmt.Sprintf("external method receiver %s is not a native struct or defined type", formatTypeRefForDiagnostic(method.ReceiverType)))
+			continue
+		}
+		if named.declaration.NameSpan.Path != method.Span.Path {
 			c.report(method.ReceiverType.Span, fmt.Sprintf("external method receiver %s must be declared in the same module", receiverRef.Name))
 			continue
 		}
-		c.declareStructMethod(structure, method)
+		if named.declaration.Alias {
+			c.report(method.ReceiverType.Span, fmt.Sprintf("external method receiver %s is an alias; methods require a distinct defined type", receiverRef.Name))
+			continue
+		}
+		typeParameterScope, valid := c.prepareReceiverTypeParameters(method, named.typeParameters, receiverRef.GenericArguments, "generic defined type")
+		if !valid {
+			continue
+		}
+		c.receiverTypeParameters[method] = typeParameterScope
+		c.pushTypeParameterScope(typeParameterScope)
+		resolved := c.resolveNativeType(named)
+		if resolved.Kind == Invalid {
+			c.popTypeParameterScope()
+			continue
+		}
+		if base, ok := resolved.GoType.(*gotypes.Named); ok {
+			switch base.Underlying().(type) {
+			case *gotypes.Pointer, *gotypes.Interface:
+				c.report(method.ReceiverType.Span, fmt.Sprintf("defined type %s has a pointer or interface underlying type and cannot declare Go receiver methods", receiverRef.Name))
+				c.popTypeParameterScope()
+				continue
+			}
+		}
+		c.declareNativeTypeMethod(named, method)
+		c.popTypeParameterScope()
 	}
+}
+
+func (c *Checker) prepareReceiverTypeParameters(method *ast.MethodDecl, targetParameters []Type, receiverArguments []ast.TypeRef, targetKind string) (map[string]Type, bool) {
+	if len(targetParameters) == 0 {
+		if len(method.TypeParameters) != 0 || len(receiverArguments) != 0 {
+			c.report(method.ReceiverType.Span, fmt.Sprintf("non-generic receiver type %s cannot declare receiver type parameters", formatTypeRefForDiagnostic(method.ReceiverType)))
+			return nil, false
+		}
+		return nil, true
+	}
+	valid := true
+	if len(method.TypeParameters) != len(targetParameters) {
+		c.report(method.NameSpan, fmt.Sprintf("external method on %s %s requires %d receiver type parameters, got %d", targetKind, formatTypeRefForDiagnostic(method.ReceiverType), len(targetParameters), len(method.TypeParameters)))
+		valid = false
+	}
+	if len(receiverArguments) != len(targetParameters) {
+		c.report(method.ReceiverType.Span, fmt.Sprintf("external method receiver %s requires %d type arguments, got %d", formatTypeRefForDiagnostic(method.ReceiverType), len(targetParameters), len(receiverArguments)))
+		valid = false
+	}
+	_, declared := c.declareTypeParameters(method.TypeParameters, "generic receiver method")
+	scope := make(map[string]Type, len(declared))
+	for index, parameter := range method.TypeParameters {
+		if _, exists := declared[parameter.Name]; !exists || index >= len(targetParameters) {
+			continue
+		}
+		// Semantically use the declaration's parameter identity so existing
+		// generic member substitution remains positional. The source binder may
+		// use a different name; code generation retains that spelling from its
+		// TypeRef while checking uses the target parameter and its constraint.
+		scope[parameter.Name] = targetParameters[index]
+	}
+	for index, argument := range receiverArguments {
+		if index >= len(method.TypeParameters) {
+			break
+		}
+		parameter := method.TypeParameters[index]
+		if argument.Name != parameter.Name || argument.Qualifier != "" || argument.Nullable || argument.IsArray() || argument.IsPointer() || argument.IsFunction() || argument.IsObject() || len(argument.GenericArguments) != 0 {
+			c.report(argument.Span, fmt.Sprintf("receiver type argument %d must be receiver type parameter %s", index+1, parameter.Name))
+			valid = false
+		}
+	}
+	return scope, valid
+}
+
+func (c *Checker) declareNativeTypeMethod(symbol *nativeTypeSymbol, method *ast.MethodDecl) {
+	if symbol == nil || c.resolveNativeType(symbol).Kind == Invalid {
+		return
+	}
+	if _, exists := symbol.methods[method.Name]; exists {
+		c.report(method.Span, fmt.Sprintf("duplicate defined type method %q", method.Name))
+		return
+	}
+	parameters := make([]Type, len(method.Parameters))
+	for index, parameter := range method.Parameters {
+		resolved := c.resolveType(parameter.Type)
+		if resolved.Kind == Void {
+			c.report(parameter.Type.Span, "parameters cannot have type void")
+		}
+		c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
+		c.rejectTaskAPIType(resolved, parameter.Type.Span, "method parameters")
+		parameters[index] = c.callableParameterType(parameter, resolved)
+	}
+	result := c.resolveType(method.ReturnType)
+	c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
+	method.GoName = memberGoName(method.Name, method.Visibility)
+	methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
+	symbol.methods[method.Name] = methodSymbol{
+		typeInfo: methodType, visibility: method.Visibility, pointerReceiver: method.PointerReceiver,
+		goName: method.GoName, declarationSpan: method.NameSpan,
+	}
+
+	named, namedOK := symbol.typeInfo.GoType.(*gotypes.Named)
+	signature, signatureOK := goTypeOf(methodType)
+	if !namedOK || !signatureOK {
+		return
+	}
+	callable, ok := signature.(*gotypes.Signature)
+	if !ok {
+		return
+	}
+	receiverType := gotypes.Type(named)
+	if method.PointerReceiver {
+		receiverType = gotypes.NewPointer(named)
+	}
+	receiver := gotypes.NewVar(gotoken.NoPos, nil, method.ReceiverName, receiverType)
+	methodSignature := gotypes.NewSignatureType(receiver, nil, nil, callable.Params(), callable.Results(), callable.Variadic())
+	named.AddMethod(gotypes.NewFunc(gotoken.NoPos, nil, method.GoName, methodSignature))
 }
 
 func (c *Checker) validateStructValueCycles(program *ast.Program) {
@@ -1235,6 +1849,15 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.inConstructor = previousInConstructor
 	}()
 	c.currentClass = decl.Name
+	class := c.classes[decl.Name]
+	if class != nil {
+		c.pushTypeParameterScope(class.typeParamScope)
+		defer c.popTypeParameterScope()
+	}
+	thisType := Type{Kind: Class, Name: decl.Name}
+	if class != nil {
+		thisType.TypeArguments = append([]Type(nil), class.typeParameters...)
+	}
 	if decl.Constructor == nil {
 		if class := c.classes[decl.Name]; class != nil && class.base != "" {
 			if base := c.classes[class.base]; base != nil && len(base.constructor) != 0 {
@@ -1248,7 +1871,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.memberFlow = map[memberFlowKey]memberFlowState{}
 		c.inConstructor = true
 		c.pushScope()
-		c.declareLocal("this", Type{Kind: Class, Name: decl.Name}, true, nil, decl.Constructor.Span)
+		c.declareLocal("this", thisType, true, nil, decl.Constructor.Span)
 		for _, parameter := range decl.Constructor.Parameters {
 			t := c.resolveType(parameter.Type)
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
@@ -1280,7 +1903,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.memberFlow = map[memberFlowKey]memberFlowState{}
 		c.pushScope()
 		if !method.Static {
-			c.declareLocal("this", Type{Kind: Class, Name: decl.Name}, true, nil, method.Span)
+			c.declareLocal("this", thisType, true, nil, method.Span)
 		}
 		for _, parameter := range method.Parameters {
 			t := c.resolveType(parameter.Type)
@@ -1358,8 +1981,15 @@ func (c *Checker) checkStruct(decl *ast.StructDecl) {
 }
 
 func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, structName string) {
+	c.validateLabels(method.Body)
 	valueReceiver := Type{Kind: Struct, Name: structName}
-	if symbol := c.structs[structName]; symbol != nil {
+	if method.External {
+		receiverRef := method.ReceiverType
+		if receiverRef.IsPointer() && receiverRef.Pointee != nil {
+			receiverRef = *receiverRef.Pointee
+		}
+		valueReceiver = c.resolveType(receiverRef)
+	} else if symbol := c.structs[structName]; symbol != nil {
 		valueReceiver = symbol.typeInfo
 		if len(symbol.typeParameters) != 0 {
 			valueReceiver.TypeArguments = append([]Type(nil), symbol.typeParameters...)
@@ -1383,6 +2013,58 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 		t := c.resolveType(parameter.Type)
 		c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 		c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
+	}
+	previousResult := c.result
+	previousLoopDepth := c.loopDepth
+	previousBreakableDepth := c.breakableDepth
+	previousExceptionDepth := c.exceptionDepth
+	previousCatchTargets := c.catchTargets
+	c.loopDepth = 0
+	c.breakableDepth = 0
+	c.exceptionDepth = 0
+	c.catchTargets = nil
+	c.result = c.resolveType(method.ReturnType)
+	c.checkBlock(method.Body, false)
+	if c.result.Kind != Void && !definitelyReturns(method.Body) {
+		c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))
+	}
+	c.result = previousResult
+	c.loopDepth = previousLoopDepth
+	c.breakableDepth = previousBreakableDepth
+	c.exceptionDepth = previousExceptionDepth
+	c.catchTargets = previousCatchTargets
+	c.popScope()
+}
+
+func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, typeName string) {
+	c.validateLabels(method.Body)
+	symbol := c.nativeTypes[typeName]
+	if symbol == nil {
+		return
+	}
+	receiverRef := method.ReceiverType
+	if receiverRef.IsPointer() && receiverRef.Pointee != nil {
+		receiverRef = *receiverRef.Pointee
+	}
+	valueReceiver := c.resolveType(receiverRef)
+	if valueReceiver.Kind == Invalid || symbol.declaration.Alias {
+		return
+	}
+	receiver := valueReceiver
+	if method.PointerReceiver {
+		pointerType := gotypes.NewPointer(valueReceiver.GoType)
+		receiver = Type{Kind: GoPointer, Name: "*" + typeName, Element: &valueReceiver, GoType: pointerType}
+	}
+	c.pushScope()
+	c.declareLocal(receiverName, receiver, true, nil, method.ReceiverNameSpan)
+	scope := c.scopes[len(c.scopes)-1]
+	receiverSymbol := scope[receiverName]
+	receiverSymbol.declarationSpan = method.ReceiverNameSpan
+	scope[receiverName] = receiverSymbol
+	for _, parameter := range method.Parameters {
+		parameterType := c.resolveType(parameter.Type)
+		c.rejectResultValueType(parameterType, parameter.Type.Span, "parameters")
+		c.declareLocal(parameter.Name, parameterType, false, nil, parameter.Span)
 	}
 	previousResult := c.result
 	previousLoopDepth := c.loopDepth
@@ -1445,9 +2127,10 @@ func (c *Checker) checkClassFieldInitialization(decl *ast.ClassDecl) {
 }
 
 type constructorInitializationFlow struct {
-	continuing map[string]bool
-	breaks     []map[string]bool
-	continues  []map[string]bool
+	continuing   map[string]bool
+	breaks       []map[string]bool
+	continues    []map[string]bool
+	fallthroughs []map[string]bool
 }
 
 func constructorInitializationBlock(block *ast.BlockStmt, initial map[string]bool, required map[string]source.Span) constructorInitializationFlow {
@@ -1457,6 +2140,7 @@ func constructorInitializationBlock(block *ast.BlockStmt, initial map[string]boo
 	}
 	var breaks []map[string]bool
 	var continues []map[string]bool
+	var fallthroughs []map[string]bool
 	for _, statement := range block.Statements {
 		if state == nil {
 			break
@@ -1464,13 +2148,16 @@ func constructorInitializationBlock(block *ast.BlockStmt, initial map[string]boo
 		flow := constructorInitializationStatement(statement, state, required)
 		breaks = append(breaks, flow.breaks...)
 		continues = append(continues, flow.continues...)
+		fallthroughs = append(fallthroughs, flow.fallthroughs...)
 		state = flow.continuing
 	}
-	return constructorInitializationFlow{continuing: state, breaks: breaks, continues: continues}
+	return constructorInitializationFlow{continuing: state, breaks: breaks, continues: continues, fallthroughs: fallthroughs}
 }
 
 func constructorInitializationStatement(statement ast.Statement, initial map[string]bool, required map[string]source.Span) constructorInitializationFlow {
 	switch statement := statement.(type) {
+	case *ast.LabeledStmt:
+		return constructorInitializationStatement(statement.Statement, initial, required)
 	case *ast.AssignmentStmt:
 		state := cloneFieldInitialization(initial)
 		if statement.Operator != "" && statement.Operator != "=" {
@@ -1496,19 +2183,33 @@ func constructorInitializationStatement(statement ast.Statement, initial map[str
 			elseFlow = constructorInitializationStatement(statement.Else, initial, required)
 		}
 		return constructorInitializationFlow{
-			continuing: intersectCompletingFieldInitialization(thenFlow.continuing, elseFlow.continuing),
-			breaks:     append(thenFlow.breaks, elseFlow.breaks...),
-			continues:  append(thenFlow.continues, elseFlow.continues...),
+			continuing:   intersectCompletingFieldInitialization(thenFlow.continuing, elseFlow.continuing),
+			breaks:       append(thenFlow.breaks, elseFlow.breaks...),
+			continues:    append(thenFlow.continues, elseFlow.continues...),
+			fallthroughs: append(thenFlow.fallthroughs, elseFlow.fallthroughs...),
 		}
 	case *ast.ValueSwitchStmt:
 		states := make([]map[string]bool, 0, len(statement.Cases)+1)
 		var continues []map[string]bool
+		var incomingFallthrough map[string]bool
 		hasDefault := false
 		for index := range statement.Cases {
 			clause := &statement.Cases[index]
 			hasDefault = hasDefault || clause.Default
-			flow := constructorInitializationBlock(clause.Body, initial, required)
-			states = appendConstructorCompletingStates(states, flow)
+			caseInitial := initial
+			if incomingFallthrough != nil {
+				caseInitial = intersectFieldInitialization(initial, incomingFallthrough)
+			}
+			flow := constructorInitializationBlock(clause.Body, caseInitial, required)
+			states = append(states, flow.breaks...)
+			if clause.FallsThrough {
+				incomingFallthrough = intersectFieldInitializationStates(flow.fallthroughs)
+			} else {
+				incomingFallthrough = nil
+				if flow.continuing != nil {
+					states = append(states, flow.continuing)
+				}
+			}
 			continues = append(continues, flow.continues...)
 		}
 		if !hasDefault {
@@ -1558,7 +2259,13 @@ func constructorInitializationStatement(statement ast.Statement, initial map[str
 		if statement.Kind == ast.BreakBranch {
 			return constructorInitializationFlow{breaks: []map[string]bool{cloneFieldInitialization(initial)}}
 		}
-		return constructorInitializationFlow{continues: []map[string]bool{cloneFieldInitialization(initial)}}
+		if statement.Kind == ast.ContinueBranch {
+			return constructorInitializationFlow{continues: []map[string]bool{cloneFieldInitialization(initial)}}
+		}
+		if statement.Kind == ast.FallthroughBranch {
+			return constructorInitializationFlow{fallthroughs: []map[string]bool{cloneFieldInitialization(initial)}}
+		}
+		return constructorInitializationFlow{}
 	case *ast.ReturnStmt, *ast.ThrowStmt:
 		return constructorInitializationFlow{}
 	case *ast.TryStmt:
@@ -1935,7 +2642,295 @@ func intersectFieldInitialization(left, right map[string]bool) map[string]bool {
 	return intersection
 }
 
+func (c *Checker) validateLabels(body *ast.BlockStmt) {
+	if body == nil {
+		return
+	}
+	labels := map[string]*ast.LabeledStmt{}
+	used := map[string]bool{}
+	var walk func(ast.Statement, func(ast.Statement))
+	walk = func(statement ast.Statement, visit func(ast.Statement)) {
+		if statement == nil {
+			return
+		}
+		visit(statement)
+		switch statement := statement.(type) {
+		case *ast.LabeledStmt:
+			if statement == nil {
+				return
+			}
+			walk(statement.Statement, visit)
+		case *ast.BlockStmt:
+			if statement == nil {
+				return
+			}
+			for _, nested := range statement.Statements {
+				walk(nested, visit)
+			}
+		case *ast.IfStmt:
+			walk(statement.Then, visit)
+			walk(statement.Else, visit)
+		case *ast.WhileStmt:
+			walk(statement.Body, visit)
+		case *ast.ForStmt:
+			walk(statement.Body, visit)
+		case *ast.ForRangeStmt:
+			walk(statement.Body, visit)
+		case *ast.SelectStmt:
+			for index := range statement.Cases {
+				walk(statement.Cases[index].Body, visit)
+			}
+		case *ast.ValueSwitchStmt:
+			for index := range statement.Cases {
+				walk(statement.Cases[index].Body, visit)
+			}
+		case *ast.TypeSwitchStmt:
+			for index := range statement.Cases {
+				walk(statement.Cases[index].Body, visit)
+			}
+		case *ast.TryStmt:
+			walk(statement.Body, visit)
+			for _, clause := range statement.Catches {
+				walk(clause.Body, visit)
+			}
+			if statement.FinallyBody != nil {
+				walk(statement.FinallyBody, visit)
+			}
+		}
+	}
+	walk(body, func(statement ast.Statement) {
+		labeled, ok := statement.(*ast.LabeledStmt)
+		if !ok {
+			return
+		}
+		if previous, duplicate := labels[labeled.Label]; duplicate {
+			c.report(labeled.LabelSpan, fmt.Sprintf("duplicate label %q; first declared at %d:%d", labeled.Label, previous.LabelSpan.Start.Line, previous.LabelSpan.Start.Column))
+			return
+		}
+		switch labeled.Statement.(type) {
+		case *ast.VariableDecl, *ast.MultiVariableDecl:
+			c.report(labeled.LabelSpan, fmt.Sprintf("label %q cannot be attached to a variable declaration", labeled.Label))
+		}
+		labels[labeled.Label] = labeled
+	})
+
+	type controlLocation struct {
+		blocks []*ast.BlockStmt
+		region string
+	}
+	labelLocations := map[*ast.LabeledStmt]controlLocation{}
+	branchLocations := map[*ast.BranchStmt]controlLocation{}
+	var locate func(ast.Statement, []*ast.BlockStmt, string)
+	locate = func(statement ast.Statement, blocks []*ast.BlockStmt, region string) {
+		if statement == nil {
+			return
+		}
+		switch statement := statement.(type) {
+		case *ast.LabeledStmt:
+			if statement == nil {
+				return
+			}
+			labelLocations[statement] = controlLocation{blocks: append([]*ast.BlockStmt(nil), blocks...), region: region}
+			locate(statement.Statement, blocks, region)
+		case *ast.BranchStmt:
+			branchLocations[statement] = controlLocation{blocks: append([]*ast.BlockStmt(nil), blocks...), region: region}
+		case *ast.BlockStmt:
+			if statement == nil {
+				return
+			}
+			nestedBlocks := append(append([]*ast.BlockStmt(nil), blocks...), statement)
+			for _, nested := range statement.Statements {
+				locate(nested, nestedBlocks, region)
+			}
+		case *ast.IfStmt:
+			locate(statement.Then, blocks, region)
+			locate(statement.Else, blocks, region)
+		case *ast.WhileStmt:
+			locate(statement.Body, blocks, region)
+		case *ast.ForStmt:
+			locate(statement.Body, blocks, region)
+		case *ast.ForRangeStmt:
+			locate(statement.Body, blocks, region)
+		case *ast.SelectStmt:
+			for index := range statement.Cases {
+				locate(statement.Cases[index].Body, blocks, region)
+			}
+		case *ast.ValueSwitchStmt:
+			for index := range statement.Cases {
+				locate(statement.Cases[index].Body, blocks, region)
+			}
+		case *ast.TypeSwitchStmt:
+			for index := range statement.Cases {
+				locate(statement.Cases[index].Body, blocks, region)
+			}
+		case *ast.TryStmt:
+			base := fmt.Sprintf("try:%d", statement.Span.Start.Offset)
+			locate(statement.Body, blocks, base+":body")
+			for index, clause := range statement.Catches {
+				locate(clause.Body, blocks, fmt.Sprintf("%s:catch:%d", base, index))
+			}
+			if statement.FinallyBody != nil {
+				locate(statement.FinallyBody, blocks, base+":finally")
+			}
+		}
+	}
+	locate(body, nil, "root")
+
+	var validate func(ast.Statement, []*ast.LabeledStmt)
+	validate = func(statement ast.Statement, enclosing []*ast.LabeledStmt) {
+		if statement == nil {
+			return
+		}
+		switch statement := statement.(type) {
+		case *ast.BranchStmt:
+			if statement.Label == "" {
+				return
+			}
+			target, exists := labels[statement.Label]
+			if !exists {
+				c.report(statement.LabelSpan, fmt.Sprintf("undefined label %q", statement.Label))
+				return
+			}
+			statement.ResolvedDeclaration = target.LabelSpan
+			used[statement.Label] = true
+			if statement.Kind == ast.GotoBranch {
+				gotoLocation := branchLocations[statement]
+				targetLocation := labelLocations[target]
+				if gotoLocation.region != targetLocation.region {
+					c.report(statement.LabelSpan, fmt.Sprintf("goto %q cannot cross a try, catch, or finally boundary", statement.Label))
+					return
+				}
+				if !blockPathContains(targetLocation.blocks, gotoLocation.blocks) {
+					c.report(statement.LabelSpan, fmt.Sprintf("goto %q cannot jump into a nested block", statement.Label))
+					return
+				}
+				if statement.Span.Start.Offset < target.LabelSpan.Start.Offset && len(targetLocation.blocks) != 0 {
+					targetBlock := targetLocation.blocks[len(targetLocation.blocks)-1]
+					for _, candidate := range targetBlock.Statements {
+						if candidate.GetSpan().Start.Offset <= statement.Span.Start.Offset || candidate.GetSpan().Start.Offset >= target.LabelSpan.Start.Offset {
+							continue
+						}
+						switch declaration := candidate.(type) {
+						case *ast.VariableDecl:
+							c.report(statement.LabelSpan, fmt.Sprintf("goto %q jumps over declaration of %q", statement.Label, declaration.Name))
+							return
+						case *ast.MultiVariableDecl:
+							name := "_"
+							for _, binding := range declaration.Bindings {
+								if binding.Name != "_" {
+									name = binding.Name
+									break
+								}
+							}
+							c.report(statement.LabelSpan, fmt.Sprintf("goto %q jumps over declaration of %q", statement.Label, name))
+							return
+						}
+					}
+				}
+				return
+			}
+			enclosingTarget := false
+			for index := len(enclosing) - 1; index >= 0; index-- {
+				if enclosing[index] == target {
+					enclosingTarget = true
+					break
+				}
+			}
+			if !enclosingTarget {
+				c.report(statement.LabelSpan, fmt.Sprintf("label %q does not enclose this branch", statement.Label))
+				return
+			}
+			if statement.Kind == ast.ContinueBranch && !isContinueLabelTarget(target.Statement) {
+				c.report(statement.LabelSpan, fmt.Sprintf("continue label %q must target a loop", statement.Label))
+			} else if statement.Kind == ast.BreakBranch && !isBreakLabelTarget(target.Statement) {
+				c.report(statement.LabelSpan, fmt.Sprintf("break label %q must target a loop, switch, or select", statement.Label))
+			}
+		case *ast.LabeledStmt:
+			if statement == nil {
+				return
+			}
+			validate(statement.Statement, append(enclosing, statement))
+		case *ast.BlockStmt:
+			if statement == nil {
+				return
+			}
+			for _, nested := range statement.Statements {
+				validate(nested, enclosing)
+			}
+		case *ast.IfStmt:
+			validate(statement.Then, enclosing)
+			validate(statement.Else, enclosing)
+		case *ast.WhileStmt:
+			validate(statement.Body, enclosing)
+		case *ast.ForStmt:
+			validate(statement.Body, enclosing)
+		case *ast.ForRangeStmt:
+			validate(statement.Body, enclosing)
+		case *ast.SelectStmt:
+			for index := range statement.Cases {
+				validate(statement.Cases[index].Body, enclosing)
+			}
+		case *ast.ValueSwitchStmt:
+			for index := range statement.Cases {
+				validate(statement.Cases[index].Body, enclosing)
+			}
+		case *ast.TypeSwitchStmt:
+			for index := range statement.Cases {
+				validate(statement.Cases[index].Body, enclosing)
+			}
+		case *ast.TryStmt:
+			validate(statement.Body, enclosing)
+			for _, clause := range statement.Catches {
+				validate(clause.Body, enclosing)
+			}
+			if statement.FinallyBody != nil {
+				validate(statement.FinallyBody, enclosing)
+			}
+		}
+	}
+	validate(body, nil)
+	for name, label := range labels {
+		if !used[name] {
+			c.report(label.LabelSpan, fmt.Sprintf("label %q is declared but not used", name))
+		}
+	}
+}
+
+func blockPathContains(prefix, path []*ast.BlockStmt) bool {
+	if len(prefix) > len(path) {
+		return false
+	}
+	for index := range prefix {
+		if prefix[index] != path[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func isContinueLabelTarget(statement ast.Statement) bool {
+	switch statement.(type) {
+	case *ast.WhileStmt, *ast.ForStmt, *ast.ForRangeStmt:
+		return true
+	default:
+		return false
+	}
+}
+
+func isBreakLabelTarget(statement ast.Statement) bool {
+	if isContinueLabelTarget(statement) {
+		return true
+	}
+	switch statement.(type) {
+	case *ast.SelectStmt, *ast.ValueSwitchStmt, *ast.TypeSwitchStmt:
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
+	c.validateLabels(decl.Body)
 	previousMemberFlow := c.memberFlow
 	c.memberFlow = map[memberFlowKey]memberFlowState{}
 	defer func() { c.memberFlow = previousMemberFlow }()
@@ -1977,6 +2972,14 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 	terminated := false
 	var reachableFlow *nullableFlowSnapshot
 	for _, stmt := range block.Statements {
+		if _, labeled := stmt.(*ast.LabeledStmt); labeled && terminated {
+			if reachableFlow != nil {
+				c.suppressFlowEffects--
+				c.restoreNullableFlow(*reachableFlow)
+				reachableFlow = nil
+			}
+			terminated = false
+		}
 		if !terminated {
 			c.checkStatement(stmt)
 			terminated = statementDefinitelyStopsBlock(stmt)
@@ -2378,6 +3381,8 @@ func statementDefinitelyStopsBlock(statement ast.Statement) bool {
 	switch statement := statement.(type) {
 	case *ast.ReturnStmt, *ast.ThrowStmt, *ast.BranchStmt:
 		return true
+	case *ast.LabeledStmt:
+		return statementDefinitelyStopsBlock(statement.Statement)
 	case *ast.BlockStmt:
 		for _, nested := range statement.Statements {
 			if statementDefinitelyStopsBlock(nested) {
@@ -2412,6 +3417,9 @@ func statementDefinitelyStopsBlock(statement ast.Statement) bool {
 
 func (c *Checker) checkStatement(stmt ast.Statement) {
 	switch stmt := stmt.(type) {
+	case *ast.LabeledStmt:
+		c.invalidateControlTransferFlow(stmt.Span)
+		c.checkStatement(stmt.Statement)
 	case *ast.VariableDecl:
 		declared := Type{Kind: Invalid, Name: "<inferred>"}
 		if stmt.Type.IsSpecified() {
@@ -2610,11 +3618,21 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.TypeSwitchStmt:
 		c.checkTypeSwitch(stmt)
 	case *ast.BranchStmt:
+		if stmt.Kind == ast.FallthroughBranch {
+			if !c.validFallthrough[stmt] {
+				c.report(stmt.Span, "fallthrough may only be used as the final statement of a non-final value switch case")
+			}
+			return
+		}
 		if stmt.Kind == ast.BreakBranch && c.loopDepth == 0 && c.breakableDepth == 0 {
 			c.report(stmt.Span, "break may only be used inside a loop, switch, or select")
 		}
 		if stmt.Kind == ast.ContinueBranch && c.loopDepth == 0 {
 			c.report(stmt.Span, "continue may only be used inside a loop")
+		}
+		if stmt.Kind == ast.GotoBranch {
+			c.invalidateControlTransferFlow(stmt.Span)
+			return
 		}
 		if c.suppressFlowEffects == 0 && len(c.loopFlowContexts) != 0 {
 			context := &c.loopFlowContexts[len(c.loopFlowContexts)-1]
@@ -3069,10 +4087,22 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 	constantCases := map[string]source.Span{}
 	entryFlow := c.snapshotNullableFlow()
 	continuing := make([]nullableFlowSnapshot, 0, len(stmt.Cases)+1)
+	var fallthroughFlow *nullableFlowSnapshot
 	c.breakFlowContexts = append(c.breakFlowContexts, breakFlowContext{})
 	for index := range stmt.Cases {
 		clause := &stmt.Cases[index]
-		c.restoreNullableFlow(entryFlow)
+		clause.FallsThrough = false
+		if clause.Body != nil && len(clause.Body.Statements) != 0 {
+			if branch, ok := clause.Body.Statements[len(clause.Body.Statements)-1].(*ast.BranchStmt); ok && branch.Kind == ast.FallthroughBranch && index+1 < len(stmt.Cases) {
+				clause.FallsThrough = true
+				c.validFallthrough[branch] = true
+			}
+		}
+		caseEntry := entryFlow
+		if fallthroughFlow != nil {
+			caseEntry = c.mergeNullableFlow(entryFlow, entryFlow, *fallthroughFlow)
+		}
+		c.restoreNullableFlow(caseEntry)
 		if clause.Default {
 			if defaultSeen {
 				c.report(clause.Span, "value switch may contain at most one default case")
@@ -3106,7 +4136,13 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 		c.breakableDepth++
 		c.checkBlock(clause.Body, true)
 		c.breakableDepth--
-		if !definitelyReturns(clause.Body) {
+		caseFlow := c.snapshotNullableFlow()
+		if clause.FallsThrough && valueSwitchCaseFallthroughReachable(clause) {
+			fallthroughFlow = &caseFlow
+		} else {
+			fallthroughFlow = nil
+		}
+		if !clause.FallsThrough && !definitelyReturns(clause.Body) {
 			continuing = append(continuing, c.snapshotNullableFlow())
 		}
 	}
@@ -3157,6 +4193,18 @@ func (c *Checker) switchLiteralKey(expression ast.Expression) (string, string, b
 	default:
 		return "", "", false
 	}
+}
+
+func valueSwitchCaseFallthroughReachable(clause *ast.ValueSwitchCase) bool {
+	if clause == nil || !clause.FallsThrough || clause.Body == nil || len(clause.Body.Statements) == 0 {
+		return false
+	}
+	for _, statement := range clause.Body.Statements[:len(clause.Body.Statements)-1] {
+		if statementDefinitelyStopsBlock(statement) {
+			return false
+		}
+	}
+	return true
 }
 
 func isAllowedExpressionStatement(expression ast.Expression) bool {
@@ -3219,6 +4267,9 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 func (c *Checker) checkMultipleValueExpression(expression ast.Expression) Type {
 	if receive, ok := expression.(*ast.UnaryExpr); ok && receive.Operator == "<-" {
 		return c.checkChannelReceive(receive, true)
+	}
+	if index, ok := expression.(*ast.IndexExpr); ok {
+		return c.checkIndex(index, true)
 	}
 	return c.checkExpression(expression)
 }
@@ -3466,7 +4517,7 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 	case *ast.MemberExpr:
 		return c.checkMember(expr)
 	case *ast.IndexExpr:
-		return c.checkIndex(expr)
+		return c.checkIndex(expr, false)
 	case *ast.SliceExpr:
 		return c.checkSlice(expr)
 	case *ast.NewExpr:
@@ -3978,6 +5029,19 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		if identifier.Name == "super" {
 			return c.checkSuperMember(expr)
 		}
+		if enumeration := c.enums[identifier.Name]; enumeration != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+			member := enumeration.members[expr.Name]
+			if member == nil {
+				c.report(expr.Span, fmt.Sprintf("enum %s has no member %q", identifier.Name, expr.Name))
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
+			identifier.ResolvedDeclaration = enumeration.declaration.NameSpan
+			expr.ResolvedDeclaration = member.NameSpan
+			expr.ResolvedName = enumMemberGoName(identifier.Name, member.Name)
+			expr.Static = true
+			expr.Constant = true
+			return c.resolveNativeType(c.nativeTypes[identifier.Name])
+		}
 		if class := c.classes[identifier.Name]; class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			method, exists := class.methods[expr.Name]
 			if !exists || !method.static {
@@ -4035,13 +5099,14 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			expr.ResolvedName = field.goName
 			expr.ResolvedDeclaration = field.declarationSpan
 			expr.Addressable = true
+			fieldType := substituteNativeTypeParameters(field.typeInfo, nativeClassBindings(class, object))
 			if key, stable := c.stableMemberFlowKey(expr); stable {
-				c.memberTypes[key] = field.typeInfo
-				if state, proven := c.memberFlow[key]; proven && state.nonNull && field.typeInfo.Kind == Nullable {
+				c.memberTypes[key] = fieldType
+				if state, proven := c.memberFlow[key]; proven && state.nonNull && fieldType.Kind == Nullable {
 					return state.nonNullType
 				}
 			}
-			return field.typeInfo
+			return fieldType
 		}
 		if method, ok := class.methods[expr.Name]; ok {
 			if method.static {
@@ -4054,7 +5119,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			expr.ResolvedDeclaration = method.declarationSpan
 			expr.VirtualDispatch = method.virtual
 			expr.VirtualOwner = method.virtualOwner
-			return method.typeInfo
+			return substituteNativeTypeParameters(method.typeInfo, nativeClassBindings(class, object))
 		}
 		c.report(expr.Span, fmt.Sprintf("class %s has no member %q", object.Name, expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -4088,6 +5153,33 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", structObject.Name, expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	nativeObject := object
+	nativePointer := false
+	if object.Kind == GoPointer && object.Element != nil && object.Element.Kind == GoNamed {
+		nativeObject = *object.Element
+		nativePointer = true
+	}
+	if nativeObject.Kind == GoNamed && nativeObject.GoQualifier == "" {
+		if namedObject := goTypeNameObject(nativeObject.GoType); namedObject != nil {
+			if symbol := c.nativeTypes[namedObject.Name()]; symbol != nil && !symbol.declaration.Alias {
+				method, exists := symbol.methods[expr.Name]
+				if !exists {
+					c.report(expr.Span, fmt.Sprintf("defined type %s has no method %q", nativeObject.String(), expr.Name))
+					return Type{Kind: Invalid, Name: "<invalid>"}
+				}
+				if method.pointerReceiver && !nativePointer && !c.isAddressableExpression(expr.Object) {
+					c.report(expr.Span, fmt.Sprintf("pointer method %q requires an addressable %s value", expr.Name, nativeObject.String()))
+					return Type{Kind: Invalid, Name: "<invalid>"}
+				}
+				if method.visibility != ast.Public && method.declarationSpan.Path != expr.Span.Path {
+					c.report(expr.Span, fmt.Sprintf("method %q is private on defined type %s", expr.Name, nativeObject.String()))
+				}
+				expr.ResolvedName = method.goName
+				expr.ResolvedDeclaration = method.declarationSpan
+				return substituteNativeTypeParameters(method.typeInfo, nativeDefinedTypeBindings(symbol, nativeObject))
+			}
+		}
+	}
 	if object.Kind == Interface {
 		contract := c.interfaces[object.Name]
 		if contract == nil {
@@ -4100,7 +5192,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		}
 		expr.ResolvedName = method.goName
 		expr.ResolvedDeclaration = method.declarationSpan
-		return method.typeInfo
+		return substituteNativeTypeParameters(method.typeInfo, nativeInterfaceBindings(contract, object))
 	}
 	if object.Kind == GoPackage {
 		return c.checkGoMember(expr, object.GoPackage)
@@ -4217,6 +5309,24 @@ func (c *Checker) invalidateAllMemberFacts(span source.Span, cause string) {
 	}
 }
 
+func (c *Checker) invalidateControlTransferFlow(span source.Span) {
+	if c.suppressFlowEffects != 0 {
+		return
+	}
+	for scopeIndex, scope := range c.scopes {
+		for name, symbol := range scope {
+			if symbol.constant || symbol.declaredType.Kind != Nullable {
+				continue
+			}
+			symbol.typeInfo = symbol.declaredType
+			symbol.flowInvalidated = span
+			symbol.flowInvalidationCause = "an arbitrary control transfer"
+			c.scopes[scopeIndex][name] = symbol
+		}
+	}
+	c.invalidateAllMemberFacts(span, "an arbitrary control transfer")
+}
+
 func (c *Checker) invalidateMemberFactsRootedAt(identifier *ast.IdentifierExpr, span source.Span, cause string) {
 	var declaration source.Span
 	for index := len(c.scopes) - 1; index >= 0; index-- {
@@ -4281,21 +5391,57 @@ func (c *Checker) checkNew(expr *ast.NewExpr) Type {
 		c.usesExceptions = true
 	}
 	expr.ResolvedDeclaration = class.declarationSpan
-	if len(expr.Arguments) != len(class.constructor) {
-		c.report(expr.Span, fmt.Sprintf("constructor %q expects %d arguments, got %d", expr.ClassName, len(class.constructor), len(expr.Arguments)))
-	}
-	for i, argument := range expr.Arguments {
-		if i < len(class.constructor) {
-			actual := c.checkExpressionExpectedSlot(&expr.Arguments[i], class.constructor[i])
-			c.requireAssignable(class.constructor[i], actual, argument.GetSpan())
-		} else {
-			c.checkExpression(argument)
+	classType := c.resolveNativeClassType(ast.TypeRef{Name: expr.ClassName, GenericArguments: expr.TypeArguments, Span: expr.Span}, class)
+	parameters := class.constructor
+	if classType.Kind != Invalid {
+		bindings := nativeClassBindings(class, classType)
+		parameters = make([]Type, len(class.constructor))
+		for index := range class.constructor {
+			parameters[index] = substituteNativeTypeParameters(class.constructor[index], bindings)
 		}
 	}
-	return Type{Kind: Class, Name: expr.ClassName}
+	c.checkConstructorArguments(expr.Arguments, expr.Expanded, parameters, class.constructorVariadic, fmt.Sprintf("constructor %q", expr.ClassName), expr.Span)
+	return classType
 }
 
-func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
+func (c *Checker) checkConstructorArguments(arguments []ast.Expression, expanded bool, parameters []Type, variadic bool, name string, span source.Span) {
+	minimumArguments := len(parameters)
+	if variadic {
+		minimumArguments--
+	}
+	if expanded {
+		if !variadic {
+			c.report(span, fmt.Sprintf("%s is not variadic and cannot receive a spread argument", name))
+		} else if len(arguments) != len(parameters) {
+			c.report(span, fmt.Sprintf("spread call to %s expects %d arguments (%d fixed and one slice), got %d", name, len(parameters), minimumArguments, len(arguments)))
+		}
+	} else if len(arguments) < minimumArguments || (!variadic && len(arguments) != len(parameters)) {
+		if variadic {
+			c.report(span, fmt.Sprintf("%s expects at least %d arguments, got %d", name, minimumArguments, len(arguments)))
+		} else {
+			c.report(span, fmt.Sprintf("%s expects %d arguments, got %d", name, len(parameters), len(arguments)))
+		}
+	}
+	for index, argument := range arguments {
+		parameterIndex := index
+		if variadic && parameterIndex >= len(parameters)-1 {
+			parameterIndex = len(parameters) - 1
+		}
+		if parameterIndex < 0 || parameterIndex >= len(parameters) {
+			c.checkExpression(argument)
+			continue
+		}
+		expected := parameters[parameterIndex]
+		if expanded && variadic && index == len(arguments)-1 {
+			element := expected
+			expected = Type{Kind: Array, Name: "array", Element: &element}
+		}
+		actual := c.checkExpressionExpectedSlot(&arguments[index], expected)
+		c.requireAssignable(expected, actual, argument.GetSpan())
+	}
+}
+
+func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 	object := c.singleValue(c.checkExpression(expr.Object), expr.Object.GetSpan())
 	if object.Kind == Nullable {
 		c.report(expr.Object.GetSpan(), fmt.Sprintf("nullable value %s must be checked against null before indexing", object.String()))
@@ -4316,7 +5462,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
 		expr.Addressable = true
 		expr.Assignable = true
 		if object.Element != nil {
-			return *object.Element
+			return c.checkedIndexResult(expr, *object.Element, checked, false)
 		}
 	case Map:
 		expr.Assignable = true
@@ -4324,13 +5470,13 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
 			c.requireAssignable(*object.Key, index, expr.Index.GetSpan())
 		}
 		if object.Element != nil {
-			return *object.Element
+			return c.checkedIndexResult(expr, *object.Element, checked, true)
 		}
 	case String:
 		if index.Kind != Invalid && !index.IsInteger() {
 			c.report(expr.Index.GetSpan(), "string index must be an integer")
 		}
-		return builtins["byte"]
+		return c.checkedIndexResult(expr, builtins["byte"], checked, false)
 	}
 	goType, ok := goTypeOf(object)
 	if !ok {
@@ -4345,7 +5491,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
 			}
 			expr.Addressable = true
 			expr.Assignable = true
-			return c.collectionElementType(array.Elem(), object, expr.Span)
+			return c.checkedIndexResult(expr, c.collectionElementType(array.Elem(), object, expr.Span), checked, false)
 		}
 	}
 	switch collection := underlying.(type) {
@@ -4356,9 +5502,9 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
 		expr.Addressable = c.isAddressableExpression(expr.Object)
 		expr.Assignable = expr.Addressable
 		if object.Element != nil {
-			return *object.Element
+			return c.checkedIndexResult(expr, *object.Element, checked, false)
 		}
-		return c.collectionElementType(collection.Elem(), object, expr.Span)
+		return c.checkedIndexResult(expr, c.collectionElementType(collection.Elem(), object, expr.Span), checked, false)
 	case *gotypes.Slice:
 		if index.Kind != Invalid && !index.IsInteger() {
 			c.report(expr.Index.GetSpan(), "array index must be an integer")
@@ -4366,9 +5512,9 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
 		expr.Addressable = true
 		expr.Assignable = true
 		if object.Element != nil {
-			return *object.Element
+			return c.checkedIndexResult(expr, *object.Element, checked, false)
 		}
-		return c.collectionElementType(collection.Elem(), object, expr.Span)
+		return c.checkedIndexResult(expr, c.collectionElementType(collection.Elem(), object, expr.Span), checked, false)
 	case *gotypes.Map:
 		expr.Assignable = true
 		key := c.collectionElementType(collection.Key(), object, expr.Span)
@@ -4377,19 +5523,30 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr) Type {
 		}
 		c.requireAssignable(key, index, expr.Index.GetSpan())
 		if object.Element != nil {
-			return *object.Element
+			return c.checkedIndexResult(expr, *object.Element, checked, true)
 		}
-		return c.collectionElementType(collection.Elem(), object, expr.Span)
+		return c.checkedIndexResult(expr, c.collectionElementType(collection.Elem(), object, expr.Span), checked, true)
 	case *gotypes.Basic:
 		if collection.Info()&gotypes.IsString != 0 {
 			if index.Kind != Invalid && !index.IsInteger() {
 				c.report(expr.Index.GetSpan(), "string index must be an integer")
 			}
-			return builtins["byte"]
+			return c.checkedIndexResult(expr, builtins["byte"], checked, false)
 		}
 	}
 	c.report(expr.Object.GetSpan(), fmt.Sprintf("type %s cannot be indexed", object.String()))
 	return Type{Kind: Invalid, Name: "<invalid>"}
+}
+
+func (c *Checker) checkedIndexResult(expr *ast.IndexExpr, element Type, checked, mapIndex bool) Type {
+	if !checked {
+		return element
+	}
+	if !mapIndex {
+		c.report(expr.Span, "checked index binding requires a map operand")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	return Type{Kind: MultiValue, Name: "checked map lookup", Results: []Type{element, builtins["boolean"]}}
 }
 
 func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
@@ -4700,7 +5857,8 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			if named, exists := c.nativeTypes[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
 				name.ResolvedDeclaration = named.declaration.NameSpan
 				expr.Conversion = true
-				return c.checkNativeTypeConversion(expr, c.resolveNativeType(named))
+				targetRef := ast.TypeRef{Name: name.Name, NameSpan: name.Span, GenericArguments: expr.TypeArguments, Span: expr.Span}
+				return c.checkNativeTypeConversion(expr, c.resolveNativeDefinedType(targetRef, named))
 			}
 		}
 		if target, isConversion := LookupType(name.Name); isConversion && target.Kind != Void {
@@ -4754,6 +5912,11 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	if callable.Kind == GoTypeName {
 		expr.Conversion = true
 		return c.checkGoConversion(expr, callable)
+	}
+	if callable.Kind == GoNamed && callable.GoType != nil {
+		if converted, err := ontamaTypeFromGo(callable.GoType); err == nil && converted.Kind == Function {
+			callable = converted
+		}
 	}
 	if callable.Kind == Nullable {
 		c.report(expr.Callee.GetSpan(), fmt.Sprintf("nullable callable %s must be checked against null before calling", callable.String()))
@@ -4858,20 +6021,7 @@ func (c *Checker) checkSuperConstructorCall(expr *ast.CallExpr) Type {
 	if base == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	if expr.Expanded {
-		c.report(expr.Span, "super constructor arguments cannot use spread syntax")
-	}
-	if len(expr.Arguments) != len(base.constructor) {
-		c.report(expr.Span, fmt.Sprintf("base constructor %q expects %d arguments, got %d", class.base, len(base.constructor), len(expr.Arguments)))
-	}
-	for index, argument := range expr.Arguments {
-		if index < len(base.constructor) {
-			actual := c.checkExpressionExpectedSlot(&expr.Arguments[index], base.constructor[index])
-			c.requireAssignable(base.constructor[index], actual, argument.GetSpan())
-		} else {
-			c.checkExpression(argument)
-		}
-	}
+	c.checkConstructorArguments(expr.Arguments, expr.Expanded, base.constructor, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
 	expr.SuperConstructor = true
 	expr.SuperBase = class.base
 	return builtins["void"]
@@ -5770,6 +6920,8 @@ func integerConstantFitsFixedType(value *big.Int, target Type) bool {
 		bits, signed = 8, true
 	case gotypes.Uint8:
 		bits = 8
+	case gotypes.Uint:
+		return value.Sign() >= 0
 	case gotypes.Int16:
 		bits, signed = 16, true
 	case gotypes.Uint16:
@@ -5801,7 +6953,7 @@ func integerConstantFitsFixedType(value *big.Int, target Type) bool {
 }
 
 func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string, callable Type) Type {
-	if expr.Expanded {
+	if expr.Expanded && !callable.Variadic {
 		c.report(expr.Span, fmt.Sprintf("%s is not variadic and cannot receive a spread argument", callableName))
 	}
 	if len(expr.TypeArguments) > len(callable.TypeParameters) {
@@ -5825,15 +6977,33 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 	for index, argument := range expr.Arguments {
 		actualTypes[index] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
 	}
-	if len(expr.Arguments) != len(callable.Parameters) {
-		c.report(expr.Span, fmt.Sprintf("%s expects %d arguments, got %d", callableName, len(callable.Parameters), len(expr.Arguments)))
+	minimumArguments := len(callable.Parameters)
+	if callable.Variadic {
+		minimumArguments--
 	}
-	limit := len(actualTypes)
-	if len(callable.Parameters) < limit {
-		limit = len(callable.Parameters)
+	if expr.Expanded && callable.Variadic && len(expr.Arguments) != len(callable.Parameters) {
+		c.report(expr.Span, fmt.Sprintf("spread call to %s expects %d arguments (%d fixed and one slice), got %d", callableName, len(callable.Parameters), minimumArguments, len(expr.Arguments)))
+	} else if !expr.Expanded && (len(expr.Arguments) < minimumArguments || (!callable.Variadic && len(expr.Arguments) != len(callable.Parameters))) {
+		if callable.Variadic {
+			c.report(expr.Span, fmt.Sprintf("%s expects at least %d arguments, got %d", callableName, minimumArguments, len(expr.Arguments)))
+		} else {
+			c.report(expr.Span, fmt.Sprintf("%s expects %d arguments, got %d", callableName, len(callable.Parameters), len(expr.Arguments)))
+		}
 	}
-	for index := 0; index < limit; index++ {
-		if err := inferNativeTypeArguments(callable.Parameters[index], actualTypes[index], bindings); err != nil {
+	for index := range actualTypes {
+		parameterIndex := index
+		if callable.Variadic && parameterIndex >= len(callable.Parameters)-1 {
+			parameterIndex = len(callable.Parameters) - 1
+		}
+		if parameterIndex < 0 || parameterIndex >= len(callable.Parameters) {
+			continue
+		}
+		expected := callable.Parameters[parameterIndex]
+		if expr.Expanded && callable.Variadic && index == len(actualTypes)-1 {
+			element := expected
+			expected = Type{Kind: Array, Name: "array", Element: &element}
+		}
+		if err := inferNativeTypeArguments(expected, actualTypes[index], bindings); err != nil {
 			c.report(expr.Arguments[index].GetSpan(), fmt.Sprintf("cannot infer type arguments for %s from argument %d: %v", callableName, index+1, err))
 		}
 	}
@@ -5847,15 +7017,34 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 		c.report(expr.Span, fmt.Sprintf("cannot infer type argument%s %s for %s; provide explicit type arguments", pluralSuffix(len(missing)), strings.Join(missing, ", "), callableName))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	arguments := make([]Type, len(callable.TypeParameters))
+	for index, parameter := range callable.TypeParameters {
+		arguments[index] = bindings[parameter.Name]
+	}
+	if !c.validateNativeTypeArguments(callable.TypeParameters, arguments, expr.TypeArguments, expr.Span, callableName) {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	parameters := make([]Type, len(callable.Parameters))
 	for index, parameter := range callable.Parameters {
 		parameters[index] = substituteNativeTypeParameters(parameter, bindings)
 	}
 	result := substituteNativeTypeParameters(*callable.Result, bindings)
-	instantiated := Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
+	instantiated := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: callable.Variadic, Result: &result}
 	c.recordCallSignature(expr, instantiated)
-	for index := 0; index < limit; index++ {
-		c.requireAssignable(parameters[index], actualTypes[index], expr.Arguments[index].GetSpan())
+	for index := range actualTypes {
+		parameterIndex := index
+		if instantiated.Variadic && parameterIndex >= len(parameters)-1 {
+			parameterIndex = len(parameters) - 1
+		}
+		if parameterIndex < 0 || parameterIndex >= len(parameters) {
+			continue
+		}
+		expected := parameters[parameterIndex]
+		if expr.Expanded && instantiated.Variadic && index == len(actualTypes)-1 {
+			element := expected
+			expected = Type{Kind: Array, Name: "array", Element: &element}
+		}
+		c.requireAssignable(expected, actualTypes[index], expr.Arguments[index].GetSpan())
 	}
 	return result
 }
@@ -5916,6 +7105,14 @@ func inferNativeTypeArguments(formal, actual Type, bindings map[string]Type) err
 		for name, formalField := range formal.Fields {
 			if actualField, ok := actual.Fields[name]; ok {
 				if err := inferNativeTypeArguments(formalField, actualField, bindings); err != nil {
+					return err
+				}
+			}
+		}
+	case GoNamed:
+		if len(formal.TypeArguments) == len(actual.TypeArguments) {
+			for index := range formal.TypeArguments {
+				if err := inferNativeTypeArguments(formal.TypeArguments[index], actual.TypeArguments[index], bindings); err != nil {
 					return err
 				}
 			}
@@ -5986,6 +7183,33 @@ func substituteNativeTypeParametersSeen(value Type, bindings map[string]Type, vi
 		result.TypeArguments[index] = substituteNativeTypeParametersSeen(result.TypeArguments[index], bindings, visiting)
 	}
 	result.Generic = false
+	if value.Kind == GoNamed && len(result.TypeArguments) != 0 {
+		if named, ok := value.GoType.(*gotypes.Named); ok {
+			object := named.Obj()
+			if object != nil {
+				goArguments := make([]gotypes.Type, len(result.TypeArguments))
+				valid := true
+				for index, argument := range result.TypeArguments {
+					goArgument, ok := goTypeOf(argument)
+					if !ok {
+						valid = false
+						break
+					}
+					goArguments[index] = goArgument
+				}
+				if valid {
+					if instantiated, err := gotypes.Instantiate(nil, named.Origin(), goArguments, true); err == nil {
+						result.GoType = instantiated
+						names := make([]string, len(result.TypeArguments))
+						for index := range result.TypeArguments {
+							names[index] = result.TypeArguments[index].String()
+						}
+						result.Name = object.Name() + "<" + strings.Join(names, ", ") + ">"
+					}
+				}
+			}
+		}
+	}
 	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.Kind == Function || value.Kind == Object || value.Kind == Nullable || value.Kind == Result || value.Kind == Task {
 		result.GoType = nil
 	}
@@ -6183,14 +7407,15 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 	if expr.Expanded {
 		c.report(expr.Span, "spread arguments cannot be used in type conversions")
 	}
-	if len(expr.TypeArguments) != 0 {
-		c.report(expr.Span, "non-generic type conversions cannot receive type arguments")
-	}
 	if len(expr.Arguments) != 1 {
 		c.report(expr.Span, fmt.Sprintf("conversion to %s expects 1 argument, got %d", target.String(), len(expr.Arguments)))
 		for _, argument := range expr.Arguments {
 			c.checkExpression(argument)
 		}
+		return target
+	}
+	if target.Kind == Invalid {
+		c.checkExpression(expr.Arguments[0])
 		return target
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
@@ -6277,6 +7502,7 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 			c.requireAssignable(result, actual, expr.ExpressionBody.GetSpan())
 		}
 	} else if expr.BlockBody != nil {
+		c.validateLabels(expr.BlockBody)
 		if expr.ReturnType == nil {
 			c.report(expr.Span, "arrow functions with a block body require an explicit return type")
 			result = Type{Kind: Invalid, Name: "<invalid>"}
@@ -6313,7 +7539,11 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 	c.prepareGoTypeForEmission(&result, expr.Span)
 	resolved := typeRefFromType(result, expr.Span)
 	expr.ResolvedReturnType = resolved
-	return Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
+	callableParameters := make([]Type, len(parameters))
+	for index, parameter := range expr.Parameters {
+		callableParameters[index] = c.callableParameterType(parameter, parameters[index])
+	}
+	return Type{Kind: Function, Name: "function", Parameters: callableParameters, Variadic: hasVariadicParameter(expr.Parameters), Result: &result}
 }
 
 func (c *Checker) singleValue(value Type, span source.Span) Type {
@@ -6535,6 +7765,12 @@ func containsResultTypeSeen(value Type, visiting map[string]bool) bool {
 	return false
 }
 
+func (c *Checker) resolveTypeThroughNativeIndirection(ref ast.TypeRef) Type {
+	c.nativeTypeIndirectionDepth++
+	defer func() { c.nativeTypeIndirectionDepth-- }()
+	return c.resolveType(ref)
+}
+
 func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if ref.Nullable {
 		baseRef := ref
@@ -6554,7 +7790,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		return Type{Kind: Nullable, Name: "nullable", Element: &base}
 	}
 	if ref.IsPointer() {
-		pointee := c.resolveType(*ref.Pointee)
+		pointee := c.resolveTypeThroughNativeIndirection(*ref.Pointee)
 		if pointee.Kind == Invalid {
 			return pointee
 		}
@@ -6574,7 +7810,12 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		return Type{Kind: GoPointer, Name: "*" + pointee.String(), Element: &pointee, GoType: pointerType, GoQualifier: pointee.GoQualifier}
 	}
 	if ref.IsArray() {
-		element := c.resolveType(*ref.Element)
+		element := Type{}
+		if ref.IsSlice() {
+			element = c.resolveTypeThroughNativeIndirection(*ref.Element)
+		} else {
+			element = c.resolveType(*ref.Element)
+		}
 		if containsTaskType(element) {
 			c.report(ref.Element.Span, "Task cannot be nested inside an array type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -6603,9 +7844,14 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if ref.IsFunction() {
 		parameters := make([]Type, len(ref.Parameters))
 		for i, parameter := range ref.Parameters {
-			parameters[i] = c.resolveType(parameter)
+			resolved := c.resolveTypeThroughNativeIndirection(parameter)
+			if ref.Variadic && i == len(ref.Parameters)-1 {
+				parameters[i] = c.callableParameterType(ast.Parameter{Type: parameter, Variadic: true}, resolved)
+			} else {
+				parameters[i] = resolved
+			}
 		}
-		result := c.resolveType(*ref.Return)
+		result := c.resolveTypeThroughNativeIndirection(*ref.Return)
 		for _, parameter := range parameters {
 			if containsTaskType(parameter) {
 				c.report(ref.Span, "Task is not supported inside a function type")
@@ -6624,7 +7870,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, "Task is not supported inside a function type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		return Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
+		return Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: ref.Variadic, Result: &result}
 	}
 	if ref.IsObject() {
 		fields := map[string]Type{}
@@ -6651,12 +7897,14 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		}
 		return Type{Kind: Object, Name: "object", Fields: fields, FieldNames: fieldNames}
 	}
-	if ref.Qualifier == "" && len(ref.GenericArguments) == 0 {
-		if parameter, ok := c.lookupTypeParameter(ref.Name); ok {
-			return parameter
+	if ref.Qualifier == "" {
+		if len(ref.GenericArguments) == 0 {
+			if parameter, ok := c.lookupTypeParameter(ref.Name); ok {
+				return parameter
+			}
 		}
 		if named, ok := c.nativeTypes[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {
-			return c.resolveNativeType(named)
+			return c.resolveNativeDefinedType(ref, named)
 		}
 	}
 	if ref.Name == "Result" {
@@ -6702,8 +7950,8 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, "Map expects two type arguments")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		key := c.resolveType(ref.GenericArguments[0])
-		value := c.resolveType(ref.GenericArguments[1])
+		key := c.resolveTypeThroughNativeIndirection(ref.GenericArguments[0])
+		value := c.resolveTypeThroughNativeIndirection(ref.GenericArguments[1])
 		if containsTaskType(key) || containsTaskType(value) {
 			c.report(ref.Span, "Task cannot be nested inside a Map type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -6722,7 +7970,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, fmt.Sprintf("%s expects one type argument", ref.Name))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		element := c.resolveType(ref.GenericArguments[0])
+		element := c.resolveTypeThroughNativeIndirection(ref.GenericArguments[0])
 		if containsTaskType(element) {
 			c.report(ref.GenericArguments[0].Span, "Task cannot be used as a Go channel element")
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -6807,21 +8055,66 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		applyGoQualifier(&result, imported.path, alias)
 		return result
 	}
+	if contract, ok := c.interfaces[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {
+		return c.resolveNativeInterfaceType(ref, contract)
+	}
+	if class, ok := c.classes[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {
+		return c.resolveNativeClassType(ref, class)
+	}
 	if len(ref.GenericArguments) != 0 {
 		c.report(ref.Span, fmt.Sprintf("generic type %q is not supported", ref.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if _, ok := c.interfaces[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {
-		return Type{Kind: Interface, Name: ref.Name}
-	}
-	if _, ok := c.classes[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {
-		return Type{Kind: Class, Name: ref.Name}
 	}
 	if t, ok := LookupType(ref.Name); ok {
 		return t
 	}
 	c.report(ref.Span, fmt.Sprintf("unknown type %q", ref.Name))
 	return Type{Kind: Invalid, Name: "<invalid>"}
+}
+
+func (c *Checker) resolveNativeClassType(ref ast.TypeRef, symbol *classSymbol) Type {
+	want := len(symbol.typeParameters)
+	got := len(ref.GenericArguments)
+	if want == 0 {
+		if got != 0 {
+			c.report(ref.Span, fmt.Sprintf("class %s is not generic", ref.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		return Type{Kind: Class, Name: ref.Name}
+	}
+	if got != want {
+		c.report(ref.Span, fmt.Sprintf("generic class %s expects %d type arguments, got %d", ref.Name, want, got))
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	arguments := make([]Type, got)
+	valid := true
+	for index := range ref.GenericArguments {
+		arguments[index] = c.resolveType(ref.GenericArguments[index])
+		argument := arguments[index]
+		if argument.Kind == Invalid {
+			valid = false
+			continue
+		}
+		if argument.Kind == Void || argument.Kind == Result || argument.Kind == Task || argument.Kind == MultiValue || argument.Kind == GoPackage || argument.Kind == GoTypeName || argument.Kind == Nil || argument.Kind == Null {
+			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot be used as a generic class type argument", argument.String()))
+			valid = false
+		}
+	}
+	if !valid || !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic class "+ref.Name) {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	return Type{Kind: Class, Name: ref.Name, TypeArguments: arguments}
+}
+
+func nativeClassBindings(symbol *classSymbol, instantiated Type) map[string]Type {
+	if symbol == nil || len(symbol.typeParameters) == 0 || len(symbol.typeParameters) != len(instantiated.TypeArguments) {
+		return nil
+	}
+	bindings := make(map[string]Type, len(symbol.typeParameters))
+	for index, parameter := range symbol.typeParameters {
+		bindings[parameter.Name] = instantiated.TypeArguments[index]
+	}
+	return bindings
 }
 
 func (c *Checker) resolveNativeStructType(ref ast.TypeRef, symbol *structSymbol) Type {
@@ -6855,6 +8148,9 @@ func (c *Checker) resolveNativeStructType(ref ast.TypeRef, symbol *structSymbol)
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic struct "+ref.Name) {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	bindings := make(map[string]Type, want)
 	for index, parameter := range symbol.typeParameters {
 		bindings[parameter.Name] = arguments[index]
@@ -6867,6 +8163,65 @@ func (c *Checker) resolveNativeStructType(ref ast.TypeRef, symbol *structSymbol)
 }
 
 func nativeStructBindings(symbol *structSymbol, instantiated Type) map[string]Type {
+	if symbol == nil || len(symbol.typeParameters) == 0 || len(symbol.typeParameters) != len(instantiated.TypeArguments) {
+		return nil
+	}
+	bindings := make(map[string]Type, len(symbol.typeParameters))
+	for index, parameter := range symbol.typeParameters {
+		bindings[parameter.Name] = instantiated.TypeArguments[index]
+	}
+	return bindings
+}
+
+func nativeDefinedTypeBindings(symbol *nativeTypeSymbol, instantiated Type) map[string]Type {
+	if symbol == nil || len(symbol.typeParameters) == 0 || len(symbol.typeParameters) != len(instantiated.TypeArguments) {
+		return nil
+	}
+	bindings := make(map[string]Type, len(symbol.typeParameters))
+	for index, parameter := range symbol.typeParameters {
+		bindings[parameter.Name] = instantiated.TypeArguments[index]
+	}
+	return bindings
+}
+
+func (c *Checker) resolveNativeInterfaceType(ref ast.TypeRef, symbol *interfaceSymbol) Type {
+	want := len(symbol.typeParameters)
+	got := len(ref.GenericArguments)
+	if want == 0 {
+		if got != 0 {
+			c.report(ref.Span, fmt.Sprintf("interface %s is not generic", ref.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		return Type{Kind: Interface, Name: ref.Name}
+	}
+	if got != want {
+		c.report(ref.Span, fmt.Sprintf("generic interface %s expects %d type arguments, got %d", ref.Name, want, got))
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	arguments := make([]Type, got)
+	valid := true
+	for index := range ref.GenericArguments {
+		arguments[index] = c.resolveType(ref.GenericArguments[index])
+		argument := arguments[index]
+		if argument.Kind == Invalid {
+			valid = false
+			continue
+		}
+		if argument.Kind == Void || argument.Kind == Result || argument.Kind == Task || argument.Kind == MultiValue || argument.Kind == GoPackage || argument.Kind == GoTypeName || argument.Kind == Nil || argument.Kind == Null {
+			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot be used as a generic interface type argument", argument.String()))
+			valid = false
+		}
+	}
+	if !valid {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic interface "+ref.Name) {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	return Type{Kind: Interface, Name: ref.Name, TypeArguments: arguments}
+}
+
+func nativeInterfaceBindings(symbol *interfaceSymbol, instantiated Type) map[string]Type {
 	if symbol == nil || len(symbol.typeParameters) == 0 || len(symbol.typeParameters) != len(instantiated.TypeArguments) {
 		return nil
 	}
@@ -7016,6 +8371,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(expression.High)
 			visitExpression(expression.Max)
 		case *ast.NewExpr:
+			for index := range expression.TypeArguments {
+				visitType(&expression.TypeArguments[index])
+			}
 			for _, argument := range expression.Arguments {
 				visitExpression(argument)
 			}
@@ -7145,13 +8503,22 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitStatement(declaration.Body)
 			activeTypeParameters = nil
 		case *ast.MethodDecl:
+			activeTypeParameters = make(map[string]source.Span, len(declaration.TypeParameters))
+			for _, parameter := range declaration.TypeParameters {
+				activeTypeParameters[parameter.Name] = parameter.NameSpan
+			}
 			visitType(&declaration.ReceiverType)
 			for i := range declaration.Parameters {
 				visitType(&declaration.Parameters[i].Type)
 			}
 			visitType(&declaration.ReturnType)
 			visitStatement(declaration.Body)
+			activeTypeParameters = nil
 		case *ast.ClassDecl:
+			activeTypeParameters = make(map[string]source.Span, len(declaration.TypeParameters))
+			for _, parameter := range declaration.TypeParameters {
+				activeTypeParameters[parameter.Name] = parameter.NameSpan
+			}
 			if declaration.Base != nil {
 				visitType(declaration.Base)
 			}
@@ -7174,7 +8541,12 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitType(&method.ReturnType)
 				visitStatement(method.Body)
 			}
+			activeTypeParameters = nil
 		case *ast.InterfaceDecl:
+			activeTypeParameters = make(map[string]source.Span, len(declaration.TypeParameters))
+			for _, parameter := range declaration.TypeParameters {
+				activeTypeParameters[parameter.Name] = parameter.NameSpan
+			}
 			for i := range declaration.Methods {
 				method := &declaration.Methods[i]
 				for j := range method.Parameters {
@@ -7182,6 +8554,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				}
 				visitType(&method.ReturnType)
 			}
+			activeTypeParameters = nil
 		case *ast.StructDecl:
 			activeTypeParameters = make(map[string]source.Span, len(declaration.TypeParameters))
 			for _, parameter := range declaration.TypeParameters {
@@ -7199,7 +8572,17 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 			activeTypeParameters = nil
 		case *ast.TypeDecl:
+			activeTypeParameters = make(map[string]source.Span, len(declaration.TypeParameters))
+			for _, parameter := range declaration.TypeParameters {
+				activeTypeParameters[parameter.Name] = parameter.NameSpan
+			}
 			visitType(&declaration.Underlying)
+			activeTypeParameters = nil
+		case *ast.EnumDecl:
+			visitType(&declaration.Underlying)
+			for index := range declaration.Members {
+				visitExpression(declaration.Members[index].Value)
+			}
 		}
 	}
 }
@@ -7270,6 +8653,13 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 		}
 		return ast.TypeRef{Name: t.Name, GenericArguments: arguments, Struct: true, Span: span}
 	}
+	if t.Kind == Class {
+		arguments := make([]ast.TypeRef, len(t.TypeArguments))
+		for index := range t.TypeArguments {
+			arguments[index] = typeRefFromType(t.TypeArguments[index], span)
+		}
+		return ast.TypeRef{Name: t.Name, GenericArguments: arguments, Span: span}
+	}
 	if t.Kind == GoStruct {
 		fields := make([]ast.ObjectTypeField, len(t.GoFields))
 		for index, field := range t.GoFields {
@@ -7305,9 +8695,13 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 	parameters := make([]ast.TypeRef, len(t.Parameters))
 	for i, parameter := range t.Parameters {
 		parameters[i] = typeRefFromType(parameter, span)
+		if t.Variadic && i == len(t.Parameters)-1 {
+			element := parameters[i]
+			parameters[i] = ast.TypeRef{Element: &element, Span: span}
+		}
 	}
 	result := typeRefFromType(*t.Result, span)
-	return ast.TypeRef{Parameters: parameters, Return: &result, Span: span}
+	return ast.TypeRef{Parameters: parameters, Return: &result, Variadic: t.Variadic, Span: span}
 }
 
 func goTypeNameObject(goType gotypes.Type) *gotypes.TypeName {
@@ -7382,7 +8776,19 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	}
 	if target.Kind == Interface && value.Kind == Class {
 		class := c.classes[value.Name]
-		return class != nil && class.implements[target.Name]
+		if class == nil {
+			return false
+		}
+		if class.implements[target.String()] {
+			return true
+		}
+		bindings := nativeClassBindings(class, value)
+		for _, implemented := range class.implementedTypes {
+			if exactType(target, substituteNativeTypeParameters(implemented, bindings)) {
+				return true
+			}
+		}
+		return false
 	}
 	if target.Kind == Class && value.Kind == Class && c.classExtends(value.Name, target.Name) {
 		return true
@@ -7878,6 +9284,10 @@ func goObjectKind(object gotypes.Object) string {
 }
 
 func ontamaFunctionFromGo(signature *gotypes.Signature) (Type, error) {
+	return ontamaFunctionFromGoSeen(signature, map[gotypes.Type]bool{})
+}
+
+func ontamaFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes.Type]bool) (Type, error) {
 	if signature.TypeParams() != nil && signature.TypeParams().Len() != 0 {
 		return Type{Kind: Function, Name: "generic function", Generic: true, GoType: signature, Result: &Type{Kind: Invalid, Name: "<generic result>"}}, nil
 	}
@@ -7891,7 +9301,7 @@ func ontamaFunctionFromGo(signature *gotypes.Signature) (Type, error) {
 			}
 			parameterType = slice.Elem()
 		}
-		converted, err := ontamaTypeFromGo(parameterType)
+		converted, err := ontamaTypeFromGoSeen(parameterType, visiting)
 		if err != nil {
 			return Type{}, fmt.Errorf("parameter %d: %w", i+1, err)
 		}
@@ -7902,7 +9312,7 @@ func ontamaFunctionFromGo(signature *gotypes.Signature) (Type, error) {
 	case 0:
 		result = builtins["void"]
 	case 1:
-		converted, err := ontamaTypeFromGo(signature.Results().At(0).Type())
+		converted, err := ontamaTypeFromGoSeen(signature.Results().At(0).Type(), visiting)
 		if err != nil {
 			return Type{}, fmt.Errorf("result: %w", err)
 		}
@@ -7910,7 +9320,7 @@ func ontamaFunctionFromGo(signature *gotypes.Signature) (Type, error) {
 	default:
 		results := make([]Type, signature.Results().Len())
 		for i := range results {
-			converted, err := ontamaTypeFromGo(signature.Results().At(i).Type())
+			converted, err := ontamaTypeFromGoSeen(signature.Results().At(i).Type(), visiting)
 			if err != nil {
 				return Type{}, fmt.Errorf("result %d: %w", i+1, err)
 			}
@@ -7922,6 +9332,18 @@ func ontamaFunctionFromGo(signature *gotypes.Signature) (Type, error) {
 }
 
 func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
+	return ontamaTypeFromGoSeen(goType, map[gotypes.Type]bool{})
+}
+
+func ontamaTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (Type, error) {
+	if parameter, ok := goType.(*gotypes.TypeParam); ok {
+		return Type{Kind: TypeParameter, Name: parameter.Obj().Name(), GoType: parameter}, nil
+	}
+	if visiting[goType] {
+		return Type{Kind: GoNamed, Name: goTypeDisplayName(goType), GoType: goType}, nil
+	}
+	visiting[goType] = true
+	defer delete(visiting, goType)
 	switch goType := goType.(type) {
 	case *gotypes.Basic:
 		switch goType.Kind() {
@@ -7931,10 +9353,16 @@ func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
 			return builtins["string"], nil
 		case gotypes.Int:
 			return builtins["int"], nil
+		case gotypes.Int8:
+			return builtins["int8"], nil
+		case gotypes.Int16:
+			return builtins["int16"], nil
 		case gotypes.Int32, gotypes.UntypedRune:
 			return builtins["int32"], nil
 		case gotypes.Int64:
 			return builtins["int64"], nil
+		case gotypes.Uint:
+			return builtins["uint"], nil
 		case gotypes.Uint8:
 			return builtins["byte"], nil
 		case gotypes.Uint16:
@@ -7949,19 +9377,19 @@ func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
 			return builtins["float"], nil
 		case gotypes.UntypedInt:
 			return Type{Kind: UntypedInt, Name: "integer literal"}, nil
-		case gotypes.Int8, gotypes.Int16, gotypes.Uint, gotypes.Uintptr, gotypes.UnsafePointer,
+		case gotypes.Uintptr, gotypes.UnsafePointer,
 			gotypes.Complex64, gotypes.Complex128, gotypes.UntypedComplex:
 			return Type{Kind: GoBasic, Name: goType.Name(), GoType: goType}, nil
 		default:
 			return Type{}, fmt.Errorf("Go type %s is not supported", goType.String())
 		}
 	case *gotypes.Named:
-		arguments, err := ontamaTypeArgumentsFromGo(goType.TypeParams(), goType.TypeArgs())
+		arguments, err := ontamaTypeArgumentsFromGoSeen(goType.TypeParams(), goType.TypeArgs(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		if signature, ok := goType.Underlying().(*gotypes.Signature); ok {
-			converted, err := ontamaFunctionFromGo(signature)
+			converted, err := ontamaFunctionFromGoSeen(signature, visiting)
 			if err != nil {
 				return Type{}, err
 			}
@@ -7972,13 +9400,13 @@ func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
 		}
 		return Type{Kind: GoNamed, Name: goTypeDisplayName(goType), GoType: goType, TypeArguments: arguments}, nil
 	case *gotypes.Alias:
-		arguments, err := ontamaTypeArgumentsFromGo(goType.TypeParams(), goType.TypeArgs())
+		arguments, err := ontamaTypeArgumentsFromGoSeen(goType.TypeParams(), goType.TypeArgs(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		unalias := gotypes.Unalias(goType)
 		if signature, ok := unalias.Underlying().(*gotypes.Signature); ok {
-			converted, err := ontamaFunctionFromGo(signature)
+			converted, err := ontamaFunctionFromGoSeen(signature, visiting)
 			if err != nil {
 				return Type{}, err
 			}
@@ -7989,42 +9417,42 @@ func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
 		}
 		return Type{Kind: GoNamed, Name: goTypeDisplayName(goType), GoType: goType, TypeArguments: arguments}, nil
 	case *gotypes.Signature:
-		converted, err := ontamaFunctionFromGo(goType)
+		converted, err := ontamaFunctionFromGoSeen(goType, visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		converted.GoType = goType
 		return converted, nil
 	case *gotypes.Pointer:
-		element, err := ontamaTypeFromGo(goType.Elem())
+		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: GoPointer, Name: "*" + element.String(), Element: &element, GoType: goType}, nil
 	case *gotypes.Slice:
-		element, err := ontamaTypeFromGo(goType.Elem())
+		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: Array, Name: "array", Element: &element}, nil
 	case *gotypes.Array:
-		element, err := ontamaTypeFromGo(goType.Elem())
+		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: FixedArray, Name: "fixed array", Element: &element, Length: goType.Len(), GoType: goType}, nil
 	case *gotypes.Map:
-		key, err := ontamaTypeFromGo(goType.Key())
+		key, err := ontamaTypeFromGoSeen(goType.Key(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
-		value, err := ontamaTypeFromGo(goType.Elem())
+		value, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: Map, Name: "Map", Key: &key, Element: &value}, nil
 	case *gotypes.Chan:
-		element, err := ontamaTypeFromGo(goType.Elem())
+		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
@@ -8033,7 +9461,7 @@ func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
 		fields := make([]GoStructField, goType.NumFields())
 		for index := 0; index < goType.NumFields(); index++ {
 			field := goType.Field(index)
-			converted, err := ontamaTypeFromGo(field.Type())
+			converted, err := ontamaTypeFromGoSeen(field.Type(), visiting)
 			if err != nil {
 				return Type{}, fmt.Errorf("field %s: %w", field.Name(), err)
 			}
@@ -8118,6 +9546,10 @@ func goTypeListContainsUnsafe(types *gotypes.TypeList, seen map[gotypes.Type]boo
 }
 
 func ontamaTypeArgumentsFromGo(parameters *gotypes.TypeParamList, arguments *gotypes.TypeList) ([]Type, error) {
+	return ontamaTypeArgumentsFromGoSeen(parameters, arguments, map[gotypes.Type]bool{})
+}
+
+func ontamaTypeArgumentsFromGoSeen(parameters *gotypes.TypeParamList, arguments *gotypes.TypeList, visiting map[gotypes.Type]bool) ([]Type, error) {
 	parameterCount := 0
 	if parameters != nil {
 		parameterCount = parameters.Len()
@@ -8131,7 +9563,7 @@ func ontamaTypeArgumentsFromGo(parameters *gotypes.TypeParamList, arguments *got
 	}
 	converted := make([]Type, argumentCount)
 	for i := range converted {
-		argument, err := ontamaTypeFromGo(arguments.At(i))
+		argument, err := ontamaTypeFromGoSeen(arguments.At(i), visiting)
 		if err != nil {
 			return nil, fmt.Errorf("type argument %d: %w", i+1, err)
 		}
@@ -8230,6 +9662,10 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 			return true
 		case *ast.ThrowStmt:
 			return true
+		case *ast.LabeledStmt:
+			if statementDefinitelyReturns(stmt.Statement) {
+				return true
+			}
 		case *ast.TryStmt:
 			if stmt.Terminal {
 				return true
@@ -8264,15 +9700,7 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 				return true
 			}
 		case *ast.ValueSwitchStmt:
-			hasDefault := false
-			allReturn := len(stmt.Cases) != 0
-			for i := range stmt.Cases {
-				hasDefault = hasDefault || stmt.Cases[i].Default
-				if !definitelyReturns(stmt.Cases[i].Body) {
-					allReturn = false
-				}
-			}
-			if hasDefault && allReturn {
+			if valueSwitchDefinitelyReturns(stmt) {
 				return true
 			}
 		case *ast.TypeSwitchStmt:
@@ -8290,4 +9718,29 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 		}
 	}
 	return false
+}
+
+func valueSwitchDefinitelyReturns(statement *ast.ValueSwitchStmt) bool {
+	if statement == nil || len(statement.Cases) == 0 {
+		return false
+	}
+	caseReturns := make([]bool, len(statement.Cases))
+	hasDefault := false
+	for index := len(statement.Cases) - 1; index >= 0; index-- {
+		clause := &statement.Cases[index]
+		hasDefault = hasDefault || clause.Default
+		caseReturns[index] = definitelyReturns(clause.Body)
+		if !caseReturns[index] && index+1 < len(statement.Cases) && valueSwitchCaseFallthroughReachable(clause) {
+			caseReturns[index] = caseReturns[index+1]
+		}
+	}
+	if !hasDefault {
+		return false
+	}
+	for _, returns := range caseReturns {
+		if !returns {
+			return false
+		}
+	}
+	return true
 }

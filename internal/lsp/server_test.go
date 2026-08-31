@@ -102,7 +102,7 @@ function value(parameter: int): int {
 	line := 6
 	character := strings.Index(strings.Split(text, "\n")[line], "before")
 	items := completionLabels(completionItemsAt(t, path, text, line, character))
-	for _, want := range []string{"before", "parameter", "helper", "global", "strings", "len", "clear", "min", "max", "int", "return", "Result", "Task", "Exception", "try", "catch", "finally", "throw", "await", "detach", "ok", "fail", "null"} {
+	for _, want := range []string{"before", "parameter", "helper", "global", "strings", "len", "clear", "min", "max", "int", "int8", "int16", "uint", "uint8", "return", "Result", "Task", "Exception", "try", "catch", "finally", "throw", "await", "detach", "goto", "fallthrough", "ok", "fail", "null"} {
 		if items[want] == nil {
 			t.Fatalf("missing %q in completion labels: %v", want, items)
 		}
@@ -400,6 +400,11 @@ func TestCompletionSourceMemberReceiverMatrix(t *testing.T) {
 			name:   "inferred method result",
 			text:   `class Box { constructor(public value: int) {} public function read(): int { return this.value; } } class Factory { public function build(): Box { return new Box(1); } } function use(factory: Factory): int { const box = factory.build(); return box.; }`,
 			needle: "box.", want: []string{"value", "read"},
+		},
+		{
+			name:   "checked map lookup binding",
+			text:   `class User { constructor(public name: string) {} public function label(): string { return this.name; } } function use(values: Map<string, User>): string { const [user, present] = values["key"]; if (!present) { return ""; } return user.; }`,
+			needle: "user.", want: []string{"name", "label"},
 		},
 		{
 			name:   "pointer struct",

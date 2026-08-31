@@ -37,12 +37,11 @@ This directory is the design source of truth for OnsenTamago. Documents distingu
 - [compiler-architecture.md](compiler-architecture.md): frontend, type checking, Go import, lowering, diagnostics, CLI, and LSP.
 - [packages-and-interop.md](packages-and-interop.md): module resolution, Go interop levels, targets, unsafe policy, locks, and licensing.
 - [c-ffi.md](c-ffi.md): outgoing C ABI, implemented incoming schema 1, callback/ownership contracts, and ABI stability.
-- [web-and-concurrency.md](web-and-concurrency.md): web/runtime model, tasks, cancellation, channels, and performance principles.
-- [web-ecosystem.md](web-ecosystem.md): proposed HTTP/application framework package layers and ecosystem roadmap.
+- [web-and-concurrency.md](web-and-concurrency.md): HTTP interoperability, tasks, cancellation, channels, and performance principles.
 - [quality-and-go-compatibility.md](quality-and-go-compatibility.md): independent handwritten-Go differential testing, contract coverage, and generated-artifact quality gates.
 - [testing-and-roadmap.md](testing-and-roadmap.md): test matrices, release gates, implementation phases, and verification policy.
 - [Visual Studio Code client](../editors/vscode/README.md): thin official editor launcher, configuration, and development checks.
 
 ## Current emphasis
 
-The current implementation track prioritizes complete, predictable connectivity to existing Go packages, practical language syntax, source-level diagnostics, deterministic generated Go, an immediately usable LSP, and exhaustive regression tests. High-level wrappers and framework features should be built only after their low-level semantics are stable.
+The current implementation track prioritizes complete, predictable connectivity to existing Go packages, practical language syntax, source-level diagnostics, deterministic generated Go, an immediately usable LSP, and exhaustive regression tests.

@@ -18,6 +18,34 @@ The internal program remains ordinary Go. C-compatible gateways are generated on
 ## Implemented outgoing boundary
 
 ```ts
+function add(left: int32, right: int32): int32 {
+  return left + right;
+}
+
+const sub = (left: int32, right: int32): int32 => left - right;
+
+export c("ontama_add", "ontama_sub") {add, sub};
+```
+
+Symbols and source names are paired by position: `"ontama_add"` exports
+`add`, and `"ontama_sub"` exports `sub`. Their counts must match. The source
+target must be a top-level function or a top-level `const` arrow with an
+explicit result type. Lists may be split across lines and may use trailing
+commas:
+
+```ts
+export c(
+  "ontama_add",
+  "ontama_sub",
+) {
+  add,
+  sub,
+};
+```
+
+The original single-function inline spelling remains supported:
+
+```ts
 export c("ontama_add") function add(left: int32, right: int32): int32 {
   return left + right;
 }
@@ -44,7 +72,11 @@ Panics never cross the C boundary. An out value is unspecified on failure.
 
 | OnsenTamago | C |
 |---|---|
+| `boolean` | `uint8_t` (`0` is false, nonzero input is true, output is normalized to `0` or `1`) |
 | `byte` | `uint8_t` |
+| `uint8` | `uint8_t` (alias of `byte`) |
+| `int8` | `int8_t` |
+| `int16` | `int16_t` |
 | `int32` | `int32_t` |
 | `int64` | `int64_t` |
 | `uint16` | `uint16_t` |
@@ -52,11 +84,23 @@ Panics never cross the C boundary. An out value is unspecified on failure.
 | `uint64` | `uint64_t` |
 | `float32` | `float` |
 | `float` / `float64` / `number` | `double` |
+| `enum Name: T` | the fixed-width C integer corresponding to `T` |
 | `void` result | no out value |
+
+A native enum is accepted when its ultimate underlying type is one of the
+fixed-width integer types above. This includes an enum whose underlying type
+passes through a non-generic alias or defined integer type. The gateway
+converts the C integer to the named enum before calling user code and converts
+the named result back to the same fixed-width transport. The header and ABI
+manifest intentionally expose the transport integer rather than a
+compiler-specific C enum layout. C callers must use the numeric values defined
+by the OnsenTamago enum; unknown representable values are transported without
+implicit validation, matching Go named-integer behavior.
 
 Rejected from the initial stable boundary:
 
-- Machine-width C `long`, Go/OnsenTamago `int`, or Nim `int`.
+- Machine-width C `long`, Go/OnsenTamago `int`/`uint`, Nim `int`, and native
+  enums whose ultimate underlying type is machine-width `int` or `uint`.
 - Runtime-managed strings, slices, maps, interfaces, channels, classes, and errors.
 - Nim `string`, `seq`, and `ref object` runtime layouts.
 - Bit fields, flexible arrays, variadic C functions, and untagged or unresolved

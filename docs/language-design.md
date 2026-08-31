@@ -54,20 +54,27 @@ The core `Result`, postfix `?`, and nil-backed nullable constructs in this examp
 | `boolean` | `bool` | No truthy conversion |
 | `string` | `string` | UTF-8 bytes |
 | `int` | `int` | Independent integer type |
+| `int8` | `int8` | Explicit signed width |
+| `int16` | `int16` | Explicit signed width |
 | `int32` | `int32` | Explicit width |
 | `int64` | `int64` | Explicit width |
+| `uint` | `uint` | Machine-width unsigned integer |
+| `byte` | `byte` | Unsigned 8-bit binary data |
+| `uint8` | `uint8` | Alias of `byte` |
+| `uint16` | `uint16` | Explicit unsigned width |
+| `uint32` | `uint32` | Explicit unsigned width |
+| `uint64` | `uint64` | Explicit unsigned width |
 | `float32` | `float32` | Explicit width |
 | `float` | `float64` | Default floating type |
 | `number` | `float64` | Alias of `float` |
 | `float64` | `float64` | Explicit spelling of `float` |
-| `byte` | `byte` | Binary data |
 | `T[]` | `[]T` | Slice |
 | `[N]T` | `[N]T` | Fixed array; value-copy semantics |
 | `Map<K, V>` | `map[K]V` | Comparable keys only |
 | `Result<T>` | `(T, error)` | Function/method return effect; `Result<void>` lowers to `error` |
 | `T | null` | same nil-backed Go reference type as `T` | Checked nullable reference |
 
-`int` and `float` never implicitly convert into one another. Use an explicit conversion. Integer literals are untyped in context and default to `int` when inferred without another expected type.
+Numeric types never implicitly widen or cross signedness. Use an explicit conversion. `uint8` is identical to `byte`, matching Go's alias. Integer literals are untyped in context and default to `int` when inferred without another expected type.
 
 Explicit conversions use Go convertibility rules for representable source and
 target types. In particular, `string(bytes)`, `string(runes)`, and conversions
@@ -98,6 +105,8 @@ OnsenTamago distinguishes a new nominal type from a transparent alternate name:
 ```ts
 type UserID = distinct string;
 alias UserIDText = string;
+type Values<T> = distinct T[];
+type Lookup<K, V> = distinct Map<K, V>;
 
 function parseID(value: UserIDText): UserID {
   return UserID(value);
@@ -119,13 +128,165 @@ generic calls, `Result` payloads, relative imports, and external generated-Go
 APIs. A defined slice or map retains Go's reference-bearing storage behavior;
 a defined fixed array retains value-copy behavior.
 
+Defined types may declare unconstrained parameters and must be explicitly
+instantiated wherever they are used. The generated definition uses ordinary Go
+generics. A parameter used as a map key receives an inferred `comparable`
+constraint, so `Lookup<K, V>` above emits
+`type Lookup[K comparable, V any] map[K]V`. Type parameters may occur in
+slices, maps, fixed arrays, pointers, nested generic defined types, generic
+functions, and `Result` payloads. Different instantiations retain their Go
+nominal identity and conversion, assignment, comparability, copy, and aliasing
+behavior are checked through `go/types`.
+
+Functions, classes, structs, interfaces, and defined types may also state the
+constraint explicitly with TypeScript-shaped syntax:
+
+```ts
+function equal<T extends comparable>(left: T, right: T): boolean {
+  return left === right;
+}
+
+struct Keyed<T extends comparable> {
+  public key: T;
+  public values: Map<T, string>;
+}
+```
+
+This emits the corresponding Go `T comparable` parameter. Both explicit and
+inferred calls are checked before Go generation; slices, maps, and functions do
+not satisfy the constraint. Native constraint type sets beyond `comparable`
+remain future work rather than being approximated as `any`.
+
+Generic aliases are rejected while the minimum supported Go target does not
+provide their stable language behavior. A direct parameter underlying type such
+as `type Identity<T> = distinct T` is also rejected by Go; wrap the parameter in
+a concrete composite type instead.
+
+Distinct defined types may declare Go-compatible value and pointer receiver
+methods with the same external receiver syntax as native structs:
+
+```ts
+type Score = distinct int;
+
+public function plus(this: Score, delta: Score): Score {
+  return this + delta;
+}
+
+public function add(this: *Score, delta: Score): void {
+  *this += delta;
+}
+```
+
+Generic receiver declarations bind the receiver's type parameters explicitly.
+The binder names may differ from the type declaration and map positionally:
+
+```ts
+type Values<T> = distinct T[];
+
+public function size<U>(this: Values<U>): int {
+  return len(this);
+}
+
+public function push<U>(this: *Values<U>, value: U): void {
+  *this = append(*this, value);
+}
+```
+
+The receiver is not a call argument. Value methods copy the receiver; pointer
+methods mutate shared storage and may be selected from an addressable value as
+in Go. Method values capture the receiver using Go semantics. Public methods
+form the ordinary generated Go method set, so external Go interfaces can use
+the value or pointer type directly. Private methods remain module-local.
+Aliases, imported receiver declarations, and defined types whose underlying
+type is a pointer or interface cannot declare methods.
+
+Distinct types may be recursively defined when at least one slice, map,
+pointer, function, or channel boundary makes every cycle finite:
+
+```ts
+type Chain = distinct Chain[];
+type Tree = distinct Map<string, Tree>;
+type Link = distinct *Link;
+type Visitor = distinct (next: Visitor) => void;
+type Forest<T> = distinct Forest<T>[];
+```
+
+Mutually recursive definitions follow the same rule. Their generated forms are
+ordinary recursive Go named types, including their methods and external public
+APIs. Direct cycles, fixed-array-only cycles, and recursive aliases are rejected
+at the source location because they either have infinite size or violate Go's
+alias rules.
+
 `type`, `alias`, and `distinct` are contextual declaration words rather than
-globally reserved identifiers. The first implementation deliberately rejects
-declaration cycles, `Result`/`Task`/`void` boundaries, distinct definitions over
-native classes/structs/interfaces, generic type declarations, and receiver
-methods on defined types. Use a transparent alias or a native `struct` where
-those current boundaries apply; unsupported cases produce source diagnostics
-instead of approximate Go.
+globally reserved identifiers. The implementation deliberately rejects
+`Result`/`Task`/`void` boundaries, distinct definitions over native
+classes/structs/interfaces, and generic aliases. Use a transparent non-generic
+alias or a native `struct` where those current boundaries apply; unsupported
+cases produce source diagnostics instead of approximate Go.
+
+### Native integer enums
+
+An enum is a distinct integer type with members selected through its type
+namespace:
+
+```ts
+enum Status {
+  Pending,
+  Running = 4,
+  Complete,
+}
+
+enum WireCode: uint16 {
+  Empty = 0,
+  Ready = 41,
+  Maximum = 65535,
+}
+
+function classify(status: Status): string {
+  switch (status) {
+    case Status.Pending { return "pending"; }
+    case Status.Running { return "running"; }
+    case Status.Complete { return "complete"; }
+  }
+  return "unknown";
+}
+```
+
+The underlying type defaults to `int` and must be an integer type. The first
+implicit member is zero; each later implicit member is one greater than the
+previous member, including after an explicit value. Explicit initializers must
+be compile-time integer constant expressions. Values outside a fixed-width
+underlying type are rejected at their source location. Empty enums, duplicate
+members, the blank member name `_`, and unknown members are also rejected.
+
+An enum is nominal: a runtime `int` is not implicitly assignable to `Status`.
+Use `Status(value)` or `int(status)` when an intentional conversion is needed;
+representable untyped integer literals retain Go-compatible assignment rules.
+Enums may be compared and ordered, used as map keys, passed through generics,
+returned in `Result` values, switched over, and imported from relative modules.
+Members remain qualified in OnsenTamago source, avoiding collisions between
+different enums.
+
+Enums may also declare Go-compatible value and pointer receiver methods using
+the same external `this` syntax as defined types. A value receiver observes a
+copy, while a pointer receiver can mutate an addressable enum variable:
+
+```ts
+public function active(this: Status): boolean {
+  return this === Status.Running;
+}
+
+public function advance(this: *Status): Status {
+  *this = Status(int(*this) + 1);
+  return *this;
+}
+```
+
+Generated Go uses a named integer type and typed constants. For example,
+`Status.Pending` becomes `StatusPending Status = 0`. This keeps the generated
+package readable and lets ordinary Go consumers use the enum without the
+OnsenTamago compiler. `enum` is contextual, so it remains usable as an ordinary
+identifier outside declaration position.
 
 ### Structural object types
 
@@ -236,9 +397,10 @@ struct behavior. Class references and native defined types may be arguments.
 Generic structs work across relative imports and as exported generated-Go APIs.
 
 Method-local type parameters remain unsupported because Go does not permit
-them. Generic struct methods use the enclosing struct parameters. External
-`function name(this: Box<T>, ...)` receiver declarations for generic structs
-remain future work; declare those methods inside the struct.
+them. Nested generic struct methods use the enclosing struct parameters.
+External methods bind the receiver parameters explicitly, for example
+`function get<U>(this: Box<U>): U`; those parameters belong to the receiver and
+do not make the method independently generic.
 
 ### Fixed arrays, slices, and conversion
 
@@ -281,10 +443,14 @@ All binary groups are left-associative. Therefore `a + b << c` means `a + (b << 
 
 Integer types support binary `&`, `|`, `^`, `&^`, `<<`, and `>>`, plus unary complement `^`. They lower to the corresponding Go operations.
 
-The language includes fixed-width unsigned `uint16`, `uint32`, and `uint64`
-alongside `byte` (`uint8`). They preserve Go's modulo arithmetic for dynamic
-operations. Negative and out-of-range constants are rejected at the source;
-signed/unsigned and different-width values require an explicit conversion.
+The language includes machine-width `int` and `uint`, fixed-width signed `int8`,
+`int16`, `int32`, and `int64`, plus unsigned `uint16`, `uint32`, and `uint64`
+alongside the identical `byte`/`uint8` spellings. They preserve Go's overflow
+behavior for dynamic operations. Negative
+unsigned constants and fixed-width out-of-range constants are rejected at the
+source; signed/unsigned and different-width values require an explicit
+conversion. Positive `uint` constant range remains target-dependent and is
+validated against the selected Go build target.
 
 - Typed bitwise operands must have identical types; defined type identity is preserved.
 - An untyped integer constant may combine with a typed operand only when representable.
@@ -323,6 +489,10 @@ const capacity = cap(extended);
 
 const lookup = makeMap[string, int]();
 delete(lookup, "obsolete");
+
+const [value, present] = lookup["key"];
+let [nextValue, nextPresent] = lookup["next"];
+[nextValue, nextPresent] = lookup["replacement"];
 ```
 
 - `len`: strings, arrays, array pointers, slices, maps, and channels.
@@ -330,6 +500,12 @@ delete(lookup, "obsolete");
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
 - `delete`: removes a map key; missing keys and nil maps are no-ops.
+- A two-name binding or reassignment from `map[key]` performs Go's checked
+  lookup and yields `(value, present)`. Missing and nil maps produce the value
+  type's zero value and `false`; a stored zero value produces `true`. The map
+  and key expressions are each evaluated exactly once. This form accepts
+  ordinary, generic, defined, and imported Go map types, but not arrays,
+  slices, or strings.
 - `clear`: zeroes every slice element or removes every map entry, including
   named Go collections; nil slices/maps remain safe exactly as in Go.
 - `min`/`max`: require one or more operands of one ordered numeric or string
@@ -372,6 +548,24 @@ const add = (left: int, right: int): int => left + right;
 const checked = (value: int): int => { return value; };
 ```
 
+Rest parameters use TypeScript-shaped slice annotations and lower directly to
+Go variadics. The rest parameter must be final. Inside the declaration it is a
+slice; calls may pass zero or more individual elements or expand one final
+slice. The same rule applies to functions, methods, interface methods, arrows,
+function types, and constructors.
+
+```ts
+function sum(prefix: int, ...values: int[]): int {
+  let total = prefix;
+  for (const value of values) { total += value; }
+  return total;
+}
+
+const direct = sum(10, 1, 2);
+const values = [3, 4];
+const expanded = sum(10, values...);
+```
+
 Top-level functions may declare unconstrained type parameters. Calls infer type
 arguments from their ordinary arguments, or provide a leading partial or full
 list with either TypeScript-shaped angle brackets or Go-shaped square brackets:
@@ -391,11 +585,10 @@ infer the same type, every uninferred parameter must be supplied explicitly,
 and an uninstantiated generic function cannot be stored as a function value.
 Type parameters are scoped to the declaration and may appear recursively in
 slices, fixed arrays, pointers, maps, function types, structural objects,
-channels, and result signatures. Method-local generic receiver methods are
-rejected because Go does not support method-local type parameters. Generic
-classes, interfaces, generic defined types, and constrained native type
-parameters are separate future features. Native generic structs are
-implemented.
+channels, and result signatures. Generic receiver parameters on external
+methods are receiver binders rather than independently callable method type
+parameters. Native generic classes, structs, interfaces, and defined types are
+implemented; generic defined map keys infer `comparable` where required.
 
 Multiple Go results are locally destructured:
 
@@ -405,6 +598,27 @@ const [value, err] = strconv.Atoi(text);
 ```
 
 Multi-values are not first-class values and cannot silently discard `error`.
+
+## Labels and explicit control transfer
+
+Labels are scoped to one function or method. `break label` may target an
+enclosing loop, switch, or select; `continue label` must target an enclosing
+loop. `goto label` supports forward and backward transfers. Jumps into nested
+blocks, over local declarations, or across lowered `try`/`catch`/`finally`
+boundaries are rejected before lowering and generated Go validation remains a
+second check. Duplicate, undefined, unused, non-enclosing, and wrong-kind
+labels are diagnosed at their OnsenTamago source locations. Nullable flow facts
+are conservatively cleared at arbitrary transfers.
+
+```ts
+function advance(limit: int): int {
+  let value = 0;
+  goto check;
+  next: value++;
+  check: if (value < limit) { goto next; }
+  return value;
+}
+```
 
 ## Result and error propagation
 
@@ -541,8 +755,13 @@ switch (status) {
 ```
 
 The subject is evaluated exactly once. Case expressions are evaluated in source
-order only until a match is found. Cases never fall through; `break` exits the
-switch explicitly when an early exit from a case block is useful. The subject
+order only until a match is found. Cases do not fall through implicitly.
+Explicit `fallthrough;` as the final direct statement of a non-final case enters
+the next clause unconditionally without evaluating that clause's case
+expressions. It may also enter a following `default` clause, and a non-final
+`default` may fall through to the clause after it. `fallthrough` is rejected in
+the final case, nested blocks, `if`, type switches, and `select`. `break` exits
+the switch explicitly when an early exit from a case block is useful. The subject
 and every case must be comparable under the same rules as generated Go.
 Duplicate constant cases, incompatible values, non-comparable types, and
 multiple defaults are source errors. Class cases compare explicit reference
@@ -571,6 +790,63 @@ class Text implements Reader {
   public function read(index: int): string { return this.value; }
 }
 ```
+
+Classes may declare type parameters and must be instantiated explicitly in
+type positions and `new` expressions. Fields, constructor parameters, instance
+methods, method values, nested generic shapes, and implemented generic
+interfaces substitute the selected arguments:
+
+```ts
+interface ValueReader<T> {
+  function read(): T;
+}
+
+class Box<T> implements ValueReader<T> {
+  constructor(public value: T) {}
+  public function read(): T { return this.value; }
+  public function set(value: T): void { this.value = value; }
+}
+
+const box: Box<string> = new Box<string>("onsen");
+const reader: ValueReader<string> = box;
+```
+
+Each class parameter lowers to a Go type parameter, and each class value
+remains one Go pointer. Consequently assignment preserves reference identity,
+while different instantiations such as `Box<int>` and `Box<string>` remain
+different static types. `T extends comparable` is available when the class
+needs that constraint. Generated constructors and methods form ordinary public
+generic Go APIs, and generic classes work across relative imports. Generic
+class inheritance, `virtual`/`override`/`final`, and static methods are rejected
+for now; use composition or an implemented generic interface at that boundary.
+
+Native interfaces may declare unconstrained type parameters and must be fully
+instantiated wherever they are used. Type parameters may appear recursively in
+method parameters and results, including collection, function, native generic
+struct, and `Result<T>` positions. An implementing class names each explicit
+instantiation, and its public instance methods are checked after substituting
+the declared type arguments:
+
+```ts
+interface Transformer<T, U> {
+  function transform(value: T): U;
+}
+
+class Length implements Transformer<string, int> {
+  public function transform(value: string): int { return len(value); }
+}
+
+function apply<T, U>(transformer: Transformer<T, U>, value: T): U {
+  return transformer.transform(value);
+}
+```
+
+Different instantiations such as `Transformer<string, int>` and
+`Transformer<int, int>` retain distinct static identities. A class may name
+multiple instantiations when one method set satisfies all of them. Generated Go
+uses ordinary generic interfaces with `any` parameters, so interface dispatch,
+identity, comparability, method values, and public package use follow the same
+Go behavior.
 
 Single class inheritance is explicit. `extends` reuses base state and methods,
 only `virtual` methods dynamically dispatch, replacements require `override`,
@@ -652,12 +928,21 @@ future runtime work.
 Ordinary functions use the Go ABI. Explicit exports use a checked stable gateway:
 
 ```ts
-export c("ontama_add") function add(left: int32, right: int32): int32 {
+function add(left: int32, right: int32): int32 {
   return left + right;
 }
+
+const sub = (left: int32, right: int32): int32 => left - right;
+export c("ontama_add", "ontama_sub") {add, sub};
 ```
 
-The initial outgoing boundary accepts fixed-width scalar parameters (`byte`, `int32`, `int64`, `uint16`, `uint32`, `uint64`, `float32`, and float aliases) and those results plus `void`. Machine-width `int`, booleans, strings, collections, objects, classes, interfaces, pointers, and `error` are rejected.
+The symbol and target lists pair by position and must have equal lengths.
+Targets may be top-level functions or top-level `const` arrows whose return
+types are explicit. Both lists accept multiline formatting and trailing
+commas. The single-function inline form
+`export c("ontama_add") function add(...): int32 { ... }` remains valid.
+
+The outgoing boundary accepts `boolean`, fixed-width scalar parameters (`byte`/`uint8`, `int8`, `int16`, `int32`, `int64`, `uint16`, `uint32`, `uint64`, `float32`, and float aliases), fixed-width native integer enums, and those results plus `void`. Enum parameters and results use their ultimate fixed-width integer representation in the C header and ABI manifest while remaining the named enum inside generated Go. Unknown representable values pass through without implicit validation. Booleans use a stable `uint8_t` transport: zero is false, any nonzero input is true, and outputs are normalized to zero or one. Machine-width `int`/`uint` and enums based on them, strings, collections, objects, classes, interfaces, pointers, and `error` are rejected.
 
 Generated C functions return an `int32_t` status and write values through a final out parameter. Status `0` is success, `1` is a contained panic, and `2` is an invalid argument such as a null out pointer. Symbols are explicit ASCII identifiers and are checked for duplication and generated-name collisions.
 

@@ -73,7 +73,7 @@ func GenerateCABI(program *ontamaAST.Program) (CABIOutput, error) {
 	if len(exports) == 0 {
 		return CABIOutput{}, fmt.Errorf("program does not declare any C ABI exports")
 	}
-	manifest, fingerprint, err := generateCABIManifest(exports)
+	manifest, fingerprint, err := generateCABIManifest(program, exports)
 	if err != nil {
 		return CABIOutput{}, err
 	}
@@ -94,7 +94,7 @@ func GenerateCABI(program *ontamaAST.Program) (CABIOutput, error) {
 	cHeader.WriteString("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n")
 
 	for _, function := range exports {
-		if err := generateCABIWrapper(&goSource, &cHeader, function); err != nil {
+		if err := generateCABIWrapper(&goSource, &cHeader, program, function); err != nil {
 			return CABIOutput{}, err
 		}
 	}
@@ -110,20 +110,20 @@ func GenerateCABI(program *ontamaAST.Program) (CABIOutput, error) {
 	return CABIOutput{Gateway: formatted, Header: []byte(cHeader.String()), Manifest: manifest, Fingerprint: fingerprint}, nil
 }
 
-func generateCABIManifest(exports []*ontamaAST.FunctionDecl) ([]byte, string, error) {
+func generateCABIManifest(program *ontamaAST.Program, exports []ontamaAST.CABIExport) ([]byte, string, error) {
 	functions := make([]cabiManifestFunction, len(exports))
-	for index, function := range exports {
-		parameters := make([]string, len(function.Parameters))
-		for parameterIndex, parameter := range function.Parameters {
-			mapped, ok := mapCABIType(parameter.Type, false)
+	for index, export := range exports {
+		parameters := make([]string, len(export.Parameters))
+		for parameterIndex, parameter := range export.Parameters {
+			mapped, ok := mapProgramCABIType(program, parameter.Type, false)
 			if !ok {
-				return nil, "", fmt.Errorf("C ABI export %q has unsupported parameter type %q", function.CABISymbol, parameter.Type.Name)
+				return nil, "", fmt.Errorf("C ABI export %q has unsupported parameter type %q", export.Symbol, parameter.Type.Name)
 			}
 			parameters[parameterIndex] = mapped.cType
 		}
-		result, ok := mapCABIType(function.ReturnType, true)
+		result, ok := mapProgramCABIType(program, export.ReturnType, true)
 		if !ok {
-			return nil, "", fmt.Errorf("C ABI export %q has unsupported result type %q", function.CABISymbol, function.ReturnType.Name)
+			return nil, "", fmt.Errorf("C ABI export %q has unsupported result type %q", export.Symbol, export.ReturnType.Name)
 		}
 		resultType := result.cType
 		transport := "out_parameter"
@@ -132,7 +132,7 @@ func generateCABIManifest(exports []*ontamaAST.FunctionDecl) ([]byte, string, er
 			transport = "none"
 		}
 		functions[index] = cabiManifestFunction{
-			Symbol: function.CABISymbol, Parameters: parameters, Result: resultType, ResultTransport: transport,
+			Symbol: export.Symbol, Parameters: parameters, Result: resultType, ResultTransport: transport,
 		}
 	}
 	version := cabiManifestVersion{Major: cabiGatewayVersionMajor, Minor: cabiGatewayVersionMinor}
@@ -166,34 +166,28 @@ func hasTopLevelFunction(program *ontamaAST.Program, name string) bool {
 	return false
 }
 
-func cabiExports(program *ontamaAST.Program) []*ontamaAST.FunctionDecl {
-	var exports []*ontamaAST.FunctionDecl
-	for _, declaration := range program.Declarations {
-		function, ok := declaration.(*ontamaAST.FunctionDecl)
-		if ok && function.CABIExport {
-			exports = append(exports, function)
-		}
-	}
-	sort.Slice(exports, func(left, right int) bool { return exports[left].CABISymbol < exports[right].CABISymbol })
+func cabiExports(program *ontamaAST.Program) []ontamaAST.CABIExport {
+	exports := append([]ontamaAST.CABIExport(nil), program.CABIExports...)
+	sort.Slice(exports, func(left, right int) bool { return exports[left].Symbol < exports[right].Symbol })
 	return exports
 }
 
-func generateCABIWrapper(goSource, cHeader *strings.Builder, function *ontamaAST.FunctionDecl) error {
-	parameterTypes := make([]cabiScalar, len(function.Parameters))
-	for index, parameter := range function.Parameters {
-		mapped, ok := mapCABIType(parameter.Type, false)
+func generateCABIWrapper(goSource, cHeader *strings.Builder, program *ontamaAST.Program, export ontamaAST.CABIExport) error {
+	parameterTypes := make([]cabiScalar, len(export.Parameters))
+	for index, parameter := range export.Parameters {
+		mapped, ok := mapProgramCABIType(program, parameter.Type, false)
 		if !ok {
-			return fmt.Errorf("C ABI export %q has unsupported parameter type %q", function.CABISymbol, parameter.Type.Name)
+			return fmt.Errorf("C ABI export %q has unsupported parameter type %q", export.Symbol, parameter.Type.Name)
 		}
 		parameterTypes[index] = mapped
 	}
-	resultType, ok := mapCABIType(function.ReturnType, true)
+	resultType, ok := mapProgramCABIType(program, export.ReturnType, true)
 	if !ok {
-		return fmt.Errorf("C ABI export %q has unsupported result type %q", function.CABISymbol, function.ReturnType.Name)
+		return fmt.Errorf("C ABI export %q has unsupported result type %q", export.Symbol, export.ReturnType.Name)
 	}
 
-	goSource.WriteString("//export " + function.CABISymbol + "\n")
-	goSource.WriteString("func " + function.CABISymbol + "(")
+	goSource.WriteString("//export " + export.Symbol + "\n")
+	goSource.WriteString("func " + export.Symbol + "(")
 	for index, mapped := range parameterTypes {
 		if index != 0 {
 			goSource.WriteString(", ")
@@ -214,20 +208,28 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, function *ontamaAST
 	if resultType.goType != "void" {
 		goSource.WriteString("\t__ontamaResult := ")
 	}
-	goSource.WriteString(goName(function.Name) + "(")
+	goSource.WriteString(goName(export.Name) + "(")
 	for index, mapped := range parameterTypes {
 		if index != 0 {
 			goSource.WriteString(", ")
 		}
-		fmt.Fprintf(goSource, "%s(arg%d)", mapped.goType, index)
+		if mapped.goType == "bool" {
+			fmt.Fprintf(goSource, "arg%d != 0", index)
+		} else {
+			fmt.Fprintf(goSource, "%s(arg%d)", mapped.goType, index)
+		}
 	}
 	goSource.WriteString(")\n")
 	if resultType.goType != "void" {
-		goSource.WriteString("\t*outResult = " + resultType.cgoType + "(__ontamaResult)\n")
+		if resultType.goType == "bool" {
+			goSource.WriteString("\t*outResult = C.uint8_t(0)\n\tif __ontamaResult {\n\t\t*outResult = C.uint8_t(1)\n\t}\n")
+		} else {
+			goSource.WriteString("\t*outResult = " + resultType.cgoType + "(__ontamaResult)\n")
+		}
 	}
 	goSource.WriteString("\treturn C.int32_t(0)\n}\n\n")
 
-	cHeader.WriteString("int32_t " + function.CABISymbol + "(")
+	cHeader.WriteString("int32_t " + export.Symbol + "(")
 	if len(parameterTypes) == 0 && resultType.goType == "void" {
 		cHeader.WriteString("void")
 	} else {
@@ -249,12 +251,18 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, function *ontamaAST
 }
 
 func mapCABIType(ref ontamaAST.TypeRef, allowVoid bool) (cabiScalar, bool) {
-	if ref.Qualifier != "" || len(ref.GenericArguments) != 0 || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() {
+	if ref.Nullable || ref.Qualifier != "" || len(ref.GenericArguments) != 0 || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() {
 		return cabiScalar{}, false
 	}
 	switch ref.Name {
-	case "byte":
-		return cabiScalar{cType: "uint8_t", cgoType: "C.uint8_t", goType: "byte"}, true
+	case "boolean":
+		return cabiScalar{cType: "uint8_t", cgoType: "C.uint8_t", goType: "bool"}, true
+	case "byte", "uint8":
+		return cabiScalar{cType: "uint8_t", cgoType: "C.uint8_t", goType: ref.Name}, true
+	case "int8":
+		return cabiScalar{cType: "int8_t", cgoType: "C.int8_t", goType: "int8"}, true
+	case "int16":
+		return cabiScalar{cType: "int16_t", cgoType: "C.int16_t", goType: "int16"}, true
 	case "int32":
 		return cabiScalar{cType: "int32_t", cgoType: "C.int32_t", goType: "int32"}, true
 	case "int64":
@@ -272,6 +280,56 @@ func mapCABIType(ref ontamaAST.TypeRef, allowVoid bool) (cabiScalar, bool) {
 	case "void":
 		if allowVoid {
 			return cabiScalar{goType: "void"}, true
+		}
+	}
+	return cabiScalar{}, false
+}
+
+func mapProgramCABIType(program *ontamaAST.Program, ref ontamaAST.TypeRef, allowVoid bool) (cabiScalar, bool) {
+	if mapped, ok := mapCABIType(ref, allowVoid); ok {
+		return mapped, true
+	}
+	if program == nil || ref.Nullable || ref.Qualifier != "" || len(ref.GenericArguments) != 0 || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() {
+		return cabiScalar{}, false
+	}
+	for _, declaration := range program.Declarations {
+		enumeration, ok := declaration.(*ontamaAST.EnumDecl)
+		if !ok || enumeration.Name != ref.Name {
+			continue
+		}
+		mapped, valid := mapCABIIntegerUnderlying(program, enumeration.Underlying, map[string]bool{enumeration.Name: true})
+		if !valid {
+			return cabiScalar{}, false
+		}
+		mapped.goType = ref.Name
+		return mapped, true
+	}
+	return cabiScalar{}, false
+}
+
+func mapCABIIntegerUnderlying(program *ontamaAST.Program, ref ontamaAST.TypeRef, visiting map[string]bool) (cabiScalar, bool) {
+	if ref.Nullable || ref.Qualifier != "" || len(ref.GenericArguments) != 0 || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() {
+		return cabiScalar{}, false
+	}
+	switch ref.Name {
+	case "byte", "uint8", "int8", "int16", "int32", "int64", "uint16", "uint32", "uint64":
+		return mapCABIType(ref, false)
+	}
+	if visiting[ref.Name] {
+		return cabiScalar{}, false
+	}
+	visiting[ref.Name] = true
+	defer delete(visiting, ref.Name)
+	for _, declaration := range program.Declarations {
+		switch declaration := declaration.(type) {
+		case *ontamaAST.TypeDecl:
+			if declaration.Name == ref.Name && len(declaration.TypeParameters) == 0 {
+				return mapCABIIntegerUnderlying(program, declaration.Underlying, visiting)
+			}
+		case *ontamaAST.EnumDecl:
+			if declaration.Name == ref.Name {
+				return mapCABIIntegerUnderlying(program, declaration.Underlying, visiting)
+			}
 		}
 	}
 	return cabiScalar{}, false

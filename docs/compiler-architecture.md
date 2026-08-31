@@ -66,6 +66,10 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 - Limit implicit conversion to safe untyped literal contexts.
 - Keep Go defined types, aliases, pointers, method sets, interfaces, multiple results, variadics, channels, and type parameters intact.
 - Use `go/types` assignability and generic constraints as authoritative for Go values.
+- Represent native generic defined types with `go/types.Named`, infer `comparable` for parameters used as map keys, and re-instantiate named results after native generic substitution.
+- Predeclare incomplete `go/types.Named` values for distinct types, complete them after resolving their underlyings, and permit recursive re-entry only beyond slice, map, pointer, function, or channel indirection. Keep direct, fixed-array-only, and alias cycles as source diagnostics.
+- Lower native generic classes to pointer-backed generic Go structs with generic constructors and receiver methods; preserve concrete type arguments through member substitution, interface conformance, module linking, and public Go APIs.
+- Attach non-generic defined-type receiver signatures to the same `go/types.Named` method set used for source checking, generated Go validation, and external interface compatibility.
 - Validate lowered Go conformance when OnsenTamago classes/functions cross Go interface or callback boundaries.
 - Preserve Go bitwise/shift groups, named-type identity, and left-operand result types.
 - Diagnose negative/excessive constant shifts, constant integer zero divisors, and fixed-width constant overflow before Go generation.
@@ -86,7 +90,13 @@ Required typed information includes:
 - Native generic-struct parameter scopes, explicit instantiation identity,
   cycle-safe recursive field/method substitution, and direct Go `any` type
   parameter/instantiated receiver lowering.
-- Native defined-type identity versus transparent alias identity, explicit conversion targets, and direct Go `TypeSpec` lowering.
+- Native generic-interface parameter scopes, explicit instantiation identity,
+  substituted method contracts and member signatures, explicit class
+  conformance, and direct Go generic-interface lowering.
+- Native generic-class parameter scopes, explicit construction identity,
+  substituted fields, constructors, methods, and interface contracts, plus
+  pointer-backed generic Go class/constructor/receiver lowering.
+- Native defined-type identity versus transparent alias identity, explicit conversion targets, finite recursive named-type graphs, cycle-safe Go type conversion, and direct Go `TypeSpec` lowering.
 - Closure captures.
 - Multiple-result and `Result<T>` lowering metadata, including explicit split bindings and postfix `?` propagation.
 - Typed-exception boundaries, terminal-flow metadata, `finally` unwinding, and structural cross-package exception markers that leave ordinary Go panics untouched.
@@ -215,9 +225,9 @@ without parsing prose.
 
 The LSP is part of the `ontama` binary and uses the same lexer, parser, resolver, type checker, target loader, and diagnostics as the CLI.
 
-Implemented capabilities include lifecycle handling, transactional incremental synchronization, monotonic document versions, multiple open documents, unsaved overlays, UTF-16 and CRLF-aware positions, diagnostics, hover, semantic definition and references, scope-safe value-symbol rename with `prepareRename`, document symbols, lexical completion, selective-import completion, Go package and value API completion, visibility-aware OnsenTamago class/struct/interface/object member completion, and signature help. Source member completion follows parameters, scoped locals, catch bindings, constructor and callable result inference, `this`, inheritance, static/instance separation, native internal and external receiver methods, and selected relative imports. Checked binding-type metadata lets Go value completion follow explicit or inferred locals, globals, multiple results, range and select bindings, pointers, named/alias types, promoted fields and methods, and Go addressable-value method sets. Go value method signature help uses the same selector rules and recovers from incomplete calls and unclosed source braces without mutating the document. Compiler-provided declarations such as `Exception`, `message`, and `error()` expose completion, hover, and constructor signatures without inventing a source definition location. Semantic requests run asynchronously against immutable document snapshots. `$/cancelRequest` produces the standard request-cancelled error, and a document change that overtakes an in-flight request suppresses its result with a content-modified error. Shutdown drains already accepted requests before responding.
+Implemented capabilities include lifecycle handling, transactional incremental synchronization, monotonic document versions, multiple open documents, unsaved overlays, UTF-16 and CRLF-aware positions, diagnostics, hover, semantic definition and references, scope-safe value-symbol rename with `prepareRename`, document symbols, lexical completion, selective-import completion, Go package and value API completion, visibility-aware OnsenTamago class/struct/interface/object member completion, and signature help. Source member completion follows parameters, scoped locals, catch bindings, constructor and callable result inference, `this`, inheritance, static/instance separation, concrete generic class/struct/interface arguments, native internal and external receiver methods, and selected relative imports. Checked binding-type metadata lets Go value completion follow explicit or inferred locals, globals, multiple results, range and select bindings, pointers, named/alias types, promoted fields and methods, and Go addressable-value method sets. Go value method signature help uses the same selector rules and recovers from incomplete calls and unclosed source braces without mutating the document. Compiler-provided declarations such as `Exception`, `message`, and `error()` expose completion, hover, and constructor signatures without inventing a source definition location. Semantic requests run asynchronously against immutable document snapshots. `$/cancelRequest` produces the standard request-cancelled error, and a document change that overtakes an in-flight request suppresses its result with a content-modified error. Shutdown drains already accepted requests before responding.
 
-Signature help uses semantically resolved callable types for complete programs and declaration/import fallbacks for temporarily incomplete edits. It covers OnsenTamago functions including inferred and explicitly instantiated native generics, substituted generic-struct methods, function values and arrows, methods, constructors, compiler built-ins, generic and variadic Go package functions, nested calls, and active-parameter tracking. Native function/struct type parameters and native defined/alias declarations also participate in hover, definition, references, rename, symbols, and completion. Optional compiler-built-in parameters are marked with `?` in the presentation only; `?` is not declaration syntax.
+Signature help uses semantically resolved callable types for complete programs and declaration/import fallbacks for temporarily incomplete edits. It covers OnsenTamago functions including inferred and explicitly instantiated native generics, native rest parameters, substituted generic-class constructors and class/struct/interface methods, defined-type receiver methods, function values and arrows, compiler built-ins, generic and variadic Go package functions, nested calls, and active-parameter tracking. Native function/class/struct/interface/defined-type parameters and native defined/alias declarations also participate in hover, definition, references, rename, symbols, and completion. Optional compiler-built-in parameters are marked with `?` in the presentation only; `?` is not declaration syntax.
 
 Incremental changes are applied in notification order against the updated snapshot. Invalid ranges, split UTF-16 surrogate pairs, mismatched `rangeLength`, and stale versions leave the text, version, and diagnostics unchanged; a notification never commits only a valid prefix of its edits.
 
@@ -310,8 +320,8 @@ backedges while joining `break` exits separately.
 
 Next work should deepen public external-module fixtures, generated-Go
 publication fixtures, target-specific assembly, IDE refactoring features, task
-cancellation/context propagation, broader constructor cardinality proofs, and
-the higher-level standard/web libraries. New functionality must extend parser,
+cancellation/context propagation, and broader constructor cardinality proofs.
+New functionality must extend parser,
 semantic, generated-Go, independently handwritten-Go differential,
 diagnostics, and fuzz matrices together. Public generated artifacts must also
 be consumable from an external ordinary Go package without the OnsenTamago

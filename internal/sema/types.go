@@ -15,8 +15,11 @@ const (
 	Boolean
 	String
 	Int
+	Int8
+	Int16
 	Int32
 	Int64
+	Uint
 	Uint16
 	Uint32
 	Uint64
@@ -81,8 +84,12 @@ var builtins = map[string]Type{
 	"boolean":   {Kind: Boolean, Name: "boolean"},
 	"string":    {Kind: String, Name: "string"},
 	"int":       {Kind: Int, Name: "int"},
+	"int8":      {Kind: Int8, Name: "int8"},
+	"int16":     {Kind: Int16, Name: "int16"},
 	"int32":     {Kind: Int32, Name: "int32"},
 	"int64":     {Kind: Int64, Name: "int64"},
+	"uint":      {Kind: Uint, Name: "uint"},
+	"uint8":     {Kind: Byte, Name: "byte"},
 	"uint16":    {Kind: Uint16, Name: "uint16"},
 	"uint32":    {Kind: Uint32, Name: "uint32"},
 	"uint64":    {Kind: Uint64, Name: "uint64"},
@@ -106,7 +113,7 @@ func (t Type) IsNumeric() bool {
 		return ok && basic.Info()&gotypes.IsNumeric != 0
 	}
 	switch t.Kind {
-	case Int, Int32, Int64, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt:
+	case Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt:
 		return true
 	default:
 		return false
@@ -122,7 +129,7 @@ func (t Type) isComparable(visiting map[string]bool) bool {
 		return gotypes.Comparable(t.GoType)
 	}
 	switch t.Kind {
-	case Boolean, String, Int, Int32, Int64, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface:
+	case Boolean, String, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface:
 		return true
 	case Nullable:
 		return t.Element != nil && t.Element.IsComparable()
@@ -236,7 +243,15 @@ func assignable(target, value Type) bool {
 		return true
 	}
 	if target.Kind == Class || value.Kind == Class {
-		return target.Kind == Class && value.Kind == Class && target.Name == value.Name
+		if target.Kind != Class || value.Kind != Class || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
+			return false
+		}
+		for index := range target.TypeArguments {
+			if !sameType(target.TypeArguments[index], value.TypeArguments[index]) {
+				return false
+			}
+		}
+		return true
 	}
 	if target.Kind == Struct || value.Kind == Struct {
 		if target.Kind != Struct || value.Kind != Struct || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
@@ -250,7 +265,15 @@ func assignable(target, value Type) bool {
 		return true
 	}
 	if target.Kind == Interface || value.Kind == Interface {
-		return target.Kind == Interface && value.Kind == Interface && target.Name == value.Name
+		if target.Kind != Interface || value.Kind != Interface || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
+			return false
+		}
+		for index := range target.TypeArguments {
+			if !sameType(target.TypeArguments[index], value.TypeArguments[index]) {
+				return false
+			}
+		}
+		return true
 	}
 	if target.Kind == value.Kind {
 		return true
@@ -361,10 +384,16 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 		return gotypes.Typ[gotypes.String], true
 	case Int:
 		return gotypes.Typ[gotypes.Int], true
+	case Int8:
+		return gotypes.Typ[gotypes.Int8], true
+	case Int16:
+		return gotypes.Typ[gotypes.Int16], true
 	case Int32:
 		return gotypes.Typ[gotypes.Int32], true
 	case Int64:
 		return gotypes.Typ[gotypes.Int64], true
+	case Uint:
+		return gotypes.Typ[gotypes.Uint], true
 	case Uint16:
 		return gotypes.Typ[gotypes.Uint16], true
 	case Uint32:
@@ -536,7 +565,7 @@ func (t Type) IsInteger() bool {
 		return ok && basic.Info()&gotypes.IsInteger != 0
 	}
 	switch t.Kind {
-	case Int, Int32, Int64, Uint16, Uint32, Uint64, Byte, UntypedInt:
+	case Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Byte, UntypedInt:
 		return true
 	default:
 		return false

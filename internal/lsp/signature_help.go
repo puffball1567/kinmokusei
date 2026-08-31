@@ -130,6 +130,13 @@ func qualifiedCallAnalysisText(value string, offset int, context callContext) st
 }
 
 func (s *Server) resolvedSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
+	if context.Constructor {
+		if expression := findNewExpression(result.Program, doc.Path, context); expression != nil {
+			if class := sourceClassDeclaration(s, result.Program, doc.Path, context.Name); class != nil {
+				return signatureFromGenericClass(class, expression.TypeArguments), true
+			}
+		}
+	}
 	if call := findCallExpression(result.Program, doc.Path, context); call != nil && call.Signature != nil {
 		signature := *call.Signature
 		var declaration source.Span
@@ -141,8 +148,12 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 		}
 		named := false
 		if declaration.Path != "" {
-			if names := parameterNamesAtDeclaration(result.Program, declaration); len(names) == len(signature.ParameterTypes) {
-				signature.ParameterNames = names
+			if parameters := parametersAtDeclaration(result.Program, declaration); len(parameters) == len(signature.ParameterTypes) {
+				signature.ParameterNames = parameterNames(parameters)
+				if hasVariadicParameter(parameters) {
+					signature.Variadic = true
+					signature.ParameterTypes[len(parameters)-1] = formatTypeRef(parameters[len(parameters)-1].Type)
+				}
 				named = true
 			}
 		}
@@ -151,6 +162,10 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 				signature.ParameterNames = make([]string, len(arrow.Parameters))
 				for index, parameter := range arrow.Parameters {
 					signature.ParameterNames[index] = parameter.Name
+				}
+				if hasVariadicParameter(arrow.Parameters) {
+					signature.Variadic = true
+					signature.ParameterTypes[len(arrow.Parameters)-1] = formatTypeRef(arrow.Parameters[len(arrow.Parameters)-1].Type)
 				}
 			}
 		}
@@ -306,7 +321,21 @@ func sourceClassDeclaration(s *Server, program *ast.Program, path, name string) 
 }
 
 func signatureFromClass(class *ast.ClassDecl) ast.CallableSignature {
+	return signatureFromGenericClass(class, nil)
+}
+
+func signatureFromGenericClass(class *ast.ClassDecl, arguments []ast.TypeRef) ast.CallableSignature {
 	result := ast.CallableSignature{Result: class.Name}
+	bindings := map[string]ast.TypeRef(nil)
+	if len(class.TypeParameters) != 0 && len(class.TypeParameters) == len(arguments) {
+		bindings = make(map[string]ast.TypeRef, len(arguments))
+		formatted := make([]string, len(arguments))
+		for index, parameter := range class.TypeParameters {
+			bindings[parameter.Name] = arguments[index]
+			formatted[index] = formatTypeRef(arguments[index])
+		}
+		result.Result += "<" + strings.Join(formatted, ", ") + ">"
+	}
 	if class.Constructor == nil {
 		return result
 	}
@@ -314,8 +343,9 @@ func signatureFromClass(class *ast.ClassDecl) ast.CallableSignature {
 	result.ParameterTypes = make([]string, len(class.Constructor.Parameters))
 	for index, parameter := range class.Constructor.Parameters {
 		result.ParameterNames[index] = parameter.Name
-		result.ParameterTypes[index] = formatTypeRef(parameter.Type)
+		result.ParameterTypes[index] = formatTypeRef(substituteTypeRefParameters(parameter.Type, bindings))
 	}
+	result.Variadic = hasVariadicParameter(class.Constructor.Parameters)
 	return result
 }
 
@@ -329,11 +359,12 @@ func signatureFromFunction(function *ast.FunctionDecl) ast.CallableSignature {
 		result.ParameterNames[index] = parameter.Name
 		result.ParameterTypes[index] = formatTypeRef(parameter.Type)
 	}
+	result.Variadic = hasVariadicParameter(function.Parameters)
 	return result
 }
 
 func signatureFromTypeRef(ref ast.TypeRef) ast.CallableSignature {
-	result := ast.CallableSignature{ParameterTypes: make([]string, len(ref.Parameters)), Result: "void"}
+	result := ast.CallableSignature{ParameterTypes: make([]string, len(ref.Parameters)), Result: "void", Variadic: ref.Variadic}
 	for index, parameter := range ref.Parameters {
 		result.ParameterTypes[index] = formatTypeRef(parameter)
 	}
@@ -353,6 +384,7 @@ func signatureFromArrow(arrow *ast.ArrowExpr) ast.CallableSignature {
 		result.ParameterNames[index] = parameter.Name
 		result.ParameterTypes[index] = formatTypeRef(parameter.Type)
 	}
+	result.Variadic = hasVariadicParameter(arrow.Parameters)
 	if arrow.ReturnType != nil {
 		result.Result = formatTypeRef(*arrow.ReturnType)
 	}
@@ -362,23 +394,28 @@ func signatureFromArrow(arrow *ast.ArrowExpr) ast.CallableSignature {
 	return result
 }
 
-func parameterNamesAtDeclaration(program *ast.Program, declaration source.Span) []string {
+func hasVariadicParameter(parameters []ast.Parameter) bool {
+	return len(parameters) != 0 && parameters[len(parameters)-1].Variadic
+}
+
+func parameterNames(parameters []ast.Parameter) []string {
+	names := make([]string, len(parameters))
+	for index, parameter := range parameters {
+		names[index] = parameter.Name
+	}
+	return names
+}
+
+func parametersAtDeclaration(program *ast.Program, declaration source.Span) []ast.Parameter {
 	if declaration.Path == "" {
 		return nil
 	}
 	for _, candidate := range program.Declarations {
-		parameterNames := func(parameters []ast.Parameter) []string {
-			names := make([]string, len(parameters))
-			for index, parameter := range parameters {
-				names[index] = parameter.Name
-			}
-			return names
-		}
 		if function, ok := candidate.(*ast.FunctionDecl); ok && sameSourceSpan(function.NameSpan, declaration) {
-			return parameterNames(function.Parameters)
+			return function.Parameters
 		}
 		if method, ok := candidate.(*ast.MethodDecl); ok && sameSourceSpan(method.NameSpan, declaration) {
-			return parameterNames(method.Parameters)
+			return method.Parameters
 		}
 		var methods []*ast.MethodDecl
 		switch candidate := candidate.(type) {
@@ -386,14 +423,24 @@ func parameterNamesAtDeclaration(program *ast.Program, declaration source.Span) 
 			methods = candidate.Methods
 		case *ast.StructDecl:
 			methods = candidate.Methods
+		case *ast.InterfaceDecl:
+			for _, method := range candidate.Methods {
+				if sameSourceSpan(method.NameSpan, declaration) {
+					return method.Parameters
+				}
+			}
 		}
 		for _, method := range methods {
 			if sameSourceSpan(method.NameSpan, declaration) {
-				return parameterNames(method.Parameters)
+				return method.Parameters
 			}
 		}
 	}
 	return nil
+}
+
+func parameterNamesAtDeclaration(program *ast.Program, declaration source.Span) []string {
+	return parameterNames(parametersAtDeclaration(program, declaration))
 }
 
 func callContextAt(path, text string, offset int) (callContext, bool) {
@@ -580,6 +627,26 @@ func findCallExpression(program *ast.Program, path string, context callContext) 
 	return candidates[0]
 }
 
+func findNewExpression(program *ast.Program, path string, context callContext) *ast.NewExpr {
+	var candidates []*ast.NewExpr
+	visitProgramExpressions(program, func(expression ast.Expression) {
+		created, ok := expression.(*ast.NewExpr)
+		if !ok || !samePath(created.Span.Path, path) || created.ClassName != context.Name || created.Span.Start.Offset > context.OpenOffset || created.Span.End.Offset < context.OpenOffset {
+			return
+		}
+		if created.ClassNameSpan.Start.Offset <= context.CalleeOffset && context.CalleeOffset <= created.ClassNameSpan.End.Offset {
+			candidates = append(candidates, created)
+		}
+	})
+	if len(candidates) == 0 {
+		return nil
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Span.End.Offset-candidates[i].Span.Start.Offset < candidates[j].Span.End.Offset-candidates[j].Span.Start.Offset
+	})
+	return candidates[0]
+}
+
 func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 	var expression func(ast.Expression)
 	var statement func(ast.Statement)
@@ -651,6 +718,8 @@ func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 	}
 	statement = func(value ast.Statement) {
 		switch value := value.(type) {
+		case *ast.LabeledStmt:
+			statement(value.Statement)
 		case *ast.VariableDecl:
 			expression(value.Value)
 		case *ast.MultiVariableDecl:
@@ -822,6 +891,10 @@ func visibleCallableInBlock(block *ast.BlockStmt, path string, offset int, name 
 		}
 		var nested *ast.BlockStmt
 		switch item := item.(type) {
+		case *ast.LabeledStmt:
+			if ref, arrow, ok := visibleCallableInBlock(&ast.BlockStmt{Statements: []ast.Statement{item.Statement}, Span: item.Span}, path, offset, name); ok {
+				return ref, arrow, true
+			}
 		case *ast.BlockStmt:
 			nested = item
 		case *ast.IfStmt:

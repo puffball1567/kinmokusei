@@ -16,7 +16,9 @@ func TestGeneratedGoTargetCompatibilityMatrix(t *testing.T) {
 	contents := `
 import go strconv from "strconv";
 import go strings from "strings";
-function main(): void { strings.ToUpper(strconv.Itoa(42)); }
+function maximumUnsigned(): uint { return ^uint(0); }
+function aliases(value: uint8, codepoint: int32): int32 { return int32(value) + codepoint; }
+function main(): void { strings.ToUpper(strconv.Itoa(int(maximumUnsigned() >> 1))); aliases(255, int32(65)); }
 `
 	if err := os.WriteFile(source, []byte(contents), 0o644); err != nil {
 		t.Fatal(err)

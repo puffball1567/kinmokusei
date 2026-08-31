@@ -65,6 +65,41 @@ function breakSwitch(value: int): int {
   }
   return result;
 }
+function fallthroughChain(value: int): int {
+  let result = 0;
+  switch (value) {
+    case 0 { result = result * 10 + 1; fallthrough; }
+    case 1 { result = result * 10 + 2; fallthrough; }
+    default { result = result * 10 + 3; }
+  }
+  return result;
+}
+function fallthroughDefaultMiddle(value: int): int {
+  let result = 0;
+  switch (value) {
+    case 0 { result = result * 10 + 1; fallthrough; }
+    default { result = result * 10 + 2; fallthrough; }
+    case 2 { result = result * 10 + 3; }
+  }
+  return result;
+}
+function fallthroughReturns(value: int): int {
+  switch (value) {
+    case 0 { fallthrough; }
+    case 1 { return 10; }
+    default { return 20; }
+  }
+}
+function fallthroughEvaluation(value: int): int64 {
+  let counter: atomic.Int64 = atomic.Int64{};
+  let result = 0;
+  switch (observe(&counter, value)) {
+    case observe(&counter, 0) { result = 1; fallthrough; }
+    case observe(&counter, 1) { result = result * 10 + 2; }
+    default { result = 9; }
+  }
+  return counter.Load() * 100 + int64(result);
+}
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -80,6 +115,7 @@ function breakSwitch(value: int): int {
 		"case observe(&counter, 2), observe(&counter, 3):",
 		"case [2]int{1, 2}:",
 		"switch actual {",
+		"fallthrough",
 	} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
@@ -156,6 +192,58 @@ func BreakSwitch(value int) int {
   }
   return result
 }
+func FallthroughChain(value int) int {
+  result := 0
+  switch value {
+  case 0:
+    result = result*10 + 1
+    fallthrough
+  case 1:
+    result = result*10 + 2
+    fallthrough
+  default:
+    result = result*10 + 3
+  }
+  return result
+}
+func FallthroughDefaultMiddle(value int) int {
+  result := 0
+  switch value {
+  case 0:
+    result = result*10 + 1
+    fallthrough
+  default:
+    result = result*10 + 2
+    fallthrough
+  case 2:
+    result = result*10 + 3
+  }
+  return result
+}
+func FallthroughReturns(value int) int {
+  switch value {
+  case 0:
+    fallthrough
+  case 1:
+    return 10
+  default:
+    return 20
+  }
+}
+func FallthroughEvaluation(value int) int64 {
+  var counter atomic.Int64
+  result := 0
+  switch observe(&counter, value) {
+  case observe(&counter, 0):
+    result = 1
+    fallthrough
+  case observe(&counter, 1):
+    result = result*10 + 2
+  default:
+    result = 9
+  }
+  return counter.Load()*100 + int64(result)
+}
 `
 	testSource := `package valueswitch
 import (
@@ -181,6 +269,12 @@ func TestValueSwitchRuntimeMatrix(t *testing.T) {
   if gotSame != wantSame || gotDistinct != wantDistinct { t.Errorf("reference identity = (%v, %v), Go = (%v, %v)", gotSame, gotDistinct, wantSame, wantDistinct) }
   for _, input := range []int{1, 2, 0, -1} {
     if got, want := breakSwitch(input), reference.BreakSwitch(input); got != want { t.Errorf("breakSwitch(%d) = %d, Go = %d", input, got, want) }
+  }
+  for _, input := range []int{-1, 0, 1, 2, 9} {
+    if got, want := fallthroughChain(input), reference.FallthroughChain(input); got != want { t.Errorf("fallthroughChain(%d) = %d, Go = %d", input, got, want) }
+    if got, want := fallthroughDefaultMiddle(input), reference.FallthroughDefaultMiddle(input); got != want { t.Errorf("fallthroughDefaultMiddle(%d) = %d, Go = %d", input, got, want) }
+    if got, want := fallthroughReturns(input), reference.FallthroughReturns(input); got != want { t.Errorf("fallthroughReturns(%d) = %d, Go = %d", input, got, want) }
+    if got, want := fallthroughEvaluation(input), reference.FallthroughEvaluation(input); got != want { t.Errorf("fallthroughEvaluation(%d) = %d, Go = %d", input, got, want) }
   }
 }
 `

@@ -190,12 +190,12 @@ func TestVSCodeGrammarCoversLanguageVocabulary(t *testing.T) {
 	keywords := []string{
 		"function", "const", "let", "return", "if", "else", "true", "false",
 		"import", "from", "while", "for", "of", "select", "switch", "case",
-		"default", "break", "continue", "new", "class", "struct", "constructor", "public",
+		"default", "break", "continue", "goto", "fallthrough", "new", "class", "struct", "constructor", "public",
 		"private", "static", "pointer", "this", "interface", "implements", "extends", "virtual", "override", "super", "go", "defer",
-		"nil", "null", "as", "export", "try", "catch", "finally", "throw", "type", "alias", "distinct",
+		"nil", "null", "as", "export", "try", "catch", "finally", "throw", "enum", "type", "alias", "distinct",
 	}
 	builtins := []string{
-		"void", "boolean", "string", "int", "int32", "int64", "uint16", "uint32", "uint64", "float32",
+		"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32",
 		"float", "number", "float64", "byte", "error", "Map", "Result", "GoChannel",
 		"GoSendChannel", "GoReceiveChannel", "len", "cap", "append", "copy",
 		"delete", "clear", "min", "max", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel",

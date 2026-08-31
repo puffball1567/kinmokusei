@@ -85,3 +85,25 @@ function use(type: int, alias: int, distinct: int): int {
 		t.Fatalf("contextual identifiers were not preserved: class=%q parameters=%#v", class.Name, function.Parameters)
 	}
 }
+
+func TestParsesDefinedTypeValueAndPointerReceiverMethods(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+type Score = distinct int;
+public function read(this: Score): int { return int(this); }
+private function add(this: *Score, delta: Score): void { *this += delta; }
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("parser diagnostics = %d", diagnosticCount)
+	}
+	if len(program.Declarations) != 3 {
+		t.Fatalf("declarations = %d", len(program.Declarations))
+	}
+	value := program.Declarations[1].(*ast.MethodDecl)
+	pointer := program.Declarations[2].(*ast.MethodDecl)
+	if !value.External || value.ReceiverName != "this" || value.ReceiverType.Name != "Score" || value.Visibility != ast.Public {
+		t.Fatalf("value receiver = %#v", value)
+	}
+	if !pointer.External || !pointer.ReceiverType.IsPointer() || pointer.ReceiverType.Pointee.Name != "Score" || pointer.Visibility != ast.Private || len(pointer.Parameters) != 1 {
+		t.Fatalf("pointer receiver = %#v", pointer)
+	}
+}

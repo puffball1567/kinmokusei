@@ -173,7 +173,7 @@ func importAliasSpan(program *ast.Program, alias string) source.Span {
 
 func isReservedLanguageTypeName(name string) bool {
 	switch name {
-	case "void", "boolean", "string", "int", "int32", "int64", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Map", "Result":
+	case "void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Map", "Result":
 		return true
 	default:
 		return false
@@ -196,6 +196,8 @@ func topLevelName(declaration ast.Declaration) string {
 	case *ast.StructDecl:
 		return declaration.Name
 	case *ast.TypeDecl:
+		return declaration.Name
+	case *ast.EnumDecl:
 		return declaration.Name
 	case *ast.InterfaceDecl:
 		return declaration.Name
@@ -232,6 +234,14 @@ func linkProgram(program *ast.Program, declarations, visible moduleNames) {
 
 func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNames) {
 	switch declaration := declaration.(type) {
+	case *ast.CABIExportDecl:
+		for index, name := range declaration.Names {
+			if linked, ok := declarations[name]; ok {
+				declaration.Names[index] = linked
+			} else if linked, ok := visible[name]; ok {
+				declaration.Names[index] = linked
+			}
+		}
 	case *ast.VariableDecl:
 		original := declaration.Name
 		linkType(&declaration.Type, visible)
@@ -265,25 +275,29 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		linkBlock(declaration.Body, methodVisible, locals)
 	case *ast.ClassDecl:
 		original := declaration.Name
+		classVisible := cloneModuleNames(visible)
+		for _, parameter := range declaration.TypeParameters {
+			delete(classVisible, parameter.Name)
+		}
 		if declaration.Base != nil {
-			linkType(declaration.Base, visible)
+			linkType(declaration.Base, classVisible)
 		}
 		for i := range declaration.Implements {
-			linkType(&declaration.Implements[i], visible)
+			linkType(&declaration.Implements[i], classVisible)
 		}
 		for i := range declaration.Fields {
-			linkType(&declaration.Fields[i].Type, visible)
+			linkType(&declaration.Fields[i].Type, classVisible)
 		}
 		if declaration.Constructor != nil {
 			locals := parameterNames(declaration.Constructor.Parameters)
 			locals["this"] = true
 			for i := range declaration.Constructor.Parameters {
-				linkType(&declaration.Constructor.Parameters[i].Type, visible)
+				linkType(&declaration.Constructor.Parameters[i].Type, classVisible)
 			}
-			linkBlock(declaration.Constructor.Body, visible, locals)
+			linkBlock(declaration.Constructor.Body, classVisible, locals)
 		}
 		for _, method := range declaration.Methods {
-			methodVisible := cloneModuleNames(visible)
+			methodVisible := cloneModuleNames(classVisible)
 			for _, parameter := range method.TypeParameters {
 				delete(methodVisible, parameter.Name)
 			}
@@ -323,15 +337,30 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		declaration.Name = declarations[original]
 	case *ast.TypeDecl:
 		original := declaration.Name
+		typeVisible := cloneModuleNames(visible)
+		for _, parameter := range declaration.TypeParameters {
+			delete(typeVisible, parameter.Name)
+		}
+		linkType(&declaration.Underlying, typeVisible)
+		declaration.Name = declarations[original]
+	case *ast.EnumDecl:
+		original := declaration.Name
 		linkType(&declaration.Underlying, visible)
+		for index := range declaration.Members {
+			linkExpression(declaration.Members[index].Value, visible, nil)
+		}
 		declaration.Name = declarations[original]
 	case *ast.InterfaceDecl:
 		original := declaration.Name
+		interfaceVisible := cloneModuleNames(visible)
+		for _, parameter := range declaration.TypeParameters {
+			delete(interfaceVisible, parameter.Name)
+		}
 		for i := range declaration.Methods {
 			for j := range declaration.Methods[i].Parameters {
-				linkType(&declaration.Methods[i].Parameters[j].Type, visible)
+				linkType(&declaration.Methods[i].Parameters[j].Type, interfaceVisible)
 			}
-			linkType(&declaration.Methods[i].ReturnType, visible)
+			linkType(&declaration.Methods[i].ReturnType, interfaceVisible)
 		}
 		declaration.Name = declarations[original]
 	}
@@ -565,6 +594,9 @@ func linkExpression(expression ast.Expression, visible moduleNames, locals map[s
 	case *ast.NewExpr:
 		if linked, exists := visible[expression.ClassName]; exists {
 			expression.ClassName = linked
+		}
+		for index := range expression.TypeArguments {
+			linkType(&expression.TypeArguments[index], visible)
 		}
 		for _, argument := range expression.Arguments {
 			linkExpression(argument, visible, locals)

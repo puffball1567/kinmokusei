@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"reflect"
 	"testing"
 
 	"ontama.local/ontama/internal/ast"
@@ -15,6 +16,34 @@ func parseSource(t *testing.T, input string) (*ast.Program, int) {
 	}
 	program, diagnostics := Parse(tokens)
 	return program, len(diagnostics)
+}
+
+func TestParsesNativeRestParameters(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+function collect<T>(prefix: string, ...values: T[]): int { return len(values); }
+interface Joiner { function join(...parts: string[]): string; }
+function arrow(): (...values: int[]) => int { return (...values: int[]): int => len(values); }
+`)
+	if diagnosticCount != 0 || program == nil || len(program.Declarations) != 3 {
+		t.Fatalf("program = %#v, diagnostics = %d", program, diagnosticCount)
+	}
+	function := program.Declarations[0].(*ast.FunctionDecl)
+	if len(function.Parameters) != 2 || !function.Parameters[1].Variadic || !function.Parameters[1].Type.IsSlice() {
+		t.Fatalf("function parameters = %#v", function.Parameters)
+	}
+	contract := program.Declarations[1].(*ast.InterfaceDecl)
+	if len(contract.Methods) != 1 || len(contract.Methods[0].Parameters) != 1 || !contract.Methods[0].Parameters[0].Variadic {
+		t.Fatalf("interface methods = %#v", contract.Methods)
+	}
+	arrowFunction := program.Declarations[2].(*ast.FunctionDecl)
+	if !arrowFunction.ReturnType.Variadic || len(arrowFunction.ReturnType.Parameters) != 1 || !arrowFunction.ReturnType.Parameters[0].IsSlice() {
+		t.Fatalf("function type = %#v", arrowFunction.ReturnType)
+	}
+	statement := arrowFunction.Body.Statements[0].(*ast.ReturnStmt)
+	arrow := statement.Value.(*ast.ArrowExpr)
+	if len(arrow.Parameters) != 1 || !arrow.Parameters[0].Variadic {
+		t.Fatalf("arrow parameters = %#v", arrow.Parameters)
+	}
 }
 
 func TestParsesFunctionControlFlowAndCalls(t *testing.T) {
@@ -225,7 +254,7 @@ func TestParsesTypeSwitchCaseShapes(t *testing.T) {
 }
 
 func TestParsesValueSwitchCaseShapes(t *testing.T) {
-	program, diagnosticCount := parseSource(t, `function classify(value: int): int { switch (value) { case 0 { return 1; } case 1, 2 + 1 { break; } default { return 4; } } return 0; }`)
+	program, diagnosticCount := parseSource(t, `function classify(value: int): int { switch (value) { case 0 { return 1; } case 1, 2 + 1 { fallthrough; } default { return 4; } } return 0; }`)
 	if diagnosticCount != 0 {
 		t.Fatalf("got %d parser diagnostics", diagnosticCount)
 	}
@@ -240,8 +269,25 @@ func TestParsesValueSwitchCaseShapes(t *testing.T) {
 	if second := switched.Cases[1]; second.Default || len(second.Values) != 2 {
 		t.Fatalf("multi-value case = %#v", second)
 	}
+	branch, ok := switched.Cases[1].Body.Statements[0].(*ast.BranchStmt)
+	if !ok || branch.Kind != ast.FallthroughBranch || branch.Label != "" {
+		t.Fatalf("fallthrough branch = %#v", switched.Cases[1].Body.Statements[0])
+	}
 	if fallback := switched.Cases[2]; !fallback.Default || len(fallback.Values) != 0 {
 		t.Fatalf("default case = %#v", fallback)
+	}
+}
+
+func TestFallthroughParserFailureMatrix(t *testing.T) {
+	for _, test := range []struct{ name, source string }{
+		{"missing semicolon", `function bad(value: int): void { switch (value) { case 0 { fallthrough } default {} } }`},
+		{"cannot name target", `function bad(value: int): void { switch (value) { case 0 { fallthrough next; } default {} } }`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, diagnostics := parseSource(t, test.source); diagnostics == 0 {
+				t.Fatal("expected parser diagnostic")
+			}
+		})
 	}
 }
 
@@ -333,6 +379,55 @@ func TestParsesCABIExportMetadata(t *testing.T) {
 	function, ok := program.Declarations[0].(*ast.FunctionDecl)
 	if !ok || !function.CABIExport || function.CABISymbol != "ontama_add" || len(function.Parameters) != 2 || function.CABIExportSpan.Start.Column != 1 || function.CABISymbolSpan.Start.Column == 0 {
 		t.Fatalf("function=%#v", program.Declarations[0])
+	}
+}
+
+func TestParsesCABIExportListMetadata(t *testing.T) {
+	program, diagnostics := parseSource(t, `
+function add(left: int32, right: int32): int32 { return left + right; }
+const sub = (left: int32, right: int32): int32 => left - right;
+export c(
+  "ontama_add",
+  "ontama_sub",
+) {
+  add,
+  sub,
+};
+`)
+	if diagnostics != 0 || len(program.Declarations) != 3 {
+		t.Fatalf("diagnostics=%d declarations=%d", diagnostics, len(program.Declarations))
+	}
+	exports, ok := program.Declarations[2].(*ast.CABIExportDecl)
+	if !ok {
+		t.Fatalf("declaration=%T", program.Declarations[2])
+	}
+	if got, want := exports.Symbols, []string{"ontama_add", "ontama_sub"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("symbols=%v want=%v", got, want)
+	}
+	if got, want := exports.Names, []string{"add", "sub"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("names=%v want=%v", got, want)
+	}
+	if len(exports.SymbolSpans) != 2 || len(exports.NameSpans) != 2 || exports.Span.Start.Line != 4 || exports.Span.End.Line != 10 {
+		t.Fatalf("export spans=%#v symbol spans=%#v name spans=%#v", exports.Span, exports.SymbolSpans, exports.NameSpans)
+	}
+}
+
+func TestCABIExportListParserFailureMatrix(t *testing.T) {
+	for _, test := range []struct {
+		name, source string
+	}{
+		{"empty symbols", `export c() { add };`},
+		{"empty names", `export c("ontama_add") {};`},
+		{"missing symbol comma", `export c("ontama_add" "ontama_sub") { add, sub };`},
+		{"missing name comma", `export c("ontama_add", "ontama_sub") { add sub };`},
+		{"missing semicolon", `export c("ontama_add") { add }`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, diagnostics := parseSource(t, test.source)
+			if diagnostics == 0 {
+				t.Fatal("expected parser diagnostic")
+			}
+		})
 	}
 }
 

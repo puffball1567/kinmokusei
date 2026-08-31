@@ -41,7 +41,7 @@ func TestEveryNodeReturnsItsSpan(t *testing.T) {
 	span := source.Span{Path: "node.otm", Start: source.Position{Offset: 1, Line: 2, Column: 3}, End: source.Position{Offset: 4, Line: 2, Column: 6}}
 	nodes := []Node{
 		ImportDecl{Span: span}, TypeRef{Span: span},
-		&FunctionDecl{Span: span}, &ClassDecl{Span: span}, &InterfaceDecl{Span: span}, &VariableDecl{Span: span},
+		&FunctionDecl{Span: span}, &CABIExportDecl{Span: span}, &ClassDecl{Span: span}, &InterfaceDecl{Span: span}, &VariableDecl{Span: span},
 		&BlockStmt{Span: span}, &ReturnStmt{Span: span}, &ThrowStmt{Span: span}, &TryStmt{Span: span}, &IfStmt{Span: span}, &ExpressionStmt{Span: span},
 		&AssignmentStmt{Span: span}, &IncDecStmt{Span: span}, &MultiVariableDecl{Span: span}, &MultiAssignmentStmt{Span: span}, &WhileStmt{Span: span}, &ForStmt{Span: span}, &ForRangeStmt{Span: span}, &SelectCase{Span: span}, &SelectStmt{Span: span}, &ValueSwitchCase{Span: span}, &ValueSwitchStmt{Span: span}, &TypeSwitchCase{Span: span}, &TypeSwitchStmt{Span: span}, &BranchStmt{Span: span}, &CallControlStmt{Span: span}, &DetachStmt{Span: span}, &ChannelSendStmt{Span: span},
 		&IdentifierExpr{Span: span}, &LiteralExpr{Span: span}, &UnaryExpr{Span: span}, &BinaryExpr{Span: span}, &GoTypeAssertionExpr{Span: span}, &ClassUpcastExpr{Span: span}, &PropagateExpr{Span: span}, &TaskStartExpr{Span: span}, &AwaitExpr{Span: span},
@@ -56,10 +56,10 @@ func TestEveryNodeReturnsItsSpan(t *testing.T) {
 }
 
 func TestNodeCategoryImplementations(t *testing.T) {
-	declarations := []Declaration{&FunctionDecl{}, &ClassDecl{}, &InterfaceDecl{}, &VariableDecl{}}
+	declarations := []Declaration{&FunctionDecl{}, &CABIExportDecl{}, &ClassDecl{}, &InterfaceDecl{}, &VariableDecl{}}
 	statements := []Statement{&VariableDecl{}, &MultiVariableDecl{}, &BlockStmt{}, &ReturnStmt{}, &ThrowStmt{}, &TryStmt{}, &IfStmt{}, &ExpressionStmt{}, &AssignmentStmt{}, &IncDecStmt{}, &MultiAssignmentStmt{}, &WhileStmt{}, &ForStmt{}, &ForRangeStmt{}, &SelectStmt{}, &ValueSwitchStmt{}, &TypeSwitchStmt{}, &BranchStmt{}, &CallControlStmt{}, &DetachStmt{}, &ChannelSendStmt{}}
 	expressions := []Expression{&IdentifierExpr{}, &LiteralExpr{}, &UnaryExpr{}, &BinaryExpr{}, &GoTypeAssertionExpr{}, &ClassUpcastExpr{}, &PropagateExpr{}, &TaskStartExpr{}, &AwaitExpr{}, &CallExpr{}, &ArrowExpr{}, &ArrayLiteralExpr{}, &ObjectLiteralExpr{}, &GoCompositeLiteralExpr{}, &MemberExpr{}, &IndexExpr{}, &SliceExpr{}, &NewExpr{}}
-	if len(declarations) != 4 || len(statements) != 21 || len(expressions) != 18 {
+	if len(declarations) != 5 || len(statements) != 21 || len(expressions) != 18 {
 		t.Fatal("node category matrix is incomplete")
 	}
 }

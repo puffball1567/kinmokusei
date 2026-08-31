@@ -173,10 +173,10 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			candidates[item.Label] = item
 		}
 	}
-	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "continue", "default", "defer", "detach", "distinct", "else", "extends", "final", "finally", "for", "function", "go", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
+	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
-	for _, name := range []string{"void", "boolean", "string", "int", "int32", "int64", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
+	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
 	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
@@ -202,25 +202,35 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 		case *ast.FunctionDecl:
 			add(completionItem{Label: declaration.Name, Kind: 3, Detail: functionDeclarationDetail(declaration), SortText: "1_" + declaration.Name})
 		case *ast.ClassDecl:
-			add(completionItem{Label: declaration.Name, Kind: 7, Detail: "class " + declaration.Name, SortText: "1_" + declaration.Name})
+			detail := "class " + declaration.Name
+			if len(declaration.TypeParameters) != 0 {
+				detail += formatTypeParameters(declaration.TypeParameters)
+			}
+			add(completionItem{Label: declaration.Name, Kind: 7, Detail: detail, SortText: "1_" + declaration.Name})
 		case *ast.StructDecl:
 			detail := "struct " + declaration.Name
 			if len(declaration.TypeParameters) != 0 {
-				names := make([]string, len(declaration.TypeParameters))
-				for index, parameter := range declaration.TypeParameters {
-					names[index] = parameter.Name
-				}
-				detail += "<" + strings.Join(names, ", ") + ">"
+				detail += formatTypeParameters(declaration.TypeParameters)
 			}
 			add(completionItem{Label: declaration.Name, Kind: 22, Detail: detail, SortText: "1_" + declaration.Name})
 		case *ast.TypeDecl:
-			detail := "type " + declaration.Name + " = distinct " + formatTypeRef(declaration.Underlying)
+			name := declaration.Name
+			if len(declaration.TypeParameters) != 0 {
+				name += formatTypeParameters(declaration.TypeParameters)
+			}
+			detail := "type " + name + " = distinct " + formatTypeRef(declaration.Underlying)
 			if declaration.Alias {
-				detail = "alias " + declaration.Name + " = " + formatTypeRef(declaration.Underlying)
+				detail = "alias " + name + " = " + formatTypeRef(declaration.Underlying)
 			}
 			add(completionItem{Label: declaration.Name, Kind: 7, Detail: detail, SortText: "1_" + declaration.Name})
+		case *ast.EnumDecl:
+			add(completionItem{Label: declaration.Name, Kind: 13, Detail: "enum " + declaration.Name + ": " + formatTypeRef(declaration.Underlying), SortText: "1_" + declaration.Name})
 		case *ast.InterfaceDecl:
-			add(completionItem{Label: declaration.Name, Kind: 8, Detail: "interface " + declaration.Name, SortText: "1_" + declaration.Name})
+			detail := "interface " + declaration.Name
+			if len(declaration.TypeParameters) != 0 {
+				detail += formatTypeParameters(declaration.TypeParameters)
+			}
+			add(completionItem{Label: declaration.Name, Kind: 8, Detail: detail, SortText: "1_" + declaration.Name})
 		case *ast.VariableDecl:
 			add(variableCompletion(declaration.Name, declaration.Type, declaration.Constant))
 		}
@@ -251,6 +261,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			addParameters(declaration.Parameters, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
 		case *ast.ClassDecl:
+			for _, parameter := range declaration.TypeParameters {
+				add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+			}
 			for _, method := range declaration.Methods {
 				if spanContains(method.Span, path, offset) {
 					if !method.Static {
@@ -282,6 +295,14 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 					return
 				}
 			}
+		case *ast.InterfaceDecl:
+			for _, parameter := range declaration.TypeParameters {
+				add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+			}
+		case *ast.TypeDecl:
+			for _, parameter := range declaration.TypeParameters {
+				add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+			}
 		}
 		return
 	}
@@ -307,6 +328,8 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 			continue
 		}
 		switch statement := statement.(type) {
+		case *ast.LabeledStmt:
+			addVisibleBlock(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, path, offset, add)
 		case *ast.BlockStmt:
 			addVisibleBlock(statement, path, offset, add)
 		case *ast.IfStmt:
@@ -390,6 +413,8 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 
 func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 	switch statement := statement.(type) {
+	case *ast.LabeledStmt:
+		addStatementBindings(statement.Statement, add)
 	case *ast.VariableDecl:
 		add(variableCompletion(statement.Name, statement.Type, statement.Constant))
 	case *ast.MultiVariableDecl:

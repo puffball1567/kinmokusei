@@ -53,11 +53,11 @@ output.
 The compiler maintains an explicit registry of every implemented, accepted
 runtime contract that has a direct Go equivalent. Coverage is complete only
 when each registered contract is connected to an isolated handwritten-Go
-differential scenario. The current registry covers 62 of 62 contract groups
+differential scenario. The current registry covers 75 of 75 contract groups
 (100%), including core language behavior, collections, nullability, results,
 control flow, concurrency, standard/external Go interop, locked targets, CGO,
-unsafe operations, string conversion, native generic functions and structs,
-native defined types and aliases, the HTTP/JSON
+unsafe operations, string conversion, native generic functions, classes, structs, and interfaces,
+native defined types and aliases, native integer enums, the HTTP/JSON
 dogfood application, and the bounded fetch adapter.
 
 An automated gate discovers every differential scenario in the compiler tests,
@@ -113,24 +113,24 @@ these percentages replaces the independent-Go runtime contract gate.
 | Lexer | identifiers, numbers, strings, comments, Unicode, all operators | longest-match groups such as `&`/`&&`/`&=`/`&^=`, shifts/assignments, escapes, unterminated input | arbitrary input never panics and returns valid EOF/spans |
 | Parser | declarations, types, expressions, arrows, control, OOP, collections, interop | missing tokens, invalid targets, nested generic `>>`, statement-only updates, recovery | arbitrary input never panics and later declarations recover |
 | Predictability | value/reference, copy/alias, mutation, evaluation order/count, failure path | hidden alias, duplicate evaluation, unsupported fallback | generated form and runtime result tested together |
-| Types/operators | all built-ins including `uint16`/`uint32`/`uint64`, native nominal `type Name = distinct T`, transparent `alias Name = T`, conversions, arithmetic/comparison/logical/bitwise/shift, all compound updates, `++`/`--`, Go defined numbers | implicit nominal/signed/unsigned/width conversion, mixed types, invalid declarations/cycles/underlyings/operands/targets, conversion arity, const/nonaddressable mutation, fixed-width constant overflow, zero divisor, negative/excessive shift | independent-Go exact results across scalars/slices/maps/fixed arrays/generics/Results/linked modules/external APIs, copy/alias behavior, unsigned modulo behavior, target-once evaluation, Go flags/API, dynamic panic |
-| Names/functions | globals/locals, inference, shadowing, forward references, parameters/results, top-level generic function and struct type parameters, inferred/explicit/partial generic calls, explicit generic struct instantiation | duplicate/reserved/unscoped/uninferred type parameters, inconsistent inference, invalid explicit types, uninstantiated/wrong-arity generic types and values, incompatible instantiations, const mutation, arity, missing return | top-level, linked-module, generic calls and generic struct external APIs compile and match independent Go |
-| Control flow | conditionals, loops, all `for` clauses, range forms, value/type switches, branches | nonboolean conditions, invalid range, incompatible/non-comparable/duplicate cases, scope/binding errors, context-invalid branches | source-once range/switch, ordered case evaluation, value/reference comparison, index mutation, nil/empty, Unicode, named collections |
-| Functions/arrows | expression/block bodies, annotations, callbacks, function/method values | void parameters, signature mismatch, fallthrough, invalid call controls | Go function literals/callbacks execute |
+| Types/operators | all built-ins including `uint`, `int8`/`int16`, `uint8`/`byte`, and `uint16`/`uint32`/`uint64`, native nominal `type Name = distinct T`, generic and finite recursive defined types, transparent non-generic `alias Name = T`, conversions, defined-type value/pointer receiver methods, arithmetic/comparison/logical/bitwise/shift, all compound updates, `++`/`--`, Go defined numbers | implicit nominal/signed/unsigned/width conversion, mixed types, infinite-size or alias declaration cycles, invalid underlyings/operands/targets, alias/generic/pointer-underlying receiver rejection, pointer-method addressability, generic arity/constraint failures, conversion arity, const/nonaddressable mutation, fixed-width constant overflow, negative unsigned constant, zero divisor, negative/excessive shift | independent-Go exact results across scalars/slices/maps/fixed arrays/generic and recursive definitions/method values/nil receivers/Results/linked modules/external APIs, copy/alias behavior, machine/fixed-width overflow behavior, alias identity, target-once evaluation, Go flags/API, dynamic panic |
+| Names/functions | globals/locals, inference, shadowing, forward references, parameters/results, top-level generic function, class, struct, interface, and defined-type parameters, explicit `extends comparable`, inferred/explicit/partial generic calls, explicit generic named-type instantiation | duplicate/reserved/unscoped/uninferred type parameters, inconsistent inference, invalid/unsatisfied constraints and explicit types, uninstantiated/wrong-arity generic types and values, incompatible instantiations, const mutation, arity, missing return | top-level, linked-module, constrained/unconstrained generic calls and generic class/struct/interface/defined-type external APIs compile and match independent Go |
+| Control flow | conditionals, loops, all `for` clauses, range forms, value/type switches, branches, labels, labeled break/continue, forward/backward `goto` | nonboolean conditions, invalid range, incompatible/non-comparable/duplicate cases, scope/binding errors, duplicate/unused/undefined/non-enclosing/wrong-target labels, context-invalid branches | source-once range/switch, ordered case evaluation, value/reference comparison, index mutation, nil/empty, Unicode, named collections, independent-Go labeled control transfer |
+| Functions/arrows | expression/block bodies, annotations, callbacks, function/method values, native rest parameters on functions/generic functions/methods/interfaces/arrows/constructors | void or malformed/non-final rest parameters, signature mismatch, variadic arity/element/spread mismatch, fallthrough, invalid call controls | Go function literals/callbacks and independent variadic functions, methods, constructors, interfaces, and virtual forwarding execute |
 | Results/errors | `Result<T>`, `Result<void>`, `ok`, `fail`, postfix `?`, explicit split bindings, direct forwarding, raw Go error bridge | invalid placement/type/arity, forbidden storage/nesting, implicit raw conversion | generated `(T, error)`/`error`, success, zero-value failure, propagation |
 | Exceptions | built-in `Exception`, typed ordered catches, `throw`, bare rethrow, `try`, `finally`, nesting, return-through-finally, publishable Go API | non-error throws/catches, unreachable catch order, invalid bare rethrow scope, outer-target break/continue, pending tasks | independent-Go typed dispatch/rethrow, external consumer API, return/finally ordering, Result returns, nil errors, terminal flow, concurrency, and ordinary panic preservation |
 | Structured tasks | ordinary/void/`Result` calls, direct and bound tasks, nested-expression `await`, explicit `detach`, eager callee/argument evaluation, concurrent start | non-call start, raw Go multi-result, copy/reassignment/capture/escape, double/maybe/unconsumed paths, invalid await/detach, generated-name collision | independent-Go value/error/panic results, completion ordering, concurrency, detach completion, and race execution |
 | Null safety | nil-backed `T | null`, `null`, assignment/equality, immutable/stable-mutable branch and guard narrowing, definite non-null field initialization | non-nilable bases, raw `nil` mixing, unsafe member/call/index/slice/channel use, mutation/address/capture/alias invalidation, branch joins, loop backedges, incomplete constructor paths and early return | generated nil representation, present/absent runtime paths, pre-write acceptance/post-write rejection, re-narrowing, Result composition, initialized class runtime paths |
 | Collections | slices, fixed arrays, maps, strings, indexes/slices/range, `len`/`cap`/`append`/`copy`/`delete`/`clear`/`min`/`max`/make built-ins, object types | length/type/bounds/key/addressability errors, incompatible ordered operands, conversion length panic, literal field errors | independent-Go values/evaluation/panic, real standard APIs, JSON tags/API dogfood, alias/reallocation/copy/nil behavior |
-| Classes/interfaces | constructors, fields, methods, visibility, static, explicit conformance, dispatch | duplicates, privacy, generated static-name collisions, static/instance mismatch, missing/signature mismatch, implicit conformance rejection | generated structs/methods/interfaces, cross-file dispatch, and external-Go public/static API use without private visibility leakage |
+| Classes/interfaces | constructors, fields, methods, visibility, static, explicit conformance, dispatch, generic class/interface declarations and explicit instantiations | duplicates, privacy, generated static-name collisions, static/instance mismatch, missing/signature mismatch, implicit conformance rejection, missing/excess/invalid generic arguments, constraint failures, incompatible instantiations, and unsupported generic inheritance/virtual/static combinations | generated generic structs/constructors/methods/interfaces, substituted fields and dispatch, reference identity, method values, multiple instantiations, linked modules, and external-Go public/static API use without private visibility leakage |
 | Native structs | nominal and unconstrained generic declarations, explicit instantiation, substituted fields/methods, complete named literals, fields, assignment/argument/return copy, explicit pointers, nested/fixed-array/recursive-indirection shapes, comparability, relative imports | duplicate/missing/extra/mistyped fields/type parameters, missing/excess/invalid type arguments, incompatible instantiations, nonaddressable writes, non-comparable equality/map keys, value recursion, `new`/nullable misuse | generated named/generic Go structs and independent-Go copy/alias/method-value/evaluation-order/runtime matrices, linked modules, and external Go consumers |
 | Imports/modules | selective/transitive behavior, deterministic roots, aliases | missing files/names, cycles, duplicate binding, undeclared transitive access | root order/duplication independent generated output |
 | Go interop | basic/named/alias/anonymous types, fields/tags, pointers, nil, methods, variables, multiple results, callbacks, interfaces, assertions, generics, channels | missing/unexported APIs, identity mismatch, constraint failure, direction mismatch, unsupported/unsafe signatures | real stdlib/external fixtures and public API audit |
 | Targets/dependencies | locked graph, replace, target settings, `install --go-module`, lower-level dependency commands, license hashes | malformed/inexact install input, duplicate modules, stale/tampered locks, target/cgo mismatch, transactional rollback, unknown/missing licenses | offline install/import, reproducibility, cross-build, target-specific fixture |
 | Unsafe policy | explicit allow, pointers/conversions/built-ins | default denial, nested/public exposure, invalid arity/types/overflow | generated Go and panic matrix |
-| C ABI | all fixed-width scalars, void, symbols, gateway/header/manifest/fingerprint | invalid/reserved/duplicate symbols, unsupported types, null out, panic, compatibility changes | build shared library and run a C caller |
+| C ABI | all fixed-width scalars, normalized boolean, void, symbols, gateway/header/manifest/fingerprint | nonzero boolean inputs, normalized boolean outputs, invalid/reserved/duplicate symbols, unsupported types, null out, panic, compatibility changes | build shared library and run a C caller |
 | Incoming C FFI | fixed/C-width scalars, bool, borrowed strings/byte buffers, released-and-copied owned C strings and byte/scalar/enum/POD arrays, enums, nested POD structs, normalized tagged unions, call-scoped and explicitly registered callbacks carrying scalar/enum/POD/tagged-union values, copied string/byte inputs, transactional mutable byte buffers, registered C-owned string/byte/scalar/enum/POD-array results with paired release, registration-owned retained strings/byte buffers, and one optional handle lifetime lease, status and status/out, opaque handles, target flags, thread-safe/serialized/OS-thread-affine policies | malformed/injected manifests, embedded NUL/null result, owned null success, allocated empty string, C failure after allocation, empty/binary buffers, null/nonzero length, target-int byte/product overflow, unsupported array element, missing release, width mismatch, duplicate/recursive POD declarations, empty/duplicate/unsupported union declarations, invalid overlaid scalar variants, unknown union tags, invalid callback lifetime/signature/registration/combinations, call-scoped owned callback result, copied/inout null/length violations, null owned-result length output, embedded NUL owned callback result, missing/unsupported/unexpected callback result element, owned callback array-size overflow, unsupported callback pointer types, duplicate/borrowed/multiple-handle registration parameters, retained/copied/inout-type misuse, nil callback, callback panic, registration capacity failure, unregister failure/retry, active-registration handle close, double/nil close, closed/nil handles | generate cgo, compile real C fixtures and a Raylib-shaped context-free load/unload shim, count string/buffer/array releases on every path, execute external-tag scalar/enum payloads and SDL-shaped overlaid POD payloads, execute zero/one/many/concurrent C-thread callbacks with bool/void/enum and owned-string/byte/scalar/enum/POD-array results and scalar/enum/POD/tagged-union/copied/inout inputs through direct/status/status-out and thread-affine calls, prove callback input copies survive C-side mutation, prove inout copy-back on normal true/false/void completion and no copy-back on panic/input failure, exercise required/nullable strings, empty/binary/repeated buffers and oversized/null-invalid inputs, verify owned callback null/zero, embedded-NUL, and array-size failure, exact-once release, and delayed release after registration close, adapt `size_t *` plus context to `int *bytesRead` without context, multiple registered subscribers, unknown callback union tags, enum routing, POD-filter value copying, retained-input copy isolation/exact-pointer unregister/failure retry/empty values, handle-coupled register/fire/unregister and retry, panic/input-failure disabling, in-flight Close draining, post-close silence, direct Go and high-level OnsenTamago wrappers, compare C allocation/release/register thread identity, concurrent/race calls |
-| LSP | lifecycle, transactional incremental synchronization, overlays, asynchronous requests, cancellation, content-modified suppression, UTF-16/CRLF diagnostics, hover including compiler-provided exception declarations, native generic signatures, and native type declarations, semantic definition/references, value/type/type-parameter/class/member/interface-family rename, symbols, lexical/import/Go package and Go value completion, generic type-parameter and native type completion, visibility-aware source class/struct/interface/object member completion, callable/constructor/built-in/Go package function/Go value method signature help | malformed protocol/request IDs/cancellation, invalid/surrogate-splitting ranges, mismatched lengths, stale versions/results, invalid names, shadowing/capture/collisions, comments/strings, closed scopes, external Go declarations, source-less built-ins, static/instance and private/protected boundaries, unselected imports, unexported/ambiguous Go members, fields used as methods, incomplete and nested calls | CLI diagnostic consistency, cross-file overlay rename/signature help, target-aware module fixtures, shutdown ordering, and race coverage |
+| LSP | lifecycle, transactional incremental synchronization, overlays, asynchronous requests, cancellation, content-modified suppression, UTF-16/CRLF diagnostics, hover including compiler-provided exception declarations, native generic signatures, and native type declarations, semantic definition/references, value/type/type-parameter/class/member/interface-family rename, symbols, lexical/import/Go package and Go value completion, generic type-parameter and native type completion, substituted source class/struct/interface member completion, callable/constructor/built-in/Go package function/Go value method signature help | malformed protocol/request IDs/cancellation, invalid/surrogate-splitting ranges, mismatched lengths, stale versions/results, invalid names, shadowing/capture/collisions, comments/strings, closed scopes, external Go declarations, source-less built-ins, static/instance and private/protected boundaries, unselected imports, unexported/ambiguous Go members, fields used as methods, incomplete and nested calls | CLI diagnostic consistency, cross-file overlay rename/signature help, target-aware module fixtures, shutdown ordering, and race coverage |
 | HTTP dogfood | direct `net/http` and `encoding/json`, object DTOs, `ontama/http` App/Context routing | malformed JSON, method/path/status behavior, route conflicts, missing cookies, cancellation/timeout where relevant | compile/run/race against an in-process server, independent-Go method/path/query/header/cookie matrices, external Go handler use, and concurrent requests |
 
 ## Go interop compatibility method
@@ -213,8 +213,6 @@ Core items are implemented and continuously extended.
 
 Implemented: overlay frontend, same-binary `lsp --stdio`, lifecycle, transactional incremental document synchronization, monotonic version handling, multiple open documents, CLI-equivalent diagnostics, asynchronous semantic requests, explicit request cancellation, stale-result suppression, UTF-16/CRLF conversion, hover, semantic definition/references, scope-safe rename for values, types, classes, members, interface implementation families, and import aliases, symbols, local/import/Go completion, signature help for OnsenTamago and Go callables, and a thin official Visual Studio Code client with tested configuration, startup failure, retry, restart ordering, lifecycle behavior, real Extension Host coverage, and reproducible local VSIX generation.
 
-Remaining: marketplace identity, licensing, release automation, and publication of editor artifacts.
-
 ### Phase 2: practical language and OOP foundation
 
 - Classes, visibility, constructors, static members.
@@ -224,13 +222,24 @@ Remaining: marketplace identity, licensing, release automation, and publication 
 - Core nil-backed nullable references, assignment-sensitive local flow narrowing/joins, and definite constructor field initialization. (implemented)
 - Object DTOs and public Go API generation.
 - Nominal Go-style value structs, complete literals, copy/pointer/comparability semantics, nested and external value/pointer receiver methods, method values, module linking, and editor navigation. (implemented)
-- Native nominal defined types and transparent aliases with conversions,
-  collection/operator semantics, module linking, independent-Go comparison, and
-  editor navigation. (implemented; generic declarations and defined-type
-  methods remain future work)
-- Native unconstrained generic structs with explicit instantiation, substituted
-  nested/value/pointer method behavior, relative linking, editor support, and
+- Native nominal defined types and transparent non-generic aliases with
+  conversions, generic defined-type declarations, inferred map-key constraints,
+  finite recursive slice/map/pointer/function/channel declarations,
+  collection/operator semantics, module linking, independent-Go comparison,
+  generic and non-generic value/pointer receiver methods, method values, module linking,
+  independent-Go comparison, and editor navigation. (implemented; generic
+  aliases under the minimum Go target remain future work)
+- Native generic structs with explicit instantiation, `extends comparable`, substituted
+  nested/external value/pointer method behavior, relative linking, editor support, and
   independent-Go runtime comparison. (implemented)
+- Native generic interfaces with explicit instantiation, `extends comparable`,
+  substituted method contracts, explicit class conformance, relative linking,
+  editor support, and independent-Go runtime comparison. (implemented)
+- Native generic reference classes with explicit instantiation, `extends comparable`,
+  substituted fields/constructors/instance methods and generic interface contracts,
+  relative linking, editor support, public generated-Go APIs, and independent-Go
+  runtime comparison. (implemented; inheritance, virtual members, and static
+  methods on generic classes remain future work)
 
 Most class/interface/object foundations, explicit result propagation,
 direct-assignment-sensitive local null narrowing and joins,
@@ -282,31 +291,19 @@ branch, switch, and loop-boundary inputs.
 - Final classes and final overrides. (implemented)
 - Public Go hierarchy conversions and external-package virtual dispatch. (implemented)
 
-### Phase 3: goroutine and web MVP
+### Phase 3: concurrency and HTTP interoperability
 
 - Higher-level `Task<T>`, expression `go`, `await`, and `detach`. (implemented)
 - Explicit task context parameters. (implemented through ordinary Go interop)
 - Automatic request-context inheritance and cancellation propagation.
-- Higher-level typed channel wrappers above raw directional Go channels.
 - Bounded context-aware outbound `fetch` adapter. (implemented)
 - Server-side `net/http` adapter, method router, and request context access. (implemented)
-- JSON helpers and middleware.
-- Graceful shutdown, timeout, and leak tests. (router race/concurrent tests implemented)
+- Router race and concurrent behavior tests. (implemented)
 
 Raw Go concurrency, structured task lifecycle/panic transport, direct JSON API
-dogfood, and the thin outbound plus method-routing HTTP kernel are implemented;
-automatic task cancellation, JSON/middleware conveniences, lifecycle, and the
-higher-level server framework remain.
-
-### Phase 3.5: practical web foundation
-
-- Validation and typed error responses.
-- Typed configuration and structured logging.
-- Request IDs, CORS, secure headers, body limits.
-- HTTP testing/client helpers and health/readiness.
-- One authentication path.
-- `database/sql` adapter, one driver, migrations.
-- End-to-end sample application and project lifecycle experiments.
+dogfood, and the thin outbound plus method-routing HTTP kernel are implemented.
+Automatic task cancellation and context inheritance remain language/runtime
+work.
 
 ### Phase 4: package productivity
 
@@ -315,8 +312,7 @@ higher-level server framework remain.
 - Outgoing C ABI 0 for fixed-width scalars.
 - Go API documentation generation and OnsenTamago package test runner.
 - External Go module license reports.
-- Explicit adapters from direct interop to OnsenTamago APIs.
-- Incoming C/Nim FFI experiment with integers, bytes, handles, results, and release.
+- Incoming C FFI generation with integers, bytes, handles, results, and release.
 
 Dependency locking, `emit-go`, license inspection, outgoing C ABI 0, and the
 manifest-driven incoming schema 1 scalar/string/enum/POD/tagged-union/
@@ -328,16 +324,13 @@ packages remains future work.
 ### Phase 4.5: production C FFI
 
 - Source-level typed FFI declarations over the implemented checked manifest IR.
-- Safe public OnsenTamago/Go wrappers.
 - Ownership, lifetime, and thread-safety validation.
 - ABI manifests/diffs, callbacks, goroutine behavior, and OS-specific integration tests.
 
-### Phase 5: expand through real use
+### Phase 5: expand the language through real use
 
-- Collect missing features from real web applications.
+- Collect missing language and compiler features from real applications.
 - Improve generation based on profiles.
-- Prioritize streaming/WebSocket/protocol work from evidence.
-- Reassess whether a dedicated package registry is actually necessary.
 
 ## Verification commands and reporting
 

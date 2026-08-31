@@ -60,7 +60,6 @@ func TestNativeGenericFunctionSyntaxFailureMatrix(t *testing.T) {
 		{"missing close", `function identity<T(value: T): T { return value; }`, "expected '>'"},
 		{"class method", `class Box { public function identity<T>(value: T): T { return value; } }`, "generic class methods are not supported"},
 		{"struct method", `struct Box { public function identity<T>(value: T): T { return value; } }`, "generic struct methods are not supported"},
-		{"external receiver", `struct Box {} public function identity<T>(this: Box, value: T): T { return value; }`, "generic receiver methods are not supported"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -77,6 +76,17 @@ func TestNativeGenericFunctionSyntaxFailureMatrix(t *testing.T) {
 				t.Fatalf("diagnostics = %v, want %q", messages, test.want)
 			}
 		})
+	}
+}
+
+func TestParsesExternalGenericReceiverMethod(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `struct Box<T> { public value: T; } public function get<U>(this: Box<U>): U { return this.value; }`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	method := program.Declarations[1].(*ast.MethodDecl)
+	if len(method.TypeParameters) != 1 || method.TypeParameters[0].Name != "U" || len(method.ReceiverType.GenericArguments) != 1 || method.ReceiverType.GenericArguments[0].Name != "U" {
+		t.Fatalf("method = %#v", method)
 	}
 }
 

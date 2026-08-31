@@ -23,6 +23,9 @@ func TestGenericStructSemanticMatrix(t *testing.T) {
 		{"pointer to parameter", `struct Ref<T> { public value: *T; } function use(value: *int): *int { const ref: Ref<int> = Ref<int> { value: value }; return ref.value; }`},
 		{"fixed array argument", `struct Box<T> { public value: T; } function use(value: Box<[2]int>): int { return value.value[0]; }`},
 		{"interface argument", `interface Reader { function read(): string; } class Item implements Reader { public function read(): string { return "ok"; } } struct Box<T> { public value: T; } function use(value: Box<Reader>): string { return value.value.read(); }`},
+		{"external value receiver", `struct Box<T> { public value: T; } public function get<U>(this: Box<U>): U { return this.value; } function use(box: Box<string>): string { return box.get(); }`},
+		{"external pointer receiver", `struct Box<T> { public value: T; } public function set<U>(this: *Box<U>, value: U): void { this.value = value; } function use(box: *Box<string>): void { box.set("new"); }`},
+		{"external two parameter receiver", `struct Pair<T, U> { public first: T; public second: U; } function readSecond<A, B>(this: Pair<A, B>): B { return this.second; } function use(pair: Pair<string, int>): int { return pair.readSecond(); }`},
 	}
 	for _, test := range success {
 		t.Run(test.name, func(t *testing.T) {
@@ -50,7 +53,10 @@ func TestGenericStructFailureMatrix(t *testing.T) {
 		{"void argument", `struct Box<T> { public value: T; } function bad(value: Box<void>): void {}`, "void cannot be used as a generic struct type argument"},
 		{"Result argument", `struct Box<T> { public value: T; } function bad(): Result<Box<Result<int>>> { return fail(nil); }`, "Result<int> cannot be used as a generic struct type argument"},
 		{"direct recursion", `struct Node<T> { public next: Node<T>; }`, "recursively contains itself by value"},
-		{"external receiver", `struct Box<T> { public value: T; } public function get(this: Box<T>): T { return this.value; }`, "external method receiver must be a native struct value or pointer"},
+		{"external receiver missing binders", `struct Box<T> { public value: T; } public function get(this: Box<T>): T { return this.value; }`, "requires 1 receiver type parameters, got 0"},
+		{"external receiver concrete argument", `struct Box<T> { public value: T; } public function get<U>(this: Box<int>): int { return this.value; }`, "must be receiver type parameter U"},
+		{"external receiver wrong binder", `struct Box<T> { public value: T; } public function get<U>(this: Box<T>): T { return this.value; }`, "must be receiver type parameter U"},
+		{"external receiver wrong arity", `struct Pair<T, U> { public first: T; public second: U; } public function first<A>(this: Pair<A, A>): A { return this.first; }`, "requires 2 receiver type parameters, got 1"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

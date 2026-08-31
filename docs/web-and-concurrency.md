@@ -1,24 +1,22 @@
-# Web backends and concurrency
+# HTTP interoperability and concurrency
 
 ## Why web backends first
 
-Web services exercise the language's intended strengths together: static DTOs, explicit errors, modules, existing Go libraries, goroutines, cancellation, deterministic binaries, and operational testing. The first framework should build on `net/http` rather than replace the Go runtime.
+Web services exercise the language's intended strengths together: static DTOs, explicit errors, modules, existing Go libraries, goroutines, cancellation, deterministic binaries, and operational testing. OnsenTamago preserves direct access to Go's `net/http` rather than introducing a separate runtime.
 
 ## Layers
 
 ```text
 application code
       |
-OnsenTamago framework (routing, middleware, validation, lifecycle)
-      |
-safe standard adapters
+implemented ontama/http kernel
       |
 direct import go boundary
       |
-Go net/http, context, encoding/json, database/sql, log/slog
+Go net/http, context, encoding/json, and other Go packages
 ```
 
-Applications should be able to descend to a lower layer explicitly. Framework conveniences must not make direct interop unavailable.
+Applications may use the small HTTP kernel or descend directly to `import go`.
 
 ## API direction
 
@@ -43,21 +41,7 @@ header, request-context, and cookie access. Direct `net/http` and
 embedded `ontama/http` source also provides a thin fetch adapter that keeps
 context and response limits explicit and composes with
 `Task<Result<Response>>` without introducing an Axios-style configuration
-layer. JSON helpers, middleware, common error handling, lifecycle, and the
-higher-level framework remain future work.
-
-## Minimum web feature set
-
-- Routing by HTTP method.
-- Path/query/header/cookie access.
-- JSON request/response and typed DTOs.
-- Middleware chains and a common error boundary.
-- Request context, cancellation, and timeouts.
-- Graceful shutdown.
-- Ordinary non-streaming responses first.
-- In-process HTTP testing helpers.
-
-Initial non-goals include Node middleware compatibility, arbitrary Express packages, bundled ORM, and immediate WebSocket/HTTP3/protocol coverage.
+layer.
 
 ## Concurrency model
 
@@ -93,20 +77,18 @@ const user: User = await task;
 ### Cancellation direction
 
 - Context is passed explicitly through ordinary `context.Context` values today.
-- A future handler runtime should make request-context inheritance explicit and
-  propagate client disconnects and deadlines.
+- Future task syntax may make context inheritance and cancellation propagation
+  explicit at the language/runtime boundary.
 - Ignoring cancellation requires an explicit detached lifetime.
-- SQL, outbound HTTP, queues, and telemetry must receive the same context.
 
 ### Shared state
 
 - Capturing the same mutable variable from multiple tasks should warn or fail where statically visible.
-- Standard libraries should provide explicit `Mutex<T>`, `Atomic<T>`, and `Channel<T>` abstractions.
 - The language does not promise implicit race prevention; generated Go must remain compatible with `go test -race`.
 
 ## Channels
 
-Raw Go channels are the interoperability substrate. Higher-level channels may add ownership, closure, cancellation, or structured task integration, but they must not change direction/type behavior silently.
+Raw Go channels are the interoperability substrate and retain Go's direction and type behavior.
 
 ```ts
 const channel = goChannel[int](1);

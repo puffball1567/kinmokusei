@@ -46,6 +46,41 @@ function main(): boolean { return combine(1, "value"); }`
 	}
 }
 
+func TestSignatureHelpNativeVariadicDeclarations(t *testing.T) {
+	tests := []struct {
+		name       string
+		text       string
+		needle     string
+		wantLabel  string
+		wantActive float64
+	}{
+		{
+			"function",
+			`function sum(prefix: int, ...values: int[]): int { return prefix; } function use(): int { return sum(1, 2, 3); }`,
+			"3);", "sum(prefix: int, ...values: int[]): int", 1,
+		},
+		{
+			"constructor",
+			`class Batch { constructor(public ...values: int[]) {} } function use(): Batch { return new Batch(1, 2); }`,
+			"2);", "new Batch(...values: int[]): Batch", 0,
+		},
+		{
+			"arrow",
+			`function use(): int { const sum = (...values: int[]): int => len(values); return sum(1, 2); }`,
+			"2);", "sum(...values: int[]): int", 0,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), test.name+".otm")
+			label, active, _ := signatureResult(t, signatureHelpAt(t, path, test.text, positionOf(test.text, test.needle, 0)))
+			if label != test.wantLabel || active != test.wantActive {
+				t.Fatalf("signature = %q active=%v, want %q active=%v", label, active, test.wantLabel, test.wantActive)
+			}
+		})
+	}
+}
+
 func TestSignatureHelpInsideValueSwitch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "switch.otm")
 	text := `function combine(left: int, right: int): int { return left + right; }

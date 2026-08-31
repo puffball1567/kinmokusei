@@ -16,8 +16,14 @@ func TestBuiltinTypeMatrix(t *testing.T) {
 		{"boolean", Boolean, false, true},
 		{"string", String, false, true},
 		{"int", Int, true, true},
+		{"int8", Int8, true, true},
+		{"int16", Int16, true, true},
 		{"int32", Int32, true, true},
 		{"int64", Int64, true, true},
+		{"uint", Uint, true, true},
+		{"uint16", Uint16, true, true},
+		{"uint32", Uint32, true, true},
+		{"uint64", Uint64, true, true},
 		{"float32", Float32, true, true},
 		{"float64", Float64, true, true},
 		{"byte", Byte, true, true},
@@ -35,6 +41,13 @@ func TestBuiltinTypeMatrix(t *testing.T) {
 		value, ok := LookupType(alias)
 		if !ok || value.Kind != Float64 || value.Name != "float" {
 			t.Errorf("alias %q = %#v, ok=%v", alias, value, ok)
+		}
+	}
+	for alias, canonical := range map[string]string{"uint8": "byte"} {
+		value, ok := LookupType(alias)
+		want, _ := LookupType(canonical)
+		if !ok || !sameType(value, want) || value.Name != want.Name {
+			t.Errorf("alias %q = %#v, want %#v, ok=%v", alias, value, want, ok)
 		}
 	}
 	if _, ok := LookupType("missing"); ok {
@@ -77,8 +90,8 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 		{"boolean", gotypes.Typ[gotypes.Bool], Boolean, false},
 		{"string", stringType, String, false},
 		{"int", intType, Int, false},
-		{"int8", gotypes.Typ[gotypes.Int8], GoBasic, false},
-		{"int16", gotypes.Typ[gotypes.Int16], GoBasic, false},
+		{"int8", gotypes.Typ[gotypes.Int8], Int8, false},
+		{"int16", gotypes.Typ[gotypes.Int16], Int16, false},
 		{"int32", gotypes.Typ[gotypes.Int32], Int32, false},
 		{"int64", gotypes.Typ[gotypes.Int64], Int64, false},
 		{"byte", gotypes.Typ[gotypes.Uint8], Byte, false},
@@ -87,7 +100,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 		{"slice", gotypes.NewSlice(stringType), Array, false},
 		{"fixed array", gotypes.NewArray(stringType, 3), FixedArray, false},
 		{"map", gotypes.NewMap(stringType, intType), Map, false},
-		{"unsigned integer", gotypes.Typ[gotypes.Uint], GoBasic, false},
+		{"unsigned integer", gotypes.Typ[gotypes.Uint], Uint, false},
 		{"uint16", gotypes.Typ[gotypes.Uint16], Uint16, false},
 		{"uint32", gotypes.Typ[gotypes.Uint32], Uint32, false},
 		{"uint64", gotypes.Typ[gotypes.Uint64], Uint64, false},

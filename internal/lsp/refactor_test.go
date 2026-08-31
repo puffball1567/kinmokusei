@@ -92,6 +92,38 @@ func TestReferencesUseSemanticIdentityAcrossShadowing(t *testing.T) {
 	}
 }
 
+func TestLabelDefinitionReferencesAndRename(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "labels.otm")
+	uri := fileURI(path)
+	text := `function loop(limit: int): int {
+  let value = 0;
+  target: value++;
+  if (value < limit) { goto target; }
+  return value;
+}`
+	messages := serveMessages(t,
+		openDocument(uri, text),
+		requestAt("textDocument/definition", 2, uri, positionOf(text, "target", 1), ""),
+		requestAt("textDocument/references", 3, uri, positionOf(text, "target", 0), `"context":{"includeDeclaration":true}`),
+		requestAt("textDocument/rename", 4, uri, positionOf(text, "target", 1), `"newName":"repeat"`),
+	)
+	definitionResult, ok := messages[2]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("label definition response = %#v", messages[2])
+	}
+	definition := definitionResult["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(2) {
+		t.Fatalf("label definition = %#v, want line 2", definition)
+	}
+	if got := len(messages[3]["result"].([]any)); got != 2 {
+		t.Fatalf("label references = %d, want declaration and goto: %#v", got, messages[3])
+	}
+	changes := messages[4]["result"].(map[string]any)["changes"].(map[string]any)
+	if got := len(changes[uri].([]any)); got != 2 {
+		t.Fatalf("label rename edits = %d, want 2: %#v", got, changes)
+	}
+}
+
 func TestInheritanceNavigationAndOverrideRenameFamily(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "inheritance.otm")
 	uri := fileURI(path)
@@ -244,6 +276,26 @@ function clean(value: string): string { return words.TrimSpace(value); }`
 	changes := messages[3]["result"].(map[string]any)["changes"].(map[string]any)
 	if got := len(changes[uri].([]any)); got != 2 {
 		t.Fatalf("Go alias edits = %d, want import and use", got)
+	}
+}
+
+func TestReferencesAndRenameCABIExportListTarget(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cabi_export.otm")
+	uri := fileURI(path)
+	text := `const add = (left: int32, right: int32): int32 => left + right;
+export c("ontama_add") {add};`
+	at := positionOf(text, "add", 2)
+	messages := serveMessages(t,
+		openDocument(uri, text),
+		requestAt("textDocument/references", 2, uri, at, `"context":{"includeDeclaration":true}`),
+		requestAt("textDocument/rename", 3, uri, at, `"newName":"sum"`),
+	)
+	if got := len(messages[2]["result"].([]any)); got != 2 {
+		t.Fatalf("C ABI target references=%d, want declaration and export list", got)
+	}
+	changes := messages[3]["result"].(map[string]any)["changes"].(map[string]any)
+	if got := len(changes[uri].([]any)); got != 2 {
+		t.Fatalf("C ABI target rename edits=%d, want declaration and export list", got)
 	}
 }
 

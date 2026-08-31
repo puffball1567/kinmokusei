@@ -279,7 +279,7 @@ func TestGoConstantClassificationMatrix(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"int", "int32", "int64", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte"} {
+	for _, name := range []string{"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte"} {
 		if !isBuiltinConversion(name) {
 			t.Errorf("%q is not recognized as a conversion", name)
 		}

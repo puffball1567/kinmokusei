@@ -7,6 +7,7 @@ type Node interface{ GetSpan() source.Span }
 type Program struct {
 	Imports        []ImportDecl
 	Declarations   []Declaration
+	CABIExports    []CABIExport
 	UsesTasks      bool
 	UsesExceptions bool
 }
@@ -62,7 +63,10 @@ type TypeRef struct {
 	NativeNamed          bool
 	Go                   bool
 	Nullable             bool
-	Span                 source.Span
+	// Variadic marks a function type whose final Parameters entry is the
+	// source-level slice type of a rest parameter.
+	Variadic bool
+	Span     source.Span
 }
 
 type ObjectTypeField struct {
@@ -89,6 +93,7 @@ func (t TypeRef) IsSpecified() bool {
 type Parameter struct {
 	Name       string
 	Type       TypeRef
+	Variadic   bool
 	Visibility Visibility
 	IsField    bool
 	Span       source.Span
@@ -97,7 +102,11 @@ type Parameter struct {
 type TypeParameter struct {
 	Name     string
 	NameSpan source.Span
-	Span     source.Span
+	// Constraint is currently populated for explicit native constraints such
+	// as `T extends comparable`. Keeping the source type here lets later
+	// constraints grow without changing every generic declaration node.
+	Constraint *TypeRef
+	Span       source.Span
 }
 
 type Visibility int
@@ -124,6 +133,31 @@ type FunctionDecl struct {
 
 func (*FunctionDecl) declaration()           {}
 func (d *FunctionDecl) GetSpan() source.Span { return d.Span }
+
+// CABIExportDecl keeps the source-level positional export list. Semantic
+// checking resolves its names into Program.CABIExports after ordinary
+// top-level functions and variables have been typed.
+type CABIExportDecl struct {
+	Symbols              []string
+	SymbolSpans          []source.Span
+	Names                []string
+	NameSpans            []source.Span
+	ResolvedDeclarations []source.Span
+	Span                 source.Span
+}
+
+func (*CABIExportDecl) declaration()           {}
+func (d *CABIExportDecl) GetSpan() source.Span { return d.Span }
+
+type CABIExport struct {
+	Name       string
+	NameSpan   source.Span
+	Symbol     string
+	SymbolSpan source.Span
+	Parameters []Parameter
+	ReturnType TypeRef
+	Span       source.Span
+}
 
 type FieldDecl struct {
 	Name       string
@@ -170,19 +204,20 @@ func (*MethodDecl) declaration()           {}
 func (d *MethodDecl) GetSpan() source.Span { return d.Span }
 
 type ClassDecl struct {
-	Name          string
-	NameSpan      source.Span
-	Final         bool
-	Base          *TypeRef
-	Implements    []TypeRef
-	Fields        []FieldDecl
-	Constructor   *ConstructorDecl
-	Methods       []*MethodDecl
-	VirtualOwners []string
-	Ancestors     []string
-	Descendants   []string
-	HierarchyRoot string
-	Span          source.Span
+	Name           string
+	NameSpan       source.Span
+	TypeParameters []TypeParameter
+	Final          bool
+	Base           *TypeRef
+	Implements     []TypeRef
+	Fields         []FieldDecl
+	Constructor    *ConstructorDecl
+	Methods        []*MethodDecl
+	VirtualOwners  []string
+	Ancestors      []string
+	Descendants    []string
+	HierarchyRoot  string
+	Span           source.Span
 }
 
 func (*ClassDecl) declaration()           {}
@@ -205,15 +240,37 @@ func (d *StructDecl) GetSpan() source.Span { return d.Span }
 // TypeDecl represents either a transparent alias (`alias Name = T`) or a
 // nominal Go defined type (`type Name = distinct T`).
 type TypeDecl struct {
-	Name       string
-	NameSpan   source.Span
-	Underlying TypeRef
-	Alias      bool
-	Span       source.Span
+	Name           string
+	NameSpan       source.Span
+	TypeParameters []TypeParameter
+	Underlying     TypeRef
+	Alias          bool
+	Span           source.Span
 }
 
 func (*TypeDecl) declaration()           {}
 func (d *TypeDecl) GetSpan() source.Span { return d.Span }
+
+// EnumDecl is a nominal integer type whose members are referenced through the
+// source-level Type.Member namespace and lowered to ordinary typed Go constants.
+type EnumDecl struct {
+	Name       string
+	NameSpan   source.Span
+	Underlying TypeRef
+	Members    []EnumMember
+	Span       source.Span
+}
+
+type EnumMember struct {
+	Name          string
+	NameSpan      source.Span
+	Value         Expression
+	ResolvedValue string
+	Span          source.Span
+}
+
+func (*EnumDecl) declaration()           {}
+func (d *EnumDecl) GetSpan() source.Span { return d.Span }
 
 type InterfaceMethod struct {
 	Name       string
@@ -225,10 +282,11 @@ type InterfaceMethod struct {
 }
 
 type InterfaceDecl struct {
-	Name     string
-	NameSpan source.Span
-	Methods  []InterfaceMethod
-	Span     source.Span
+	Name           string
+	NameSpan       source.Span
+	TypeParameters []TypeParameter
+	Methods        []InterfaceMethod
+	Span           source.Span
 }
 
 func (*InterfaceDecl) declaration()           {}
@@ -461,12 +519,14 @@ func (*SelectStmt) statement()             {}
 func (s *SelectStmt) GetSpan() source.Span { return s.Span }
 
 // ValueSwitchCase contains one or more expressions compared against the
-// switch value. Bodies are case-local scopes and never fall through.
+// switch value. Bodies are case-local scopes. FallsThrough is set only after
+// semantic placement validation succeeds.
 type ValueSwitchCase struct {
-	Values  []Expression
-	Default bool
-	Body    *BlockStmt
-	Span    source.Span
+	Values       []Expression
+	Default      bool
+	FallsThrough bool
+	Body         *BlockStmt
+	Span         source.Span
 }
 
 func (c *ValueSwitchCase) GetSpan() source.Span { return c.Span }
@@ -512,15 +572,30 @@ type BranchKind int
 const (
 	BreakBranch BranchKind = iota
 	ContinueBranch
+	GotoBranch
+	FallthroughBranch
 )
 
 type BranchStmt struct {
-	Kind BranchKind
-	Span source.Span
+	Kind                BranchKind
+	Label               string
+	LabelSpan           source.Span
+	ResolvedDeclaration source.Span
+	Span                source.Span
 }
 
 func (*BranchStmt) statement()             {}
 func (s *BranchStmt) GetSpan() source.Span { return s.Span }
+
+type LabeledStmt struct {
+	Label     string
+	LabelSpan source.Span
+	Statement Statement
+	Span      source.Span
+}
+
+func (*LabeledStmt) statement()             {}
+func (s *LabeledStmt) GetSpan() source.Span { return s.Span }
 
 type CallControlKind int
 
@@ -815,7 +890,9 @@ type NewExpr struct {
 	ClassName           string
 	ClassNameSpan       source.Span
 	ResolvedDeclaration source.Span
+	TypeArguments       []TypeRef
 	Arguments           []Expression
+	Expanded            bool
 	Span                source.Span
 }
 

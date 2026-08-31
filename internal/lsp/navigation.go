@@ -254,6 +254,9 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			result = append(result, info)
 		case *ast.MethodDecl:
 			info := declarationInfo{Name: declaration.Name, Detail: functionDetail(declaration.Name, declaration.Parameters, declaration.ReturnType), Kind: 6, Span: declaration.Span, Selection: declaration.NameSpan}
+			for _, parameter := range declaration.TypeParameters {
+				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+			}
 			info.Children = append(info.Children, declarationInfo{Name: declaration.ReceiverName, Detail: declaration.ReceiverName + ": " + formatTypeRef(declaration.ReceiverType), Kind: 13, Span: declaration.ReceiverNameSpan, Selection: declaration.ReceiverNameSpan})
 			for _, parameter := range declaration.Parameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 13, Span: parameter.Span, Selection: nameSpan(parameter.Span, parameter.Name)})
@@ -261,7 +264,14 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.ClassDecl:
-			info := declarationInfo{Name: declaration.Name, Detail: "class " + declaration.Name, Kind: 5, Span: declaration.Span, Selection: declaration.NameSpan}
+			detail := "class " + declaration.Name
+			if len(declaration.TypeParameters) != 0 {
+				detail += formatTypeParameters(declaration.TypeParameters)
+			}
+			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: 5, Span: declaration.Span, Selection: declaration.NameSpan}
+			for _, parameter := range declaration.TypeParameters {
+				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+			}
 			for _, field := range declaration.Fields {
 				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
 			}
@@ -274,11 +284,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 		case *ast.StructDecl:
 			detail := "struct " + declaration.Name
 			if len(declaration.TypeParameters) != 0 {
-				names := make([]string, len(declaration.TypeParameters))
-				for index, parameter := range declaration.TypeParameters {
-					names[index] = parameter.Name
-				}
-				detail += "<" + strings.Join(names, ", ") + ">"
+				detail += formatTypeParameters(declaration.TypeParameters)
 			}
 			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: 23, Span: declaration.Span, Selection: declaration.NameSpan}
 			for _, parameter := range declaration.TypeParameters {
@@ -294,16 +300,41 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			result = append(result, info)
 		case *ast.TypeDecl:
-			prefix := "type " + declaration.Name + " = distinct "
-			if declaration.Alias {
-				prefix = "alias " + declaration.Name + " = "
+			name := declaration.Name
+			if len(declaration.TypeParameters) != 0 {
+				name += formatTypeParameters(declaration.TypeParameters)
 			}
-			result = append(result, declarationInfo{
+			prefix := "type " + name + " = distinct "
+			if declaration.Alias {
+				prefix = "alias " + name + " = "
+			}
+			info := declarationInfo{
 				Name: declaration.Name, Detail: prefix + formatTypeRef(declaration.Underlying),
 				Kind: 5, Span: declaration.Span, Selection: declaration.NameSpan,
-			})
+			}
+			for _, parameter := range declaration.TypeParameters {
+				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+			}
+			result = append(result, info)
+		case *ast.EnumDecl:
+			info := declarationInfo{Name: declaration.Name, Detail: "enum " + declaration.Name + ": " + formatTypeRef(declaration.Underlying), Kind: 10, Span: declaration.Span, Selection: declaration.NameSpan}
+			for _, member := range declaration.Members {
+				detail := declaration.Name + "." + member.Name
+				if member.ResolvedValue != "" {
+					detail += " = " + member.ResolvedValue
+				}
+				info.Children = append(info.Children, declarationInfo{Name: member.Name, Detail: detail, Kind: 22, Span: member.Span, Selection: member.NameSpan})
+			}
+			result = append(result, info)
 		case *ast.InterfaceDecl:
-			info := declarationInfo{Name: declaration.Name, Detail: "interface " + declaration.Name, Kind: 11, Span: declaration.Span, Selection: declaration.NameSpan}
+			detail := "interface " + declaration.Name
+			if len(declaration.TypeParameters) != 0 {
+				detail += formatTypeParameters(declaration.TypeParameters)
+			}
+			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: 11, Span: declaration.Span, Selection: declaration.NameSpan}
+			for _, parameter := range declaration.TypeParameters {
+				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+			}
 			for _, method := range declaration.Methods {
 				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan})
 			}
@@ -329,6 +360,9 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 	}
 	for _, statement := range block.Statements {
 		switch statement := statement.(type) {
+		case *ast.LabeledStmt:
+			*result = append(*result, declarationInfo{Name: statement.Label, Detail: "label " + statement.Label, Kind: 20, Span: statement.Span, Selection: statement.LabelSpan})
+			collectBlockDeclarations(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, result)
 		case *ast.VariableDecl:
 			kind, prefix := 13, "let "
 			if statement.Constant {
@@ -443,7 +477,11 @@ func flattenDeclarations(declarations []declarationInfo) []declarationInfo {
 func functionDetail(name string, parameters []ast.Parameter, result ast.TypeRef) string {
 	items := make([]string, len(parameters))
 	for i, parameter := range parameters {
-		items[i] = parameter.Name + ": " + formatTypeRef(parameter.Type)
+		prefix := ""
+		if parameter.Variadic {
+			prefix = "..."
+		}
+		items[i] = prefix + parameter.Name + ": " + formatTypeRef(parameter.Type)
 	}
 	return "function " + name + "(" + strings.Join(items, ", ") + "): " + formatTypeRef(result)
 }
@@ -451,13 +489,20 @@ func functionDetail(name string, parameters []ast.Parameter, result ast.TypeRef)
 func functionDeclarationDetail(function *ast.FunctionDecl) string {
 	name := function.Name
 	if len(function.TypeParameters) != 0 {
-		parameters := make([]string, len(function.TypeParameters))
-		for index, parameter := range function.TypeParameters {
-			parameters[index] = parameter.Name
-		}
-		name += "<" + strings.Join(parameters, ", ") + ">"
+		name += formatTypeParameters(function.TypeParameters)
 	}
 	return functionDetail(name, function.Parameters, function.ReturnType)
+}
+
+func formatTypeParameters(parameters []ast.TypeParameter) string {
+	items := make([]string, len(parameters))
+	for index, parameter := range parameters {
+		items[index] = parameter.Name
+		if parameter.Constraint != nil {
+			items[index] += " extends " + formatTypeRef(*parameter.Constraint)
+		}
+	}
+	return "<" + strings.Join(items, ", ") + ">"
 }
 
 func formatTypeRef(ref ast.TypeRef) string {
@@ -477,7 +522,11 @@ func formatTypeRef(ref ast.TypeRef) string {
 	if ref.IsFunction() {
 		parameters := make([]string, len(ref.Parameters))
 		for i := range ref.Parameters {
-			parameters[i] = formatTypeRef(ref.Parameters[i])
+			prefix := ""
+			if ref.Variadic && i == len(ref.Parameters)-1 {
+				prefix = "..."
+			}
+			parameters[i] = prefix + formatTypeRef(ref.Parameters[i])
 		}
 		return "(" + strings.Join(parameters, ", ") + ") => " + formatTypeRef(*ref.Return)
 	}

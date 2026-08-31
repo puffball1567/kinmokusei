@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 
 	"ontama.local/ontama/internal/ast"
@@ -14,6 +15,7 @@ type Parser struct {
 	current                      int
 	diagnostics                  []diagnostic.Diagnostic
 	disallowUnqualifiedComposite bool
+	disallowCompositeBeforeBlock bool
 }
 
 func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
@@ -168,6 +170,8 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		return p.parseTypeDeclaration(p.advance(), false)
 	case p.at(token.Identifier) && p.peek().Lexeme == "alias":
 		return p.parseTypeDeclaration(p.advance(), true)
+	case p.at(token.Identifier) && p.peek().Lexeme == "enum":
+		return p.parseEnum(p.advance())
 	case p.match(token.Interface):
 		if decl := p.parseInterface(p.previous()); decl != nil {
 			return decl
@@ -200,12 +204,72 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 	}
 }
 
+func (p *Parser) parseEnum(start token.Token) *ast.EnumDecl {
+	name, ok := p.expect(token.Identifier, "expected enum name")
+	if !ok {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	underlying := ast.TypeRef{Name: "int", NameSpan: name.Span, Span: name.Span}
+	if p.match(token.Colon) {
+		var valid bool
+		underlying, valid = p.parseType()
+		if !valid {
+			p.synchronizeDeclaration()
+			return nil
+		}
+	}
+	if _, ok = p.expect(token.LeftBrace, "expected '{' after enum name"); !ok {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	declaration := &ast.EnumDecl{Name: name.Lexeme, NameSpan: name.Span, Underlying: underlying}
+	for !p.at(token.RightBrace) && !p.at(token.EOF) {
+		member, valid := p.expect(token.Identifier, "expected enum member name")
+		if !valid {
+			p.synchronizeTo(token.RightBrace)
+			break
+		}
+		item := ast.EnumMember{Name: member.Lexeme, NameSpan: member.Span, Span: member.Span}
+		if p.match(token.Assign) {
+			item.Value = p.parseExpression()
+			if item.Value == nil {
+				p.synchronizeTo(token.RightBrace)
+				break
+			}
+			item.Span = member.Span.Merge(item.Value.GetSpan())
+		}
+		declaration.Members = append(declaration.Members, item)
+		if !p.match(token.Comma) {
+			if !p.at(token.RightBrace) {
+				p.report(p.peek(), "expected ',' or '}' after enum member")
+				p.synchronizeTo(token.RightBrace)
+			}
+			break
+		}
+	}
+	end, valid := p.expect(token.RightBrace, "expected '}' after enum body")
+	if !valid {
+		end = p.previous()
+	}
+	if p.match(token.Semicolon) {
+		end = p.previous()
+	}
+	declaration.Span = start.Span.Merge(end.Span)
+	return declaration
+}
+
 func (p *Parser) parseTypeDeclaration(start token.Token, alias bool) *ast.TypeDecl {
 	name, ok := p.expect(token.Identifier, "expected type name")
 	if !ok {
 		p.synchronizeDeclaration()
 		return nil
 	}
+	owner := "defined type"
+	if alias {
+		owner = "alias"
+	}
+	typeParameters, typeParametersValid := p.parseTypeParameters(owner)
 	if _, ok = p.expect(token.Assign, "expected '=' after type name"); !ok {
 		p.synchronizeDeclaration()
 		return nil
@@ -233,7 +297,10 @@ func (p *Parser) parseTypeDeclaration(start token.Token, alias bool) *ast.TypeDe
 		p.synchronizeDeclaration()
 		end = p.previous()
 	}
-	return &ast.TypeDecl{Name: name.Lexeme, NameSpan: name.Span, Underlying: underlying, Alias: alias, Span: start.Span.Merge(end.Span)}
+	if !typeParametersValid {
+		return nil
+	}
+	return &ast.TypeDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters, Underlying: underlying, Alias: alias, Span: start.Span.Merge(end.Span)}
 }
 
 func (p *Parser) parseCABIExport(start token.Token) ast.Declaration {
@@ -251,39 +318,92 @@ func (p *Parser) parseCABIExport(start token.Token) ast.Declaration {
 		p.synchronizeDeclaration()
 		return nil
 	}
-	symbolToken, ok := p.expect(token.String, "expected C ABI symbol string")
-	if !ok {
-		p.synchronizeDeclaration()
-		return nil
+	var symbols []string
+	var symbolSpans []source.Span
+	if p.at(token.RightParen) {
+		p.report(p.peek(), "C ABI export symbol list cannot be empty")
 	}
-	symbol, err := strconv.Unquote(symbolToken.Lexeme)
-	if err != nil {
-		p.report(symbolToken, "invalid C ABI symbol string")
-		symbol = ""
+	for !p.at(token.RightParen) && !p.at(token.EOF) {
+		symbolToken, valid := p.expect(token.String, "expected C ABI symbol string")
+		if !valid {
+			p.synchronizeTo(token.RightParen)
+			break
+		}
+		symbol, err := strconv.Unquote(symbolToken.Lexeme)
+		if err != nil {
+			p.report(symbolToken, "invalid C ABI symbol string")
+			symbol = ""
+		}
+		symbols = append(symbols, symbol)
+		symbolSpans = append(symbolSpans, symbolToken.Span)
+		if !p.match(token.Comma) {
+			break
+		}
+		if p.at(token.RightParen) {
+			break
+		}
 	}
 	if _, ok = p.expect(token.RightParen, "expected ')' after C ABI symbol"); !ok {
 		p.synchronizeDeclaration()
 		return nil
 	}
-	functionToken, ok := p.expect(token.Function, "expected 'function' after C ABI export")
-	if !ok {
+	if p.match(token.Function) {
+		functionToken := p.previous()
+		if len(symbols) != 1 {
+			p.report(functionToken, fmt.Sprintf("inline C ABI export expects exactly one symbol, got %d", len(symbols)))
+		}
+		function := p.parseFunction(functionToken)
+		if function == nil {
+			return nil
+		}
+		if len(function.Parameters) > 0 && function.Parameters[0].Name == "this" {
+			p.report(functionToken, "C ABI export cannot declare a receiver parameter")
+			return nil
+		}
+		function.CABIExport = true
+		if len(symbols) != 0 {
+			function.CABISymbol = symbols[0]
+			function.CABISymbolSpan = symbolSpans[0]
+		}
+		function.CABIExportSpan = start.Span.Merge(functionToken.Span)
+		function.Span = start.Span.Merge(function.Span)
+		return function
+	}
+	if _, ok = p.expect(token.LeftBrace, "expected 'function' or '{' after C ABI export symbols"); !ok {
 		p.synchronizeDeclaration()
 		return nil
 	}
-	function := p.parseFunction(functionToken)
-	if function == nil {
-		return nil
+	var names []string
+	var nameSpans []source.Span
+	if p.at(token.RightBrace) {
+		p.report(p.peek(), "C ABI export name list cannot be empty")
 	}
-	if len(function.Parameters) > 0 && function.Parameters[0].Name == "this" {
-		p.report(functionToken, "C ABI export cannot declare a receiver parameter")
-		return nil
+	for !p.at(token.RightBrace) && !p.at(token.EOF) {
+		name, valid := p.expect(token.Identifier, "expected top-level function name in C ABI export list")
+		if !valid {
+			p.synchronizeTo(token.RightBrace)
+			break
+		}
+		names = append(names, name.Lexeme)
+		nameSpans = append(nameSpans, name.Span)
+		if !p.match(token.Comma) {
+			break
+		}
+		if p.at(token.RightBrace) {
+			break
+		}
 	}
-	function.CABIExport = true
-	function.CABISymbol = symbol
-	function.CABIExportSpan = start.Span.Merge(functionToken.Span)
-	function.CABISymbolSpan = symbolToken.Span
-	function.Span = start.Span.Merge(function.Span)
-	return function
+	end, valid := p.expect(token.RightBrace, "expected '}' after C ABI export names")
+	if !valid {
+		p.synchronizeDeclaration()
+		end = p.previous()
+	}
+	semicolon, valid := p.expect(token.Semicolon, "expected ';' after C ABI export list")
+	if !valid {
+		p.synchronizeDeclaration()
+		semicolon = end
+	}
+	return &ast.CABIExportDecl{Symbols: symbols, SymbolSpans: symbolSpans, Names: names, NameSpans: nameSpans, Span: start.Span.Merge(semicolon.Span)}
 }
 
 func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
@@ -292,10 +412,11 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 		p.synchronizeDeclaration()
 		return nil
 	}
+	typeParameters, typeParametersValid := p.parseTypeParameters("interface")
 	if _, ok = p.expect(token.LeftBrace, "expected '{' after interface name"); !ok {
 		return nil
 	}
-	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span}
+	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
 		methodStart, valid := p.expect(token.Function, "expected interface method")
 		if !valid {
@@ -342,6 +463,9 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 		end = p.previous()
 	}
 	declaration.Span = start.Span.Merge(end.Span)
+	if !typeParametersValid {
+		return nil
+	}
 	return declaration
 }
 
@@ -351,7 +475,8 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		p.synchronizeDeclaration()
 		return nil
 	}
-	class := &ast.ClassDecl{Name: name.Lexeme, NameSpan: name.Span}
+	typeParameters, typeParametersValid := p.parseTypeParameters("class")
+	class := &ast.ClassDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
 	if p.match(token.Extends) {
 		base, valid := p.parseType()
 		if !valid {
@@ -464,6 +589,9 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		end = p.previous()
 	}
 	class.Span = start.Span.Merge(end.Span)
+	if !typeParametersValid {
+		return nil
+	}
 	return class
 }
 
@@ -576,6 +704,7 @@ func (p *Parser) parseConstructorParameters() ([]ast.Parameter, bool) {
 		} else if p.match(token.Private) {
 			isField = true
 		}
+		variadic := p.match(token.Ellipsis)
 		name, ok := p.expect(token.Identifier, "expected constructor parameter name")
 		if !ok {
 			return nil, false
@@ -587,9 +716,17 @@ func (p *Parser) parseConstructorParameters() ([]ast.Parameter, bool) {
 		if !ok {
 			return nil, false
 		}
-		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Visibility: visibility, IsField: isField, Span: name.Span.Merge(typeRef.Span)})
+		if variadic && !typeRef.IsSlice() {
+			p.report(name, "rest parameter type must be a slice")
+			return nil, false
+		}
+		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Visibility: visibility, IsField: isField, Span: name.Span.Merge(typeRef.Span)})
 		if !p.match(token.Comma) {
 			break
+		}
+		if variadic {
+			p.report(p.previous(), "rest parameter must be the final parameter")
+			return nil, false
 		}
 		if p.at(token.RightParen) {
 			break
@@ -617,6 +754,7 @@ func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDe
 	parametersValid := true
 	if !p.at(token.RightParen) {
 		for {
+			variadic := p.match(token.Ellipsis)
 			paramName := p.peek()
 			if !p.match(token.Identifier, token.This) {
 				p.report(paramName, "expected parameter name")
@@ -626,6 +764,10 @@ func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDe
 			}
 			if paramName.Kind == token.This && len(parameters) != 0 {
 				p.report(paramName, "receiver parameter 'this' must be the first parameter")
+			}
+			if variadic && paramName.Kind == token.This {
+				p.report(paramName, "receiver parameter 'this' cannot be a rest parameter")
+				parametersValid = false
 			}
 			if _, valid := p.expect(token.Colon, "expected ':' after parameter name"); !valid {
 				parametersValid = false
@@ -638,12 +780,23 @@ func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDe
 				p.synchronizeTo(token.RightParen)
 				break
 			}
+			if variadic && !paramType.IsSlice() {
+				p.report(paramName, "rest parameter type must be a slice")
+				parametersValid = false
+			}
 			parameters = append(parameters, ast.Parameter{
-				Name: paramName.Lexeme,
-				Type: paramType,
-				Span: paramName.Span.Merge(paramType.Span),
+				Name:     paramName.Lexeme,
+				Type:     paramType,
+				Variadic: variadic,
+				Span:     paramName.Span.Merge(paramType.Span),
 			})
 			if !p.match(token.Comma) {
+				break
+			}
+			if variadic {
+				p.report(p.previous(), "rest parameter must be the final parameter")
+				parametersValid = false
+				p.synchronizeTo(token.RightParen)
 				break
 			}
 			if p.at(token.RightParen) {
@@ -695,7 +848,18 @@ func (p *Parser) parseTypeParameters(owner string) ([]ast.TypeParameter, bool) {
 			p.synchronizeTo(token.Greater)
 			break
 		}
-		parameters = append(parameters, ast.TypeParameter{Name: name.Lexeme, NameSpan: name.Span, Span: name.Span})
+		parameter := ast.TypeParameter{Name: name.Lexeme, NameSpan: name.Span, Span: name.Span}
+		if p.match(token.Extends) {
+			constraint, constraintValid := p.parseType()
+			if !constraintValid {
+				valid = false
+				p.synchronizeTo(token.Greater)
+				break
+			}
+			parameter.Constraint = &constraint
+			parameter.Span = name.Span.Merge(constraint.Span)
+		}
+		parameters = append(parameters, parameter)
 		if !p.match(token.Comma) {
 			break
 		}
@@ -713,10 +877,6 @@ func (p *Parser) parseTypeParameters(owner string) ([]ast.TypeParameter, bool) {
 
 func (p *Parser) externalMethodFromFunction(start token.Token, visibility ast.Visibility, function *ast.FunctionDecl, required bool) ast.Declaration {
 	if function == nil {
-		return nil
-	}
-	if len(function.TypeParameters) != 0 && len(function.Parameters) > 0 && function.Parameters[0].Name == "this" {
-		p.report(token.Token{Span: function.NameSpan}, "generic receiver methods are not supported; declare a top-level generic function")
 		return nil
 	}
 	if len(function.Parameters) == 0 || function.Parameters[0].Name != "this" {
@@ -826,7 +986,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 			parameterTypes[i] = parameter.Type
 		}
 		_ = endParameters
-		ref := ast.TypeRef{Parameters: parameterTypes, Return: &result, Span: start.Span.Merge(result.Span)}
+		ref := ast.TypeRef{Parameters: parameterTypes, Return: &result, Variadic: len(parameters) != 0 && parameters[len(parameters)-1].Variadic, Span: start.Span.Merge(result.Span)}
 		return p.parseTypeSuffix(ref, allowNullable)
 	}
 	tok, ok := p.expect(token.Identifier, "expected type name")
@@ -892,6 +1052,7 @@ func (p *Parser) parseParameters(end token.Kind) ([]ast.Parameter, bool) {
 		return parameters, true
 	}
 	for {
+		variadic := p.match(token.Ellipsis)
 		name, ok := p.expect(token.Identifier, "expected parameter name")
 		if !ok {
 			return nil, false
@@ -903,9 +1064,17 @@ func (p *Parser) parseParameters(end token.Kind) ([]ast.Parameter, bool) {
 		if !ok {
 			return nil, false
 		}
-		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Span: name.Span.Merge(typeRef.Span)})
+		if variadic && !typeRef.IsSlice() {
+			p.report(name, "rest parameter type must be a slice")
+			return nil, false
+		}
+		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: name.Span.Merge(typeRef.Span)})
 		if !p.match(token.Comma) {
 			break
+		}
+		if variadic {
+			p.report(p.previous(), "rest parameter must be the final parameter")
+			return nil, false
 		}
 		if p.at(end) {
 			break
@@ -1053,6 +1222,10 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseBranch(p.previous(), ast.BreakBranch)
 	case p.match(token.Continue):
 		return p.parseBranch(p.previous(), ast.ContinueBranch)
+	case p.match(token.Goto):
+		return p.parseBranch(p.previous(), ast.GotoBranch)
+	case p.match(token.Fallthrough):
+		return p.parseBranch(p.previous(), ast.FallthroughBranch)
 	case p.match(token.Defer):
 		return p.parseCallControl(p.previous(), ast.DeferCall)
 	case p.match(token.Go):
@@ -1064,6 +1237,8 @@ func (p *Parser) parseStatement() ast.Statement {
 			return stmt
 		}
 		return nil
+	case p.at(token.Identifier) && p.atNext(token.Colon):
+		return p.parseLabeledStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -1725,12 +1900,34 @@ func (p *Parser) selectAssignmentTargets(value ast.Expression) ([]ast.Expression
 }
 
 func (p *Parser) parseBranch(start token.Token, kind ast.BranchKind) ast.Statement {
+	var label token.Token
+	if kind == ast.GotoBranch {
+		var ok bool
+		label, ok = p.expect(token.Identifier, "expected label name after 'goto'")
+		if !ok {
+			p.synchronizeStatement()
+			return nil
+		}
+	} else if kind != ast.FallthroughBranch && p.at(token.Identifier) {
+		label = p.advance()
+	}
 	end, ok := p.expect(token.Semicolon, "expected ';' after branch statement")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
 	}
-	return &ast.BranchStmt{Kind: kind, Span: start.Span.Merge(end.Span)}
+	return &ast.BranchStmt{Kind: kind, Label: label.Lexeme, LabelSpan: label.Span, Span: start.Span.Merge(end.Span)}
+}
+
+func (p *Parser) parseLabeledStatement() ast.Statement {
+	label := p.advance()
+	p.advance() // ':'
+	statement := p.parseStatement()
+	if statement == nil {
+		p.report(label, "expected statement after label")
+		return nil
+	}
+	return &ast.LabeledStmt{Label: label.Lexeme, LabelSpan: label.Span, Statement: statement, Span: label.Span.Merge(statement.GetSpan())}
 }
 
 func (p *Parser) parseCallControl(start token.Token, kind ast.CallControlKind) ast.Statement {
@@ -1772,8 +1969,13 @@ func (p *Parser) parseExpression() ast.Expression { return p.parseBinary(1) }
 
 func (p *Parser) parseExpressionBeforeBlock() ast.Expression {
 	previous := p.disallowUnqualifiedComposite
+	previousAll := p.disallowCompositeBeforeBlock
 	p.disallowUnqualifiedComposite = true
-	defer func() { p.disallowUnqualifiedComposite = previous }()
+	p.disallowCompositeBeforeBlock = true
+	defer func() {
+		p.disallowUnqualifiedComposite = previous
+		p.disallowCompositeBeforeBlock = previousAll
+	}()
 	return p.parseExpression()
 }
 
@@ -1915,6 +2117,11 @@ func (p *Parser) parseCall() ast.Expression {
 				continue
 			}
 			if ok && p.at(token.LeftBrace) {
+				if p.disallowCompositeBeforeBlock {
+					p.current = start
+					p.diagnostics = p.diagnostics[:diagnosticCount]
+					return expr
+				}
 				if _, unqualified := expr.(*ast.IdentifierExpr); unqualified && p.disallowUnqualifiedComposite {
 					p.current = start
 					p.diagnostics = p.diagnostics[:diagnosticCount]
@@ -1938,6 +2145,9 @@ func (p *Parser) parseCall() ast.Expression {
 		case p.match(token.LeftBracket):
 			expr = p.parseSubscript(expr)
 		case p.at(token.LeftBrace):
+			if p.disallowCompositeBeforeBlock {
+				return expr
+			}
 			if _, unqualified := expr.(*ast.IdentifierExpr); unqualified && p.disallowUnqualifiedComposite {
 				return expr
 			}
@@ -2132,9 +2342,12 @@ func (p *Parser) parsePrimary() ast.Expression {
 		}
 		start := p.advance()
 		previous := p.disallowUnqualifiedComposite
+		previousAll := p.disallowCompositeBeforeBlock
 		p.disallowUnqualifiedComposite = false
+		p.disallowCompositeBeforeBlock = false
 		expr := p.parseExpression()
 		p.disallowUnqualifiedComposite = previous
+		p.disallowCompositeBeforeBlock = previousAll
 		end, ok := p.expect(token.RightParen, "expected ')' after expression")
 		if !ok || expr == nil {
 			return expr
@@ -2271,6 +2484,14 @@ func (p *Parser) parseNew() ast.Expression {
 	if !ok {
 		return nil
 	}
+	var typeArguments []ast.TypeRef
+	if p.at(token.Less) {
+		var valid bool
+		typeArguments, valid = p.tryParseAngleTypeArguments()
+		if !valid {
+			return nil
+		}
+	}
 	if _, ok = p.expect(token.LeftParen, "expected '(' after class name"); !ok {
 		return nil
 	}
@@ -2278,11 +2499,7 @@ func (p *Parser) parseNew() ast.Expression {
 	if !ok {
 		return nil
 	}
-	if expanded {
-		p.report(end, "spread arguments cannot be used in class construction")
-		return nil
-	}
-	return &ast.NewExpr{ClassName: name.Lexeme, ClassNameSpan: name.Span, Arguments: arguments, Span: start.Span.Merge(end.Span)}
+	return &ast.NewExpr{ClassName: name.Lexeme, ClassNameSpan: name.Span, TypeArguments: typeArguments, Arguments: arguments, Expanded: expanded, Span: start.Span.Merge(end.Span)}
 }
 
 func (p *Parser) looksLikeArrow() bool {
@@ -2451,7 +2668,7 @@ func (p *Parser) synchronizeStatement() {
 			return
 		}
 		switch p.peek().Kind {
-		case token.Const, token.Let, token.Return, token.If, token.While, token.For, token.Break, token.Continue, token.Defer, token.Go, token.Detach:
+		case token.Const, token.Let, token.Return, token.If, token.While, token.For, token.Break, token.Continue, token.Goto, token.Fallthrough, token.Defer, token.Go, token.Detach:
 			return
 		}
 		p.advance()

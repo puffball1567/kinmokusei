@@ -72,3 +72,49 @@ function use(box: *Box<string>, value: string): string {
 		t.Fatalf("generic method signature = %q active=%v parameters=%#v", label, active, parameters)
 	}
 }
+
+func TestExternalGenericStructReceiverNavigationCompletionAndSignature(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "external_generic_struct.otm")
+	uri := fileURI(path)
+	text := `struct Box<T> { public value: T; }
+public function get<U>(this: Box<U>): U { return this.value; }
+public function set<U>(this: *Box<U>, value: U): void { this.value = value; }
+function use(box: *Box<string>, value: string): string {
+  box.set(value);
+  return box.get();
+}`
+	messages := serveMessages(t,
+		openDocument(uri, text),
+		requestAt("textDocument/definition", 2, uri, positionOf(text, "U", 1), ""),
+		requestAt("textDocument/references", 3, uri, positionOf(text, "U", 0), `"context":{"includeDeclaration":true}`),
+		requestAt("textDocument/rename", 4, uri, positionOf(text, "U", 1), `"newName":"Value"`),
+	)
+	definition := messages[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(1) || definition["character"] != float64(20) {
+		t.Fatalf("receiver type parameter definition = %#v", definition)
+	}
+	if got := len(messages[3]["result"].([]any)); got != 3 {
+		t.Fatalf("receiver type parameter references = %d, want declaration, receiver, and result", got)
+	}
+	changes := messages[4]["result"].(map[string]any)["changes"].(map[string]any)
+	if got := len(changes[uri].([]any)); got != 3 {
+		t.Fatalf("receiver type parameter rename edits = %d, want 3", got)
+	}
+
+	completionText := strings.Replace(text, "box.set(value);", "box.;", 1)
+	line := strings.Split(completionText, "\n")[4]
+	items := completionLabels(completionItemsAt(t, path, completionText, 4, strings.Index(line, ".")+1))
+	for name, detail := range map[string]string{
+		"get": "public function get(): string",
+		"set": "public function set(value: string): void",
+	} {
+		if items[name] == nil || items[name]["detail"] != detail {
+			t.Errorf("completion %q = %#v, want %q", name, items[name], detail)
+		}
+	}
+
+	label, active, parameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "value);", 0)))
+	if label != "box.set(value: string): void" || active != 0 || len(parameters) != 1 {
+		t.Fatalf("external generic method signature = %q active=%v parameters=%#v", label, active, parameters)
+	}
+}

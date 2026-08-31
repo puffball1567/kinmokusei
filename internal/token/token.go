@@ -32,6 +32,8 @@ const (
 	Default     Kind = "default"
 	Break       Kind = "break"
 	Continue    Kind = "continue"
+	Goto        Kind = "goto"
+	Fallthrough Kind = "fallthrough"
 	New         Kind = "new"
 	Class       Kind = "class"
 	Struct      Kind = "struct"
@@ -134,6 +136,8 @@ var keywords = map[string]Kind{
 	"default":     Default,
 	"break":       Break,
 	"continue":    Continue,
+	"goto":        Goto,
+	"fallthrough": Fallthrough,
 	"new":         New,
 	"class":       Class,
 	"struct":      Struct,
