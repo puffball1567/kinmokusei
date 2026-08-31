@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -420,6 +421,9 @@ func main() {
 		t.Fatal(err)
 	}
 	runner := filepath.Join(root, "ffi-runner")
+	if runtime.GOOS == "windows" {
+		runner += ".exe"
+	}
 	arguments := []string{"build", "-buildvcs=false", "-o", runner, "./cmd"}
 	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" {
 		arguments = []string{"build", "-race", "-buildvcs=false", "-o", runner, "./cmd"}
