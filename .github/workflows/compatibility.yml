@@ -3,6 +3,11 @@ name: Compatibility
 on:
   pull_request:
   push:
+    branches:
+      - main
+      - devel
+    tags:
+      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -143,3 +148,26 @@ jobs:
       - name: Exercise the Vite proxy against both generated servers
         working-directory: examples/react-web-frameworks
         run: ./verify.sh
+
+  required:
+    name: Required compatibility
+    if: ${{ always() }}
+    needs:
+      - go
+      - release-toolchain
+      - race
+      - editor
+      - full-stack-example
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every compatibility job
+        env:
+          GO_RESULT: ${{ needs.go.result }}
+          TOOLCHAIN_RESULT: ${{ needs.release-toolchain.result }}
+          RACE_RESULT: ${{ needs.race.result }}
+          EDITOR_RESULT: ${{ needs.editor.result }}
+          FULL_STACK_RESULT: ${{ needs.full-stack-example.result }}
+        run: |
+          for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$EDITOR_RESULT" "$FULL_STACK_RESULT"; do
+            test "$result" = success
+          done
