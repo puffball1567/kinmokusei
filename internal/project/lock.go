@@ -113,7 +113,7 @@ func (l Lock) Validate() error {
 		if i > 0 && (l.Modules[i-1].Path > module.Path || l.Modules[i-1].Path == module.Path && l.Modules[i-1].Version >= module.Version) {
 			return fmt.Errorf("modules must be uniquely sorted by path and version")
 		}
-		if filepath.IsAbs(module.ReplacePath) {
+		if isPortableAbsolutePath(module.ReplacePath) {
 			return fmt.Errorf("module %q contains an absolute replacement path", module.Path)
 		}
 		cleanReplacement := filepath.Clean(filepath.FromSlash(module.ReplacePath))
@@ -124,7 +124,7 @@ func (l Lock) Validate() error {
 			return fmt.Errorf("module %q is missing licenseFiles metadata", module.Path)
 		}
 		for licenseIndex, license := range module.LicenseFiles {
-			if license.Path == "" || filepath.IsAbs(license.Path) || filepath.Base(license.Path) != license.Path {
+			if license.Path == "" || isPortableAbsolutePath(license.Path) || filepath.Base(license.Path) != license.Path {
 				return fmt.Errorf("module %q licenseFiles[%d] has an invalid path", module.Path, licenseIndex)
 			}
 			if licenseIndex > 0 && module.LicenseFiles[licenseIndex-1].Path >= license.Path {

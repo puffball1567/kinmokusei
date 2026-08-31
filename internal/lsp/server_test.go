@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,7 +49,15 @@ func decodeMessages(t *testing.T, output string) []map[string]any {
 }
 
 func fileURI(path string) string {
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+	return pathURI(path)
+}
+
+func TestFileURIPathRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "温泉 space.otm")
+	got, err := filePath(fileURI(path))
+	if err != nil || got != filepath.Clean(path) {
+		t.Fatalf("filePath(fileURI(%q)) = %q, %v", path, got, err)
+	}
 }
 
 func completionItemsAt(t *testing.T, path, text string, line, character int) []map[string]any {

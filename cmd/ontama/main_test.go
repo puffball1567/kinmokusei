@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/puffball1567/onsentamago/internal/product"
@@ -26,7 +27,7 @@ function main(): void { answer(); }
 	if _, err := os.Stat(generated); err != nil {
 		t.Fatalf("generated Go is missing: %v", err)
 	}
-	if info, err := os.Stat(output); err != nil || info.Mode()&0o111 == 0 {
+	if info, err := os.Stat(output); err != nil || runtime.GOOS != "windows" && info.Mode()&0o111 == 0 {
 		t.Fatalf("built executable is missing or not executable: info=%v err=%v", info, err)
 	}
 	if status := run([]string{"run", source}); status != 0 {

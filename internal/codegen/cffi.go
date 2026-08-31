@@ -1021,6 +1021,9 @@ func cffiCType(typeInfo cffiScalar) string {
 	if strings.HasPrefix(typeName, "*C.") {
 		return strings.TrimPrefix(typeName, "*C.") + " *"
 	}
+	if typeName == "C.uint" {
+		return "unsigned int"
+	}
 	return strings.TrimPrefix(typeName, "C.")
 }
 

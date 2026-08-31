@@ -251,7 +251,7 @@ func (m Manifest) Validate() error {
 		if _, exists := m.Dependencies[path]; !exists {
 			return fmt.Errorf("replacement %q has no matching Go dependency", path)
 		}
-		if replacement == "" || filepath.IsAbs(replacement) {
+		if replacement == "" || isPortableAbsolutePath(replacement) {
 			return fmt.Errorf("replacement %q must be a non-empty project-relative path", path)
 		}
 		clean := filepath.Clean(filepath.FromSlash(replacement))
@@ -260,6 +260,13 @@ func (m Manifest) Validate() error {
 		}
 	}
 	return nil
+}
+
+func isPortableAbsolutePath(value string) bool {
+	if filepath.IsAbs(filepath.FromSlash(value)) || strings.HasPrefix(value, "/") || strings.HasPrefix(value, `\\`) {
+		return true
+	}
+	return len(value) >= 2 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && value[1] == ':'
 }
 
 func (m Manifest) AllowsUnsafeGoInterop() bool {

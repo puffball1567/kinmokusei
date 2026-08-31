@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,11 +17,12 @@ import (
 func captureRun(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	oldStdout, oldStderr := os.Stdout, os.Stderr
-	stdoutReader, stdoutWriter, err := os.Pipe()
+	outputDirectory := t.TempDir()
+	stdoutWriter, err := os.Create(filepath.Join(outputDirectory, "stdout"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	stderrReader, stderrWriter, err := os.Pipe()
+	stderrWriter, err := os.Create(filepath.Join(outputDirectory, "stderr"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,11 +35,11 @@ func captureRun(t *testing.T, args ...string) (int, string, string) {
 	if err = stderrWriter.Close(); err != nil {
 		t.Fatal(err)
 	}
-	stdout, err := io.ReadAll(stdoutReader)
+	stdout, err := os.ReadFile(stdoutWriter.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-	stderr, err := io.ReadAll(stderrReader)
+	stderr, err := os.ReadFile(stderrWriter.Name())
 	if err != nil {
 		t.Fatal(err)
 	}

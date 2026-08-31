@@ -2,6 +2,7 @@ package project
 
 import (
 	"archive/zip"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -162,7 +163,7 @@ go-version = "1.23"
 			t.Fatal(err)
 		}
 	}
-	t.Setenv("GOPROXY", "file://"+filepath.ToSlash(proxy))
+	t.Setenv("GOPROXY", localFileURL(proxy))
 	t.Setenv("GOSUMDB", "off")
 	moduleCache := filepath.Join(t.TempDir(), "module-cache")
 	t.Setenv("GOMODCACHE", moduleCache)
@@ -240,6 +241,14 @@ func writeProxyModule(t *testing.T, proxy, module, version, goMod string, files 
 	}
 }
 
+func localFileURL(path string) string {
+	slashPath := filepath.ToSlash(path)
+	if filepath.VolumeName(path) != "" && !strings.HasPrefix(slashPath, "/") {
+		slashPath = "/" + slashPath
+	}
+	return (&url.URL{Scheme: "file", Path: slashPath}).String()
+}
+
 func TestManifestFailureMatrix(t *testing.T) {
 	tests := []struct {
 		name, input, want string
@@ -270,6 +279,8 @@ func TestManifestFailureMatrix(t *testing.T) {
 		{"invalid dependency version", strings.Replace(validManifest(), `"example.com/zeta" = "v1.2.3"`, `"example.com/zeta" = "latest"`, 1), "invalid complete version"},
 		{"orphan replacement", strings.Replace(validManifest(), `"example.com/alpha" = "./library"`, `"example.com/missing" = "./library"`, 1), "no matching Go dependency"},
 		{"absolute replacement", strings.Replace(validManifest(), `"example.com/alpha" = "./library"`, `"example.com/alpha" = "/tmp/library"`, 1), "project-relative"},
+		{"Windows absolute replacement", strings.Replace(validManifest(), `"example.com/alpha" = "./library"`, `"example.com/alpha" = "C:/library"`, 1), "project-relative"},
+		{"UNC replacement", strings.Replace(validManifest(), `"example.com/alpha" = "./library"`, `"example.com/alpha" = "\\\\server\\library"`, 1), "project-relative"},
 		{"escaping replacement", strings.Replace(validManifest(), `"example.com/alpha" = "./library"`, `"example.com/alpha" = "../library"`, 1), "escapes the project root"},
 	}
 	for _, test := range tests {
