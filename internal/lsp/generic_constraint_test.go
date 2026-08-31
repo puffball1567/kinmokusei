@@ -3,7 +3,7 @@ package lsp
 import (
 	"testing"
 
-	"ontama.local/ontama/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/ast"
 )
 
 func TestGenericConstraintDeclarationDetailsPreserveSourceSyntax(t *testing.T) {

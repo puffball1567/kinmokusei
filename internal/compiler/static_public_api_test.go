@@ -51,7 +51,7 @@ function BuildMeter(value: int): Meter { return Meter.create(value); }
 	}
 	for _, forbidden := range []string{
 		"func Meter_Create", "func Meter_Sum", "func Meter_magnitude", "func MeterMagnitude",
-		temporary, source, "ontama.local/ontama",
+		temporary, source, "github.com/puffball1567/onsentamago",
 	} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated Go contains forbidden public/static artifact %q:\n%s", forbidden, generated)

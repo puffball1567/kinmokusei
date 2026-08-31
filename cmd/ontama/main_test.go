@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"ontama.local/ontama/internal/product"
+	"github.com/puffball1567/onsentamago/internal/product"
 )
 
 func TestBuildAndRunCommands(t *testing.T) {
@@ -31,5 +31,12 @@ function main(): void { answer(); }
 	}
 	if status := run([]string{"run", source}); status != 0 {
 		t.Fatalf("run exit status = %d", status)
+	}
+}
+
+func TestInstallationGuideHelloExampleChecks(t *testing.T) {
+	source := filepath.Join("..", "..", "examples", "hello", "main.otm")
+	if status := run([]string{"check", source}); status != 0 {
+		t.Fatalf("installation guide example check exit status = %d", status)
 	}
 }

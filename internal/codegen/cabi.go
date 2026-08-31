@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strings"
 
-	ontamaAST "ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/product"
+	ontamaAST "github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/product"
 )
 
 type cabiScalar struct {

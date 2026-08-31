@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/lexer"
-	"ontama.local/ontama/internal/parser"
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 func TestResolvedDeclarationIdentityMatrix(t *testing.T) {

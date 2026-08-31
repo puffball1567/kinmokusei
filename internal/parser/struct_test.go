@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/lexer"
 )
 
 func TestParsesNativeStructDeclarationsAndLiterals(t *testing.T) {

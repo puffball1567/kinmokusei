@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"ontama.local/ontama/internal/lexer"
-	"ontama.local/ontama/internal/parser"
-	"ontama.local/ontama/internal/product"
+	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/onsentamago/internal/product"
 )
 
 type listedModule struct {

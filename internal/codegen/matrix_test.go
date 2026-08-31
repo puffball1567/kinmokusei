@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	ontamaAST "ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/lexer"
-	ontamaParser "ontama.local/ontama/internal/parser"
-	"ontama.local/ontama/internal/sema"
+	ontamaAST "github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/lexer"
+	ontamaParser "github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/onsentamago/internal/sema"
 )
 
 func formatGoExpression(t *testing.T, expression goast.Expr) string {

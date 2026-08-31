@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/diagnostic"
-	"ontama.local/ontama/internal/product"
-	"ontama.local/ontama/internal/project"
+	"github.com/puffball1567/onsentamago/internal/diagnostic"
+	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/onsentamago/internal/project"
 )
 
 func TestManifestLockedGoDependencyCompilesAndRunsOffline(t *testing.T) {

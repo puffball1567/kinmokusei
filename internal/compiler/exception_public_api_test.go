@@ -58,7 +58,7 @@ function RawPanic(): int {
 			t.Errorf("generated public exception API does not contain %q:\n%s", expected, generated)
 		}
 	}
-	for _, forbidden := range []string{temporary, source, "ontama.local/ontama"} {
+	for _, forbidden := range []string{temporary, source, "github.com/puffball1567/onsentamago"} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated Go contains local/compiler-only path %q:\n%s", forbidden, generated)
 		}

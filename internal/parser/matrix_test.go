@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"ontama.local/ontama/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/lexer"
 )
 
 func TestValidSyntaxMatrix(t *testing.T) {

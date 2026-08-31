@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	ontamaAST "ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/product"
+	ontamaAST "github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/product"
 )
 
 func Generate(program *ontamaAST.Program, packageName string) ([]byte, error) {

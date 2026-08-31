@@ -157,10 +157,10 @@ inferred calls are checked before Go generation; slices, maps, and functions do
 not satisfy the constraint. Native constraint type sets beyond `comparable`
 remain future work rather than being approximated as `any`.
 
-Generic aliases are rejected while the minimum supported Go target does not
-provide their stable language behavior. A direct parameter underlying type such
-as `type Identity<T> = distinct T` is also rejected by Go; wrap the parameter in
-a concrete composite type instead.
+Generic aliases are currently rejected rather than being emitted with only
+partial semantic support. A direct parameter underlying type such as
+`type Identity<T> = distinct T` is also rejected by Go; wrap the parameter in a
+concrete composite type instead.
 
 Distinct defined types may declare Go-compatible value and pointer receiver
 methods with the same external receiver syntax as native structs:

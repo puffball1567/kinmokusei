@@ -1,6 +1,6 @@
 package ast
 
-import "ontama.local/ontama/internal/source"
+import "github.com/puffball1567/onsentamago/internal/source"
 
 type Node interface{ GetSpan() source.Span }
 

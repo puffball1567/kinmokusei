@@ -6,11 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/compiler"
-	"ontama.local/ontama/internal/lexer"
-	"ontama.local/ontama/internal/source"
-	"ontama.local/ontama/internal/token"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/compiler"
+	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/onsentamago/internal/token"
 )
 
 type parameterInformation struct {

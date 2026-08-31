@@ -2,10 +2,20 @@
   "name": "onsentamago",
   "displayName": "OnsenTamago",
   "description": "Language support for OnsenTamago",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
   "publisher": "onsentamago",
   "private": true,
   "preview": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/puffball1567/onsentamago.git",
+    "directory": "editors/vscode"
+  },
+  "homepage": "https://github.com/puffball1567/onsentamago#readme",
+  "bugs": {
+    "url": "https://github.com/puffball1567/onsentamago/issues"
+  },
   "engines": {
     "vscode": "^1.103.0"
   },

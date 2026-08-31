@@ -171,9 +171,11 @@ lowering costs may be accepted; accidental reflection, boxing, duplicate
 evaluation, goroutine leaks, or allocation regressions are failures. Benchmarks
 must never replace result/error/race differential tests.
 
-The checked toolchain matrix keeps Go 1.23 as the project minimum and tests the
-two current supported release families, Go 1.26 and Go 1.27. Go 1.27 runs the
-full suite on Linux, macOS, and Windows; Linux additionally runs the race suite.
+The checked toolchain matrix tests source compatibility with Go 1.23, Go 1.26,
+and Go 1.27. Release binaries are built with Go 1.27 and exercised against each
+supported Go toolchain because direct package import uses versioned Go export
+data. Go 1.27 runs the full suite on Linux, macOS, and Windows; Linux
+additionally runs the race suite.
 The generated-artifact matrix cross-builds a direct standard-library interop
 program for Linux AMD64/ARM64, macOS ARM64, and Windows AMD64 with CGO disabled.
 Build tags, target-specific external fixtures, locked CGO state, ambient-target
@@ -331,6 +333,18 @@ packages remains future work.
 
 - Collect missing language and compiler features from real applications.
 - Improve generation based on profiles.
+
+### v0.2 and later: public language guide
+
+- Publish a GitHub Pages site for first-time users rather than exposing design
+  notes as the primary learning path.
+- Cover installation, first program, syntax, types, functions, classes,
+  structs, errors, nullability, concurrency, Go interop, FFI, projects, CLI,
+  editor use, and complete applications in a progressive order.
+- Compile every executable documentation example in CI and compare runtime
+  examples with explicit expected output where applicable.
+- Version documentation with the compiler so released syntax and the default
+  guide cannot silently diverge.
 
 ## Verification commands and reporting
 

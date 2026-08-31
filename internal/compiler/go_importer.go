@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"ontama.local/ontama/internal/project"
+	"github.com/puffball1567/onsentamago/internal/project"
 )
 
 type moduleGoImporter struct {

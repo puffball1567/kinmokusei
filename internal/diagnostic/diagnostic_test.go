@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 func TestDiagnosticFormattingMatrix(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/compiler"
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/compiler"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 type completionItem struct {

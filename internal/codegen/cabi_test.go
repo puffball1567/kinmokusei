@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	ontamaAST "ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/lexer"
-	"ontama.local/ontama/internal/parser"
-	"ontama.local/ontama/internal/sema"
+	ontamaAST "github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/onsentamago/internal/sema"
 )
 
 func checkedCABIProgram(t *testing.T, source string) CABIOutput {

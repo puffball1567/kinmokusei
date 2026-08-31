@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 func TestTypeRefShapePredicates(t *testing.T) {

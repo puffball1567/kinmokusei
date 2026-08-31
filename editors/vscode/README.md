@@ -45,8 +45,9 @@ the minimum supported Visual Studio Code release.
 The package command writes `dist/onsentamago-<version>.vsix`. It creates the
 archive twice with fixed timestamps, checks byte-for-byte reproducibility, and
 verifies that runtime assets and dependencies are present while tests, scripts,
-lockfiles, and development dependencies are absent. This is a local development
-artifact; marketplace publication remains a separate release decision.
+lockfiles, and development dependencies are absent. The matching VSIX is
+attached to each GitHub release with the `ontama` binaries; marketplace
+publication remains a separate release decision.
 
 For interactive development, open this directory in Visual Studio Code and
 start an Extension Development Host. The `ontama` executable must be on `PATH`

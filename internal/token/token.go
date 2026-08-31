@@ -1,6 +1,6 @@
 package token
 
-import "ontama.local/ontama/internal/source"
+import "github.com/puffball1567/onsentamago/internal/source"
 
 type Kind string
 

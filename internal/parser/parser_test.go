@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/lexer"
 )
 
 func parseSource(t *testing.T, input string) (*ast.Program, int) {

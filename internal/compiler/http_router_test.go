@@ -65,7 +65,7 @@ function NewRouter(): http.Handler {
 			t.Errorf("generated HTTP router does not contain %q:\n%s", expected, generated)
 		}
 	}
-	for _, forbidden := range []string{"func AppRoutePattern", "func App_routePattern", directory, source, "ontama.local/ontama"} {
+	for _, forbidden := range []string{"func AppRoutePattern", "func App_routePattern", directory, source, "github.com/puffball1567/onsentamago"} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated router contains %q:\n%s", forbidden, generated)
 		}

@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"ontama.local/ontama/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/ast"
 )
 
 func TestParsesGenericClassAndExplicitConstruction(t *testing.T) {

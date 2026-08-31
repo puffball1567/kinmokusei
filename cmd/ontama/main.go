@@ -10,11 +10,11 @@ import (
 	"sort"
 	"strings"
 
-	"ontama.local/ontama/internal/compiler"
-	"ontama.local/ontama/internal/diagnostic"
-	"ontama.local/ontama/internal/lsp"
-	"ontama.local/ontama/internal/product"
-	"ontama.local/ontama/internal/project"
+	"github.com/puffball1567/onsentamago/internal/compiler"
+	"github.com/puffball1567/onsentamago/internal/diagnostic"
+	"github.com/puffball1567/onsentamago/internal/lsp"
+	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/onsentamago/internal/project"
 )
 
 func main() { os.Exit(run(os.Args[1:])) }
@@ -25,6 +25,9 @@ func run(args []string) int {
 		return 2
 	}
 	switch args[0] {
+	case "version", "--version":
+		fmt.Fprintf(os.Stdout, "%s %s\n", product.CommandName, product.VersionString())
+		return 0
 	case "check":
 		return runCheck(args[1:])
 	case "build":
@@ -816,5 +819,5 @@ func lockedTargetForSources(paths []string) (project.BuildTarget, bool, error) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s <check|build|run|emit-go|emit-c-abi|ffi|abi|interop|lsp|install|deps|target> [options] <source%s>...\n", product.CommandName, product.SourceExtension)
+	fmt.Fprintf(os.Stderr, "usage: %s <version|check|build|run|emit-go|emit-c-abi|ffi|abi|interop|lsp|install|deps|target> [options] <source%s>...\n", product.CommandName, product.SourceExtension)
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/sema"
+	"github.com/puffball1567/onsentamago/internal/sema"
 )
 
 type auditImporter map[string]*gotypes.Package

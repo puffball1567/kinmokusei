@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"ontama.local/ontama/internal/token"
+	"github.com/puffball1567/onsentamago/internal/token"
 )
 
 func TestTokenMatrix(t *testing.T) {

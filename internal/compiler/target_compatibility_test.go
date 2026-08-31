@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/project"
+	"github.com/puffball1567/onsentamago/internal/project"
 )
 
 func TestGeneratedGoTargetCompatibilityMatrix(t *testing.T) {

@@ -2,6 +2,9 @@
 
 This directory is the design source of truth for OnsenTamago. Documents distinguish settled decisions from proposals and future candidates. Implementation status must be stated explicitly; proposed syntax is not automatically part of the language.
 
+New users should start with [installation.md](installation.md) to install
+`ontama`, create a `.otm` source file, and run the first program.
+
 ## Status vocabulary
 
 - **Decision**: a core direction that should remain stable.
@@ -31,6 +34,7 @@ This directory is the design source of truth for OnsenTamago. Documents distingu
 
 ## Documents
 
+- [installation.md](installation.md): release archives, PATH placement, source builds, and editor installation.
 - [language-design.md](language-design.md): syntax, types, inference, value/reference semantics, operators, and core control flow.
 - [oop-design.md](oop-design.md): classes, interfaces, visibility, composition, and inheritance direction.
 - [oop-feasibility.md](oop-feasibility.md): feasibility and lowering constraints for OOP features.

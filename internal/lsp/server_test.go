@@ -14,10 +14,10 @@ import (
 	"testing"
 	"unicode/utf16"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/product"
-	"ontama.local/ontama/internal/project"
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 func framed(messages ...string) string {

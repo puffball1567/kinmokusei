@@ -3,7 +3,7 @@ package lexer
 import (
 	"testing"
 
-	"ontama.local/ontama/internal/token"
+	"github.com/puffball1567/onsentamago/internal/token"
 )
 
 func TestLexesUnicodeIdentifiersAndOperators(t *testing.T) {

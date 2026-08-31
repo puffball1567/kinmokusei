@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 type Diagnostic struct {

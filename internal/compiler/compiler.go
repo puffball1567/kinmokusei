@@ -10,15 +10,15 @@ import (
 	"sort"
 	"strings"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/codegen"
-	"ontama.local/ontama/internal/diagnostic"
-	"ontama.local/ontama/internal/lexer"
-	"ontama.local/ontama/internal/parser"
-	"ontama.local/ontama/internal/product"
-	"ontama.local/ontama/internal/project"
-	"ontama.local/ontama/internal/sema"
-	"ontama.local/ontama/stdlib"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/codegen"
+	"github.com/puffball1567/onsentamago/internal/diagnostic"
+	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/onsentamago/internal/sema"
+	"github.com/puffball1567/onsentamago/stdlib"
 )
 
 type Result struct {

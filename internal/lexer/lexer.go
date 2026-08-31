@@ -5,9 +5,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"ontama.local/ontama/internal/diagnostic"
-	"ontama.local/ontama/internal/source"
-	"ontama.local/ontama/internal/token"
+	"github.com/puffball1567/onsentamago/internal/diagnostic"
+	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/onsentamago/internal/token"
 )
 
 type Lexer struct {

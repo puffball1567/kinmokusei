@@ -7,7 +7,8 @@ neither TypeScript-compatible nor Go-source-compatible: its source packages are
 distributed as `.otm`, then compile into ordinary readable Go modules and use
 the Go toolchain, module graph, ABI, runtime, and library ecosystem directly.
 
-The project is currently an evolving compiler prototype. See [docs/index.md](docs/index.md) for the full design documentation.
+The project is currently a pre-1.0 public preview. See
+[docs/index.md](docs/index.md) for the full design documentation.
 
 ## Core principles
 
@@ -56,7 +57,7 @@ The project is currently an evolving compiler prototype. See [docs/index.md](doc
 - A built-in extensible `Exception`, ordered typed `catch` clauses, and return-safe `try`/`catch`/`finally`, isolated from ordinary Go/runtime panics.
 - Nil-backed `T | null` reference types with a dedicated `null` literal, separation from raw Go `nil`, checked nullable operations, assignment-sensitive local flow narrowing and joins, and definite constructor initialization for non-null reference fields.
 - Source-positioned lexical, syntax, and type diagnostics.
-- `check` with text or machine-readable JSON diagnostics, plus `build`, `run`, `emit-go`, `emit-c-abi`, checked incoming `ffi generate`, ABI compatibility checks, transactional `install --go-module` and dependency commands, and `interop audit`.
+- `version`, `check` with text or machine-readable JSON diagnostics, plus `build`, `run`, `emit-go`, `emit-c-abi`, checked incoming `ffi generate`, ABI compatibility checks, transactional `install --go-module` and dependency commands, and `interop audit`.
 - An embedded source-written `ontama/http` kernel with bounded context-aware fetch, a Go `ServeMux`-compatible `App`, method routes, path/query/header/context/cookie access, direct `http.Handler` use, and structured-task compatibility.
 - A 75/75 implemented Go-equivalent runtime contract registry backed by isolated handwritten-Go differential tests; new accepted runtime features must extend the registry and oracle together.
 - Explicit fixed-width scalar and native-enum plus normalized-boolean C ABI exports with status/out parameters, panic isolation, headers, canonical manifests, and SHA-256 fingerprints; incoming C FFI generation supports fixed/C-width scalars, borrowed strings/byte buffers, copied library-owned strings, bytes, and typed-array results with mandatory release, enums, nested POD structs, normalized tagged unions, panic-contained call-scoped and explicitly registered callbacks carrying scalar/enum/POD/tagged-union values, checked copied string/byte inputs, transactional mutable byte buffers, and registered C-owned string/byte/scalar/enum/POD-array results with paired release callbacks, plus optional handle-coupled lifetime leases and registration-owned retained string/byte inputs, target link flags, status and status/out errors, serialized or OS-thread-affine calls, opaque handles, checked release, and a tested Raylib-shaped load/unload shim pattern.
@@ -118,7 +119,19 @@ Unsupported APIs and operations are rejected at their OnsenTamago use site inste
 
 ## Try it
 
-Go 1.23 or later is required.
+Go 1.23 through Go 1.27 are supported. The released compiler is built with Go
+1.27 so it can read package export data produced by every supported toolchain.
+
+Install the released `ontama` binary and matching Visual Studio Code extension
+using the [installation guide](docs/installation.md). Developers with Go already
+installed can install the tagged command directly:
+
+```sh
+go install github.com/puffball1567/onsentamago/cmd/ontama@v0.1.0
+ontama version
+```
+
+The following commands run from a source checkout:
 
 ```sh
 go run ./cmd/ontama check examples/basic/main.otm
@@ -138,8 +151,6 @@ generating Go or running the program. It exits with status 0 for a valid input,
 ranges with one-based lines/columns and zero-based byte offsets, so editors and
 AI coding tools do not need to parse human-readable diagnostics.
 
-The current module path is temporary and may change before publication.
-
 ## Full-stack example
 
 [`examples/react-web-frameworks`](examples/react-web-frameworks/README.md)
@@ -153,12 +164,16 @@ detector. The React state transitions have their own automated coverage gate.
 
 OnsenTamago's [quality and Go compatibility policy](docs/quality-and-go-compatibility.md)
 requires every implemented Go-equivalent runtime contract to match an
-independently handwritten Go program. The compatibility workflow also tests
-the minimum project toolchain, Go 1.23, and
-the two current supported Go release families, Go 1.26 and Go 1.27. The latest
-family runs on Linux, macOS, and Windows; race detection runs on Linux. Generated
+independently handwritten Go program. The compatibility workflow builds and
+tests the compiler with Go 1.27 on Linux, macOS, and Windows; race detection
+runs on Linux. Generated
 direct-Go-interop programs are also cross-built with CGO disabled for
 `linux/amd64`, `linux/arm64`, `darwin/arm64`, and `windows/amd64`.
+
+The compiler reads Go package export data through the Go toolchain it was built
+with. When installing from source, build `ontama` with the newest Go version it
+will target. A future Go minor release may require a corresponding OnsenTamago
+release before its packages can be imported.
 
 `scripts/coverage.sh` measures repository-wide Go statement coverage with
 cross-package instrumentation. It enforces both the current 87.0% repository
@@ -167,3 +182,7 @@ area from hiding a weak one. This is separate from the 100% independent-Go
 contract gate: statement coverage measures executed implementation statements,
 while contract coverage proves that every registered Go-equivalent runtime
 behavior has a handwritten oracle.
+
+## License
+
+OnsenTamago is available under the [Apache License 2.0](LICENSE).

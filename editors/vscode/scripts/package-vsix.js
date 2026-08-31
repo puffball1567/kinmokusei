@@ -6,11 +6,28 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const yauzl = require('yauzl');
-const { createVSIX } = require('@vscode/vsce');
 
 const extensionRoot = path.resolve(__dirname, '..');
 const manifest = require(path.join(extensionRoot, 'package.json'));
 const artifactName = `${manifest.name}-${manifest.version}.vsix`;
+
+function productionDependencyDirectories(root = extensionRoot) {
+  const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+  const directories = Object.entries(lock.packages)
+    .filter(([packagePath, metadata]) => packagePath.startsWith('node_modules/') && !metadata.dev)
+    .map(([packagePath]) => path.join(root, packagePath));
+  for (const directory of directories) {
+    assert.ok(fs.statSync(directory).isDirectory(), `production dependency is not installed: ${directory}`);
+  }
+  return [root, ...directories];
+}
+
+// VSCE normally shells out to `npm list`. Reading the committed lock directly
+// makes the production dependency set deterministic and avoids npm-version or
+// shell-specific output changing a release archive.
+const vsceNpm = require('@vscode/vsce/out/npm');
+vsceNpm.getDependencies = async () => productionDependencyDirectories();
+const { createVSIX } = require('@vscode/vsce');
 
 function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -43,6 +60,7 @@ function verifyEntries(entries) {
     'extension/language-configuration.json',
     'extension/syntaxes/onsentamago.tmLanguage.json',
     'extension/readme.md',
+    'extension/LICENSE.txt',
     'extension/node_modules/vscode-languageclient/package.json'
   ];
   for (const entry of required) {
@@ -69,8 +87,8 @@ async function createPackage(packagePath) {
     packagePath,
     useYarn: false,
     dependencies: true,
-    allowMissingRepository: true,
-    skipLicense: true
+    allowMissingRepository: false,
+    skipLicense: false
   });
 }
 
@@ -108,4 +126,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { artifactName, sha256, verifyEntries, zipEntries };
+module.exports = { artifactName, productionDependencyDirectories, sha256, verifyEntries, zipEntries };

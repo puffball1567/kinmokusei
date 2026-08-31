@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/product"
+	"github.com/puffball1567/onsentamago/internal/product"
 )
 
 func validManifest() string {

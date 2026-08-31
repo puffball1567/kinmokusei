@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/compiler"
-	"ontama.local/ontama/internal/product"
-	"ontama.local/ontama/internal/project"
+	"github.com/puffball1567/onsentamago/internal/compiler"
+	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/onsentamago/internal/project"
 )
 
 func captureRun(t *testing.T, args ...string) (int, string, string) {
@@ -112,6 +112,18 @@ func TestCommandFailureMatrix(t *testing.T) {
 				t.Fatalf("status = %d, stderr = %q; want status %d and %q", status, stderr, test.wantStatus, test.wantError)
 			}
 		})
+	}
+}
+
+func TestVersionCommand(t *testing.T) {
+	previous := product.Version
+	product.Version = "v0.1.0-test"
+	t.Cleanup(func() { product.Version = previous })
+	for _, command := range []string{"version", "--version"} {
+		status, stdout, stderr := captureRun(t, command)
+		if status != 0 || stdout != "ontama v0.1.0-test\n" || stderr != "" {
+			t.Fatalf("%s: status=%d stdout=%q stderr=%q", command, status, stdout, stderr)
+		}
 	}
 }
 

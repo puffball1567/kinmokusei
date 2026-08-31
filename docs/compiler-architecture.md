@@ -177,6 +177,7 @@ Project builds use `.ontama/gen/` for intermediate modules. Explicit `emit-go` w
 The primary commands are:
 
 ```text
+ontama version
 ontama check [--json] <sources...>
 ontama build <sources...>
 ontama run <sources...>
@@ -235,7 +236,7 @@ References and rename use declaration identity produced by semantic checking rat
 
 The official Visual Studio Code client is a thin adapter in `editors/vscode`. It contributes the `.otm` language identity and syntax grammar, launches `ontama lsp --stdio`, selects only real file documents, supports a configurable executable path, and serializes configuration/manual restarts. Startup failures remain visible and retryable instead of leaving a partially active client. A real Extension Development Host test builds the current server and exercises language identification, hover, live diagnostic publication and recovery, and restart behavior.
 
-Local VSIX packaging includes production dependencies, excludes development-only inputs, fixes archive timestamps, and compares two independently generated archives byte for byte. Marketplace publication remains future release work. Other LSP-capable clients can launch `ontama lsp --stdio` directly.
+Local VSIX packaging includes production dependencies, excludes development-only inputs, fixes archive timestamps, and compares two independently generated archives byte for byte. Tagged releases attach the matching VSIX beside the `ontama` command archives; marketplace publication remains future release work. Other LSP-capable clients can launch `ontama lsp --stdio` directly.
 
 The LSP must never acquire dependencies, update manifests, or mutate external state implicitly.
 

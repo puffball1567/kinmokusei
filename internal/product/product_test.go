@@ -46,3 +46,43 @@ func TestProvisionalIdentityIsSafeForPathsAndModules(t *testing.T) {
 		t.Fatalf("DependencyDirectory = %q, want %q", got, wantDependencies)
 	}
 }
+
+func TestExplicitVersionTakesPriority(t *testing.T) {
+	previous := Version
+	Version = "v0.1.0"
+	t.Cleanup(func() { Version = previous })
+	if got := VersionString(); got != "v0.1.0" {
+		t.Fatalf("VersionString() = %q, want v0.1.0", got)
+	}
+}
+
+func TestResolvedVersionSources(t *testing.T) {
+	tests := []struct {
+		name     string
+		explicit string
+		module   string
+		want     string
+	}{
+		{"release build", "v0.1.0", "v0.0.9", "v0.1.0"},
+		{"Go module install", "devel", "v0.1.0", "v0.1.0"},
+		{"empty explicit module install", "", "v0.1.0", "v0.1.0"},
+		{"source build", "devel", "(devel)", "devel"},
+		{"missing build information", "", "", "devel"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := resolvedVersion(test.explicit, test.module); got != test.want {
+				t.Fatalf("resolvedVersion(%q, %q) = %q, want %q", test.explicit, test.module, got, test.want)
+			}
+		})
+	}
+}
+
+func TestDevelopmentVersionString(t *testing.T) {
+	previous := Version
+	Version = "devel"
+	t.Cleanup(func() { Version = previous })
+	if got := VersionString(); got != "devel" {
+		t.Fatalf("VersionString() = %q, want devel", got)
+	}
+}

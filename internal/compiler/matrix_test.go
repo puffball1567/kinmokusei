@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"ontama.local/ontama/internal/product"
-	"ontama.local/ontama/internal/project"
+	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/onsentamago/internal/project"
 )
 
 func TestImportFailureMatrix(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"ontama.local/ontama/internal/sema"
+	"github.com/puffball1567/onsentamago/internal/sema"
 )
 
 type GoInteropAuditCount struct {

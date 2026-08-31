@@ -3,8 +3,8 @@ package lsp
 import (
 	"strings"
 
-	"ontama.local/ontama/internal/ast"
-	"ontama.local/ontama/internal/source"
+	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/onsentamago/internal/source"
 )
 
 type completionReceiver struct {

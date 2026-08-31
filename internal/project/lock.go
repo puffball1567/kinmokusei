@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"ontama.local/ontama/internal/product"
+	"github.com/puffball1567/onsentamago/internal/product"
 )
 
 const LockVersion = 3

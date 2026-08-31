@@ -13,14 +13,14 @@ if [ -z "$profile" ]; then
 fi
 
 cleanup() {
-	rm -f "$package_report"
+  rm -f "$package_report"
   if [ "$temporary" = true ]; then
     rm -f "$profile"
   fi
 }
 trap cleanup EXIT HUP INT TERM
 
-go test -covermode=atomic -coverpkg=./... -coverprofile="$profile" ./...
+go test -timeout 30m -covermode=atomic -coverpkg=./... -coverprofile="$profile" ./...
 awk '
   NR > 1 {
     file = $1
@@ -42,7 +42,7 @@ awk '
     }
     for (package in total) {
       display = package
-      sub(/^ontama[.]local\/ontama\//, "", display)
+      sub(/^github[.]com\/puffball1567\/onsentamago\//, "", display)
       percentage = 100 * covered[package] / total[package]
       printf "%s\t%.1f%%\t%.12f\t(%d/%d)\n", display, percentage, percentage, covered[package], total[package]
     }
