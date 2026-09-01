@@ -6,4 +6,7 @@
 /editors/vscode/node_modules/
 /editors/vscode/.vscode-test/
 /editors/vscode/dist/
+/website/node_modules/
+/website/.vitepress/cache/
+/website/.vitepress/dist/
 /dist/

@@ -346,6 +346,13 @@ packages remains future work.
 - Version documentation with the compiler so released syntax and the default
   guide cannot silently diverge.
 
+The v0.2 track now includes the initial progressive VitePress guide, local
+search, release navigation, and GitHub Pages deployment workflow. Executable
+guide snippets are stored as ordinary `.otm` sources, checked with the release
+compiler, run against explicit output files, and rebuilt with the site in the
+required compatibility and release workflows. Broader examples and archived
+version snapshots remain ongoing documentation work.
+
 ## Verification commands and reporting
 
 Development should normally end with:

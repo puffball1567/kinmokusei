@@ -1,0 +1,5 @@
+import go fmt from "fmt";
+
+function main(): void {
+  fmt.Println("Hello from OnsenTamago");
+}

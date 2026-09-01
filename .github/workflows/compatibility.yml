@@ -108,6 +108,26 @@ jobs:
       - run: xvfb-run -a npm run test:e2e
       - run: npm run package:vsix
 
+  documentation:
+    name: Public language guide
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: website
+      - run: ./scripts/check-docs.sh
+      - run: npm run docs:build
+        working-directory: website
+
   full-stack-example:
     name: React with Gin and Fiber
     runs-on: ubuntu-latest
@@ -157,6 +177,7 @@ jobs:
       - release-toolchain
       - race
       - editor
+      - documentation
       - full-stack-example
     runs-on: ubuntu-latest
     steps:
@@ -166,8 +187,9 @@ jobs:
           TOOLCHAIN_RESULT: ${{ needs.release-toolchain.result }}
           RACE_RESULT: ${{ needs.race.result }}
           EDITOR_RESULT: ${{ needs.editor.result }}
+          DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           FULL_STACK_RESULT: ${{ needs.full-stack-example.result }}
         run: |
-          for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$EDITOR_RESULT" "$FULL_STACK_RESULT"; do
+          for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$EDITOR_RESULT" "$DOCUMENTATION_RESULT" "$FULL_STACK_RESULT"; do
             test "$result" = success
           done

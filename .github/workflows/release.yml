@@ -22,7 +22,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: editors/vscode/package-lock.json
+          cache-dependency-path: |
+            editors/vscode/package-lock.json
+            website/package-lock.json
       - name: Verify the compiler
         run: |
           ./scripts/coverage.sh
@@ -33,6 +35,11 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/ontama-bin"
           go build -trimpath -o "${RUNNER_TEMP}/ontama-bin/ontama" ./cmd/ontama
           echo "${RUNNER_TEMP}/ontama-bin" >> "$GITHUB_PATH"
+      - name: Verify the public language guide
+        run: |
+          npm --prefix website ci --ignore-scripts
+          ./scripts/check-docs.sh
+          npm --prefix website run docs:build
       - name: Download the locked backend modules
         working-directory: examples/react-web-frameworks/backend/.ontama/deps
         run: go mod download all

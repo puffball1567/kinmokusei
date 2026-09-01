@@ -1,0 +1,31 @@
+import go fmt from "fmt";
+import go strconv from "strconv";
+
+class User {
+  constructor(public name: string) {}
+}
+
+function parsePositive(text: string): Result<int> {
+  const value = strconv.Atoi(text)?;
+  if (value < 0) {
+    return fail(fmt.Errorf("negative value: %d", value));
+  }
+  return ok(value);
+}
+
+function findUser(present: boolean): User | null {
+  if (present) { return new User("onsen"); }
+  return null;
+}
+
+function describe(text: string, present: boolean): Result<string> {
+  const value = parsePositive(text)?;
+  const user = findUser(present);
+  if (user === null) { return ok("missing"); }
+  return ok(fmt.Sprintf("%s:%d", user.name, value));
+}
+
+function main(): void {
+  const [description, err] = describe("21", true);
+  fmt.Println(description, err === nil);
+}
