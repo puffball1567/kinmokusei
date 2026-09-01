@@ -1398,9 +1398,6 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if method.Static && (method.Virtual || method.Override) {
 			c.report(method.Span, "static methods cannot be virtual or override")
 		}
-		if len(symbol.typeParameters) != 0 && method.Static {
-			c.report(method.Span, "generic class static methods are not yet supported; use a top-level generic function")
-		}
 		if len(symbol.typeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
 			c.report(method.Span, "generic class virtual, override, and final methods are not yet supported")
 		}
@@ -1414,6 +1411,10 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.report(method.Span, "virtual methods must be public or protected")
 		}
 		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
+		if method.Static && len(symbol.typeParameters) != 0 {
+			methodType.TypeParameters = append([]Type(nil), symbol.typeParameters...)
+			methodType.Generic = true
+		}
 		virtualOwner := ""
 		if replaces && inherited.declaringClass == decl.Name {
 			c.report(method.Span, fmt.Sprintf("duplicate method %q", method.Name))

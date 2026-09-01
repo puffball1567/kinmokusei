@@ -44,7 +44,7 @@ nondeterministic choice.
 ## Compatibility contract gate
 
 The compiler maintains a registry of implemented Go-equivalent runtime
-contracts. The current registry covers 75 of 75 contract groups. Automated
+contracts. The current registry covers 76 of 76 contract groups. Automated
 checks require every registered contract to have an isolated handwritten-Go
 scenario and reject unregistered differential scenarios.
 
@@ -55,7 +55,7 @@ A new accepted runtime feature is incomplete until the same change adds:
 - normal, boundary, and failure cases;
 - comparisons for all relevant observable behavior.
 
-The 75/75 figure describes contract coverage for the implemented runtime
+The 76/76 figure describes contract coverage for the implemented runtime
 surface. It is not a claim that every Go feature or every planned OnsenTamago
 feature has already been implemented.
 

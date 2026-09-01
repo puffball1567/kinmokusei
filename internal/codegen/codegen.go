@@ -610,6 +610,9 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		generated := &goast.FuncDecl{Name: goast.NewIdent(goName(name)), Type: methodType, Body: body}
 		if method.Static {
 			generated.Name = goast.NewIdent(staticMethodName(class.Name, name, method.Visibility))
+			if len(typeParameterFields) != 0 {
+				generated.Type.TypeParams = &goast.FieldList{List: typeParameterFields}
+			}
 		} else {
 			generated.Recv = &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}
 			if method.Virtual || method.Override {

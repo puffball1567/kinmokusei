@@ -91,6 +91,7 @@ var implementedGoCompatibilityContracts = []string{
 	"native integer enums with automatic and explicit values, signed and unsigned fixed-width boundaries, namespace members, conversions, switches, map keys, generics, ordering, value and pointer receiver methods, linked modules, and Go API shape",
 	"native generic reference classes with explicit instantiation, substituted fields and methods, comparable constraints, method values, reference identity, interface implementation and dispatch, nested and reference-bearing values, linked modules, and external Go APIs",
 	"recursive native defined types through slice, map, pointer, function, and channel indirection, including generic and mutually recursive declarations, receiver methods, named-function calls, linked modules, external Go APIs, and finite-size cycle rejection",
+	"generic class static methods with inferred, explicit, partial, and constrained type arguments, private helpers, Result propagation, linked modules, and external Go APIs",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
@@ -172,9 +173,10 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"signednarrow.test":                   {implementedGoCompatibilityContracts[70]},
 	"enum.test":                           {implementedGoCompatibilityContracts[72]},
 	"genericclass.test":                   {implementedGoCompatibilityContracts[73]},
-	"genericclass-linked.test":            {implementedGoCompatibilityContracts[73]},
+	"genericclass-linked.test":            {implementedGoCompatibilityContracts[73], implementedGoCompatibilityContracts[75]},
 	"recursivedefined.test":               {implementedGoCompatibilityContracts[74]},
 	"recursivedefined-linked.test":        {implementedGoCompatibilityContracts[74]},
+	"genericclassstatic.test":             {implementedGoCompatibilityContracts[75]},
 }
 
 func TestImplementedGoCompatibilityCoverageIsComplete(t *testing.T) {

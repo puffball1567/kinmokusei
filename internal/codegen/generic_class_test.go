@@ -12,6 +12,7 @@ class Box<T> {
   constructor(public value: T) {}
   public function get(): T { return this.value; }
   public function set(value: T): void { this.value = value; }
+  public static function make(value: T): Box<T> { return new Box<T>(value); }
 }
 class Key<K extends comparable> { constructor(public value: K) {} }
 class Value<T> implements Reader<T> {
@@ -19,7 +20,7 @@ class Value<T> implements Reader<T> {
   public function read(): T { return this.value; }
 }
 function use(): string {
-  const box = new Box<string>("first");
+  const box = Box.make("first");
   box.set("second");
   const key = new Key<int>(7);
   const reader: Reader<string> = new Value<string>(box.get());
@@ -32,8 +33,9 @@ function use(): string {
 		"func NewBox[T any](value T) *Box[T]",
 		"func (this *Box[T]) Get() T",
 		"func (this *Box[T]) Set(value T)",
+		"func BoxMake[T any](value T) *Box[T]",
 		"type Key[K comparable] struct",
-		`var box = NewBox[string]("first")`,
+		`var box = BoxMake("first")`,
 		"var key = NewKey[int](7)",
 		`var reader Reader[string] = NewValue[string](box.Get())`,
 	} {

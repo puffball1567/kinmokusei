@@ -817,8 +817,11 @@ while different instantiations such as `Box<int>` and `Box<string>` remain
 different static types. `T extends comparable` is available when the class
 needs that constraint. Generated constructors and methods form ordinary public
 generic Go APIs, and generic classes work across relative imports. Generic
-class inheritance, `virtual`/`override`/`final`, and static methods are rejected
-for now; use composition or an implemented generic interface at that boundary.
+class static methods use the class parameters as function type parameters.
+Calls may infer them from arguments or supply them explicitly, and the
+generated public API is an ordinary generic Go function. Generic class
+inheritance and `virtual`/`override`/`final` remain rejected for now; use
+composition or an implemented generic interface at that boundary.
 
 Native interfaces may declare unconstrained type parameters and must be fully
 instantiated wherever they are used. Type parameters may appear recursively in

@@ -35,6 +35,22 @@ func TestGenericClassSemanticSuccessMatrix(t *testing.T) {
 			"class reference map key",
 			`class Box<T> { constructor(public value: T) {} } function lookup(values: Map<Box<int>, string>, key: Box<int>): string { return values[key]; }`,
 		},
+		{
+			"static inference and explicit arguments",
+			`class Box<T> { constructor(public value: T) {} public static function make(value: T): Box<T> { return new Box<T>(value); } } function use(): int { const inferred = Box.make(40); const angle = Box.make<int>(1); const bracket = Box.make[int](1); return inferred.value + angle.value + bracket.value; }`,
+		},
+		{
+			"constrained static method",
+			`class Key<T extends comparable> { constructor(public value: T) {} public static function make(value: T): Key<T> { return new Key<T>(value); } } function use(): string { return Key.make("key").value; }`,
+		},
+		{
+			"static result",
+			`class Box<T> { constructor(public value: T) {} public static function present(value: T): Result<Box<T>> { return ok(new Box<T>(value)); } } function use(): Result<int> { const box = Box.present(42)?; return ok(box.value); }`,
+		},
+		{
+			"zero argument static explicit type",
+			`class Box<T> { public static function empty(): Box<T> { return new Box<T>(); } } function use(): Box<int> { return Box.empty<int>(); }`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if diagnostics := checkSource(t, test.source); len(diagnostics) != 0 {
@@ -54,7 +70,9 @@ func TestGenericClassSemanticFailureMatrix(t *testing.T) {
 		{"constraint mismatch", `class Key<T extends comparable> { constructor(public value: T) {} } function use(items: int[]): void { new Key<int[]>(items); }`, "does not satisfy T type parameter constraint"},
 		{"generic extends", `class Base {} class Child<T> extends Base {}`, "generic classes cannot currently use extends"},
 		{"generic base", `class Base<T> {} class Child extends Base<int> {}`, "generic class inheritance is not yet supported"},
-		{"static method", `class Box<T> { public static function make(value: T): Box<T> { return new Box<T>(); } }`, "generic class static methods are not yet supported"},
+		{"uninferred static argument", `class Box<T> { public static function empty(): Box<T> { return new Box<T>(); } } function use(): void { Box.empty(); }`, "cannot infer type argument T"},
+		{"static constraint mismatch", `class Key<T extends comparable> { public static function make(value: T): void {} } function use(values: int[]): void { Key.make(values); }`, "does not satisfy T type parameter constraint"},
+		{"inconsistent static inference", `class Pair<T> { public static function make(left: T, right: T): void {} } function use(): void { Pair.make(1, "two"); }`, "T was already inferred as int, not string"},
 		{"virtual method", `class Box<T> { constructor(private value: T) {} public virtual function read(): T { return this.value; } }`, "generic class virtual"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
