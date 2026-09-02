@@ -215,6 +215,7 @@ type ClassDecl struct {
 	Methods        []*MethodDecl
 	VirtualOwners  []string
 	Ancestors      []string
+	AncestorTypes  []TypeRef
 	Descendants    []string
 	HierarchyRoot  string
 	Span           source.Span
@@ -906,6 +907,8 @@ type ClassUpcastExpr struct {
 	Value       Expression
 	SourceClass string
 	TargetClass string
+	SourceType  TypeRef
+	TargetType  TypeRef
 	Span        source.Span
 }
 

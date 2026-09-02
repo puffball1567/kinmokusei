@@ -44,3 +44,38 @@ function use(): string {
 		}
 	}
 }
+
+func TestGenericClassInheritanceGeneratesInstantiatedBaseAndConversions(t *testing.T) {
+	generated := string(generateCheckedSource(t, `
+class Base<T> {
+  constructor(protected value: T) {}
+  public function get(): T { return this.value; }
+}
+class Child<U> extends Base<U> {
+  constructor(value: U) { super(value); }
+  public function read(): U { return super.get(); }
+}
+class Concrete extends Base<int> {
+  constructor(value: int) { super(value); }
+}
+function use(value: Child<string>): Base<string> { return value; }
+`))
+	for _, expected := range []string{
+		"type Child[U any] struct",
+		"Base[U]",
+		"func __ontamaUpcastChildToBase[U any](value *Child[U]) *Base[U]",
+		"func __ontamaDowncastBaseToChild[U any](value *Base[U]) (*Child[U], bool)",
+		"func UpcastChildToBase[U any](value *Child[U]) *Base[U]",
+		"func __ontamaInitChild[U any](this *Child[U], value U)",
+		"__ontamaInitBase(&this.Base, value)",
+		"func (this *Child[U]) Read() U",
+		"return this.Base.Get()",
+		"type Concrete struct",
+		"Base[int]",
+		"return __ontamaUpcastChildToBase[string](value)",
+	} {
+		if !strings.Contains(generated, expected) {
+			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
+		}
+	}
+}

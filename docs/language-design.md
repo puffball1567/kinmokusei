@@ -820,8 +820,34 @@ generic Go APIs, and generic classes work across relative imports. Generic
 class static methods use the class parameters as function type parameters.
 Calls may infer them from arguments or supply them explicitly, and the
 generated public API is an ordinary generic Go function. Generic class
-inheritance and `virtual`/`override`/`final` remain rejected for now; use
-composition or an implemented generic interface at that boundary.
+inheritance substitutes the selected base arguments through inherited state,
+constructors, methods, and interface contracts. A base may use the child type
+parameters directly, remap them, or fix some arguments concretely, and the
+substitution continues through multi-level hierarchies:
+
+```ts
+class Base<T> {
+  constructor(protected value: T) {}
+  public function get(): T { return this.value; }
+}
+
+class Middle<A, B> extends Base<B> {
+  constructor(value: B) { super(value); }
+}
+
+class Leaf<X> extends Middle<int, X> {
+  constructor(value: X) { super(value); }
+}
+
+const value: string = new Leaf<string>("onsen").get();
+```
+
+Nonvirtual generic inheritance, implicit upcasts, exact checked/forced
+downcasts, and the corresponding public generic Go conversion functions are
+supported. `virtual`/`override`/`final` on generic classes remain rejected for
+now. A downcast to an intermediate generic class also currently requires the
+runtime class to be that exact target; recovering a more-derived generic class
+through an intermediate target remains future work.
 
 Native interfaces may declare unconstrained type parameters and must be fully
 instantiated wherever they are used. Type parameters may appear recursively in
@@ -858,7 +884,9 @@ references implicitly upcast through nil-preserving generated helpers, so nil
 behavior and repeated-upcast identity remain stable. A base reference uses
 `as? Derived` for a checked `(Derived, boolean)` downcast and `as! Derived` for
 a panic-on-failure downcast. Both preserve derived identity, accept deeper
-descendants when targeting an intermediate class, and evaluate the source once.
+descendants when targeting a non-generic intermediate class, and evaluate the
+source once. Generic conversions preserve the exact instantiated ancestor and
+target types; the intermediate-target limitation described above applies.
 `protected` members are limited to their declaring class and descendants.
 `final class` prevents further inheritance, while `final override` closes an
 existing virtual method slot. Ordinary nonvirtual methods are already closed

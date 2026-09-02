@@ -92,7 +92,9 @@ type classSymbol struct {
 	typeParamScope      map[string]Type
 	declarationSpan     source.Span
 	base                string
+	baseType            Type
 	ancestors           []string
+	ancestorTypes       []Type
 	final               bool
 }
 
@@ -1213,22 +1215,9 @@ func (c *Checker) declareClasses(program *ast.Program) {
 		state[decl.Name] = 1
 		if decl.Base != nil {
 			base := decl.Base
-			if len(decl.TypeParameters) != 0 {
-				c.report(base.Span, "generic classes cannot currently use extends; use composition or a generic interface")
-			} else if len(base.GenericArguments) != 0 {
-				if baseDecl := declarations[base.Name]; baseDecl != nil && len(baseDecl.TypeParameters) != 0 {
-					c.report(base.Span, fmt.Sprintf("generic base class %s cannot currently be extended; generic class inheritance is not yet supported", base.Name))
-				} else {
-					c.report(base.Span, "extends expects an unqualified class name")
-				}
-			} else if base.Nullable || base.Qualifier != "" || base.Name == "" || base.IsArray() || base.IsPointer() || base.IsFunction() || base.IsObject() {
+			if base.Nullable || base.Qualifier != "" || base.Name == "" || base.IsArray() || base.IsPointer() || base.IsFunction() || base.IsObject() {
 				c.report(base.Span, "extends expects an unqualified class name")
 			} else if baseDecl := declarations[base.Name]; baseDecl != nil {
-				if len(baseDecl.TypeParameters) != 0 {
-					c.report(base.Span, fmt.Sprintf("generic base class %s requires type arguments, but generic class inheritance is not yet supported", base.Name))
-					state[decl.Name] = 2
-					return
-				}
 				declare(baseDecl)
 				if baseDecl.Final {
 					c.report(base.Span, fmt.Sprintf("cannot extend final class %s", base.Name))
@@ -1263,7 +1252,9 @@ func (c *Checker) declareClasses(program *ast.Program) {
 		for _, ancestor := range symbol.ancestors {
 			if ancestorDeclaration := declarations[ancestor]; ancestorDeclaration != nil {
 				ancestorDeclaration.HierarchyRoot = root
-				ancestorDeclaration.Descendants = append(ancestorDeclaration.Descendants, name)
+				if len(declaration.TypeParameters) == 0 {
+					ancestorDeclaration.Descendants = append(ancestorDeclaration.Descendants, name)
+				}
 			}
 		}
 	}
@@ -1309,20 +1300,36 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 	if decl.Base != nil {
 		base := c.classes[decl.Base.Name]
 		if base != nil && base.fields != nil && decl.Base.Name != decl.Name {
+			baseType := c.resolveNativeClassType(*decl.Base, base)
+			baseBindings := nativeClassBindings(base, baseType)
 			symbol.base = decl.Base.Name
+			symbol.baseType = baseType
 			symbol.ancestors = append([]string{decl.Base.Name}, base.ancestors...)
+			symbol.ancestorTypes = append(symbol.ancestorTypes, baseType)
+			for _, ancestorType := range base.ancestorTypes {
+				symbol.ancestorTypes = append(symbol.ancestorTypes, substituteNativeTypeParameters(ancestorType, baseBindings))
+			}
 			decl.Ancestors = append(decl.Ancestors, symbol.ancestors...)
+			for _, ancestorType := range symbol.ancestorTypes {
+				decl.AncestorTypes = append(decl.AncestorTypes, typeRefFromType(ancestorType, decl.Base.Span))
+			}
 			decl.Base.ResolvedDeclaration = base.declarationSpan
 			for name, field := range base.fields {
+				field.typeInfo = substituteNativeTypeParameters(field.typeInfo, baseBindings)
 				symbol.fields[name] = field
 			}
 			for name, method := range base.methods {
+				if !method.static {
+					method.typeInfo = substituteNativeTypeParameters(method.typeInfo, baseBindings)
+				}
 				symbol.methods[name] = method
 			}
 			for name := range base.implements {
 				symbol.implements[name] = true
 			}
-			symbol.implementedTypes = append(symbol.implementedTypes, base.implementedTypes...)
+			for _, implemented := range base.implementedTypes {
+				symbol.implementedTypes = append(symbol.implementedTypes, substituteNativeTypeParameters(implemented, baseBindings))
+			}
 			symbol.goImplements = append(symbol.goImplements, base.goImplements...)
 		}
 	}
@@ -4524,7 +4531,7 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 	case *ast.NewExpr:
 		return c.checkNew(expr)
 	case *ast.ClassUpcastExpr:
-		return Type{Kind: Class, Name: expr.TargetClass}
+		return c.resolveType(expr.TargetType)
 	}
 	return Type{Kind: Invalid, Name: "<invalid>"}
 }
@@ -4548,8 +4555,10 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 			c.report(expr.Span, fmt.Sprintf("%s already has class type %s; no downcast is needed", value.String(), asserted.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if !c.classExtends(asserted.Name, source.Name) {
-			if c.classExtends(source.Name, asserted.Name) {
+		ancestor, downcast := c.classAncestorType(asserted, source.Name)
+		if !downcast || !exactType(source, ancestor) {
+			upcastAncestor, upcast := c.classAncestorType(source, asserted.Name)
+			if upcast && exactType(asserted, upcastAncestor) {
 				c.report(expr.Span, fmt.Sprintf("%s to %s is an upcast; use ordinary assignment or argument passing", source.String(), asserted.String()))
 			} else {
 				c.report(expr.Span, fmt.Sprintf("classes %s and %s are not in the same inheritance chain", source.String(), asserted.String()))
@@ -4662,10 +4671,29 @@ func (c *Checker) checkExpressionExpectedSlot(slot *ast.Expression, expected Typ
 	if actualClass.Kind == Nullable && actualClass.Element != nil {
 		actualClass = *actualClass.Element
 	}
-	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name && c.classExtends(actualClass.Name, targetClass.Name) {
-		*slot = &ast.ClassUpcastExpr{Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name, Span: (*slot).GetSpan()}
+	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name {
+		if ancestor, ok := c.classAncestorType(actualClass, targetClass.Name); ok && exactType(targetClass, ancestor) {
+			*slot = &ast.ClassUpcastExpr{
+				Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name,
+				SourceType: typeRefFromType(actualClass, (*slot).GetSpan()), TargetType: typeRefFromType(targetClass, (*slot).GetSpan()), Span: (*slot).GetSpan(),
+			}
+		}
 	}
 	return actual
+}
+
+func (c *Checker) classAncestorType(value Type, baseName string) (Type, bool) {
+	class := c.classes[value.Name]
+	if class == nil {
+		return Type{}, false
+	}
+	bindings := nativeClassBindings(class, value)
+	for index, ancestor := range class.ancestors {
+		if ancestor == baseName && index < len(class.ancestorTypes) {
+			return substituteNativeTypeParameters(class.ancestorTypes[index], bindings), true
+		}
+	}
+	return Type{}, false
 }
 
 func (c *Checker) classExtends(className, baseName string) bool {
@@ -5231,7 +5259,7 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	expr.ResolvedName = method.goName
 	expr.VirtualOwner = method.virtualOwner
 	expr.ResolvedDeclaration = method.declarationSpan
-	return method.typeInfo
+	return substituteNativeTypeParameters(method.typeInfo, nativeClassBindings(base, class.baseType))
 }
 
 func (c *Checker) flowInvalidation(expression ast.Expression) (source.Span, string) {
@@ -6022,7 +6050,12 @@ func (c *Checker) checkSuperConstructorCall(expr *ast.CallExpr) Type {
 	if base == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	c.checkConstructorArguments(expr.Arguments, expr.Expanded, base.constructor, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
+	bindings := nativeClassBindings(base, class.baseType)
+	parameters := make([]Type, len(base.constructor))
+	for index, parameter := range base.constructor {
+		parameters[index] = substituteNativeTypeParameters(parameter, bindings)
+	}
+	c.checkConstructorArguments(expr.Arguments, expr.Expanded, parameters, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
 	expr.SuperConstructor = true
 	expr.SuperBase = class.base
 	return builtins["void"]
@@ -8791,8 +8824,10 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 		return false
 	}
-	if target.Kind == Class && value.Kind == Class && c.classExtends(value.Name, target.Name) {
-		return true
+	if target.Kind == Class && value.Kind == Class {
+		if ancestor, ok := c.classAncestorType(value, target.Name); ok {
+			return exactType(target, ancestor)
+		}
 	}
 	if value.Kind == Struct {
 		if contract := underlyingGoInterface(target.GoType); contract != nil && contract.NumMethods() == 0 {

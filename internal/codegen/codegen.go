@@ -405,7 +405,7 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 
 	fields := make([]*goast.Field, 0, len(class.Fields)+2)
 	if class.Base != nil {
-		fields = append(fields, &goast.Field{Type: goast.NewIdent(class.Base.Name)})
+		fields = append(fields, &goast.Field{Type: goClassType(*class.Base)})
 	}
 	if class.HierarchyRoot == class.Name {
 		fields = append(fields, &goast.Field{Names: []*goast.Ident{goast.NewIdent(classRootName())}, Type: goast.NewIdent("any")})
@@ -435,31 +435,47 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 	}
 	declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{classSpec}})
 	for ancestorIndex, ancestor := range class.Ancestors {
+		ancestorRef := ontamaAST.TypeRef{Name: ancestor}
+		if ancestorIndex < len(class.AncestorTypes) {
+			ancestorRef = class.AncestorTypes[ancestorIndex]
+		}
+		ancestorType := goClassType(ancestorRef)
 		selected := goast.Expr(goast.NewIdent("value"))
 		for index := 0; index <= ancestorIndex; index++ {
 			selected = &goast.SelectorExpr{X: selected, Sel: goast.NewIdent(class.Ancestors[index])}
 		}
+		upcastType := &goast.FuncType{
+			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: classPointer}}},
+			Results: &goast.FieldList{List: []*goast.Field{{Type: &goast.StarExpr{X: ancestorType}}}},
+		}
+		if len(typeParameterFields) != 0 {
+			upcastType.TypeParams = &goast.FieldList{List: typeParameterFields}
+		}
 		declarations = append(declarations, &goast.FuncDecl{
 			Name: goast.NewIdent(upcastName(class.Name, ancestor)),
-			Type: &goast.FuncType{
-				Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: &goast.StarExpr{X: goast.NewIdent(class.Name)}}}},
-				Results: &goast.FieldList{List: []*goast.Field{{Type: &goast.StarExpr{X: goast.NewIdent(ancestor)}}}},
-			},
+			Type: upcastType,
 			Body: &goast.BlockStmt{List: []goast.Stmt{
 				&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent("value"), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("nil")}}}}},
 				&goast.ReturnStmt{Results: []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: selected}}},
 			}},
 		})
 		checkedType := &goast.FuncType{
-			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: &goast.StarExpr{X: goast.NewIdent(ancestor)}}}},
-			Results: &goast.FieldList{List: []*goast.Field{{Type: &goast.StarExpr{X: goast.NewIdent(class.Name)}}, {Type: goast.NewIdent("bool")}}},
+			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: &goast.StarExpr{X: ancestorType}}}},
+			Results: &goast.FieldList{List: []*goast.Field{{Type: classPointer}, {Type: goast.NewIdent("bool")}}},
+		}
+		if len(typeParameterFields) != 0 {
+			checkedType.TypeParams = &goast.FieldList{List: typeParameterFields}
 		}
 		checkedBody := &goast.BlockStmt{List: []goast.Stmt{
 			&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent("value"), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("nil"), goast.NewIdent("false")}}}}},
 		}}
 		candidates := append([]string{class.Name}, class.Descendants...)
 		for _, candidate := range candidates {
-			assertion := &goast.TypeAssertExpr{X: &goast.SelectorExpr{X: goast.NewIdent("value"), Sel: goast.NewIdent(classRootName())}, Type: &goast.StarExpr{X: goast.NewIdent(candidate)}}
+			candidateType := goast.Expr(goast.NewIdent(candidate))
+			if candidate == class.Name {
+				candidateType = classType
+			}
+			assertion := &goast.TypeAssertExpr{X: &goast.SelectorExpr{X: goast.NewIdent("value"), Sel: goast.NewIdent(classRootName())}, Type: &goast.StarExpr{X: candidateType}}
 			result := goast.Expr(goast.NewIdent("result"))
 			if candidate != class.Name {
 				result = &goast.CallExpr{Fun: goast.NewIdent(upcastName(candidate, class.Name)), Args: []goast.Expr{goast.NewIdent("result")}}
@@ -474,22 +490,27 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 			Name: goast.NewIdent(downcastName(ancestor, class.Name)), Type: checkedType,
 			Body: checkedBody,
 		})
+		mustType := &goast.FuncType{
+			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: &goast.StarExpr{X: ancestorType}}}},
+			Results: &goast.FieldList{List: []*goast.Field{{Type: classPointer}}},
+		}
+		if len(typeParameterFields) != 0 {
+			mustType.TypeParams = &goast.FieldList{List: typeParameterFields}
+		}
+		downcastCallee := indexedGoType(goast.NewIdent(downcastName(ancestor, class.Name)), typeRefsForTypeParameters(class.TypeParameters))
 		declarations = append(declarations, &goast.FuncDecl{
 			Name: goast.NewIdent(mustDowncastName(ancestor, class.Name)),
-			Type: &goast.FuncType{
-				Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: &goast.StarExpr{X: goast.NewIdent(ancestor)}}}},
-				Results: &goast.FieldList{List: []*goast.Field{{Type: &goast.StarExpr{X: goast.NewIdent(class.Name)}}}},
-			},
+			Type: mustType,
 			Body: &goast.BlockStmt{List: []goast.Stmt{
-				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("result"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent(downcastName(ancestor, class.Name)), Args: []goast.Expr{goast.NewIdent("value")}}}},
+				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("result"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.CallExpr{Fun: downcastCallee, Args: []goast.Expr{goast.NewIdent("value")}}}},
 				&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: goast.NewIdent("ok")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{&goast.BasicLit{Kind: token.STRING, Value: strconv.Quote("cannot downcast " + ancestor + " to " + class.Name)}}}}}}},
 				&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("result")}},
 			}},
 		})
 		declarations = append(declarations,
-			generateConversionWrapper(publicUpcastName(class.Name, ancestor), upcastName(class.Name, ancestor), class.Name, ancestor, false),
-			generateConversionWrapper(publicDowncastName(ancestor, class.Name), downcastName(ancestor, class.Name), ancestor, class.Name, true),
-			generateConversionWrapper(publicMustDowncastName(ancestor, class.Name), mustDowncastName(ancestor, class.Name), ancestor, class.Name, false),
+			generateConversionWrapper(publicUpcastName(class.Name, ancestor), upcastName(class.Name, ancestor), typeRefForClass(class), ancestorRef, class.TypeParameters, false),
+			generateConversionWrapper(publicDowncastName(ancestor, class.Name), downcastName(ancestor, class.Name), ancestorRef, typeRefForClass(class), class.TypeParameters, true),
+			generateConversionWrapper(publicMustDowncastName(ancestor, class.Name), mustDowncastName(ancestor, class.Name), ancestorRef, typeRefForClass(class), class.TypeParameters, false),
 		)
 	}
 	for _, implemented := range class.Implements {
@@ -635,6 +656,14 @@ func typeRefsForTypeParameters(parameters []ontamaAST.TypeParameter) []ontamaAST
 	return result
 }
 
+func typeRefForClass(class *ontamaAST.ClassDecl) ontamaAST.TypeRef {
+	return ontamaAST.TypeRef{Name: class.Name, GenericArguments: typeRefsForTypeParameters(class.TypeParameters), Span: class.NameSpan}
+}
+
+func goClassType(ref ontamaAST.TypeRef) goast.Expr {
+	return indexedGoType(goast.NewIdent(ref.Name), ref.GenericArguments)
+}
+
 func generateVirtualWrapper(className string, method *ontamaAST.MethodDecl, name string) *goast.FuncDecl {
 	parameters := make([]*goast.Field, 0, len(method.Parameters))
 	arguments := make([]goast.Expr, 0, len(method.Parameters))
@@ -705,19 +734,28 @@ func publicMustDowncastName(source, target string) string {
 }
 func classRootName() string { return "__ontamaRoot" }
 
-func generateConversionWrapper(name, implementation, source, target string, checked bool) *goast.FuncDecl {
-	results := []*goast.Field{{Type: &goast.StarExpr{X: goast.NewIdent(target)}}}
+func generateConversionWrapper(name, implementation string, source, target ontamaAST.TypeRef, parameters []ontamaAST.TypeParameter, checked bool) *goast.FuncDecl {
+	results := []*goast.Field{{Type: goType(target)}}
 	if checked {
 		results = append(results, &goast.Field{Type: goast.NewIdent("bool")})
 	}
+	functionType := &goast.FuncType{
+		Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: goType(source)}}},
+		Results: &goast.FieldList{List: results},
+	}
+	if len(parameters) != 0 {
+		typeParameters := make([]*goast.Field, 0, len(parameters))
+		for _, parameter := range parameters {
+			typeParameters = append(typeParameters, goTypeParameterField(parameter, false))
+		}
+		functionType.TypeParams = &goast.FieldList{List: typeParameters}
+	}
+	callee := indexedGoType(goast.NewIdent(implementation), typeRefsForTypeParameters(parameters))
 	return &goast.FuncDecl{
 		Name: goast.NewIdent(name),
-		Type: &goast.FuncType{
-			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("value")}, Type: &goast.StarExpr{X: goast.NewIdent(source)}}}},
-			Results: &goast.FieldList{List: results},
-		},
+		Type: functionType,
 		Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{&goast.CallExpr{
-			Fun: goast.NewIdent(implementation), Args: []goast.Expr{goast.NewIdent("value")},
+			Fun: callee, Args: []goast.Expr{goast.NewIdent("value")},
 		}}}}},
 	}
 }
@@ -1689,7 +1727,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			if expr.Checked {
 				name = downcastName(expr.SourceClass, expr.Type.Name)
 			}
-			return &goast.CallExpr{Fun: goast.NewIdent(name), Args: []goast.Expr{value}}, nil
+			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: []goast.Expr{value}}, nil
 		}
 		return &goast.TypeAssertExpr{X: value, Type: goType(expr.Type)}, nil
 	case *ontamaAST.TaskStartExpr:
@@ -1985,7 +2023,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &goast.CallExpr{Fun: goast.NewIdent(upcastName(expr.SourceClass, expr.TargetClass)), Args: []goast.Expr{value}}, nil
+		return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(upcastName(expr.SourceClass, expr.TargetClass)), expr.SourceType.GenericArguments), Args: []goast.Expr{value}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported expression %T", expr)
 	}

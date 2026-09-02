@@ -9,6 +9,6 @@ OnsenTamago is a pre-1.0 public language. The following areas are implemented an
 - Direct standard-library and external Go module interoperability
 - Generated Go, C ABI export, checked incoming C FFI, projects, locks, target builds, LSP, and VS Code packaging
 
-Known future work includes broader OnsenTamago package distribution, automatic task cancellation/context inheritance, broader constructor cardinality proofs, and remaining advanced generic-class and FFI ownership cases.
+Known future work includes broader OnsenTamago package distribution, automatic task cancellation/context inheritance, broader constructor cardinality proofs, generic-class virtual dispatch and descendant-aware intermediate generic downcasts, and remaining advanced FFI ownership cases.
 
 The detailed [quality policy](https://github.com/puffball1567/onsentamago/blob/main/docs/quality-and-go-compatibility.md) explains the difference between statement coverage and the independently handwritten-Go runtime contract gate.

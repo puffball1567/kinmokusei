@@ -84,3 +84,34 @@ function use(value: string): string {
 		t.Fatalf("generic class top-level completion = %#v", topLevelItems["Box"])
 	}
 }
+
+func TestGenericClassInheritanceCompletionAndDefinitionUseSubstitutedBase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "generic_inheritance.otm")
+	text := `class Base<T> {
+  constructor(protected value: T) {}
+  public function get(): T { return this.value; }
+}
+class Middle<A, B> extends Base<B> {
+  constructor(value: B) { super(value); }
+}
+class Leaf<X> extends Middle<int, X> {
+  constructor(value: X) { super(value); }
+}
+function use(child: Leaf<string>): string {
+  return child.get();
+}`
+	completionText := strings.Replace(text, "child.get();", "child.;", 1)
+	completionPosition := positionOf(completionText, "child.;", 0)
+	completionPosition.Character += len("child.")
+	items := completionLabels(completionItemsAt(t, path, completionText, completionPosition.Line, completionPosition.Character))
+	if items["get"] == nil || items["get"]["detail"] != "public function get(): string" {
+		t.Fatalf("inherited generic completion = %#v", items["get"])
+	}
+	definition := serveMessages(t,
+		openDocument(fileURI(path), text),
+		requestAt("textDocument/definition", 2, fileURI(path), positionOf(text, "get", 1), ""),
+	)[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(2) || definition["character"] != float64(18) {
+		t.Fatalf("inherited method definition = %#v", definition)
+	}
+}

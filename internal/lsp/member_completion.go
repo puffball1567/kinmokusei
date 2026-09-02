@@ -468,7 +468,8 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	case *ast.ClassDecl:
 		bindings := genericClassTypeRefBindings(declaration, ref)
 		if declaration.Base != nil {
-			collectTypeMemberCompletions(program, *declaration.Base, owner, static, seen, add)
+			base := substituteTypeRefParameters(*declaration.Base, bindings)
+			collectTypeMemberCompletions(program, base, owner, static, seen, add)
 		}
 		for _, field := range declaration.Fields {
 			if !static && memberVisible(program, owner, declaration.Name, field.Visibility) {
