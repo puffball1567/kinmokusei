@@ -61,8 +61,12 @@ type TypeRef struct {
 	Interface            bool
 	TypeParameter        bool
 	NativeNamed          bool
-	Go                   bool
-	Nullable             bool
+	// LoweredType is populated for generic aliases. The source alias remains
+	// available to language tooling while Go code generation uses its expanded
+	// underlying type, keeping generated modules compatible with Go 1.23.
+	LoweredType *TypeRef
+	Go          bool
+	Nullable    bool
 	// Variadic marks a function type whose final Parameters entry is the
 	// source-level slice type of a rest parameter.
 	Variadic bool
@@ -743,6 +747,7 @@ type CallExpr struct {
 	Arguments        []Expression
 	Expanded         bool
 	Conversion       bool
+	ConversionType   *TypeRef
 	Builtin          BuiltinCallKind
 	Signature        *CallableSignature
 	SuperConstructor bool

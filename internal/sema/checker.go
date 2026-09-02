@@ -795,12 +795,8 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 	underlying := c.resolveType(symbol.declaration.Underlying)
 	c.popTypeParameterScope()
 	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null
-	if underlying.Kind == TypeParameter {
+	if underlying.Kind == TypeParameter && !symbol.declaration.Alias {
 		c.report(symbol.declaration.Underlying.Span, "a generic defined type cannot use a type parameter directly as its underlying type; wrap it in a slice, array, map, pointer, or other concrete type")
-		invalidBoundary = true
-	}
-	if symbol.declaration.Alias && len(symbol.typeParameters) != 0 {
-		c.report(symbol.declaration.Span, "generic aliases are not supported by the minimum Go target; use a distinct generic defined type")
 		invalidBoundary = true
 	}
 	if invalidBoundary {
@@ -868,7 +864,6 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	arguments := make([]Type, got)
-	goArguments := make([]gotypes.Type, got)
 	valid := true
 	for index := range ref.GenericArguments {
 		arguments[index] = c.resolveType(ref.GenericArguments[index])
@@ -882,6 +877,22 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 			valid = false
 			continue
 		}
+	}
+	if !valid {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if symbol.declaration.Alias {
+		if !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic alias "+ref.Name) {
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		bindings := make(map[string]Type, len(symbol.typeParameters))
+		for index, parameter := range symbol.typeParameters {
+			bindings[parameter.Name] = arguments[index]
+		}
+		return substituteNativeTypeParameters(base, bindings)
+	}
+	goArguments := make([]gotypes.Type, got)
+	for index, argument := range arguments {
 		goArgument, ok := goTypeOf(argument)
 		if !ok {
 			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot yet be used as a generic defined type argument", argument.String()))
@@ -5882,6 +5893,10 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				name.ResolvedDeclaration = named.declaration.NameSpan
 				expr.Conversion = true
 				targetRef := ast.TypeRef{Name: name.Name, NameSpan: name.Span, GenericArguments: expr.TypeArguments, Span: expr.Span}
+				if named.declaration.Alias && len(named.typeParameters) != 0 && len(expr.TypeArguments) == len(named.typeParameters) {
+					expanded := instantiateGenericAliasTypeRef(targetRef, named.declaration)
+					expr.ConversionType = &expanded
+				}
 				return c.checkNativeTypeConversion(expr, c.resolveNativeDefinedType(targetRef, named))
 			}
 		}
@@ -8331,6 +8346,13 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		for i := range ref.ObjectFields {
 			visitType(&ref.ObjectFields[i].Type)
 		}
+		if ref.Qualifier == "" {
+			if named, ok := c.nativeTypes[ref.Name]; ok && named.typeInfo.Kind != Invalid && named.declaration.Alias && len(named.typeParameters) != 0 && len(ref.GenericArguments) == len(named.typeParameters) {
+				expanded := instantiateGenericAliasTypeRef(*ref, named.declaration)
+				visitType(&expanded)
+				ref.LoweredType = &expanded
+			}
+		}
 	}
 	var visitExpression func(ast.Expression)
 	var visitStatement func(ast.Statement)
@@ -8362,6 +8384,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, argument := range expression.Arguments {
 				visitExpression(argument)
 			}
+			visitType(expression.ConversionType)
 		case *ast.ArrowExpr:
 			for i := range expression.Parameters {
 				visitType(&expression.Parameters[i].Type)
@@ -8614,6 +8637,51 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 		}
 	}
+}
+
+func instantiateGenericAliasTypeRef(ref ast.TypeRef, declaration *ast.TypeDecl) ast.TypeRef {
+	bindings := make(map[string]ast.TypeRef, len(declaration.TypeParameters))
+	for index, parameter := range declaration.TypeParameters {
+		if index < len(ref.GenericArguments) {
+			bindings[parameter.Name] = ref.GenericArguments[index]
+		}
+	}
+	return substituteNativeTypeRefParameters(declaration.Underlying, bindings)
+}
+
+func substituteNativeTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRef) ast.TypeRef {
+	if ref.Qualifier == "" && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
+		if replacement, ok := bindings[ref.Name]; ok {
+			return replacement
+		}
+	}
+	result := ref
+	result.LoweredType = nil
+	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
+	for index := range result.GenericArguments {
+		result.GenericArguments[index] = substituteNativeTypeRefParameters(result.GenericArguments[index], bindings)
+	}
+	if ref.Element != nil {
+		element := substituteNativeTypeRefParameters(*ref.Element, bindings)
+		result.Element = &element
+	}
+	if ref.Pointee != nil {
+		pointee := substituteNativeTypeRefParameters(*ref.Pointee, bindings)
+		result.Pointee = &pointee
+	}
+	result.Parameters = append([]ast.TypeRef(nil), ref.Parameters...)
+	for index := range result.Parameters {
+		result.Parameters[index] = substituteNativeTypeRefParameters(result.Parameters[index], bindings)
+	}
+	if ref.Return != nil {
+		returnType := substituteNativeTypeRefParameters(*ref.Return, bindings)
+		result.Return = &returnType
+	}
+	result.ObjectFields = append([]ast.ObjectTypeField(nil), ref.ObjectFields...)
+	for index := range result.ObjectFields {
+		result.ObjectFields[index].Type = substituteNativeTypeRefParameters(result.ObjectFields[index].Type, bindings)
+	}
+	return result
 }
 
 func typeRefFromType(t Type, span source.Span) ast.TypeRef {

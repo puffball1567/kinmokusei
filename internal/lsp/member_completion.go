@@ -537,7 +537,13 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			}
 		}
 	case *ast.TypeDecl:
-		if static || declaration.Alias {
+		if declaration.Alias {
+			bindings := genericAliasTypeRefBindings(declaration, ref)
+			underlying := substituteTypeRefParameters(declaration.Underlying, bindings)
+			collectTypeMemberCompletions(program, underlying, owner, static, seen, add)
+			return
+		}
+		if static {
 			return
 		}
 		for _, candidate := range program.Declarations {
@@ -640,6 +646,17 @@ func genericInterfaceTypeRefBindings(declaration *ast.InterfaceDecl, instantiate
 	return bindings
 }
 
+func genericAliasTypeRefBindings(declaration *ast.TypeDecl, instantiated ast.TypeRef) map[string]ast.TypeRef {
+	if len(declaration.TypeParameters) == 0 || len(declaration.TypeParameters) != len(instantiated.GenericArguments) {
+		return nil
+	}
+	bindings := make(map[string]ast.TypeRef, len(declaration.TypeParameters))
+	for index, parameter := range declaration.TypeParameters {
+		bindings[parameter.Name] = instantiated.GenericArguments[index]
+	}
+	return bindings
+}
+
 func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRef) ast.TypeRef {
 	if ref.Qualifier == "" && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && len(ref.GenericArguments) == 0 {
 		if replacement, ok := bindings[ref.Name]; ok {
@@ -647,6 +664,10 @@ func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRe
 		}
 	}
 	result := ref
+	if ref.LoweredType != nil {
+		lowered := substituteTypeRefParameters(*ref.LoweredType, bindings)
+		result.LoweredType = &lowered
+	}
 	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
 	for index := range result.GenericArguments {
 		result.GenericArguments[index] = substituteTypeRefParameters(result.GenericArguments[index], bindings)

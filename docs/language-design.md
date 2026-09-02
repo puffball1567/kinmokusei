@@ -105,6 +105,7 @@ OnsenTamago distinguishes a new nominal type from a transparent alternate name:
 ```ts
 type UserID = distinct string;
 alias UserIDText = string;
+alias OptionalValues<T> = T[];
 type Values<T> = distinct T[];
 type Lookup<K, V> = distinct Map<K, V>;
 
@@ -121,12 +122,20 @@ As in Go, a representable untyped constant may be assigned directly to a
 defined numeric type. Operators preserve the defined result type and require
 compatible operands.
 
-`alias Name = T` emits Go `type Name = T` and is transparent for assignment,
-calls, and returns. Aliases may refer forward or name a class reference. Defined
-types and aliases work in parameters, results, maps, slices, fixed arrays,
-generic calls, `Result` payloads, relative imports, and external generated-Go
-APIs. A defined slice or map retains Go's reference-bearing storage behavior;
-a defined fixed array retains value-copy behavior.
+`alias Name = T` is transparent for assignment, calls, and returns. A
+non-generic alias emits Go `type Name = T`. A generic alias such as
+`alias Values<T> = T[]` is expanded to its instantiated underlying type at every
+generated-Go boundary. This preserves the Go 1.23 minimum without depending on
+Go's later generic-alias declaration support. The public Go signature for
+`Values<int>` is therefore `[]int`, while OnsenTamago tooling continues to show
+the source alias. Generic aliases support direct identity aliases, composites,
+nested aliases, functions, classes, structs, interfaces, explicit conversions,
+relative imports, and inferred or explicit `comparable` constraints. Aliases may
+refer forward or name a class reference. Defined types and aliases work in
+parameters, results, maps, slices, fixed arrays, generic calls, `Result`
+payloads, relative imports, and external generated-Go APIs. A defined slice or
+map retains Go's reference-bearing storage behavior; a defined fixed array
+retains value-copy behavior.
 
 Defined types may declare unconstrained parameters and must be explicitly
 instantiated wherever they are used. The generated definition uses ordinary Go
@@ -157,10 +166,10 @@ inferred calls are checked before Go generation; slices, maps, and functions do
 not satisfy the constraint. Native constraint type sets beyond `comparable`
 remain future work rather than being approximated as `any`.
 
-Generic aliases are currently rejected rather than being emitted with only
-partial semantic support. A direct parameter underlying type such as
-`type Identity<T> = distinct T` is also rejected by Go; wrap the parameter in a
-concrete composite type instead.
+A direct parameter underlying type such as `type Identity<T> = distinct T` is
+rejected because Go cannot declare that distinct type. The transparent form
+`alias Identity<T> = T` is supported because it is erased to `T`; wrap the
+parameter in a concrete composite type when nominal identity is required.
 
 Distinct defined types may declare Go-compatible value and pointer receiver
 methods with the same external receiver syntax as native structs:
@@ -219,10 +228,10 @@ alias rules.
 
 `type`, `alias`, and `distinct` are contextual declaration words rather than
 globally reserved identifiers. The implementation deliberately rejects
-`Result`/`Task`/`void` boundaries, distinct definitions over native
-classes/structs/interfaces, and generic aliases. Use a transparent non-generic
-alias or a native `struct` where those current boundaries apply; unsupported
-cases produce source diagnostics instead of approximate Go.
+`Result`/`Task`/`void` declaration boundaries and distinct definitions over
+native classes/structs/interfaces. Use a transparent alias or a native `struct`
+where those current boundaries apply; unsupported cases produce source
+diagnostics instead of approximate Go.
 
 ### Native integer enums
 

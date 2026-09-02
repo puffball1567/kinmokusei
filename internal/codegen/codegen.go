@@ -224,6 +224,9 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 		}
 		return declarations, nil
 	case *ontamaAST.TypeDecl:
+		if decl.Alias && len(decl.TypeParameters) != 0 {
+			return nil, nil
+		}
 		spec := &goast.TypeSpec{Name: goast.NewIdent(decl.Name), Type: goType(decl.Underlying)}
 		if decl.Alias {
 			spec.Assign = token.Pos(1)
@@ -1871,21 +1874,27 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			}
 			return call, nil
 		}
-		callee, err := generateExpression(expr.Callee)
-		if err != nil {
-			return nil, err
-		}
-		if name, ok := callee.(*goast.Ident); ok {
-			name.Name = goTypeName(name.Name)
-		}
-		if len(expr.TypeArguments) == 1 {
-			callee = &goast.IndexExpr{X: callee, Index: goType(expr.TypeArguments[0])}
-		} else if len(expr.TypeArguments) > 1 {
-			indices := make([]goast.Expr, len(expr.TypeArguments))
-			for i := range expr.TypeArguments {
-				indices[i] = goType(expr.TypeArguments[i])
+		var callee goast.Expr
+		if expr.ConversionType != nil {
+			callee = goType(*expr.ConversionType)
+		} else {
+			var err error
+			callee, err = generateExpression(expr.Callee)
+			if err != nil {
+				return nil, err
 			}
-			callee = &goast.IndexListExpr{X: callee, Indices: indices}
+			if name, ok := callee.(*goast.Ident); ok {
+				name.Name = goTypeName(name.Name)
+			}
+			if len(expr.TypeArguments) == 1 {
+				callee = &goast.IndexExpr{X: callee, Index: goType(expr.TypeArguments[0])}
+			} else if len(expr.TypeArguments) > 1 {
+				indices := make([]goast.Expr, len(expr.TypeArguments))
+				for i := range expr.TypeArguments {
+					indices[i] = goType(expr.TypeArguments[i])
+				}
+				callee = &goast.IndexListExpr{X: callee, Indices: indices}
+			}
 		}
 		args := make([]goast.Expr, 0, len(expr.Arguments))
 		for _, arg := range expr.Arguments {
@@ -2186,6 +2195,9 @@ func goType(ref ontamaAST.TypeRef) goast.Expr {
 	if ref.Nullable {
 		ref.Nullable = false
 		return goType(ref)
+	}
+	if ref.LoweredType != nil {
+		return goType(*ref.LoweredType)
 	}
 	if ref.Name == "Task" && len(ref.GenericArguments) == 1 {
 		return taskGoType(ref.GenericArguments[0])

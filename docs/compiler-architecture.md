@@ -96,7 +96,7 @@ Required typed information includes:
 - Native generic-class parameter scopes, explicit construction identity,
   substituted fields, constructors, methods, and interface contracts, plus
   pointer-backed generic Go class/constructor/receiver lowering.
-- Native defined-type identity versus transparent alias identity, explicit conversion targets, finite recursive named-type graphs, cycle-safe Go type conversion, and direct Go `TypeSpec` lowering.
+- Native defined-type identity versus transparent alias identity, explicit conversion targets, finite recursive named-type graphs, cycle-safe Go type conversion, direct Go `TypeSpec` lowering, and Go 1.23-compatible use-site expansion of generic aliases.
 - Closure captures.
 - Multiple-result and `Result<T>` lowering metadata, including explicit split bindings and postfix `?` propagation.
 - Typed-exception boundaries, terminal-flow metadata, `finally` unwinding, and structural cross-package exception markers that leave ordinary Go panics untouched.
