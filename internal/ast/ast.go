@@ -216,7 +216,6 @@ type ClassDecl struct {
 	VirtualOwners  []string
 	Ancestors      []string
 	AncestorTypes  []TypeRef
-	Descendants    []string
 	HierarchyRoot  string
 	Span           source.Span
 }

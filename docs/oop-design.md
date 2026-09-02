@@ -123,7 +123,10 @@ failure. A downcast may only move from a base class to one of its descendants;
 same-type assertions, upcasts, unrelated hierarchies, and non-class targets are
 compile errors. The operand is evaluated once, and successful round trips
 preserve the original derived identity. Downcasting to an intermediate class
-also succeeds when the dynamic object belongs to a deeper descendant.
+also succeeds when the dynamic object belongs to a deeper descendant. Generic
+hierarchies apply the same rule through typed projections: every ancestor and
+target type argument must match, including remapped or concretely fixed base
+arguments.
 
 Protected virtual methods may be overridden with protected visibility. An
 override must preserve the inherited visibility exactly, keeping the generated

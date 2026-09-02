@@ -406,6 +406,22 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{interfaceSpec}})
 	}
+	if len(class.Ancestors) != 0 {
+		projectionSpec := &goast.TypeSpec{
+			Name: goast.NewIdent(classProjectionInterfaceName(class.Name)),
+			Type: &goast.InterfaceType{Methods: &goast.FieldList{List: []*goast.Field{{
+				Names: []*goast.Ident{goast.NewIdent(classProjectionMethodName(class.Name))},
+				Type: &goast.FuncType{
+					Params:  &goast.FieldList{},
+					Results: &goast.FieldList{List: []*goast.Field{{Type: classPointer}}},
+				},
+			}}}},
+		}
+		if len(typeParameterFields) != 0 {
+			projectionSpec.TypeParams = &goast.FieldList{List: typeParameterFields}
+		}
+		declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{projectionSpec}})
+	}
 
 	fields := make([]*goast.Field, 0, len(class.Fields)+2)
 	if class.Base != nil {
@@ -441,6 +457,14 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		classSpec.TypeParams = &goast.FieldList{List: typeParameterFields}
 	}
 	declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{classSpec}})
+	if len(class.Ancestors) != 0 {
+		declarations = append(declarations, &goast.FuncDecl{
+			Recv: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}},
+			Name: goast.NewIdent(classProjectionMethodName(class.Name)),
+			Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: classPointer}}}},
+			Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("this")}}}},
+		})
+	}
 	for ancestorIndex, ancestor := range class.Ancestors {
 		ancestorRef := ontamaAST.TypeRef{Name: ancestor}
 		if ancestorIndex < len(class.AncestorTypes) {
@@ -476,22 +500,18 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		checkedBody := &goast.BlockStmt{List: []goast.Stmt{
 			&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent("value"), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("nil"), goast.NewIdent("false")}}}}},
 		}}
-		candidates := append([]string{class.Name}, class.Descendants...)
-		for _, candidate := range candidates {
-			candidateType := goast.Expr(goast.NewIdent(candidate))
-			if candidate == class.Name {
-				candidateType = classType
-			}
-			assertion := &goast.TypeAssertExpr{X: &goast.SelectorExpr{X: goast.NewIdent("value"), Sel: goast.NewIdent(classRootName())}, Type: &goast.StarExpr{X: candidateType}}
-			result := goast.Expr(goast.NewIdent("result"))
-			if candidate != class.Name {
-				result = &goast.CallExpr{Fun: goast.NewIdent(upcastName(candidate, class.Name)), Args: []goast.Expr{goast.NewIdent("result")}}
-			}
-			checkedBody.List = append(checkedBody.List, &goast.IfStmt{
-				Init: &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("result"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{assertion}},
-				Cond: goast.NewIdent("ok"), Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{result, goast.NewIdent("true")}}}},
-			})
+		projectionType := indexedGoType(goast.NewIdent(classProjectionInterfaceName(class.Name)), typeRefsForTypeParameters(class.TypeParameters))
+		projectionAssertion := &goast.TypeAssertExpr{
+			X:    &goast.SelectorExpr{X: goast.NewIdent("value"), Sel: goast.NewIdent(classRootName())},
+			Type: projectionType,
 		}
+		checkedBody.List = append(checkedBody.List, &goast.IfStmt{
+			Init: &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("projected"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{projectionAssertion}},
+			Cond: goast.NewIdent("ok"), Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{
+				&goast.CallExpr{Fun: &goast.SelectorExpr{X: goast.NewIdent("projected"), Sel: goast.NewIdent(classProjectionMethodName(class.Name))}},
+				goast.NewIdent("true"),
+			}}}},
+		})
 		checkedBody.List = append(checkedBody.List, &goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("nil"), goast.NewIdent("false")}})
 		declarations = append(declarations, &goast.FuncDecl{
 			Name: goast.NewIdent(downcastName(ancestor, class.Name)), Type: checkedType,
@@ -741,6 +761,10 @@ func publicMustDowncastName(source, target string) string {
 	return "MustDowncast" + source + "To" + target
 }
 func classRootName() string { return "__ontamaRoot" }
+func classProjectionInterfaceName(className string) string {
+	return "__ontama" + className + "Projection"
+}
+func classProjectionMethodName(className string) string { return "__ontamaAs" + className }
 
 func generateConversionWrapper(name, implementation string, source, target ontamaAST.TypeRef, parameters []ontamaAST.TypeParameter, checked bool) *goast.FuncDecl {
 	results := []*goast.Field{{Type: goType(target)}}

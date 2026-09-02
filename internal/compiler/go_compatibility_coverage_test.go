@@ -92,7 +92,7 @@ var implementedGoCompatibilityContracts = []string{
 	"native generic reference classes with explicit instantiation, substituted fields and methods, comparable constraints, method values, reference identity, interface implementation and dispatch, nested and reference-bearing values, linked modules, and external Go APIs",
 	"recursive native defined types through slice, map, pointer, function, and channel indirection, including generic and mutually recursive declarations, receiver methods, named-function calls, linked modules, external Go APIs, and finite-size cycle rejection",
 	"generic class static methods with inferred, explicit, partial, and constrained type arguments, private helpers, Result propagation, linked modules, and external Go APIs",
-	"generic class inheritance with substituted base state, constructors, inherited methods and interfaces, concrete and remapped multi-level bases, upcasts, downcasts, identity, panic, and external Go APIs",
+	"generic class inheritance with substituted base state, constructors, inherited methods and interfaces, concrete and remapped multi-level bases, descendant-aware typed upcasts and downcasts, identity, panic, and external Go APIs",
 	"generic class virtual dispatch and explicit override across substituted, concrete, remapped, and multi-level bases, including construction phases, super calls, interfaces, method values, linked modules, and external Go APIs",
 }
 

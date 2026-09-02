@@ -58,6 +58,8 @@ func TestSingleInheritanceSemanticMatrix(t *testing.T) {
 		{"final root virtual method", `class Value { public final virtual function read(): int { return 1; } }`, `final methods must override an inherited virtual method`},
 		{"final static method", `class Value { public static final function read(): int { return 1; } }`, `final methods must override an inherited virtual method`},
 		{"public upcast name collision", `function UpcastChildToBase(value: int): int { return value; } class Base {} class Child extends Base {}`, `generated Go name "UpcastChildToBase" collides`},
+		{"projection interface collision", `function __ontamaChildProjection(): void {} class Base {} class Child extends Base {}`, `generated Go name "__ontamaChildProjection" collides`},
+		{"projection method collision", `class Base {} class Child extends Base { private function __ontamaAsChild(): Child { return this; } }`, `generated Go struct member name "__ontamaAsChild" collides`},
 		{"virtual slot field collision", `class Base { private __ontamaBaseRead: int; constructor() { this.__ontamaBaseRead = 1; } public virtual function read(): int { return 1; } }`, `generated Go struct member name "__ontamaBaseRead" collides`},
 	}
 	for _, test := range invalid {

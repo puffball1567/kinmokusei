@@ -553,6 +553,10 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				claim("Downcast"+ancestor+"To"+declaration.Name, declaration.Span)
 				claim("MustDowncast"+ancestor+"To"+declaration.Name, declaration.Span)
 			}
+			if len(declaration.Ancestors) != 0 {
+				claim("__ontama"+declaration.Name+"Projection", declaration.Span)
+				claimStructMember(declaration.Name, "__ontamaAs"+declaration.Name, declaration.Span)
+			}
 			for _, method := range declaration.Methods {
 				if method.Virtual && !method.Override && !method.Static {
 					claim("__ontama"+declaration.Name+"Virtual", method.Span)
@@ -1252,14 +1256,8 @@ func (c *Checker) declareClasses(program *ast.Program) {
 		for _, ancestor := range symbol.ancestors {
 			if ancestorDeclaration := declarations[ancestor]; ancestorDeclaration != nil {
 				ancestorDeclaration.HierarchyRoot = root
-				if len(declaration.TypeParameters) == 0 {
-					ancestorDeclaration.Descendants = append(ancestorDeclaration.Descendants, name)
-				}
 			}
 		}
-	}
-	for _, declaration := range declarations {
-		sort.Strings(declaration.Descendants)
 	}
 }
 

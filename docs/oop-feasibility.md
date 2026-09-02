@@ -89,11 +89,13 @@ returns nil for a nil derived reference, and otherwise returns the address of
 the embedded base-state region. Repeated upcasts therefore compare equal.
 Virtual self state retains the most-derived dispatch target after construction.
 The hierarchy root also stores the current constructed class reference as a Go
-interface. Checked helpers inspect it with Go type assertions, preserve nil,
-and recognize deeper descendants when the requested target is an intermediate
-base. Forced helpers reuse the checked operation and panic on failure. This
-adds identity metadata only to class hierarchies; classes without inheritance
-retain their direct pointer-only representation.
+interface. Checked helpers inspect it through an unexported typed projection
+interface, preserve nil, and recover the target's embedded view even when the
+dynamic object is a deeper generic descendant. Generic projection arguments
+must match exactly, so remapped and concretely fixed base types remain statically
+safe. Forced helpers reuse the checked operation and panic on failure. This adds
+identity metadata only to class hierarchies; classes without inheritance retain
+their direct pointer-only representation.
 
 For cross-package Go callers, the compiler exposes explicit exported
 upcast/downcast functions. Public virtual methods are wrappers over the internal

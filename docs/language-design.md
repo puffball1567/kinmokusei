@@ -843,13 +843,14 @@ const value: string = new Leaf<string>("onsen").get();
 ```
 
 Generic inheritance, `virtual`/`override`/`final`, construction-phase-safe
-dispatch, implicit upcasts, exact checked/forced downcasts, and the
-corresponding public generic Go APIs are supported. Dispatch lowers to a typed
-generic Go interface for each virtual owner, preserving substituted parameters,
-results, `super` selection, method values, and ordinary external Go calls. A
-downcast to an intermediate generic class currently requires the runtime class
-to be that exact target; recovering a more-derived generic class through an
-intermediate target remains future work.
+dispatch, implicit upcasts, checked/forced downcasts, and the corresponding
+public generic Go APIs are supported. Dispatch lowers to a typed generic Go
+interface for each virtual owner, preserving substituted parameters, results,
+`super` selection, method values, and ordinary external Go calls. Downcasts use
+typed projection interfaces, so an intermediate generic target can safely
+recover its embedded view from a deeper generic descendant. Every projected
+type argument must match; an incompatible instantiation returns `false` for
+`as?` and panics for `as!`.
 
 Native interfaces may declare unconstrained type parameters and must be fully
 instantiated wherever they are used. Type parameters may appear recursively in
@@ -886,9 +887,9 @@ references implicitly upcast through nil-preserving generated helpers, so nil
 behavior and repeated-upcast identity remain stable. A base reference uses
 `as? Derived` for a checked `(Derived, boolean)` downcast and `as! Derived` for
 a panic-on-failure downcast. Both preserve derived identity, accept deeper
-descendants when targeting a non-generic intermediate class, and evaluate the
-source once. Generic conversions preserve the exact instantiated ancestor and
-target types; the intermediate-target limitation described above applies.
+descendants when targeting an intermediate class, and evaluate the source
+once. Generic conversions preserve the exact instantiated ancestor and target
+types.
 `protected` members are limited to their declaring class and descendants.
 `final class` prevents further inheritance, while `final override` closes an
 existing virtual method slot. Ordinary nonvirtual methods are already closed

@@ -36,6 +36,14 @@ class Leaf<X> extends Middle<int, X> {
   constructor(value: X) { super(value); }
 }
 
+class Fixed extends Base<string> {
+  constructor(value: string) { super(value); }
+}
+
+class GenericLeaf<Marker> extends Fixed {
+  constructor(value: string, public marker: Marker) { super(value); }
+}
+
 function Inherited(value: string): string {
   return new Child<string>(value, "child").get();
 }
@@ -72,6 +80,28 @@ function LeafRoundTrip(value: string): boolean {
   const base: Base<string> = leaf;
   const [restored, present] = base as? Leaf<string>;
   return present && restored === leaf && restored.get() === value;
+}
+
+function IntermediateRoundTrip(value: string): boolean {
+  const leaf = new Leaf<string>(value);
+  const expected: Middle<int, string> = leaf;
+  const base: Base<string> = leaf;
+  const [restored, present] = base as? Middle<int, string>;
+  return present && restored === expected && restored.get() === value;
+}
+
+function WrongIntermediateArgumentsFail(value: string): boolean {
+  const base: Base<string> = new Leaf<string>(value);
+  const [_, present] = base as? Middle<boolean, string>;
+  return !present;
+}
+
+function GenericDescendantToFixed(value: string): boolean {
+  const leaf = new GenericLeaf<int>(value, 7);
+  const expected: Fixed = leaf;
+  const base: Base<string> = leaf;
+  const [restored, present] = base as? Fixed;
+  return present && restored === expected && restored.get() === value;
 }
 
 function NullableRoundTrip(value: Child<string> | null): boolean {
@@ -116,6 +146,8 @@ function ForcedFailure(value: string): string {
 		"func UpcastLeafToBase[X any](value *Leaf[X]) *Base[X]",
 		"func DowncastBaseToLeaf[X any](value *Base[X]) (*Leaf[X], bool)",
 		"func DowncastBaseToConcrete(value *Base[int]) (*Concrete, bool)",
+		"type __ontamaMiddleProjection[A any, B any] interface",
+		"__ontamaAsMiddle() *Middle[A, B]",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
@@ -144,6 +176,10 @@ func NewMiddle[A, B any](value B) *Middle[A, B] { result := &Middle[A, B]{Base: 
 type Leaf[X any] struct { Middle[int, X] }
 func NewLeaf[X any](value X) *Leaf[X] { result := &Leaf[X]{Middle: Middle[int, X]{Base: Base[X]{value: value}}}; result.root = result; return result }
 
+type Fixed struct { Base[string] }
+type GenericLeaf[Marker any] struct { Fixed; Marker Marker }
+func NewGenericLeaf[Marker any](value string, marker Marker) *GenericLeaf[Marker] { result := &GenericLeaf[Marker]{Fixed: Fixed{Base: Base[string]{value: value}}, Marker: marker}; result.root = result; return result }
+
 func Inherited(value string) string { return NewChild(value, "child").Get() }
 func InterfaceValue(value string) string { var reader Reader[string] = NewChild(value, "reader"); return reader.Read() }
 func ConcreteValue(value int) int { return NewConcrete(value).Get() }
@@ -151,6 +187,9 @@ func MultiLevel(value string) string { return NewLeaf(value).Get() }
 func RoundTrip(value string) bool { child := NewChild(value, "round"); base := UpcastChildToBase(child); restored, present := DowncastBaseToChild(base); return present && restored == child && restored.Get() == value }
 func ConcreteRoundTrip(value int) bool { concrete := NewConcrete(value); base := &concrete.Base; restored, present := base.root.(*Concrete); return present && restored == concrete && restored.Get() == value }
 func LeafRoundTrip(value string) bool { leaf := NewLeaf(value); base := &leaf.Middle.Base; restored, present := base.root.(*Leaf[string]); return present && restored == leaf && restored.Get() == value }
+func IntermediateRoundTrip(value string) bool { leaf := NewLeaf(value); expected := &leaf.Middle; base := &leaf.Middle.Base; root, present := base.root.(*Leaf[string]); if !present { return false }; restored := &root.Middle; return restored == expected && restored.Get() == value }
+func WrongIntermediateArgumentsFail(value string) bool { leaf := NewLeaf(value); base := &leaf.Middle.Base; _, present := base.root.(*Middle[bool, string]); return !present }
+func GenericDescendantToFixed(value string) bool { leaf := NewGenericLeaf(value, 7); expected := &leaf.Fixed; base := &leaf.Fixed.Base; root, present := base.root.(*GenericLeaf[int]); if !present { return false }; restored := &root.Fixed; return restored == expected && restored.Get() == value }
 func NullableRoundTrip(value *Child[string]) bool { var base *Base[string]; if value != nil { base = &value.Base }; if base == nil { return true }; restored, present := base.root.(*Child[string]); return present && restored == value }
 func CheckedFailure(value string) bool { base := NewBase(value); child, present := DowncastBaseToChild(base); return !present && child == nil }
 func ForcedValue(value string) string { return MustDowncastBaseToChild(UpcastChildToBase(NewChild(value, "forced"))).Get() }
@@ -178,6 +217,9 @@ func TestGenericInheritanceBehavior(t *testing.T) {
     if got, want := generated.MultiLevel(value), reference.MultiLevel(value); got != want { t.Errorf("MultiLevel(%q) = %q, Go = %q", value, got, want) }
     if got, want := generated.RoundTrip(value), reference.RoundTrip(value); got != want { t.Errorf("RoundTrip(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.LeafRoundTrip(value), reference.LeafRoundTrip(value); got != want { t.Errorf("LeafRoundTrip(%q) = %v, Go = %v", value, got, want) }
+    if got, want := generated.IntermediateRoundTrip(value), reference.IntermediateRoundTrip(value); got != want { t.Errorf("IntermediateRoundTrip(%q) = %v, Go = %v", value, got, want) }
+    if got, want := generated.WrongIntermediateArgumentsFail(value), reference.WrongIntermediateArgumentsFail(value); got != want { t.Errorf("WrongIntermediateArgumentsFail(%q) = %v, Go = %v", value, got, want) }
+    if got, want := generated.GenericDescendantToFixed(value), reference.GenericDescendantToFixed(value); got != want { t.Errorf("GenericDescendantToFixed(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.NullableRoundTrip(generated.NewChild(value, "nullable")), reference.NullableRoundTrip(reference.NewChild(value, "nullable")); got != want { t.Errorf("NullableRoundTrip(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.CheckedFailure(value), reference.CheckedFailure(value); got != want { t.Errorf("CheckedFailure(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.ForcedValue(value), reference.ForcedValue(value); got != want { t.Errorf("ForcedValue(%q) = %q, Go = %q", value, got, want) }
