@@ -842,12 +842,14 @@ class Leaf<X> extends Middle<int, X> {
 const value: string = new Leaf<string>("onsen").get();
 ```
 
-Nonvirtual generic inheritance, implicit upcasts, exact checked/forced
-downcasts, and the corresponding public generic Go conversion functions are
-supported. `virtual`/`override`/`final` on generic classes remain rejected for
-now. A downcast to an intermediate generic class also currently requires the
-runtime class to be that exact target; recovering a more-derived generic class
-through an intermediate target remains future work.
+Generic inheritance, `virtual`/`override`/`final`, construction-phase-safe
+dispatch, implicit upcasts, exact checked/forced downcasts, and the
+corresponding public generic Go APIs are supported. Dispatch lowers to a typed
+generic Go interface for each virtual owner, preserving substituted parameters,
+results, `super` selection, method values, and ordinary external Go calls. A
+downcast to an intermediate generic class currently requires the runtime class
+to be that exact target; recovering a more-derived generic class through an
+intermediate target remains future work.
 
 Native interfaces may declare unconstrained type parameters and must be fully
 instantiated wherever they are used. Type parameters may appear recursively in

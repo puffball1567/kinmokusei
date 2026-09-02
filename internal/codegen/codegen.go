@@ -398,9 +398,13 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 				}
 			}
 		}
-		declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
+		interfaceSpec := &goast.TypeSpec{
 			Name: goast.NewIdent(interfaceName), Type: &goast.InterfaceType{Methods: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent(name)}, Type: methodType}}}},
-		}}})
+		}
+		if len(typeParameterFields) != 0 {
+			interfaceSpec.TypeParams = &goast.FieldList{List: typeParameterFields}
+		}
+		declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{interfaceSpec}})
 	}
 
 	fields := make([]*goast.Field, 0, len(class.Fields)+2)
@@ -412,7 +416,10 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 	}
 	for _, owner := range class.VirtualOwners {
 		if owner == class.Name {
-			fields = append(fields, &goast.Field{Names: []*goast.Ident{goast.NewIdent(virtualSelfName(owner))}, Type: goast.NewIdent(virtualInterfaceName(owner))})
+			fields = append(fields, &goast.Field{
+				Names: []*goast.Ident{goast.NewIdent(virtualSelfName(owner))},
+				Type:  indexedGoType(goast.NewIdent(virtualInterfaceName(owner)), typeRefsForTypeParameters(class.TypeParameters)),
+			})
 		}
 	}
 	for _, field := range class.Fields {
@@ -639,7 +646,7 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 			if method.Virtual || method.Override {
 				generated.Name = goast.NewIdent(virtualSlotName(method.VirtualOwner, name))
 				if method.Virtual && !method.Override {
-					declarations = append(declarations, generateVirtualWrapper(class.Name, method, name))
+					declarations = append(declarations, generateVirtualWrapper(class, method, name))
 				}
 			}
 		}
@@ -664,7 +671,8 @@ func goClassType(ref ontamaAST.TypeRef) goast.Expr {
 	return indexedGoType(goast.NewIdent(ref.Name), ref.GenericArguments)
 }
 
-func generateVirtualWrapper(className string, method *ontamaAST.MethodDecl, name string) *goast.FuncDecl {
+func generateVirtualWrapper(class *ontamaAST.ClassDecl, method *ontamaAST.MethodDecl, name string) *goast.FuncDecl {
+	className := class.Name
 	parameters := make([]*goast.Field, 0, len(method.Parameters))
 	arguments := make([]goast.Expr, 0, len(method.Parameters))
 	for _, parameter := range method.Parameters {
@@ -713,7 +721,7 @@ func generateVirtualWrapper(className string, method *ontamaAST.MethodDecl, name
 		)
 	}
 	return &goast.FuncDecl{
-		Recv: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: &goast.StarExpr{X: goast.NewIdent(className)}}}},
+		Recv: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: &goast.StarExpr{X: goClassType(typeRefForClass(class))}}}},
 		Name: goast.NewIdent(goName(name)), Type: methodType, Body: body,
 	}
 }

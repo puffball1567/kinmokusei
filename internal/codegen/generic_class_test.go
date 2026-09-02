@@ -79,3 +79,36 @@ function use(value: Child<string>): Base<string> { return value; }
 		}
 	}
 }
+
+func TestGenericClassVirtualDispatchGeneratesParameterizedInterface(t *testing.T) {
+	generated := string(generateCheckedSource(t, `
+class Base<T> {
+  constructor(protected value: T) {}
+  public virtual function read(): T { return this.value; }
+  public virtual function choose(value: T): T { return value; }
+}
+class Child<U> extends Base<U> {
+  constructor(value: U) { super(value); }
+  public override function read(): U { return super.read(); }
+}
+class Concrete extends Base<string> {
+  constructor(value: string) { super(value); }
+  public override function read(): string { return "concrete"; }
+}
+`))
+	for _, expected := range []string{
+		"type __ontamaBaseVirtual[T any] interface",
+		"__ontamaBaseRead() T",
+		"__ontamaBaseChoose(value T) T",
+		"__ontamaBaseSelf __ontamaBaseVirtual[T]",
+		"func (this *Base[T]) Read() T",
+		"func (this *Base[T]) __ontamaBaseRead() T",
+		"func (this *Child[U]) __ontamaBaseRead() U",
+		"this.__ontamaBaseSelf = this",
+		"func (this *Concrete) __ontamaBaseRead() string",
+	} {
+		if !strings.Contains(generated, expected) {
+			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
+		}
+	}
+}

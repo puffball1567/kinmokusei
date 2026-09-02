@@ -115,3 +115,30 @@ function use(child: Leaf<string>): string {
 		t.Fatalf("inherited method definition = %#v", definition)
 	}
 }
+
+func TestGenericClassVirtualOverrideCompletionAndDefinition(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "generic_virtual.otm")
+	text := `class Base<T> {
+  public virtual function read(value: T): T { return value; }
+}
+class Child<U> extends Base<U> {
+  public override function read(value: U): U { return value; }
+}
+function use(child: Child<string>): string {
+  return child.read("ok");
+}`
+	completionText := strings.Replace(text, `child.read("ok");`, "child.;", 1)
+	at := positionOf(completionText, "child.;", 0)
+	at.Character += len("child.")
+	items := completionLabels(completionItemsAt(t, path, completionText, at.Line, at.Character))
+	if items["read"] == nil || items["read"]["detail"] != "public function read(value: string): string" {
+		t.Fatalf("generic virtual completion = %#v", items["read"])
+	}
+	definition := serveMessages(t,
+		openDocument(fileURI(path), text),
+		requestAt("textDocument/definition", 2, fileURI(path), positionOf(text, "read", 2), ""),
+	)[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(4) || definition["character"] != float64(27) {
+		t.Fatalf("generic virtual definition = %#v", definition)
+	}
+}

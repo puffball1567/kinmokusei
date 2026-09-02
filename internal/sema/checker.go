@@ -1405,9 +1405,6 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if method.Static && (method.Virtual || method.Override) {
 			c.report(method.Span, "static methods cannot be virtual or override")
 		}
-		if len(symbol.typeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
-			c.report(method.Span, "generic class virtual, override, and final methods are not yet supported")
-		}
 		if method.Virtual && method.Override {
 			c.report(method.Span, "override already remains virtual; remove the virtual modifier")
 		}

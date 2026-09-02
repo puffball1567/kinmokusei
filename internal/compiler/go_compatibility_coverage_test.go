@@ -93,6 +93,7 @@ var implementedGoCompatibilityContracts = []string{
 	"recursive native defined types through slice, map, pointer, function, and channel indirection, including generic and mutually recursive declarations, receiver methods, named-function calls, linked modules, external Go APIs, and finite-size cycle rejection",
 	"generic class static methods with inferred, explicit, partial, and constrained type arguments, private helpers, Result propagation, linked modules, and external Go APIs",
 	"generic class inheritance with substituted base state, constructors, inherited methods and interfaces, concrete and remapped multi-level bases, upcasts, downcasts, identity, panic, and external Go APIs",
+	"generic class virtual dispatch and explicit override across substituted, concrete, remapped, and multi-level bases, including construction phases, super calls, interfaces, method values, linked modules, and external Go APIs",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
@@ -180,6 +181,8 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"genericclassstatic.test":             {implementedGoCompatibilityContracts[75]},
 	"genericinheritance.test":             {implementedGoCompatibilityContracts[76]},
 	"genericinheritance-linked.test":      {implementedGoCompatibilityContracts[76]},
+	"genericvirtual.test":                 {implementedGoCompatibilityContracts[77]},
+	"genericvirtual-linked.test":          {implementedGoCompatibilityContracts[77]},
 }
 
 func TestImplementedGoCompatibilityCoverageIsComplete(t *testing.T) {
