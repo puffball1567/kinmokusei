@@ -364,6 +364,11 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkType(&ref.ObjectFields[index].Type)
 		}
 	}
+	walkTypeParameters := func(parameters []ast.TypeParameter) {
+		for index := range parameters {
+			walkType(parameters[index].Constraint)
+		}
+	}
 	walkExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
 		case nil, *ast.LiteralExpr:
@@ -569,6 +574,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, parameter := range declaration.TypeParameters {
 				declare(parameter.NameSpan)
 			}
+			walkTypeParameters(declaration.TypeParameters)
 			for index, parameter := range declaration.Parameters {
 				declare(parameterNameSpan(parameter))
 				walkType(&declaration.Parameters[index].Type)
@@ -581,6 +587,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, parameter := range declaration.TypeParameters {
 				declare(parameter.NameSpan)
 			}
+			walkTypeParameters(declaration.TypeParameters)
 			walkType(&declaration.ReceiverType)
 			for index, parameter := range declaration.Parameters {
 				declare(parameterNameSpan(parameter))
@@ -597,6 +604,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, parameter := range declaration.TypeParameters {
 				declare(parameter.NameSpan)
 			}
+			walkTypeParameters(declaration.TypeParameters)
 			if declaration.Base != nil {
 				walkType(declaration.Base)
 			}
@@ -629,6 +637,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, parameter := range declaration.TypeParameters {
 				declare(parameter.NameSpan)
 			}
+			walkTypeParameters(declaration.TypeParameters)
 			for index := range declaration.Fields {
 				field := &declaration.Fields[index]
 				declare(field.NameSpan)
@@ -648,6 +657,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, parameter := range declaration.TypeParameters {
 				declare(parameter.NameSpan)
 			}
+			walkTypeParameters(declaration.TypeParameters)
 			walkType(&declaration.Underlying)
 		case *ast.EnumDecl:
 			declare(declaration.NameSpan)
@@ -662,6 +672,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, parameter := range declaration.TypeParameters {
 				declare(parameter.NameSpan)
 			}
+			walkTypeParameters(declaration.TypeParameters)
 			for index := range declaration.Methods {
 				method := &declaration.Methods[index]
 				declare(method.NameSpan)

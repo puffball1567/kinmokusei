@@ -309,3 +309,51 @@ func TestVariadicFunctionTypeDisplay(t *testing.T) {
 		t.Fatalf("String() = %q, want %q", got, want)
 	}
 }
+
+func TestGoTypeParameterOperatorCapabilitiesFollowCompleteTypeSet(t *testing.T) {
+	constraint := func(types ...gotypes.Type) gotypes.Type {
+		terms := make([]*gotypes.Term, len(types))
+		for index, item := range types {
+			terms[index] = gotypes.NewTerm(true, item)
+		}
+		contract := gotypes.NewInterfaceType(nil, []gotypes.Type{gotypes.NewUnion(terms)})
+		contract.Complete()
+		return contract
+	}
+	intersection := func(left, right gotypes.Type) gotypes.Type {
+		contract := gotypes.NewInterfaceType(nil, []gotypes.Type{left, right})
+		contract.Complete()
+		return contract
+	}
+	ordered := constraint(gotypes.Typ[gotypes.Int], gotypes.Typ[gotypes.String])
+	integer := constraint(gotypes.Typ[gotypes.Int], gotypes.Typ[gotypes.Uint8])
+	text := constraint(gotypes.Typ[gotypes.String])
+	boolean := constraint(gotypes.Typ[gotypes.Bool])
+	slice := constraint(gotypes.NewSlice(gotypes.Typ[gotypes.Int]))
+	narrowed := intersection(ordered, constraint(gotypes.Typ[gotypes.Int], gotypes.Typ[gotypes.Bool]))
+	any := gotypes.NewInterfaceType(nil, nil)
+	any.Complete()
+	tests := []struct {
+		name                                     string
+		constraint                               gotypes.Type
+		numeric, integer, ordered, text, boolean bool
+		addable                                  bool
+	}{
+		{"integer union", integer, true, true, true, false, false, true},
+		{"mixed ordered union", ordered, false, false, true, false, false, true},
+		{"string", text, false, false, true, true, false, true},
+		{"boolean", boolean, false, false, false, false, true, false},
+		{"slice", slice, false, false, false, false, false, false},
+		{"intersection narrows to integer", narrowed, true, true, true, false, false, true},
+		{"unconstrained", any, false, false, false, false, false, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parameter := gotypes.NewTypeParam(gotypes.NewTypeName(0, nil, "T", nil), test.constraint)
+			value := Type{Kind: TypeParameter, Name: "T", GoType: parameter}
+			if value.IsNumeric() != test.numeric || value.IsInteger() != test.integer || value.IsOrdered() != test.ordered || value.IsString() != test.text || value.IsBoolean() != test.boolean || value.IsAddable() != test.addable {
+				t.Fatalf("capabilities numeric=%v integer=%v ordered=%v string=%v boolean=%v addable=%v", value.IsNumeric(), value.IsInteger(), value.IsOrdered(), value.IsString(), value.IsBoolean(), value.IsAddable())
+			}
+		})
+	}
+}

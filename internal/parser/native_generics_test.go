@@ -49,6 +49,24 @@ function use(): string {
 	}
 }
 
+func TestParsesQualifiedGoTypeParameterConstraint(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+import go cmp from "cmp";
+function minimum<T extends cmp.Ordered>(left: T, right: T): T {
+  if (left < right) { return left; }
+  return right;
+}
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	function := program.Declarations[0].(*ast.FunctionDecl)
+	constraint := function.TypeParameters[0].Constraint
+	if constraint == nil || constraint.Qualifier != "cmp" || constraint.Name != "Ordered" || !constraint.Go {
+		t.Fatalf("constraint = %#v", constraint)
+	}
+}
+
 func TestNativeGenericFunctionSyntaxFailureMatrix(t *testing.T) {
 	tests := []struct {
 		name   string

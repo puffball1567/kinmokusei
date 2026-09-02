@@ -283,13 +283,27 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 }
 
 func goTypeParameterField(parameter ontamaAST.TypeParameter, inferredComparable bool) *goast.Field {
-	constraint := "any"
-	if inferredComparable || parameter.Constraint != nil && parameter.Constraint.Name == "comparable" {
-		constraint = "comparable"
+	var constraint goast.Expr = goast.NewIdent("any")
+	if parameter.Constraint != nil {
+		if parameter.Constraint.Qualifier == "" && parameter.Constraint.Name == "comparable" {
+			constraint = goast.NewIdent("comparable")
+		} else {
+			constraint = goType(*parameter.Constraint)
+		}
+	}
+	if inferredComparable {
+		if parameter.Constraint == nil {
+			constraint = goast.NewIdent("comparable")
+		} else if parameter.Constraint.Qualifier != "" || parameter.Constraint.Name != "comparable" {
+			constraint = &goast.InterfaceType{Methods: &goast.FieldList{List: []*goast.Field{
+				{Type: constraint},
+				{Type: goast.NewIdent("comparable")},
+			}}}
+		}
 	}
 	return &goast.Field{
 		Names: []*goast.Ident{goast.NewIdent(goName(parameter.Name))},
-		Type:  goast.NewIdent(constraint),
+		Type:  constraint,
 	}
 }
 

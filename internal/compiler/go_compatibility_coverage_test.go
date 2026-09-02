@@ -95,6 +95,7 @@ var implementedGoCompatibilityContracts = []string{
 	"generic class inheritance with substituted base state, constructors, inherited methods and interfaces, concrete and remapped multi-level bases, descendant-aware typed upcasts and downcasts, identity, panic, and external Go APIs",
 	"generic class virtual dispatch and explicit override across substituted, concrete, remapped, and multi-level bases, including construction phases, super calls, interfaces, method values, linked modules, and external Go APIs",
 	"transparent generic aliases expanded for Go 1.23 across identity, slices, maps, fixed arrays, pointers, functions, interfaces, classes, nested aliases, conversions, mutation, Results, linked modules, and external Go APIs",
+	"standard and external Go interface type-set constraints across ordered and integer operators, inference, explicit instantiation, defined types, generic declarations, map keys, erased aliases, and external Go APIs",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
@@ -186,6 +187,8 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"genericvirtual-linked.test":          {implementedGoCompatibilityContracts[77]},
 	"genericalias.test":                   {implementedGoCompatibilityContracts[78]},
 	"genericalias-linked.test":            {implementedGoCompatibilityContracts[78]},
+	"gotypesetconstraint.test":            {implementedGoCompatibilityContracts[79]},
+	"customconstraint.test":               {implementedGoCompatibilityContracts[79]},
 }
 
 func TestImplementedGoCompatibilityCoverageIsComplete(t *testing.T) {

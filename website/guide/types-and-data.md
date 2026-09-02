@@ -39,3 +39,34 @@ enum Status: uint16 { Pending, Running = 4, Complete }
 alias UserNames = string[];
 type UserID = distinct int64;
 ```
+
+## Generics and constraints
+
+Functions, structs, interfaces, classes, defined types, and aliases can declare
+type parameters. Use `extends comparable` when values must support equality or
+serve as map keys:
+
+```ts
+function equal<T extends comparable>(left: T, right: T): boolean {
+  return left === right;
+}
+```
+
+Standard-library and installed Go-module constraints are available through
+normal Go imports. The compiler checks both type arguments and which operators
+the complete Go type set permits:
+
+```ts
+import go cmp from "cmp";
+
+function minimum<T extends cmp.Ordered>(left: T, right: T): T {
+  if (left < right) { return left; }
+  return right;
+}
+```
+
+`cmp.Ordered` accepts integers, floating-point values, strings, and defined
+types with those underlying representations. An external integer-only
+constraint also enables integer arithmetic, remainder, bitwise operators, and
+shifts. Source-declared type-set expressions are not currently part of the
+language; publish them from a Go package and import them instead.

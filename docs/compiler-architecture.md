@@ -65,7 +65,7 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 - Limit implicit conversion to safe untyped literal contexts.
 - Keep Go defined types, aliases, pointers, method sets, interfaces, multiple results, variadics, channels, and type parameters intact.
-- Use `go/types` assignability and generic constraints as authoritative for Go values.
+- Use `go/types` assignability and generic constraints as authoritative for Go values. Exported standard and external Go interface type sets are valid native constraints; operator checking intersects embedded sets and requires every remaining term to support the operation.
 - Represent native generic defined types with `go/types.Named`, infer `comparable` for parameters used as map keys, and re-instantiate named results after native generic substitution.
 - Predeclare incomplete `go/types.Named` values for distinct types, complete them after resolving their underlyings, and permit recursive re-entry only beyond slice, map, pointer, function, or channel indirection. Keep direct, fixed-array-only, and alias cycles as source diagnostics.
 - Lower native generic classes to pointer-backed generic Go structs with generic constructors and receiver methods; preserve concrete type arguments through member substitution, interface conformance, module linking, and public Go APIs.

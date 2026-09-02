@@ -1047,12 +1047,29 @@ func (c *Checker) declareTypeParameters(parameters []ast.TypeParameter, context 
 func (c *Checker) declareDefinedTypeParameters(declaration *ast.TypeDecl) ([]Type, map[string]Type) {
 	comparable := map[string]bool{}
 	collectComparableTypeParameters(declaration.Underlying, comparable)
-	return c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic defined type", comparable)
+	if !declaration.Alias {
+		return c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic defined type", comparable)
+	}
+	// Generic aliases are expanded at every use site for Go 1.23 and their
+	// declarations do not reach generated Go. Loading a Go constraint must not
+	// retain an otherwise unused import solely for the erased declaration.
+	usage := map[*ast.ImportDecl]bool{}
+	for _, byAlias := range c.goPackages {
+		for _, imported := range byAlias {
+			usage[imported.declaration] = imported.declaration.Used
+		}
+	}
+	parameters, scope := c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic alias", comparable)
+	for imported, used := range usage {
+		imported.Used = used
+	}
+	return parameters, scope
 }
 
 func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParameter, context string, comparable map[string]bool) ([]Type, map[string]Type) {
 	anyConstraint := gotypes.NewInterfaceType(nil, nil)
 	anyConstraint.Complete()
+	comparableConstraint := gotypes.Universe.Lookup("comparable").Type()
 	result := make([]Type, 0, len(parameters))
 	scope := make(map[string]Type, len(parameters))
 	for _, parameter := range parameters {
@@ -1072,20 +1089,22 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 			c.report(parameter.Span, fmt.Sprintf("duplicate %s type parameter %q", context, parameter.Name))
 			continue
 		}
+		constraint := gotypes.Type(anyConstraint)
 		if parameter.Constraint != nil {
-			constraint := parameter.Constraint
-			if constraint.Qualifier != "" || constraint.Name != "comparable" || constraint.Nullable || constraint.IsArray() || constraint.IsPointer() || constraint.IsFunction() || constraint.IsObject() || constraint.IsGoStruct() || len(constraint.GenericArguments) != 0 {
-				c.report(constraint.Span, "native type parameter constraint must be comparable")
+			resolved, ok := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+			if !ok {
 				continue
 			}
-			if comparable == nil {
-				comparable = map[string]bool{}
-			}
-			comparable[parameter.Name] = true
+			constraint = resolved
 		}
-		constraint := gotypes.Type(anyConstraint)
 		if comparable[parameter.Name] {
-			constraint = gotypes.Universe.Lookup("comparable").Type()
+			if parameter.Constraint == nil {
+				constraint = comparableConstraint
+			} else if constraint != comparableConstraint {
+				intersection := gotypes.NewInterfaceType(nil, []gotypes.Type{constraint, comparableConstraint})
+				intersection.Complete()
+				constraint = intersection
+			}
 		}
 		object := gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil)
 		goParameter := gotypes.NewTypeParam(object, constraint)
@@ -1094,6 +1113,26 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 		result = append(result, typeInfo)
 	}
 	return result, scope
+}
+
+func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef) (gotypes.Type, bool) {
+	if ref.Qualifier == "" && ref.Name == "comparable" && !ref.Nullable && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
+		return gotypes.Universe.Lookup("comparable").Type(), true
+	}
+	if ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
+		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
+		return nil, false
+	}
+	resolved := c.resolveType(ref)
+	if resolved.Kind == Invalid {
+		return nil, false
+	}
+	constraint, ok := goTypeOf(resolved)
+	if !ok || underlyingGoInterface(constraint) == nil {
+		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
+		return nil, false
+	}
+	return constraint, true
 }
 
 func nativeTypeArgumentSatisfies(parameter, argument Type) bool {
@@ -1106,11 +1145,11 @@ func nativeTypeArgumentSatisfies(parameter, argument Type) bool {
 		return true
 	}
 	argument = defaultLiteralType(argument)
-	if constraint.IsComparable() {
-		return argument.IsComparable()
-	}
 	goArgument, ok := goTypeOf(argument)
-	return ok && gotypes.Satisfies(goArgument, constraint)
+	if ok {
+		return gotypes.Satisfies(goArgument, constraint)
+	}
+	return goParameter.Constraint() == gotypes.Universe.Lookup("comparable").Type() && argument.IsComparable()
 }
 
 func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs []ast.TypeRef, fallback source.Span, owner string) bool {
@@ -5733,7 +5772,7 @@ func (c *Checker) checkBinary(expr *ast.BinaryExpr) Type {
 func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Type {
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%":
-		if expr.Operator == "+" && left.IsString() && right.IsString() && sameType(left, right) {
+		if expr.Operator == "+" && left.IsAddable() && right.IsAddable() && sameType(left, right) && (!left.IsNumeric() || !right.IsNumeric()) {
 			return left
 		}
 		if !left.IsNumeric() || !right.IsNumeric() {
@@ -8354,6 +8393,11 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 		}
 	}
+	visitTypeParameters := func(parameters []ast.TypeParameter) {
+		for index := range parameters {
+			visitType(parameters[index].Constraint)
+		}
+	}
 	var visitExpression func(ast.Expression)
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
@@ -8548,6 +8592,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			for i := range declaration.Parameters {
 				visitType(&declaration.Parameters[i].Type)
 			}
@@ -8559,6 +8604,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			visitType(&declaration.ReceiverType)
 			for i := range declaration.Parameters {
 				visitType(&declaration.Parameters[i].Type)
@@ -8571,6 +8617,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			if declaration.Base != nil {
 				visitType(declaration.Base)
 			}
@@ -8599,6 +8646,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			for i := range declaration.Methods {
 				method := &declaration.Methods[i]
 				for j := range method.Parameters {
@@ -8612,6 +8660,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			for i := range declaration.Fields {
 				visitType(&declaration.Fields[i].Type)
 			}
@@ -8628,6 +8677,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			visitType(&declaration.Underlying)
 			activeTypeParameters = nil
 		case *ast.EnumDecl:

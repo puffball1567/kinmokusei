@@ -163,8 +163,30 @@ struct Keyed<T extends comparable> {
 
 This emits the corresponding Go `T comparable` parameter. Both explicit and
 inferred calls are checked before Go generation; slices, maps, and functions do
-not satisfy the constraint. Native constraint type sets beyond `comparable`
-remain future work rather than being approximated as `any`.
+not satisfy the constraint.
+
+An exported Go interface constraint can be used with the same syntax:
+
+```ts
+import go cmp from "cmp";
+
+function minimum<T extends cmp.Ordered>(left: T, right: T): T {
+  if (left < right) { return left; }
+  return right;
+}
+```
+
+This also accepts constraints declared by installed Go modules. OnsenTamago
+reads the complete Go type set: a type argument must satisfy it, and an
+operator is accepted only when every type in the set supports that operator.
+For example, `cmp.Ordered` permits ordering and `+`, but not subtraction because
+its set also contains strings; an external integer-only constraint permits
+arithmetic, remainder, bitwise operations, and shifts. Go's `~T` terms include
+OnsenTamago nominal defined types with the matching underlying type. A
+non-interface type, nullable type, collection, pointer, function, or object is
+rejected as a constraint. Generic aliases retain their source constraint for
+checking while erasing the declaration and any constraint-only import from Go
+1.23 output. Source-declared type-set syntax remains future work.
 
 A direct parameter underlying type such as `type Identity<T> = distinct T` is
 rejected because Go cannot declare that distinct type. The transparent form
