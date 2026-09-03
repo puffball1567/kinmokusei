@@ -426,6 +426,9 @@ copying, shallow slice/map/reference sharing, comparability, map-key eligibility
 and recursive pointer indirection remain exactly the corresponding Go generic
 struct behavior. Class references and native defined types may be arguments.
 Generic structs work across relative imports and as exported generated-Go APIs.
+Public struct fields carry JSON tags preserving their OnsenTamago names, so
+generic structs can be passed directly to `encoding/json` without changing the
+wire keys to exported Go capitalization. Non-public fields remain unexported.
 
 Method-local type parameters remain unsupported because Go does not permit
 them. Nested generic struct methods use the enclosing struct parameters.
@@ -882,6 +885,16 @@ typed projection interfaces, so an intermediate generic target can safely
 recover its embedded view from a deeper generic descendant. Every projected
 type argument must match; an incompatible instantiation returns `false` for
 `as?` and panics for `as!`.
+
+Public class fields, including constructor fields and inherited generic state,
+carry JSON tags preserving their source names. Private and protected fields and
+the generated identity/dispatch state are not serialized. Decode into an
+instance created by its constructor; JSON updates the public field view while
+the dynamic root, virtual targets, and private invariants remain intact.
+Automatic `encoding/json` allocation does not run constructors and therefore is
+not the default class-decoding path. A class can take control of allocation-time
+initialization or its wire format by defining
+`public function unmarshalJSON(data: byte[]): error`.
 
 Native interfaces may declare unconstrained type parameters and must be fully
 instantiated wherever they are used. Type parameters may appear recursively in

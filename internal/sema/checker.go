@@ -8948,6 +8948,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 	}
 	if value.Kind == Class && underlyingGoInterface(target.GoType) != nil {
+		if underlyingGoInterface(target.GoType).NumMethods() == 0 {
+			return true
+		}
 		class := c.classes[value.Name]
 		if class == nil {
 			return false

@@ -161,7 +161,13 @@ or a Go-created zero-value base object falls back to the base implementation;
 constructed objects dispatch through their initialized dynamic target. Public
 conversion names participate in generated-name collision checking.
 
-JSON layout policy remains to be completed.
+Public class state uses JSON tags that preserve OnsenTamago field names.
+Private and protected fields, identity roots, and virtual-dispatch slots remain
+unexported and are not serialized. Decode into an instance created by its
+constructor so its private invariants, hierarchy identity, and virtual-dispatch
+slots remain intact. Automatic `encoding/json` allocation does not run a class
+constructor. A user-defined `unmarshalJSON(data: byte[]): error` method may
+define allocation-time initialization when a type needs that behavior.
 
 ## Abstract classes and properties
 

@@ -25,8 +25,8 @@ Slices alias backing storage as Go slices do. Fixed arrays copy on assignment an
 ## Objects, structs, and classes
 
 - Structural object types are convenient data-transfer values and generate anonymous Go structs with JSON tags.
-- Native `struct` declarations are nominal Go-style values.
-- `class` declarations are reference types with identity, constructors, visibility, and optional inheritance.
+- Native `struct` declarations are nominal Go-style values whose public fields retain their source names in JSON.
+- `class` declarations are reference types with identity, constructors, visibility, optional inheritance, and JSON support for public state.
 
 These forms are intentionally distinct. Choose them based on representation and ownership rather than appearance alone.
 

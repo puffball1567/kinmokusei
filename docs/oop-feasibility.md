@@ -169,9 +169,9 @@ The inheritance work is gated by executable coverage of:
 6. Multiple interface implementation. (implemented)
 7. Final/nonvirtual controls. (implemented; additional final-aware optimization remains optional)
 8. Public Go API consumption. (implemented)
-9. JSON and generic interactions. (remaining)
+9. JSON and generic interactions. (implemented)
 10. Race and allocation profiles. (race gate implemented; allocation profile remains)
 
 The initial single-inheritance stage is implemented and differentially tested.
-The remaining prototype requirements apply to JSON/generic integration,
-optional final-aware optimization, and allocation profiling.
+The remaining prototype requirements apply to optional final-aware optimization
+and allocation profiling.

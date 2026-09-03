@@ -26,9 +26,10 @@ function use(): string {
   const reader: Reader<string> = new Value<string>(box.get());
   return reader.read();
 }
-`))
+	`))
 	for _, expected := range []string{
 		"type Box[T any] struct",
+		`Value T ` + "`json:\"value\"`",
 		"func __ontamaInitBox[T any](this *Box[T], value T)",
 		"func NewBox[T any](value T) *Box[T]",
 		"func (this *Box[T]) Get() T",

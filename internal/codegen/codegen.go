@@ -191,7 +191,7 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			if name == "" {
 				name = memberName(field.Name, field.Visibility)
 			}
-			fields = append(fields, &goast.Field{Names: []*goast.Ident{goast.NewIdent(goName(name))}, Type: goType(field.Type)})
+			fields = append(fields, goStoredField(name, field.Name, field.Visibility, field.Type))
 		}
 		typeSpec := &goast.TypeSpec{Name: goast.NewIdent(decl.Name), Type: &goast.StructType{Fields: &goast.FieldList{List: fields}}}
 		if len(decl.TypeParameters) != 0 {
@@ -364,6 +364,17 @@ func goParameterField(parameter ontamaAST.Parameter) *goast.Field {
 	}
 }
 
+func goStoredField(name, jsonName string, visibility ontamaAST.Visibility, fieldType ontamaAST.TypeRef) *goast.Field {
+	field := &goast.Field{
+		Names: []*goast.Ident{goast.NewIdent(goName(name))},
+		Type:  goType(fieldType),
+	}
+	if visibility == ontamaAST.Public {
+		field.Tag = &goast.BasicLit{Kind: token.STRING, Value: "`json:\"" + jsonName + "\"`"}
+	}
+	return field
+}
+
 func generateNativeStructMethod(method *ontamaAST.MethodDecl, receiverName string, receiver goast.Expr) (*goast.FuncDecl, error) {
 	parameters := make([]*goast.Field, 0, len(method.Parameters))
 	for _, parameter := range method.Parameters {
@@ -460,12 +471,12 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		if name == "" {
 			name = memberName(field.Name, field.Visibility)
 		}
-		fields = append(fields, &goast.Field{Names: []*goast.Ident{goast.NewIdent(goName(name))}, Type: goType(field.Type)})
+		fields = append(fields, goStoredField(name, field.Name, field.Visibility, field.Type))
 	}
 	if class.Constructor != nil {
 		for _, parameter := range class.Constructor.Parameters {
 			if parameter.IsField {
-				fields = append(fields, &goast.Field{Names: []*goast.Ident{goast.NewIdent(goName(memberName(parameter.Name, parameter.Visibility)))}, Type: goType(parameter.Type)})
+				fields = append(fields, goStoredField(memberName(parameter.Name, parameter.Visibility), parameter.Name, parameter.Visibility, parameter.Type))
 			}
 		}
 	}
