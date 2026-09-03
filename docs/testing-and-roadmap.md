@@ -53,11 +53,11 @@ output.
 The compiler maintains an explicit registry of every implemented, accepted
 runtime contract that has a direct Go equivalent. Coverage is complete only
 when each registered contract is connected to an isolated handwritten-Go
-differential scenario. The current registry covers 81 of 81 contract groups
+differential scenario. The current registry covers 82 of 82 contract groups
 (100%), including core language behavior, collections, nullability, results,
 control flow, concurrency, standard/external Go interop, locked targets, CGO,
 unsafe operations, string conversion, native generic functions, classes, structs, and interfaces,
-native defined types and aliases, standard and external Go type-set
+native defined types and aliases including distinct native-struct definitions, standard and external Go type-set
 constraints, stable generic struct/class JSON, native integer enums, the HTTP/JSON
 dogfood application, and the bounded fetch adapter.
 

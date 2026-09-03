@@ -97,6 +97,7 @@ var implementedGoCompatibilityContracts = []string{
 	"transparent generic aliases expanded for Go 1.23 across identity, slices, maps, fixed arrays, pointers, functions, interfaces, classes, nested aliases, conversions, mutation, Results, linked modules, and external Go APIs",
 	"standard and external Go interface type-set constraints across ordered and integer operators, inference, explicit instantiation, defined types, generic declarations, map keys, erased aliases, and external Go APIs",
 	"stable JSON field names for native structs and classes, generic encoding, inherited public state, private-state exclusion, decoding into constructed class references with preserved virtual dispatch and hierarchy identity, malformed input, and external Go APIs",
+	"distinct definitions over native structs with explicit bidirectional conversion, field access, literals, generic instantiation, value and pointer receiver methods, method values, JSON encoding, and external Go APIs",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
@@ -191,6 +192,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"gotypesetconstraint.test":            {implementedGoCompatibilityContracts[79]},
 	"customconstraint.test":               {implementedGoCompatibilityContracts[79]},
 	"genericjson.test":                    {implementedGoCompatibilityContracts[80]},
+	"definedstruct.test":                  {implementedGoCompatibilityContracts[81]},
 }
 
 func TestImplementedGoCompatibilityCoverageIsComplete(t *testing.T) {

@@ -205,6 +205,9 @@ func assignable(target, value Type) bool {
 	if target.Kind == Nil {
 		return value.Kind == Nil
 	}
+	if target.Kind == GoPointer && target.Element != nil && target.Element.Kind == Struct || value.Kind == GoPointer && value.Element != nil && value.Element.Kind == Struct {
+		return target.Kind == GoPointer && value.Kind == GoPointer && target.Element != nil && value.Element != nil && sameType(*target.Element, *value.Element)
+	}
 	if target.Kind == GoPointer && target.GoType == nil || value.Kind == GoPointer && value.GoType == nil {
 		if target.Kind != GoPointer || value.Kind != GoPointer || target.Element == nil || value.Element == nil {
 			return false
@@ -213,6 +216,17 @@ func assignable(target, value Type) bool {
 			return gotypes.AssignableTo(value.GoType, target.GoType)
 		}
 		return sameType(*target.Element, *value.Element)
+	}
+	if target.Kind == Struct || value.Kind == Struct {
+		if target.Kind != Struct || value.Kind != Struct || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
+			return false
+		}
+		for index := range target.TypeArguments {
+			if !sameType(target.TypeArguments[index], value.TypeArguments[index]) {
+				return false
+			}
+		}
+		return true
 	}
 	if targetGo, targetIsGo := goTypeOf(target); targetIsGo {
 		valueGo, valueIsGo := goTypeOf(value)
@@ -258,17 +272,6 @@ func assignable(target, value Type) bool {
 	}
 	if target.Kind == Class || value.Kind == Class {
 		if target.Kind != Class || value.Kind != Class || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
-			return false
-		}
-		for index := range target.TypeArguments {
-			if !sameType(target.TypeArguments[index], value.TypeArguments[index]) {
-				return false
-			}
-		}
-		return true
-	}
-	if target.Kind == Struct || value.Kind == Struct {
-		if target.Kind != Struct || value.Kind != Struct || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
 			return false
 		}
 		for index := range target.TypeArguments {

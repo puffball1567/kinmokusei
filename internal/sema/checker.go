@@ -96,12 +96,14 @@ type classSymbol struct {
 	ancestors           []string
 	ancestorTypes       []Type
 	final               bool
+	goNamed             *gotypes.Named
 }
 
 type structSymbol struct {
 	fields          map[string]fieldSymbol
 	methods         map[string]methodSymbol
 	typeInfo        Type
+	goNamed         *gotypes.Named
 	typeParameters  []Type
 	typeParamScope  map[string]Type
 	declarationSpan source.Span
@@ -112,11 +114,13 @@ type interfaceSymbol struct {
 	typeParameters  []Type
 	typeParamScope  map[string]Type
 	declarationSpan source.Span
+	goNamed         *gotypes.Named
 }
 
 type nativeTypeSymbol struct {
 	declaration    *ast.TypeDecl
 	typeInfo       Type
+	underlying     Type
 	goNamed        *gotypes.Named
 	methods        map[string]methodSymbol
 	typeParameters []Type
@@ -200,6 +204,7 @@ type Checker struct {
 	validFallthrough           map[*ast.BranchStmt]bool
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
+	structGoTypesFinalized     bool
 }
 
 type GoInteropPolicy struct {
@@ -234,6 +239,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
 	c.predeclareNamedTypes(program)
+	c.declareNativeTypes(program)
+	c.declareStructs(program)
+	c.finalizeNativeStructGoTypes(program)
+	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
 	c.declareInterfaces(program)
 	c.declareClasses(program)
@@ -653,16 +662,18 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 			class := declaration
 			if _, exists := c.classes[class.Name]; !exists {
 				typeParameters, typeParamScope := c.declareTypeParameters(class.TypeParameters, "generic class")
+				goNamed := newNativeGoNamed(class.Name, typeParameters, gotypes.NewStruct(nil, nil))
 				c.classes[class.Name] = &classSymbol{
-					declarationSpan: class.NameSpan, typeParameters: typeParameters, typeParamScope: typeParamScope,
+					declarationSpan: class.NameSpan, typeParameters: typeParameters, typeParamScope: typeParamScope, goNamed: goNamed,
 				}
 			}
 		case *ast.InterfaceDecl:
 			if _, exists := c.interfaces[declaration.Name]; !exists {
 				typeParameters, typeParamScope := c.declareTypeParameters(declaration.TypeParameters, "generic interface")
+				goNamed := newNativeGoNamed(declaration.Name, typeParameters, gotypes.NewInterfaceType(nil, nil).Complete())
 				c.interfaces[declaration.Name] = &interfaceSymbol{
 					methods: map[string]methodSymbol{}, typeParameters: typeParameters, typeParamScope: typeParamScope,
-					declarationSpan: declaration.NameSpan,
+					declarationSpan: declaration.NameSpan, goNamed: goNamed,
 				}
 			}
 		case *ast.StructDecl:
@@ -670,9 +681,10 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 				typeParameters, typeParamScope := c.declareTypeParameters(declaration.TypeParameters, "generic struct")
 				fields := map[string]Type{}
 				fieldNames := map[string]string{}
+				goNamed := newNativeGoNamed(declaration.Name, typeParameters, nil)
 				c.structs[declaration.Name] = &structSymbol{
 					fields: map[string]fieldSymbol{}, methods: map[string]methodSymbol{}, declarationSpan: declaration.NameSpan,
-					typeParameters: typeParameters, typeParamScope: typeParamScope,
+					typeParameters: typeParameters, typeParamScope: typeParamScope, goNamed: goNamed,
 					typeInfo: Type{Kind: Struct, Name: declaration.Name, Fields: fields, FieldNames: fieldNames, TypeParameters: typeParameters, Generic: len(typeParameters) != 0},
 				}
 			}
@@ -723,6 +735,21 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 			c.enums[declaration.Name] = &enumSymbol{declaration: declaration, members: members}
 		}
 	}
+}
+
+func newNativeGoNamed(name string, typeParameters []Type, underlying gotypes.Type) *gotypes.Named {
+	object := gotypes.NewTypeName(gotoken.NoPos, nil, name, nil)
+	named := gotypes.NewNamed(object, underlying, nil)
+	parameters := make([]*gotypes.TypeParam, 0, len(typeParameters))
+	for _, parameter := range typeParameters {
+		if goParameter, ok := parameter.GoType.(*gotypes.TypeParam); ok {
+			parameters = append(parameters, goParameter)
+		}
+	}
+	if len(parameters) == len(typeParameters) && len(parameters) != 0 {
+		named.SetTypeParams(parameters)
+	}
+	return named
 }
 
 func (c *Checker) declareNativeTypes(program *ast.Program) {
@@ -794,6 +821,19 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 	c.pushTypeParameterScope(symbol.typeParamScope)
 	underlying := c.resolveType(symbol.declaration.Underlying)
 	c.popTypeParameterScope()
+	symbol.underlying = underlying
+	if !symbol.declaration.Alias && underlying.Kind == Struct && underlying.GoType == nil && !c.structGoTypesFinalized {
+		symbol.state = 0
+		return symbol.typeInfo
+	}
+	if !symbol.declaration.Alias && underlying.Kind == GoNamed && !c.structGoTypesFinalized {
+		if object := goTypeNameObject(underlying.GoType); object != nil {
+			if dependency := c.nativeTypes[object.Name()]; dependency != nil && dependency.state != 2 {
+				symbol.state = 0
+				return symbol.typeInfo
+			}
+		}
+	}
 	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null
 	if underlying.Kind == TypeParameter && !symbol.declaration.Alias {
 		c.report(symbol.declaration.Underlying.Span, "a generic defined type cannot use a type parameter directly as its underlying type; wrap it in a slice, array, map, pointer, or other concrete type")
@@ -1005,7 +1045,6 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 			name = decl.Name
 		case *ast.StructDecl:
 			name = decl.Name
-			c.declareStruct(decl)
 		case *ast.TypeDecl:
 			name = decl.Name
 		case *ast.EnumDecl:
@@ -1619,6 +1658,218 @@ func (c *Checker) declareStruct(decl *ast.StructDecl) {
 	}
 }
 
+func (c *Checker) declareStructs(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		if structure, ok := declaration.(*ast.StructDecl); ok {
+			c.declareStruct(structure)
+		}
+	}
+}
+
+func (c *Checker) finalizeNativeStructGoTypes(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		decl, ok := declaration.(*ast.StructDecl)
+		if !ok {
+			continue
+		}
+		symbol := c.structs[decl.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			continue
+		}
+		fields := make([]*gotypes.Var, 0, len(decl.Fields))
+		tags := make([]string, 0, len(decl.Fields))
+		valid := true
+		seen := map[string]bool{}
+		for _, field := range decl.Fields {
+			if seen[field.Name] {
+				valid = false
+				continue
+			}
+			seen[field.Name] = true
+			stored, exists := symbol.fields[field.Name]
+			if !exists {
+				valid = false
+				continue
+			}
+			fieldType, ok := c.goTypeForNativeStorage(stored.typeInfo)
+			if !ok {
+				valid = false
+				continue
+			}
+			fields = append(fields, gotypes.NewField(gotoken.NoPos, nil, stored.goName, fieldType, false))
+			tag := ""
+			if field.Visibility == ast.Public {
+				tag = `json:"` + field.Name + `"`
+			}
+			tags = append(tags, tag)
+		}
+		if !valid {
+			continue
+		}
+		symbol.goNamed.SetUnderlying(gotypes.NewStruct(fields, tags))
+		symbol.typeInfo.GoType = symbol.goNamed
+	}
+}
+
+func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
+	switch value.Kind {
+	case Struct:
+		symbol := c.structs[value.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			return nil, false
+		}
+		return c.instantiateNativeStorageType(symbol.goNamed, value.TypeArguments)
+	case Class:
+		symbol := c.classes[value.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			return nil, false
+		}
+		instantiated, ok := c.instantiateNativeStorageType(symbol.goNamed, value.TypeArguments)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewPointer(instantiated), true
+	case Interface:
+		symbol := c.interfaces[value.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			return nil, false
+		}
+		return c.instantiateNativeStorageType(symbol.goNamed, value.TypeArguments)
+	case Nullable:
+		if value.Element == nil {
+			return nil, false
+		}
+		return c.goTypeForNativeStorage(*value.Element)
+	case GoPointer:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewPointer(element), true
+	case Array:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewSlice(element), true
+	case FixedArray:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewArray(element, value.Length), true
+	case Map:
+		if value.Key == nil || value.Element == nil {
+			return nil, false
+		}
+		key, keyOK := c.goTypeForNativeStorage(*value.Key)
+		element, elementOK := c.goTypeForNativeStorage(*value.Element)
+		if !keyOK || !elementOK {
+			return nil, false
+		}
+		return gotypes.NewMap(key, element), true
+	case Object:
+		names := make([]string, 0, len(value.Fields))
+		for name := range value.Fields {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		fields := make([]*gotypes.Var, len(names))
+		tags := make([]string, len(names))
+		for index, name := range names {
+			fieldType, ok := c.goTypeForNativeStorage(value.Fields[name])
+			if !ok {
+				return nil, false
+			}
+			goName := value.FieldNames[name]
+			if goName == "" {
+				goName = name
+			}
+			fields[index] = gotypes.NewField(gotoken.NoPos, nil, goName, fieldType, false)
+			tags[index] = `json:"` + name + `"`
+		}
+		return gotypes.NewStruct(fields, tags), true
+	case Function:
+		parameters := make([]*gotypes.Var, len(value.Parameters))
+		for index, parameter := range value.Parameters {
+			parameterType, ok := c.goTypeForNativeStorage(parameter)
+			if !ok {
+				return nil, false
+			}
+			if value.Variadic && index == len(value.Parameters)-1 {
+				parameterType = gotypes.NewSlice(parameterType)
+			}
+			parameters[index] = gotypes.NewVar(gotoken.NoPos, nil, "", parameterType)
+		}
+		if value.Result == nil {
+			return nil, false
+		}
+		var results []*gotypes.Var
+		switch value.Result.Kind {
+		case Void:
+		case MultiValue:
+			results = make([]*gotypes.Var, len(value.Result.Results))
+			for index, result := range value.Result.Results {
+				resultType, ok := c.goTypeForNativeStorage(result)
+				if !ok {
+					return nil, false
+				}
+				results[index] = gotypes.NewVar(gotoken.NoPos, nil, "", resultType)
+			}
+		default:
+			resultType, ok := c.goTypeForNativeStorage(*value.Result)
+			if !ok {
+				return nil, false
+			}
+			results = []*gotypes.Var{gotypes.NewVar(gotoken.NoPos, nil, "", resultType)}
+		}
+		return gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(parameters...), gotypes.NewTuple(results...), value.Variadic), true
+	case GoChannel:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		direction := gotypes.SendRecv
+		switch value.Name {
+		case "GoSendChannel":
+			direction = gotypes.SendOnly
+		case "GoReceiveChannel":
+			direction = gotypes.RecvOnly
+		}
+		return gotypes.NewChan(direction, element), true
+	default:
+		return goTypeOf(value)
+	}
+}
+
+func (c *Checker) instantiateNativeStorageType(named *gotypes.Named, arguments []Type) (gotypes.Type, bool) {
+	if len(arguments) == 0 {
+		return named, true
+	}
+	goArguments := make([]gotypes.Type, len(arguments))
+	for index, argument := range arguments {
+		resolved, ok := c.goTypeForNativeStorage(argument)
+		if !ok {
+			return nil, false
+		}
+		goArguments[index] = resolved
+	}
+	instantiated, err := gotypes.Instantiate(nil, named, goArguments, true)
+	return instantiated, err == nil
+}
+
 func (c *Checker) declareStructMethod(symbol *structSymbol, method *ast.MethodDecl) {
 	if _, exists := symbol.fields[method.Name]; exists {
 		c.report(method.Span, fmt.Sprintf("struct member %q conflicts with a field", method.Name))
@@ -1763,6 +2014,18 @@ func (c *Checker) declareNativeTypeMethod(symbol *nativeTypeSymbol, method *ast.
 	if symbol == nil || c.resolveNativeType(symbol).Kind == Invalid {
 		return
 	}
+	method.GoName = memberGoName(method.Name, method.Visibility)
+	methodUnderlying := c.nativeDefinedUnderlying(symbol, symbol.typeInfo)
+	if methodUnderlying.Kind == Struct {
+		if structure := c.structs[methodUnderlying.Name]; structure != nil {
+			for fieldName, field := range structure.fields {
+				if field.goName == method.GoName {
+					c.report(method.Span, fmt.Sprintf("defined type method %q conflicts with underlying struct field %q", method.Name, fieldName))
+					return
+				}
+			}
+		}
+	}
 	if _, exists := symbol.methods[method.Name]; exists {
 		c.report(method.Span, fmt.Sprintf("duplicate defined type method %q", method.Name))
 		return
@@ -1779,7 +2042,6 @@ func (c *Checker) declareNativeTypeMethod(symbol *nativeTypeSymbol, method *ast.
 	}
 	result := c.resolveType(method.ReturnType)
 	c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
-	method.GoName = memberGoName(method.Name, method.Visibility)
 	methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
 	symbol.methods[method.Name] = methodSymbol{
 		typeInfo: methodType, visibility: method.Visibility, pointerReceiver: method.PointerReceiver,
@@ -5015,14 +5277,25 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 		}
 		return result
 	}
-	if result.Kind == Struct {
-		symbol := c.structs[result.Name]
+	literalStructure := result
+	if result.Kind == GoNamed && result.GoQualifier == "" {
+		if object := goTypeNameObject(result.GoType); object != nil {
+			if named := c.nativeTypes[object.Name()]; named != nil && !named.declaration.Alias {
+				underlying := c.nativeDefinedUnderlying(named, result)
+				if underlying.Kind == Struct {
+					literalStructure = underlying
+				}
+			}
+		}
+	}
+	if literalStructure.Kind == Struct {
+		symbol := c.structs[literalStructure.Name]
 		if symbol == nil {
-			c.report(expr.Type.Span, fmt.Sprintf("unknown struct type %s", result.String()))
+			c.report(expr.Type.Span, fmt.Sprintf("unknown struct type %s", literalStructure.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		expr.ResolvedFieldNames = make([]string, len(expr.Fields))
-		bindings := nativeStructBindings(symbol, result)
+		bindings := nativeStructBindings(symbol, literalStructure)
 		seen := map[string]bool{}
 		for index, field := range expr.Fields {
 			if seen[field.Name] {
@@ -5031,7 +5304,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 			seen[field.Name] = true
 			selected, exists := symbol.fields[field.Name]
 			if !exists {
-				c.report(field.Span, fmt.Sprintf("struct %s has no field %q", result.Name, field.Name))
+				c.report(field.Span, fmt.Sprintf("struct %s has no field %q", literalStructure.Name, field.Name))
 				c.checkExpression(field.Value)
 				continue
 			}
@@ -5043,7 +5316,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 		}
 		for name := range symbol.fields {
 			if !seen[name] {
-				c.report(expr.Span, fmt.Sprintf("struct literal %s is missing field %q", result.Name, name))
+				c.report(expr.Span, fmt.Sprintf("struct literal %s is missing field %q", literalStructure.Name, name))
 			}
 		}
 		return result
@@ -5236,9 +5509,24 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 	if nativeObject.Kind == GoNamed && nativeObject.GoQualifier == "" {
 		if namedObject := goTypeNameObject(nativeObject.GoType); namedObject != nil {
 			if symbol := c.nativeTypes[namedObject.Name()]; symbol != nil && !symbol.declaration.Alias {
+				underlying := c.nativeDefinedUnderlying(symbol, nativeObject)
+				if underlying.Kind == Struct {
+					if structure := c.structs[underlying.Name]; structure != nil {
+						if field, exists := structure.fields[expr.Name]; exists {
+							expr.ResolvedName = field.goName
+							expr.ResolvedDeclaration = field.declarationSpan
+							expr.Addressable = nativePointer || c.isAddressableExpression(expr.Object)
+							return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, underlying))
+						}
+					}
+				}
 				method, exists := symbol.methods[expr.Name]
 				if !exists {
-					c.report(expr.Span, fmt.Sprintf("defined type %s has no method %q", nativeObject.String(), expr.Name))
+					if underlying.Kind == Struct {
+						c.report(expr.Span, fmt.Sprintf("defined type %s has no field or method %q", nativeObject.String(), expr.Name))
+					} else {
+						c.report(expr.Span, fmt.Sprintf("defined type %s has no method %q", nativeObject.String(), expr.Name))
+					}
 					return Type{Kind: Invalid, Name: "<invalid>"}
 				}
 				if method.pointerReceiver && !nativePointer && !c.isAddressableExpression(expr.Object) {
@@ -5937,6 +6225,12 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 					expr.ConversionType = &expanded
 				}
 				return c.checkNativeTypeConversion(expr, c.resolveNativeDefinedType(targetRef, named))
+			}
+			if structure, exists := c.structs[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
+				name.ResolvedDeclaration = structure.declarationSpan
+				expr.Conversion = true
+				targetRef := ast.TypeRef{Name: name.Name, NameSpan: name.Span, GenericArguments: expr.TypeArguments, Span: expr.Span}
+				return c.checkNativeTypeConversion(expr, c.resolveNativeStructType(targetRef, structure))
 			}
 		}
 		if target, isConversion := LookupType(name.Name); isConversion && target.Kind != Void {
@@ -8058,7 +8352,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.GenericArguments[0].Span, "Task cannot be used as a Go channel element")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		elementGoType, ok := goTypeOf(element)
+		elementGoType, ok := c.goTypeForNativeStorage(element)
 		if !ok {
 			c.report(ref.GenericArguments[0].Span, fmt.Sprintf("type %s cannot be used as a Go channel element", element.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -8242,6 +8536,11 @@ func (c *Checker) resolveNativeStructType(ref ast.TypeRef, symbol *structSymbol)
 	result.TypeParameters = nil
 	result.TypeArguments = arguments
 	result.Generic = false
+	if symbol.typeInfo.GoType != nil {
+		if instantiated, ok := c.instantiateNativeStorageType(symbol.goNamed, arguments); ok {
+			result.GoType = instantiated
+		}
+	}
 	return result
 }
 
@@ -8265,6 +8564,31 @@ func nativeDefinedTypeBindings(symbol *nativeTypeSymbol, instantiated Type) map[
 		bindings[parameter.Name] = instantiated.TypeArguments[index]
 	}
 	return bindings
+}
+
+func (c *Checker) nativeDefinedUnderlying(symbol *nativeTypeSymbol, instantiated Type) Type {
+	return c.nativeDefinedUnderlyingSeen(symbol, instantiated, map[string]bool{})
+}
+
+func (c *Checker) nativeDefinedUnderlyingSeen(symbol *nativeTypeSymbol, instantiated Type, visiting map[string]bool) Type {
+	if symbol == nil || visiting[symbol.declaration.Name] {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	visiting[symbol.declaration.Name] = true
+	defer delete(visiting, symbol.declaration.Name)
+	underlying := substituteNativeTypeParameters(symbol.underlying, nativeDefinedTypeBindings(symbol, instantiated))
+	if underlying.Kind != GoNamed || underlying.GoQualifier != "" {
+		return underlying
+	}
+	object := goTypeNameObject(underlying.GoType)
+	if object == nil {
+		return underlying
+	}
+	dependency := c.nativeTypes[object.Name()]
+	if dependency == nil || dependency.declaration.Alias {
+		return underlying
+	}
+	return c.nativeDefinedUnderlyingSeen(dependency, underlying, visiting)
 }
 
 func (c *Checker) resolveNativeInterfaceType(ref ast.TypeRef, symbol *interfaceSymbol) Type {

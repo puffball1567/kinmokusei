@@ -546,6 +546,7 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 		if static {
 			return
 		}
+		collectDefinedStructFieldCompletions(program, declaration, ref, owner, add)
 		for _, candidate := range program.Declarations {
 			method, ok := candidate.(*ast.MethodDecl)
 			if !ok || !method.External {
@@ -598,6 +599,37 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			}
 			result := substituteTypeRefParameters(method.ReturnType, bindings)
 			add(completionItem{Label: method.Name, Kind: 2, Detail: functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
+		}
+	}
+}
+
+func collectDefinedStructFieldCompletions(program *ast.Program, declaration *ast.TypeDecl, instantiated ast.TypeRef, owner string, add func(completionItem)) {
+	seen := map[*ast.TypeDecl]bool{}
+	currentDeclaration := declaration
+	currentType := instantiated
+	for currentDeclaration != nil && !seen[currentDeclaration] {
+		seen[currentDeclaration] = true
+		bindings := genericAliasTypeRefBindings(currentDeclaration, currentType)
+		underlying := substituteTypeRefParameters(currentDeclaration.Underlying, bindings)
+		switch next := sourceTypeDeclaration(program, underlying).(type) {
+		case *ast.TypeDecl:
+			if next.Alias {
+				return
+			}
+			currentDeclaration = next
+			currentType = underlying
+		case *ast.StructDecl:
+			structBindings := genericStructTypeRefBindings(next, underlying)
+			for _, field := range next.Fields {
+				if !memberVisible(program, owner, next.Name, field.Visibility) {
+					continue
+				}
+				fieldType := substituteTypeRefParameters(field.Type, structBindings)
+				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
+			}
+			return
+		default:
+			return
 		}
 	}
 }

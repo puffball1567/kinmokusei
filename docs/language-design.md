@@ -137,6 +137,28 @@ payloads, relative imports, and external generated-Go APIs. A defined slice or
 map retains Go's reference-bearing storage behavior; a defined fixed array
 retains value-copy behavior.
 
+A native struct may also be the underlying type, including a generic
+instantiation:
+
+```ts
+struct Point {
+  public x: int;
+  public y: int;
+}
+
+type Offset = distinct Point;
+
+struct Box<T> { public value: T; }
+type NamedBox<T> = distinct Box<T>;
+```
+
+The new type keeps the struct's fields and JSON field names, but has its own
+nominal identity and method set. Conversion in either direction is explicit:
+`Offset(point)` and `Point(offset)`. A distinct-struct value can also be built
+with `Offset { x: 1, y: 2 }`. Methods declared on `Point` are not inherited;
+declare value or pointer receiver methods on `Offset` when its API needs them.
+This matches the behavior and generated API of Go `type Offset Point`.
+
 Defined types may declare unconstrained parameters and must be explicitly
 instantiated wherever they are used. The generated definition uses ordinary Go
 generics. A parameter used as a map key receives an inferred `comparable`
@@ -251,7 +273,7 @@ alias rules.
 `type`, `alias`, and `distinct` are contextual declaration words rather than
 globally reserved identifiers. The implementation deliberately rejects
 `Result`/`Task`/`void` declaration boundaries and distinct definitions over
-native classes/structs/interfaces. Use a transparent alias or a native `struct`
+native classes/interfaces. Use a transparent alias
 where those current boundaries apply; unsupported cases produce source
 diagnostics instead of approximate Go.
 
