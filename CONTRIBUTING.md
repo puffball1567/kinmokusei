@@ -13,16 +13,21 @@ explicit compatibility with the Go ecosystem. Before contributing, read the
   directly on `main`.
 - Keep `devel` green under the required compatibility check.
 - Prepare a release on `release/vX.Y.Z`, then merge that branch into `devel`.
-- Open the release pull request from `devel` to `main` after all release checks
-  pass. Merge this pull request with a merge commit so `devel` remains an
-  ancestor of `main`; do not squash or rebase it.
-- Create a version tag from `main` only after the release pull request merges.
+- After the compatibility push run succeeds on the resulting `devel` commit,
+  run the **Promote release** workflow from `devel` with the intended version
+  tag. It verifies the successful gate, fast-forwards `main`, creates the tag,
+  and starts artifact publication and documentation deployment.
+- Do not update `main` or create release tags manually during an ordinary
+  release. The promotion workflow keeps the branch and tag on the same verified
+  commit without requiring a duplicate `devel` to `main` pull request.
 - Use `hotfix/*` only for an urgent correction based on `main`, then return the
   same correction to `devel`.
 
 Repository Rulesets require pull requests, review resolution, and the stable
-compatibility gate for both protected branches. Pull requests to `main` are
-accepted only from this repository's `devel` or `hotfix/*` branches.
+compatibility gate on `devel`. The `main` Ruleset permits the promotion workflow
+to bypass its pull-request gate while ordinary updates remain protected. Pull
+requests to `main` remain available only for exceptional `devel` or `hotfix/*`
+integration.
 
 ## Quality requirements
 
