@@ -109,7 +109,7 @@ Reserved `kinmokusei/*` modules use the named import form:
 import { App, Context, fetch } from "kinmokusei/http";
 ```
 
-They are embedded, compiler-versioned Kinmokusei source modules—not remote packages. Unknown, differently cased, or noncanonical reserved paths are rejected. The current preview implements `kinmokusei/http`.
+They are embedded, compiler-versioned Kinmokusei source modules—not remote packages. Unknown, differently cased, or noncanonical reserved paths are rejected. v0.2 implements `kinmokusei/http`.
 
 ## External Go modules
 

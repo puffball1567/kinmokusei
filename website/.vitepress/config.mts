@@ -182,7 +182,7 @@ export default defineConfig({
       { text: "Reference", link: "/reference/" },
       { text: "Examples", link: "/examples/" },
       {
-        text: "v0.2 preview",
+        text: "v0.2",
         items: [
           { text: "Current release", link: `${repository}/releases/latest` },
           { text: "All releases", link: `${repository}/releases` },

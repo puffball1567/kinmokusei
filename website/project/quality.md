@@ -20,7 +20,7 @@ The comparison covers values and errors, mutation, evaluation order/count, copy 
 
 ## Contract coverage
 
-The registry currently covers **75 of 75** implemented Go-equivalent runtime groups. This is 100% coverage of the registered implemented surface—not line coverage, not a claim that all Go features exist, and not a roadmap-completion percentage.
+The registry currently covers **82 of 82** implemented Go-equivalent runtime groups. This is 100% coverage of the registered implemented surface—not line coverage, not a claim that all Go features exist, and not a roadmap-completion percentage.
 
 A new accepted runtime feature must add its compatibility contract, independent reference, normal/boundary/failure cases, and all relevant observable comparisons in the same change.
 

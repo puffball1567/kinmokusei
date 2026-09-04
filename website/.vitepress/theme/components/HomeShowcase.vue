@@ -76,7 +76,7 @@ func main() {
 
   <section class="home-evidence" aria-label="Quality evidence">
     <div><strong>82 / 82</strong><span>Go-equivalent runtime contracts covered by independent oracles</span></div>
-    <div><strong>Go 1.23–1.27</strong><span>supported toolchain range for the v0.2 preview</span></div>
+    <div><strong>Go 1.23–1.27</strong><span>supported toolchain range for v0.2</span></div>
     <div><strong>0</strong><span>compiler runtime dependencies in published generated Go</span></div>
   </section>
 </template>

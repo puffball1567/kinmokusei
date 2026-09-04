@@ -92,7 +92,7 @@ struct Box<T> {
 const box: Box<int> = Box<int> { value: 42 };
 ```
 
-Methods use the enclosing type parameters. Go does not permit method-local type parameters, so Kinmokusei does not invent them. Generic class inheritance, virtual/static generic class members, and generic aliases remain unsupported in the current preview.
+Methods use the enclosing type parameters. Go does not permit method-local type parameters, so Kinmokusei does not invent them. Generic class inheritance, virtual/static generic class members, and generic aliases remain unsupported in v0.2.
 
 ## Multiple results
 

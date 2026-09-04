@@ -5,7 +5,7 @@ description: Public API reference for compiler-managed Kinmokusei modules, begin
 
 # Standard modules
 
-`kinmokusei/*` is reserved for compiler-managed source modules. The current preview implements the exact module `kinmokusei/http`; unknown, differently cased, traversal-like, or otherwise noncanonical reserved paths are rejected.
+`kinmokusei/*` is reserved for compiler-managed source modules. v0.2 implements the exact module `kinmokusei/http`; unknown, differently cased, traversal-like, or otherwise noncanonical reserved paths are rejected.
 
 ## `kinmokusei/http` API
 

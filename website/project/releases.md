@@ -7,9 +7,9 @@ description: Understand Kinmokusei pre-1.0 release status, version matching, gen
 
 Kinmokusei is currently pre-1.0. Released behavior is tested and documented, but source syntax, CLI details, and generated public APIs may change between minor versions while the language converges.
 
-## Preview label versus release tag
+## Documentation version and release tag
 
-The navigation label **v0.2 preview** identifies the documentation track being prepared. It does not claim that a `v0.2.0` tag or release artifact already exists. Installation links deliberately resolve to the latest published GitHub release, while preview pages may describe implemented behavior scheduled for the next documentation release.
+The navigation label **v0.2** identifies the language version described by this site. Published compiler and editor artifacts are identified by a matching release tag; use the release list to confirm which artifacts are available before installing.
 
 When a version is tagged, use these sources for different questions:
 
@@ -20,7 +20,7 @@ When a version is tagged, use these sources for different questions:
 | Which files can I install? | Assets and `SHA256SUMS` on the tagged GitHub release |
 | Is a generated C boundary compatible? | The prior manifest plus `keika abi check` |
 
-Do not infer a source migration from a preview label alone. A migration requirement exists only when the final release notes identify a source, lock, CLI, generated-API, or boundary change.
+A migration requirement exists when the release notes identify a source, lock, CLI, generated-API, or boundary change. The documentation version alone does not replace those notes.
 
 ## Match the toolchain pieces
 
@@ -36,7 +36,7 @@ Use the compiler and Visual Studio Code extension from the same release. Direct 
 
 ## Upgrading
 
-Projects moving from the first public preview should begin with
+Projects moving from v0.1 should begin with
 [Migrate from v0.1](../guide/migrating-from-v0-1).
 
 Before changing a project compiler version:

@@ -145,7 +145,7 @@ const page: Page<string> = Page<string> { items: ["one", "two"] };
 
 Classes, structs, interfaces, and defined types may have type parameters. Named type positions require full explicit instantiation. Methods use the enclosing parameters; method-local type parameters are not supported.
 
-Generic class inheritance and virtual/static generic class members remain unsupported in the preview.
+Generic class inheritance and virtual/static generic class members remain unsupported in v0.2.
 
 ## Multiple Go results
 

@@ -7,7 +7,7 @@ description: Supported Go toolchains and platforms, direct Go type connectivity,
 
 ## Toolchains and platforms
 
-| Area | Current preview contract |
+| Area | v0.2 contract |
 | --- | --- |
 | Go source compatibility | Go 1.23 through Go 1.27 |
 | Release compiler | Built with Go 1.27 |
