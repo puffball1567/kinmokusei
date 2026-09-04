@@ -1,0 +1,28 @@
+import go fmt from "fmt";
+
+class Counter {
+  constructor(public value: int) {}
+
+  public function increment(): void {
+    this.value++;
+  }
+}
+
+struct Point {
+  public x: int;
+  public y: int;
+
+  public function moved(dx: int): Point {
+    let copy = this;
+    copy.x += dx;
+    return copy;
+  }
+}
+
+function main(): void {
+  const counter = new Counter(1);
+  counter.increment();
+  const point = Point { x: 3, y: 4 };
+  const moved = point.moved(2);
+  fmt.Println(counter.value, point.x, moved.x);
+}

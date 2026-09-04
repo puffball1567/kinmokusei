@@ -7,7 +7,7 @@ import (
 )
 
 func TestRecursiveDefinedTypeNavigationRenameAndCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "recursive_defined_type.otm")
+	path := filepath.Join(t.TempDir(), "recursive_defined_type.km")
 	uri := fileURI(path)
 	text := `type Chain = distinct Chain[];
 public function size(this: Chain): int { return len(this); }

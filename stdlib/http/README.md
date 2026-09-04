@@ -1,12 +1,12 @@
 # HTTP source library
 
-`fetch.otm` contains the thin OnsenTamago HTTP client and server kernel. The
+`fetch.km` contains the thin Kinmokusei HTTP client and server kernel. The
 client remains deliberately smaller than an Axios-style client: request
 construction and transport policy stay visible Go APIs, while the adapter adds
 bounded response ownership and a small response value.
 
 ```ts
-import { fetch } from "ontama/http";
+import { fetch } from "kinmokusei/http";
 import go context from "context";
 import go errors from "errors";
 
@@ -35,7 +35,7 @@ The server kernel wraps Go's `http.ServeMux` without replacing its routing
 rules:
 
 ```ts
-import { App, Context } from "ontama/http";
+import { App, Context } from "kinmokusei/http";
 import go fmt from "fmt";
 
 const app = new App();
@@ -54,5 +54,5 @@ behavior. Registration should finish before concurrent serving, as with Go.
 
 JSON response helpers, middleware, a common error boundary, timeouts, and
 graceful shutdown remain higher layers. The compiler embeds this source module
-and resolves the exact canonical `ontama/http` package path without a separate
+and resolves the exact canonical `kinmokusei/http` package path without a separate
 download or registry lookup.

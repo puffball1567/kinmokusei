@@ -1,20 +1,20 @@
 'use strict';
 
-const DEFAULT_SERVER_PATH = 'ontama';
+const DEFAULT_SERVER_PATH = 'keika';
 const SERVER_ARGUMENTS = Object.freeze(['lsp', '--stdio']);
-const LANGUAGE_ID = 'onsentamago';
-const RESTART_COMMAND = 'onsentamago.restartLanguageServer';
+const LANGUAGE_ID = 'kinmokusei';
+const RESTART_COMMAND = 'kinmokusei.restartLanguageServer';
 
 function normalizeServerPath(value) {
   if (value === undefined || value === null) {
     return DEFAULT_SERVER_PATH;
   }
   if (typeof value !== 'string') {
-    throw new TypeError('onsentamago.server.path must be a string');
+    throw new TypeError('kinmokusei.server.path must be a string');
   }
   const normalized = value.trim();
   if (normalized.includes('\0')) {
-    throw new TypeError('onsentamago.server.path must not contain NUL');
+    throw new TypeError('kinmokusei.server.path must not contain NUL');
   }
   return normalized || DEFAULT_SERVER_PATH;
 }
@@ -64,7 +64,7 @@ function createController({ vscode, LanguageClient }) {
   }
 
   function configuredServerPath() {
-    const configuration = vscode.workspace.getConfiguration('onsentamago');
+    const configuration = vscode.workspace.getConfiguration('kinmokusei');
     return normalizeServerPath(configuration.get('server.path', DEFAULT_SERVER_PATH));
   }
 
@@ -74,13 +74,13 @@ function createController({ vscode, LanguageClient }) {
     const clientOptions = {
       documentSelector: [{ scheme: 'file', language: LANGUAGE_ID }],
       synchronize: { fileEvents: watcher },
-      outputChannelName: 'OnsenTamago'
+      outputChannelName: 'Kinmokusei'
     };
     return {
       command,
       instance: new LanguageClient(
-        'onsentamago',
-        'OnsenTamago Language Server',
+        'kinmokusei',
+        'Kinmokusei Language Server',
         options,
         clientOptions
       )
@@ -110,8 +110,8 @@ function createController({ vscode, LanguageClient }) {
       }
       const detail = error instanceof Error ? error.message : String(error);
       await vscode.window.showErrorMessage(
-        'Unable to start OnsenTamago language server "' + command + '": ' +
-          detail + '. Check onsentamago.server.path.'
+        'Unable to start Kinmokusei language server "' + command + '": ' +
+          detail + '. Check kinmokusei.server.path.'
       );
       return false;
     }
@@ -137,14 +137,14 @@ function createController({ vscode, LanguageClient }) {
       return true;
     }
     activated = true;
-    watcher = vscode.workspace.createFileSystemWatcher('**/*.otm');
+    watcher = vscode.workspace.createFileSystemWatcher('**/*.km');
     const restartRegistration = vscode.commands.registerCommand(RESTART_COMMAND, restart);
     const configurationRegistration = vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration('onsentamago.server.path')) {
+      if (event.affectsConfiguration('kinmokusei.server.path')) {
         restart().catch((error) => {
           const detail = error instanceof Error ? error.message : String(error);
           void vscode.window.showErrorMessage(
-            'Unable to restart OnsenTamago language server: ' + detail
+            'Unable to restart Kinmokusei language server: ' + detail
           );
         });
       }

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 func validManifest() string {
@@ -95,21 +95,22 @@ replace example.com/alpha => ../../library
 	}
 }
 
-func TestDependencyProbeCollectsOnlyParsedGoImports(t *testing.T) {
+func TestDependencyProbeCollectsCurrentAndLegacySourceImports(t *testing.T) {
 	root := t.TempDir()
 	state := filepath.Join(root, product.StateDirectoryName)
 	if err := os.MkdirAll(state, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for path, contents := range map[string]string{
-		filepath.Join(root, "main.otm"): `
+		filepath.Join(root, "main.km"): `
 // import go fake from "example.invalid/comment";
 import go http from "net/http";
 import go fiber from "github.com/gofiber/fiber/v3";
 function main(): void {}
 `,
-		filepath.Join(state, "ignored.otm"): `import go ignored from "example.invalid/state";`,
-		filepath.Join(root, "notes.txt"):    `import go ignored from "example.invalid/text";`,
+		filepath.Join(state, "ignored.km"): `import go ignored from "example.invalid/state";`,
+		filepath.Join(root, "legacy.otm"):  `import go ignored from "example.invalid/legacy";`,
+		filepath.Join(root, "notes.txt"):   `import go ignored from "example.invalid/text";`,
 	} {
 		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 			t.Fatal(err)
@@ -119,13 +120,14 @@ function main(): void {}
 	if err := writeDependencyProbe(root, destination); err != nil {
 		t.Fatal(err)
 	}
-	contents, err := os.ReadFile(filepath.Join(destination, "ontama_dependencies.go"))
+	contents, err := os.ReadFile(filepath.Join(destination, "kinmokusei_dependencies.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `package ontamadependencies
+	want := `package kinmokuseidependencies
 
 import (
+	_ "example.invalid/legacy"
 	_ "github.com/gofiber/fiber/v3"
 	_ "net/http"
 )
@@ -157,7 +159,7 @@ go-version = "1.23"
 `
 	for path, contents := range map[string]string{
 		filepath.Join(root, product.ProjectFileName): manifest,
-		filepath.Join(root, "main.otm"):              `import go direct from "example.com/direct"; function main(): void { direct.Value(); }`,
+		filepath.Join(root, "main.km"):               `import go direct from "example.com/direct"; function main(): void { direct.Value(); }`,
 	} {
 		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 			t.Fatal(err)
@@ -692,7 +694,7 @@ go-module = "example.com/offline"
 go-version = "1.23"
 
 [go.dependencies]
-"example.invalid/ontama-unavailable" = "v1.0.0"
+"example.invalid/kinmokusei-unavailable" = "v1.0.0"
 `
 		if err := os.WriteFile(filepath.Join(root, product.ProjectFileName), []byte(manifestText), 0o644); err != nil {
 			t.Fatal(err)
@@ -844,7 +846,7 @@ go-version = "1.23"
 		}
 		before[path] = string(contents)
 	}
-	err := AddDependency(root, "example.invalid/ontama-add-rollback", "v1.0.0", "", true)
+	err := AddDependency(root, "example.invalid/kinmokusei-add-rollback", "v1.0.0", "", true)
 	if err == nil || !strings.Contains(err.Error(), "original dependency state restored") {
 		t.Fatalf("rollback err = %v", err)
 	}

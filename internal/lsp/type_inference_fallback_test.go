@@ -3,8 +3,8 @@ package lsp
 import (
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func testSpan(path string, start, end int) source.Span {
@@ -16,7 +16,7 @@ func testSpan(path string, start, end int) source.Span {
 }
 
 func TestCallableDeclarationReturnFallbackMatrix(t *testing.T) {
-	const path = "fallback.otm"
+	const path = "fallback.km"
 	box := ast.TypeRef{Name: "Box"}
 	functionSpan := testSpan(path, 10, 15)
 	classMethodSpan := testSpan(path, 20, 25)
@@ -109,7 +109,7 @@ func TestSimpleSignatureTypeMatrix(t *testing.T) {
 }
 
 func TestExpressionCompletionTypeFallbackMatrix(t *testing.T) {
-	const path = "expression.otm"
+	const path = "expression.km"
 	box := ast.TypeRef{Name: "Box"}
 	functionSpan := testSpan(path, 1, 6)
 	program := &ast.Program{Declarations: []ast.Declaration{
@@ -182,7 +182,7 @@ func TestFunctionValueSignatureFormattingMatrix(t *testing.T) {
 }
 
 func TestVisibleCallableDeclarationMatrix(t *testing.T) {
-	const path = "callable_scope.otm"
+	const path = "callable_scope.km"
 	integer := ast.TypeRef{Name: "int"}
 	functionType := ast.TypeRef{Parameters: []ast.TypeRef{integer}, Return: &integer}
 	arrow := &ast.ArrowExpr{Parameters: []ast.Parameter{{Name: "value", Type: integer}}, ResolvedReturnType: integer}
@@ -219,7 +219,7 @@ func TestVisibleCallableDeclarationMatrix(t *testing.T) {
 }
 
 func TestVisibleCallableNestedBlockMatrix(t *testing.T) {
-	const path = "nested_callable.otm"
+	const path = "nested_callable.km"
 	integer := ast.TypeRef{Name: "int"}
 	arrow := &ast.ArrowExpr{Parameters: []ast.Parameter{{Name: "value", Type: integer}}, ResolvedReturnType: integer}
 	child := func(start, end int) *ast.BlockStmt {

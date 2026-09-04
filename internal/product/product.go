@@ -9,18 +9,41 @@ import (
 )
 
 const (
+	// FullName is the formal project and language name.
+	FullName = "Kinmokusei Programming Language"
 	// DisplayName is the human-readable language name.
-	DisplayName = "OnsenTamago"
-	// CommandName is the lowercase identifier used by the CLI and project files.
-	CommandName = "ontama"
+	DisplayName = "Kinmokusei"
+	// LanguageID is the stable lowercase identifier used by editors, generated
+	// modules, and language-owned namespaces.
+	LanguageID = "kinmokusei"
+	// CommandName is the executable name.
+	CommandName = "keika"
 
-	SourceExtension     = ".otm"
-	ProjectFileName     = CommandName + ".toml"
-	LockFileName        = CommandName + ".lock"
-	StateDirectoryName  = "." + CommandName
-	GeneratedModulePath = CommandName + ".generated"
+	SourceExtension     = ".km"
+	ProjectFileName     = LanguageID + ".toml"
+	LockFileName        = LanguageID + ".lock"
+	StateDirectoryName  = "." + LanguageID
+	GeneratedModulePath = LanguageID + ".generated"
 	DefaultExecutable   = CommandName + ".out"
 )
+
+// LegacySourceExtensions lists source suffixes accepted for migration from
+// released versions. New files and generated examples always use .km.
+var LegacySourceExtensions = []string{".otm"}
+
+// IsSourceExtension reports whether extension is the current source suffix or
+// a supported migration suffix.
+func IsSourceExtension(extension string) bool {
+	if extension == SourceExtension {
+		return true
+	}
+	for _, legacy := range LegacySourceExtensions {
+		if extension == legacy {
+			return true
+		}
+	}
+	return false
+}
 
 // Version is replaced by release builds through -ldflags. Source builds and
 // untagged development binaries report "devel" unless Go module build

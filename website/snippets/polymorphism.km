@@ -1,0 +1,22 @@
+import go fmt from "fmt";
+
+interface Greeter {
+  function greet(): string;
+}
+
+class Guest implements Greeter {
+  constructor(private name: string) {}
+
+  public function greet(): string {
+    return "Welcome, " + this.name;
+  }
+}
+
+function message(greeter: Greeter): string {
+  return greeter.greet();
+}
+
+function main(): void {
+  const guest = new Guest("Aki");
+  fmt.Println(message(guest));
+}

@@ -1,0 +1,34 @@
+import go fmt from "fmt";
+import go os from "os";
+import go strconv from "strconv";
+import go strings from "strings";
+
+function parseCount(text: string): Result<int> {
+  const count = strconv.Atoi(text)?;
+  if (count < 1 || count > 5) {
+    return fail(fmt.Errorf("count must be from 1 through 5"));
+  }
+  return ok(count);
+}
+
+function render(name: string, count: int): string {
+  let lines = makeSlice[string](0, count);
+  for (let index = 0; index < count; index++) {
+    lines = append(lines, fmt.Sprintf("Hello, %s!", name));
+  }
+  return strings.Join(lines, "\n");
+}
+
+function main(): void {
+  if (len(os.Args) !== 3) {
+    fmt.Println("usage: greeter <name> <count>");
+    return;
+  }
+
+  const [count, err] = parseCount(os.Args[2]);
+  if (err !== nil) {
+    fmt.Println("error:", err.Error());
+    return;
+  }
+  fmt.Println(render(os.Args[1], count));
+}

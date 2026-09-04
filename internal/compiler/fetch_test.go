@@ -9,9 +9,9 @@ import (
 
 func TestFetchLibraryMatchesIndependentGo(t *testing.T) {
 	temp := t.TempDir()
-	entry := filepath.Join(temp, "entry.otm")
+	entry := filepath.Join(temp, "entry.km")
 	entrySource := `
-import { Response, fetch, fetchLimited, send, sendWith } from "ontama/http";
+import { Response, fetch, fetchLimited, send, sendWith } from "kinmokusei/http";
 import go context from "context";
 import go http from "net/http";
 
@@ -133,7 +133,7 @@ func sameError(left, right error) bool {
 func assertResponse(t *testing.T, gotStatus int, gotOK bool, gotHeader, gotText string, gotBytes []byte, want reference.Response) {
   t.Helper()
   if gotStatus != want.Status || gotOK != want.Ok() || gotHeader != want.Header("X-Test") || gotText != want.Text() || string(gotBytes) != string(want.Bytes()) {
-    t.Errorf("OnsenTamago=(%d,%v,%q,%q,%v), Go=(%d,%v,%q,%q,%v)", gotStatus, gotOK, gotHeader, gotText, gotBytes, want.Status, want.Ok(), want.Header("X-Test"), want.Text(), want.Bytes())
+    t.Errorf("Kinmokusei=(%d,%v,%q,%q,%v), Go=(%d,%v,%q,%q,%v)", gotStatus, gotOK, gotHeader, gotText, gotBytes, want.Status, want.Ok(), want.Header("X-Test"), want.Text(), want.Bytes())
   }
 }
 func TestFetchResponseMatrix(t *testing.T) {
@@ -153,24 +153,24 @@ func TestFetchResponseMatrix(t *testing.T) {
   for _, path := range []string{"/ok", "/teapot", "/empty", "/missing"} {
     got, gotErr := load(context.Background(), server.URL+path)
     want, wantErr := reference.Load(context.Background(), server.URL+path)
-    if !sameError(gotErr, wantErr) { t.Fatalf("%s errors: OnsenTamago=%v Go=%v", path, gotErr, wantErr) }
+    if !sameError(gotErr, wantErr) { t.Fatalf("%s errors: Kinmokusei=%v Go=%v", path, gotErr, wantErr) }
     if gotErr == nil { assertResponse(t, got.Status, got.Ok(), got.Header("X-Test"), got.Text(), got.Bytes(), want) }
   }
   got, gotErr := loadLimited(context.Background(), server.URL+"/large", 5)
   want, wantErr := reference.LoadLimited(context.Background(), server.URL+"/large", 5)
-  if !sameError(gotErr, wantErr) { t.Fatalf("exact limit errors: OnsenTamago=%v Go=%v", gotErr, wantErr) }
+  if !sameError(gotErr, wantErr) { t.Fatalf("exact limit errors: Kinmokusei=%v Go=%v", gotErr, wantErr) }
   assertResponse(t, got.Status, got.Ok(), got.Header("X-Test"), got.Text(), got.Bytes(), want)
   gotMaximum, gotErr := loadLimited(context.Background(), server.URL+"/large", 9223372036854775807)
   wantMaximum, wantErr := reference.LoadLimited(context.Background(), server.URL+"/large", 9223372036854775807)
-  if !sameError(gotErr, wantErr) || gotMaximum.Text() != wantMaximum.Text() || gotMaximum.Text() != "12345" { t.Errorf("maximum limit: OnsenTamago=(%q,%v) Go=(%q,%v)", gotMaximum.Text(), gotErr, wantMaximum.Text(), wantErr) }
+  if !sameError(gotErr, wantErr) || gotMaximum.Text() != wantMaximum.Text() || gotMaximum.Text() != "12345" { t.Errorf("maximum limit: Kinmokusei=(%q,%v) Go=(%q,%v)", gotMaximum.Text(), gotErr, wantMaximum.Text(), wantErr) }
   for _, limit := range []int64{4, 0, -1} {
     _, gotErr := loadLimited(context.Background(), server.URL+"/large", limit)
     _, wantErr := reference.LoadLimited(context.Background(), server.URL+"/large", limit)
-    if !sameError(gotErr, wantErr) { t.Errorf("limit %d errors: OnsenTamago=%v Go=%v", limit, gotErr, wantErr) }
+    if !sameError(gotErr, wantErr) { t.Errorf("limit %d errors: Kinmokusei=%v Go=%v", limit, gotErr, wantErr) }
   }
   gotEmpty, gotErr := loadLimited(context.Background(), server.URL+"/empty", 0)
   wantEmpty, wantErr := reference.LoadLimited(context.Background(), server.URL+"/empty", 0)
-  if !sameError(gotErr, wantErr) || gotEmpty.Text() != wantEmpty.Text() { t.Errorf("zero limit empty: OnsenTamago=(%q,%v) Go=(%q,%v)", gotEmpty.Text(), gotErr, wantEmpty.Text(), wantErr) }
+  if !sameError(gotErr, wantErr) || gotEmpty.Text() != wantEmpty.Text() { t.Errorf("zero limit empty: Kinmokusei=(%q,%v) Go=(%q,%v)", gotEmpty.Text(), gotErr, wantEmpty.Text(), wantErr) }
 
   generatedRequest, _ := http.NewRequest(http.MethodPost, server.URL+"/echo", strings.NewReader("payload"))
   generatedRequest.Header.Set("X-Request", "header")
@@ -178,7 +178,7 @@ func TestFetchResponseMatrix(t *testing.T) {
   goRequest.Header.Set("X-Request", "header")
   gotPost, gotErr := execute(generatedRequest, 100)
   wantPost, wantErr := reference.Send(goRequest, 100)
-  if !sameError(gotErr, wantErr) || gotPost.Text() != wantPost.Text() || gotPost.Text() != "POST:header:payload" { t.Errorf("custom request: OnsenTamago=(%q,%v) Go=(%q,%v)", gotPost.Text(), gotErr, wantPost.Text(), wantErr) }
+  if !sameError(gotErr, wantErr) || gotPost.Text() != wantPost.Text() || gotPost.Text() != "POST:header:payload" { t.Errorf("custom request: Kinmokusei=(%q,%v) Go=(%q,%v)", gotPost.Text(), gotErr, wantPost.Text(), wantErr) }
 
   first := gotPost.Bytes()
   first[0] = 'X'
@@ -193,7 +193,7 @@ func TestFetchValidationCancellationAndClose(t *testing.T) {
     {func() error { _, err := executeWith(http.DefaultClient, request, -1); return err }, func() error { _, err := reference.SendWith(http.DefaultClient, request, -1); return err }},
   }
   for index, matrix := range matrices {
-    if got, want := matrix.generated(), matrix.goReference(); !sameError(got, want) { t.Errorf("validation %d: OnsenTamago=%v Go=%v", index, got, want) }
+    if got, want := matrix.generated(), matrix.goReference(); !sameError(got, want) { t.Errorf("validation %d: Kinmokusei=%v Go=%v", index, got, want) }
   }
 
   server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) { <-request.Context().Done() }))
@@ -202,7 +202,7 @@ func TestFetchValidationCancellationAndClose(t *testing.T) {
   goContext, goCancel := context.WithCancel(context.Background()); goCancel()
   _, gotErr := load(generatedContext, server.URL)
   _, wantErr := reference.Load(goContext, server.URL)
-  if !errors.Is(gotErr, context.Canceled) || !errors.Is(wantErr, context.Canceled) { t.Errorf("cancellation: OnsenTamago=%v Go=%v", gotErr, wantErr) }
+  if !errors.Is(gotErr, context.Canceled) || !errors.Is(wantErr, context.Canceled) { t.Errorf("cancellation: Kinmokusei=%v Go=%v", gotErr, wantErr) }
 
   for _, test := range []struct { name string; body func() io.Reader; limit int64; wantError bool }{
     {"success", func() io.Reader { return strings.NewReader("body") }, 4, false},
@@ -217,8 +217,8 @@ func TestFetchValidationCancellationAndClose(t *testing.T) {
       goRequest, _ := http.NewRequest(http.MethodGet, "http://fixture.invalid", nil)
       _, generatedErr := executeWith(generatedClient, generatedRequest, test.limit)
       _, goErr := reference.SendWith(goClient, goRequest, test.limit)
-      if (generatedErr != nil) != test.wantError || !sameError(generatedErr, goErr) { t.Errorf("errors: OnsenTamago=%v Go=%v", generatedErr, goErr) }
-      if got, want := generatedCloses.Load(), goCloses.Load(); got != want || got != 1 { t.Errorf("close count: OnsenTamago=%d Go=%d", got, want) }
+      if (generatedErr != nil) != test.wantError || !sameError(generatedErr, goErr) { t.Errorf("errors: Kinmokusei=%v Go=%v", generatedErr, goErr) }
+      if got, want := generatedCloses.Load(), goCloses.Load(); got != want || got != 1 { t.Errorf("close count: Kinmokusei=%d Go=%d", got, want) }
     })
   }
 }
@@ -234,7 +234,7 @@ func TestConcurrentFetchTasks(t *testing.T) {
       target := fmt.Sprintf("%s?id=%d", server.URL, index)
       got, gotErr := load(context.Background(), target)
       want, wantErr := reference.Load(context.Background(), target)
-      if !sameError(gotErr, wantErr) || got.Text() != want.Text() { t.Errorf("request %d: OnsenTamago=(%q,%v) Go=(%q,%v)", index, got.Text(), gotErr, want.Text(), wantErr) }
+      if !sameError(gotErr, wantErr) || got.Text() != want.Text() { t.Errorf("request %d: Kinmokusei=(%q,%v) Go=(%q,%v)", index, got.Text(), gotErr, want.Text(), wantErr) }
     }()
   }
   wait.Wait()

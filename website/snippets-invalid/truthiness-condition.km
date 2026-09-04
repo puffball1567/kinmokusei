@@ -1,0 +1,5 @@
+function invalid(label: string): void {
+  if (label) {
+    return;
+  }
+}

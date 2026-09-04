@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	ontamaAST "github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	ontamaParser "github.com/puffball1567/onsentamago/internal/parser"
-	"github.com/puffball1567/onsentamago/internal/sema"
+	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	kinmokuseiParser "github.com/puffball1567/kinmokusei/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/sema"
 )
 
 func formatGoExpression(t *testing.T, expression goast.Expr) string {
@@ -26,11 +26,11 @@ func formatGoExpression(t *testing.T, expression goast.Expr) string {
 
 func generateCheckedSource(t *testing.T, source string) []byte {
 	t.Helper()
-	tokens, lexDiagnostics := lexer.Lex("matrix.otm", source)
+	tokens, lexDiagnostics := lexer.Lex("matrix.km", source)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics = %v", lexDiagnostics)
 	}
-	program, parseDiagnostics := ontamaParser.Parse(tokens)
+	program, parseDiagnostics := kinmokuseiParser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics = %v", parseDiagnostics)
 	}
@@ -106,7 +106,7 @@ func TestGeneratedGoSyntaxMatrix(t *testing.T) {
 		{
 			"Go interface type switch",
 			`import go io from "io"; import go strings from "strings"; function classify(value: io.Reader): int { switch (value) { case const reader as *strings.Reader { return reader.Len(); } case let writer as io.Writer { writer = writer; return 2; } case const _ as io.Reader { return 3; } case nil { return 4; } default { return 5; } } }`,
-			[]string{"switch __ontama_type_switch_", ":= value.(type)", "case *strings.Reader:", "reader := __ontama_type_switch_", "case io.Writer:", "writer := __ontama_type_switch_", "case io.Reader:", "case nil:", "default:"},
+			[]string{"switch __kinmokusei_type_switch_", ":= value.(type)", "case *strings.Reader:", "reader := __kinmokusei_type_switch_", "case io.Writer:", "writer := __kinmokusei_type_switch_", "case io.Reader:", "case nil:", "default:"},
 		},
 		{
 			"value switch",
@@ -153,8 +153,8 @@ func TestGeneratedGoSyntaxMatrix(t *testing.T) {
 
 func TestGenerationIsDeterministicAndDefaultsPackageName(t *testing.T) {
 	source := `interface Value { function get(): int; } class Item implements Value { public function get(): int { return 1; } } function value(): Value { return new Item(); }`
-	tokens, _ := lexer.Lex("stable.otm", source)
-	program, parseDiagnostics := ontamaParser.Parse(tokens)
+	tokens, _ := lexer.Lex("stable.km", source)
+	program, parseDiagnostics := kinmokuseiParser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics = %v", parseDiagnostics)
 	}
@@ -178,36 +178,36 @@ func TestGenerationIsDeterministicAndDefaultsPackageName(t *testing.T) {
 }
 
 func TestGoTypeMatrix(t *testing.T) {
-	integer := ontamaAST.TypeRef{Name: "int"}
-	stringType := ontamaAST.TypeRef{Name: "string"}
-	void := ontamaAST.TypeRef{Name: "void"}
-	qualified := ontamaAST.TypeRef{Name: "Duration", Qualifier: "time", Go: true}
+	integer := kinmokuseiAST.TypeRef{Name: "int"}
+	stringType := kinmokuseiAST.TypeRef{Name: "string"}
+	void := kinmokuseiAST.TypeRef{Name: "void"}
+	qualified := kinmokuseiAST.TypeRef{Name: "Duration", Qualifier: "time", Go: true}
 	fixedLength := int64(3)
 	tests := []struct {
 		name string
-		ref  ontamaAST.TypeRef
+		ref  kinmokuseiAST.TypeRef
 		want string
 	}{
-		{"boolean", ontamaAST.TypeRef{Name: "boolean"}, "bool"},
-		{"number", ontamaAST.TypeRef{Name: "number"}, "float64"},
-		{"class", ontamaAST.TypeRef{Name: "Value"}, "*Value"},
-		{"interface", ontamaAST.TypeRef{Name: "Reader", Interface: true}, "Reader"},
+		{"boolean", kinmokuseiAST.TypeRef{Name: "boolean"}, "bool"},
+		{"number", kinmokuseiAST.TypeRef{Name: "number"}, "float64"},
+		{"class", kinmokuseiAST.TypeRef{Name: "Value"}, "*Value"},
+		{"interface", kinmokuseiAST.TypeRef{Name: "Reader", Interface: true}, "Reader"},
 		{"Go qualified", qualified, "time.Duration"},
-		{"Go pointer", ontamaAST.TypeRef{Pointee: &qualified}, "*time.Duration"},
-		{"Go basic", ontamaAST.TypeRef{Name: "uint64", Go: true}, "uint64"},
-		{"Go error", ontamaAST.TypeRef{Name: "error", Go: true}, "error"},
-		{"empty anonymous Go struct", ontamaAST.TypeRef{GoStruct: true, Go: true}, "struct {\n}"},
-		{"array", ontamaAST.TypeRef{Element: &integer}, "[]int"},
-		{"fixed array", ontamaAST.TypeRef{Element: &integer, FixedLength: &fixedLength}, "[3]int"},
-		{"map", ontamaAST.TypeRef{Name: "Map", GenericArguments: []ontamaAST.TypeRef{stringType, integer}}, "map[string]int"},
-		{"bidirectional channel", ontamaAST.TypeRef{Name: "GoChannel", GenericArguments: []ontamaAST.TypeRef{integer}, Go: true}, "chan int"},
-		{"send channel", ontamaAST.TypeRef{Name: "GoSendChannel", GenericArguments: []ontamaAST.TypeRef{integer}, Go: true}, "chan<- int"},
-		{"receive channel", ontamaAST.TypeRef{Name: "GoReceiveChannel", GenericArguments: []ontamaAST.TypeRef{integer}, Go: true}, "<-chan int"},
-		{"function result", ontamaAST.TypeRef{Parameters: []ontamaAST.TypeRef{integer}, Return: &integer}, "func(int) int"},
-		{"void function", ontamaAST.TypeRef{Parameters: []ontamaAST.TypeRef{integer}, Return: &void}, "func(int)"},
+		{"Go pointer", kinmokuseiAST.TypeRef{Pointee: &qualified}, "*time.Duration"},
+		{"Go basic", kinmokuseiAST.TypeRef{Name: "uint64", Go: true}, "uint64"},
+		{"Go error", kinmokuseiAST.TypeRef{Name: "error", Go: true}, "error"},
+		{"empty anonymous Go struct", kinmokuseiAST.TypeRef{GoStruct: true, Go: true}, "struct {\n}"},
+		{"array", kinmokuseiAST.TypeRef{Element: &integer}, "[]int"},
+		{"fixed array", kinmokuseiAST.TypeRef{Element: &integer, FixedLength: &fixedLength}, "[3]int"},
+		{"map", kinmokuseiAST.TypeRef{Name: "Map", GenericArguments: []kinmokuseiAST.TypeRef{stringType, integer}}, "map[string]int"},
+		{"bidirectional channel", kinmokuseiAST.TypeRef{Name: "GoChannel", GenericArguments: []kinmokuseiAST.TypeRef{integer}, Go: true}, "chan int"},
+		{"send channel", kinmokuseiAST.TypeRef{Name: "GoSendChannel", GenericArguments: []kinmokuseiAST.TypeRef{integer}, Go: true}, "chan<- int"},
+		{"receive channel", kinmokuseiAST.TypeRef{Name: "GoReceiveChannel", GenericArguments: []kinmokuseiAST.TypeRef{integer}, Go: true}, "<-chan int"},
+		{"function result", kinmokuseiAST.TypeRef{Parameters: []kinmokuseiAST.TypeRef{integer}, Return: &integer}, "func(int) int"},
+		{"void function", kinmokuseiAST.TypeRef{Parameters: []kinmokuseiAST.TypeRef{integer}, Return: &void}, "func(int)"},
 		{
 			"object fields are canonical and retain JSON names",
-			ontamaAST.TypeRef{Object: true, ObjectFields: []ontamaAST.ObjectTypeField{
+			kinmokuseiAST.TypeRef{Object: true, ObjectFields: []kinmokuseiAST.ObjectTypeField{
 				{Name: "Zebra", JSONName: "zebra", Type: stringType},
 				{Name: "Alpha", JSONName: "alpha", Type: integer},
 			}},
@@ -221,7 +221,7 @@ func TestGoTypeMatrix(t *testing.T) {
 			}
 		})
 	}
-	goStruct := ontamaAST.TypeRef{GoStruct: true, Go: true, ObjectFields: []ontamaAST.ObjectTypeField{
+	goStruct := kinmokuseiAST.TypeRef{GoStruct: true, Go: true, ObjectFields: []kinmokuseiAST.ObjectTypeField{
 		{Name: "Second", GoTag: `json:"second"`, Type: stringType},
 		{Name: "First", Type: integer},
 	}}
@@ -248,28 +248,28 @@ func TestOperatorAndNameMappingMatrix(t *testing.T) {
 	if goName("type") != "type_" || goName("len") != "len_" || goName("copy") != "copy_" || goName("value") != "value" {
 		t.Errorf("Go keyword mangling is incorrect")
 	}
-	if memberName("value", ontamaAST.Public) != "Value" || memberName("value", ontamaAST.Private) != "value" || memberName("", ontamaAST.Public) != "" {
+	if memberName("value", kinmokuseiAST.Public) != "Value" || memberName("value", kinmokuseiAST.Private) != "value" || memberName("", kinmokuseiAST.Public) != "" {
 		t.Errorf("member visibility mapping is incorrect")
 	}
 }
 
 func TestGoConstantClassificationMatrix(t *testing.T) {
-	literal := &ontamaAST.LiteralExpr{Kind: ontamaAST.IntegerLiteral, Text: "1"}
-	nilLiteral := &ontamaAST.LiteralExpr{Kind: ontamaAST.NilLiteral, Text: "nil"}
-	identifier := &ontamaAST.IdentifierExpr{Name: "value"}
+	literal := &kinmokuseiAST.LiteralExpr{Kind: kinmokuseiAST.IntegerLiteral, Text: "1"}
+	nilLiteral := &kinmokuseiAST.LiteralExpr{Kind: kinmokuseiAST.NilLiteral, Text: "nil"}
+	identifier := &kinmokuseiAST.IdentifierExpr{Name: "value"}
 	tests := []struct {
 		name string
-		expr ontamaAST.Expression
+		expr kinmokuseiAST.Expression
 		want bool
 	}{
 		{"literal", literal, true},
 		{"nil", nilLiteral, false},
-		{"unary literal", &ontamaAST.UnaryExpr{Operator: "-", Operand: literal}, true},
-		{"binary literals", &ontamaAST.BinaryExpr{Operator: "+", Left: literal, Right: literal}, true},
-		{"binary with value", &ontamaAST.BinaryExpr{Operator: "+", Left: literal, Right: identifier}, false},
-		{"numeric conversion", &ontamaAST.CallExpr{Callee: &ontamaAST.IdentifierExpr{Name: "int64"}, Arguments: []ontamaAST.Expression{literal}}, true},
-		{"conversion arity", &ontamaAST.CallExpr{Callee: &ontamaAST.IdentifierExpr{Name: "int64"}}, false},
-		{"ordinary call", &ontamaAST.CallExpr{Callee: &ontamaAST.IdentifierExpr{Name: "compute"}, Arguments: []ontamaAST.Expression{literal}}, false},
+		{"unary literal", &kinmokuseiAST.UnaryExpr{Operator: "-", Operand: literal}, true},
+		{"binary literals", &kinmokuseiAST.BinaryExpr{Operator: "+", Left: literal, Right: literal}, true},
+		{"binary with value", &kinmokuseiAST.BinaryExpr{Operator: "+", Left: literal, Right: identifier}, false},
+		{"numeric conversion", &kinmokuseiAST.CallExpr{Callee: &kinmokuseiAST.IdentifierExpr{Name: "int64"}, Arguments: []kinmokuseiAST.Expression{literal}}, true},
+		{"conversion arity", &kinmokuseiAST.CallExpr{Callee: &kinmokuseiAST.IdentifierExpr{Name: "int64"}}, false},
+		{"ordinary call", &kinmokuseiAST.CallExpr{Callee: &kinmokuseiAST.IdentifierExpr{Name: "compute"}, Arguments: []kinmokuseiAST.Expression{literal}}, false},
 		{"value", identifier, false},
 	}
 	for _, test := range tests {

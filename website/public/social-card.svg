@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Kinmokusei official documentation</title>
+  <desc id="desc">Clear source. Predictable behavior. Readable Go.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#fffaf5"/><stop offset="1" stop-color="#e8f0ef"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" x2="0" y1="0" y2="1">
+      <stop stop-color="#f8b38d"/><stop offset="1" stop-color="#e86f68"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" x2="1">
+      <stop stop-color="#b8d3d2"/><stop offset="1" stop-color="#729da8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="42" fill="url(#bg)"/>
+  <circle cx="1010" cy="182" r="104" fill="url(#sun)"/>
+  <path d="M744 332c100-17 164-10 239 6 78 16 145 13 217-4v296H744Z" fill="url(#sea)"/>
+  <path d="M744 332c100-17 164-10 239 6 78 16 145 13 217-4" fill="none" stroke="#36586a" stroke-width="8"/>
+  <path d="M792 399c71-12 126-8 184 4 63 13 118 11 178-3M836 460c48-8 91-6 131 3 45 9 87 8 129-2M903 520c29-5 56-4 81 2 29 6 56 5 83-1" fill="none" stroke="#eff7f5" stroke-linecap="round" stroke-width="7" opacity=".78"/>
+  <path d="M970 295h80M982 317h56" stroke="#f6c0a2" stroke-linecap="round" stroke-width="9" opacity=".82"/>
+  <text x="92" y="198" fill="#b95555" font-family="ui-rounded, system-ui, sans-serif" font-size="34" font-weight="700" letter-spacing="6">OFFICIAL DOCUMENTATION</text>
+  <text x="92" y="306" fill="#253646" font-family="ui-rounded, system-ui, sans-serif" font-size="86" font-weight="800">Kinmokusei</text>
+  <text x="92" y="390" fill="#596b76" font-family="system-ui, sans-serif" font-size="40">Clear source. Predictable behavior.</text>
+  <text x="92" y="446" fill="#596b76" font-family="system-ui, sans-serif" font-size="40">Readable Go.</text>
+  <rect x="92" y="510" width="304" height="5" rx="3" fill="#5d8f99"/>
+</svg>

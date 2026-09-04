@@ -8,17 +8,19 @@ import (
 )
 
 func TestGenericClassNavigationRenameSymbolsCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_class.otm")
+	path := filepath.Join(t.TempDir(), "generic_class.km")
 	uri := fileURI(path)
 	text := `class Box<T> {
   constructor(public value: T) {}
   public function get(): T { return this.value; }
   public function set(value: T): void { this.value = value; }
+  public static function make(value: T): Box<T> { return new Box<T>(value); }
 }
 function use(value: string): string {
   const box = new Box<string>(value);
+  const made = Box.make(value);
   box.set(value);
-  return box.get();
+  return made.get() + box.get();
 }`
 	symbolsRequest := fmt.Sprintf(`{"jsonrpc":"2.0","id":7,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":%q}}}`, uri)
 	messages := serveMessages(t,
@@ -38,12 +40,12 @@ function use(value: string): string {
 	if typeDefinition["line"] != float64(0) || typeDefinition["character"] != float64(10) {
 		t.Fatalf("type parameter definition = %#v", typeDefinition)
 	}
-	if got := len(messages[4]["result"].([]any)); got != 4 {
-		t.Fatalf("type parameter references = %d, want declaration and three member uses", got)
+	if got := len(messages[4]["result"].([]any)); got != 7 {
+		t.Fatalf("type parameter references = %d, want declaration and six member uses", got)
 	}
 	changes := messages[5]["result"].(map[string]any)["changes"].(map[string]any)
-	if got := len(changes[uri].([]any)); got != 4 {
-		t.Fatalf("type parameter rename edits = %d, want 4", got)
+	if got := len(changes[uri].([]any)); got != 7 {
+		t.Fatalf("type parameter rename edits = %d, want 7", got)
 	}
 	classDefinition := messages[6]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
 	if classDefinition["line"] != float64(0) || classDefinition["character"] != float64(6) {
@@ -51,13 +53,13 @@ function use(value: string): string {
 	}
 	symbols := messages[7]["result"].([]any)
 	boxSymbol := symbols[0].(map[string]any)
-	if boxSymbol["detail"] != "class Box<T>" || len(boxSymbol["children"].([]any)) != 3 {
+	if boxSymbol["detail"] != "class Box<T>" || len(boxSymbol["children"].([]any)) != 4 {
 		t.Fatalf("generic class symbol = %#v", boxSymbol)
 	}
 
 	completionText := strings.Replace(text, "box.set(value);", "box.;", 1)
-	line := strings.Split(completionText, "\n")[7]
-	items := completionLabels(completionItemsAt(t, path, completionText, 7, strings.Index(line, ".")+1))
+	line := strings.Split(completionText, "\n")[9]
+	items := completionLabels(completionItemsAt(t, path, completionText, 9, strings.Index(line, ".")+1))
 	for name, detail := range map[string]string{
 		"value": "public value: string",
 		"get":   "public function get(): string",
@@ -68,13 +70,75 @@ function use(value: string): string {
 		}
 	}
 
-	label, active, parameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "value);", 0)))
+	label, active, parameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "value);", 1)))
 	if label != "new Box(value: string): Box<string>" || active != 0 || len(parameters) != 1 {
 		t.Fatalf("generic constructor signature = %q active=%v parameters=%#v", label, active, parameters)
 	}
+	staticLabel, staticActive, staticParameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "value);", 2)))
+	if staticLabel != "Box.make(value: string): Box<string>" || staticActive != 0 || len(staticParameters) != 1 {
+		t.Fatalf("generic static signature = %q active=%v parameters=%#v", staticLabel, staticActive, staticParameters)
+	}
 
-	topLevelItems := completionLabels(completionItemsAt(t, path, text, 5, strings.Index(strings.Split(text, "\n")[5], "function")))
+	topLevelItems := completionLabels(completionItemsAt(t, path, text, 6, strings.Index(strings.Split(text, "\n")[6], "function")))
 	if topLevelItems["Box"] == nil || topLevelItems["Box"]["detail"] != "class Box<T>" {
 		t.Fatalf("generic class top-level completion = %#v", topLevelItems["Box"])
+	}
+}
+
+func TestGenericClassInheritanceCompletionAndDefinitionUseSubstitutedBase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "generic_inheritance.km")
+	text := `class Base<T> {
+  constructor(protected value: T) {}
+  public function get(): T { return this.value; }
+}
+class Middle<A, B> extends Base<B> {
+  constructor(value: B) { super(value); }
+}
+class Leaf<X> extends Middle<int, X> {
+  constructor(value: X) { super(value); }
+}
+function use(child: Leaf<string>): string {
+  return child.get();
+}`
+	completionText := strings.Replace(text, "child.get();", "child.;", 1)
+	completionPosition := positionOf(completionText, "child.;", 0)
+	completionPosition.Character += len("child.")
+	items := completionLabels(completionItemsAt(t, path, completionText, completionPosition.Line, completionPosition.Character))
+	if items["get"] == nil || items["get"]["detail"] != "public function get(): string" {
+		t.Fatalf("inherited generic completion = %#v", items["get"])
+	}
+	definition := serveMessages(t,
+		openDocument(fileURI(path), text),
+		requestAt("textDocument/definition", 2, fileURI(path), positionOf(text, "get", 1), ""),
+	)[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(2) || definition["character"] != float64(18) {
+		t.Fatalf("inherited method definition = %#v", definition)
+	}
+}
+
+func TestGenericClassVirtualOverrideCompletionAndDefinition(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "generic_virtual.km")
+	text := `class Base<T> {
+  public virtual function read(value: T): T { return value; }
+}
+class Child<U> extends Base<U> {
+  public override function read(value: U): U { return value; }
+}
+function use(child: Child<string>): string {
+  return child.read("ok");
+}`
+	completionText := strings.Replace(text, `child.read("ok");`, "child.;", 1)
+	at := positionOf(completionText, "child.;", 0)
+	at.Character += len("child.")
+	items := completionLabels(completionItemsAt(t, path, completionText, at.Line, at.Character))
+	if items["read"] == nil || items["read"]["detail"] != "public function read(value: string): string" {
+		t.Fatalf("generic virtual completion = %#v", items["read"])
+	}
+	definition := serveMessages(t,
+		openDocument(fileURI(path), text),
+		requestAt("textDocument/definition", 2, fileURI(path), positionOf(text, "read", 2), ""),
+	)[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(4) || definition["character"] != float64(27) {
+		t.Fatalf("generic virtual definition = %#v", definition)
 	}
 }

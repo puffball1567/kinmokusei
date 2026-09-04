@@ -9,8 +9,8 @@ import (
 	"testing"
 	"unicode/utf16"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func requestAt(method string, id int, uri string, at position, extra string) string {
@@ -61,7 +61,7 @@ func openDocument(uri, text string) string {
 }
 
 func TestReferencesUseSemanticIdentityAcrossShadowing(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "shadow.otm")
+	path := filepath.Join(t.TempDir(), "shadow.km")
 	uri := fileURI(path)
 	text := `function compute(value: int): int {
   const first: int = value;
@@ -93,7 +93,7 @@ func TestReferencesUseSemanticIdentityAcrossShadowing(t *testing.T) {
 }
 
 func TestLabelDefinitionReferencesAndRename(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "labels.otm")
+	path := filepath.Join(t.TempDir(), "labels.km")
 	uri := fileURI(path)
 	text := `function loop(limit: int): int {
   let value = 0;
@@ -125,7 +125,7 @@ func TestLabelDefinitionReferencesAndRename(t *testing.T) {
 }
 
 func TestInheritanceNavigationAndOverrideRenameFamily(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "inheritance.otm")
+	path := filepath.Join(t.TempDir(), "inheritance.km")
 	uri := fileURI(path)
 	text := `class Base {
   public virtual function read(): int { return 1; }
@@ -155,7 +155,7 @@ function use(): int { return new Child().read(); }
 }
 
 func TestRenameProducesPreciseUnicodeWorkspaceEdits(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "unicode.otm")
+	path := filepath.Join(t.TempDir(), "unicode.km")
 	uri := fileURI(path)
 	text := `function total(温泉: int): int {
   const label: string = "温泉";
@@ -185,7 +185,7 @@ func TestRenameProducesPreciseUnicodeWorkspaceEdits(t *testing.T) {
 }
 
 func TestRenameRejectsInvalidAndCapturingNames(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "reject.otm")
+	path := filepath.Join(t.TempDir(), "reject.km")
 	uri := fileURI(path)
 	text := `function value(input: int): int {
   if (true) { const occupied: int = 1; const captured: int = input; }
@@ -217,8 +217,8 @@ function other(available: int): int { return available; }`
 
 func TestReferencesAndRenameCrossRelativeImport(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "dependency.otm")
-	entry := filepath.Join(directory, "main.otm")
+	dependency := filepath.Join(directory, "dependency.km")
+	entry := filepath.Join(directory, "main.km")
 	dependencyText := `function helper(value: int): int { return value + 1; }`
 	entryText := `import { helper } from "./dependency";
 function main(): int { return helper(41); }`
@@ -260,7 +260,7 @@ func TestValidRenameIdentifierMatrix(t *testing.T) {
 }
 
 func TestReferencesAndRenameGoImportAlias(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "go_alias.otm")
+	path := filepath.Join(t.TempDir(), "go_alias.km")
 	uri := fileURI(path)
 	text := `import go words from "strings";
 function clean(value: string): string { return words.TrimSpace(value); }`
@@ -280,10 +280,10 @@ function clean(value: string): string { return words.TrimSpace(value); }`
 }
 
 func TestReferencesAndRenameCABIExportListTarget(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cabi_export.otm")
+	path := filepath.Join(t.TempDir(), "cabi_export.km")
 	uri := fileURI(path)
 	text := `const add = (left: int32, right: int32): int32 => left + right;
-export c("ontama_add") {add};`
+export c("kinmokusei_add") {add};`
 	at := positionOf(text, "add", 2)
 	messages := serveMessages(t,
 		openDocument(uri, text),
@@ -318,7 +318,7 @@ func TestReferencesBindingKindsMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "binding.otm")
+			path := filepath.Join(t.TempDir(), "binding.km")
 			uri := fileURI(path)
 			messages := serveMessages(t,
 				openDocument(uri, test.text),
@@ -332,7 +332,7 @@ func TestReferencesBindingKindsMatrix(t *testing.T) {
 }
 
 func TestRefactorInvalidRequestMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "invalid.otm")
+	path := filepath.Join(t.TempDir(), "invalid.km")
 	uri := fileURI(path)
 	text := `function value(): int { return 1; }`
 	unopened := serveMessages(t,
@@ -377,7 +377,7 @@ class Other { public value: int; public function get(): int { return this.value;
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "members.otm")
+			path := filepath.Join(t.TempDir(), "members.km")
 			uri := fileURI(path)
 			at := positionOf(text, test.term, test.occurrence)
 			messages := serveMessages(t,
@@ -418,7 +418,7 @@ function read(point: Point): int { return point.value; }`
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "struct.otm")
+			path := filepath.Join(t.TempDir(), "struct.km")
 			uri := fileURI(path)
 			messages := serveMessages(t,
 				openDocument(uri, text),
@@ -450,7 +450,7 @@ function use(value: Counter, pointer: *Counter): int {
   method(3);
   return value.read();
 }`
-	path := filepath.Join(t.TempDir(), "struct_method.otm")
+	path := filepath.Join(t.TempDir(), "struct_method.km")
 	uri := fileURI(path)
 	messages := serveMessages(t,
 		openDocument(uri, text),
@@ -478,7 +478,7 @@ public function add(this: *Counter, delta: int): void {
   this.value += delta;
 }
 function use(value: *Counter): void { value.add(2); }`
-	path := filepath.Join(t.TempDir(), "external_receiver.otm")
+	path := filepath.Join(t.TempDir(), "external_receiver.km")
 	uri := fileURI(path)
 	messages := serveMessages(t,
 		openDocument(uri, text),
@@ -515,7 +515,7 @@ function use(value: *Counter): void { value.add(2); }`
 }
 
 func TestRenameInterfaceMethodUpdatesImplementationFamily(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "interface.otm")
+	path := filepath.Join(t.TempDir(), "interface.km")
 	uri := fileURI(path)
 	text := `interface Reader { function read(value: int): int; }
 interface Source { function read(value: int): int; }
@@ -540,7 +540,7 @@ function all(contract: Reader, source: Source, first: First, second: Second): in
 }
 
 func TestRenameConstructorParameterFieldAsSingleDeclaration(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "parameter_field.otm")
+	path := filepath.Join(t.TempDir(), "parameter_field.km")
 	uri := fileURI(path)
 	text := `class Box {
   constructor(public value: int) { this.value = value; }
@@ -558,8 +558,8 @@ function read(box: Box): int { return box.value; }`
 
 func TestRenameClassAcrossUnsavedRelativeImport(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "box.otm")
-	entry := filepath.Join(directory, "main.otm")
+	dependency := filepath.Join(directory, "box.km")
+	entry := filepath.Join(directory, "main.km")
 	dependencyText := `class Box { constructor(public value: int) {} }`
 	entryText := `import { Box } from "./box";
 function make(value: int): Box { return new Box(value); }`
@@ -583,7 +583,7 @@ function make(value: int): Box { return new Box(value); }`
 }
 
 func TestRenameGoAliasIncludesTypeQualifiersButNotExternalType(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "go_type_alias.otm")
+	path := filepath.Join(t.TempDir(), "go_type_alias.km")
 	uri := fileURI(path)
 	text := `import go clock from "time";
 function identity(value: clock.Duration): clock.Duration { return value; }`
@@ -602,7 +602,7 @@ function identity(value: clock.Duration): clock.Duration { return value; }`
 }
 
 func TestRenameTypeAndMemberCollisionMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "collisions.otm")
+	path := filepath.Join(t.TempDir(), "collisions.km")
 	uri := fileURI(path)
 	text := `class Box {
   public value: int;
@@ -626,7 +626,7 @@ class Existing {}`
 }
 
 func TestDefinitionTypeConstructionAndMemberMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "definition_members.otm")
+	path := filepath.Join(t.TempDir(), "definition_members.km")
 	uri := fileURI(path)
 	text := `class Box {
   public value: int;
@@ -671,7 +671,7 @@ func FuzzRelatedDeclarationsNeverPanics(f *testing.F) {
 	f.Add("read", "write", true, false)
 	f.Fuzz(func(t *testing.T, primaryName, secondaryName string, bridgeSecondary, includeSecondClass bool) {
 		span := func(offset int) source.Span {
-			return source.Span{Path: "family.otm", Start: source.Position{Offset: offset}, End: source.Position{Offset: offset + 1}}
+			return source.Span{Path: "family.km", Start: source.Position{Offset: offset}, End: source.Position{Offset: offset + 1}}
 		}
 		primary := &ast.InterfaceDecl{
 			Name: "Primary", NameSpan: span(1),

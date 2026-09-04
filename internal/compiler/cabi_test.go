@@ -26,7 +26,7 @@ func TestCABISharedLibraryCompileAndCCallerMatrix(t *testing.T) {
 	}
 
 	directory := t.TempDir()
-	source := filepath.Join(directory, "library.otm")
+	source := filepath.Join(directory, "library.km")
 	input := `
 function add(left: int32, right: int32): int32 { return left + right; }
 const ping = (): void => {};
@@ -44,15 +44,15 @@ function toggleMode(value: Mode): Mode {
 }
 function echoDelta(value: Delta): Delta { return value; }
 export c(
-  "ontama_add",
-  "ontama_add16",
-  "ontama_echo_delta",
-  "ontama_increment_byte",
-  "ontama_increment8",
-  "ontama_mode",
-  "ontama_not",
-  "ontama_ping",
-  "ontama_panics",
+  "kinmokusei_add",
+  "kinmokusei_add16",
+  "kinmokusei_echo_delta",
+  "kinmokusei_increment_byte",
+  "kinmokusei_increment8",
+  "kinmokusei_mode",
+  "kinmokusei_not",
+  "kinmokusei_ping",
+  "kinmokusei_panics",
 ) {
   add,
   add16,
@@ -78,58 +78,58 @@ export c(
 	var manifest struct {
 		Fingerprint string `json:"fingerprint"`
 	}
-	if err := json.Unmarshal(artifacts.Manifest, &manifest); err != nil || manifest.Fingerprint != artifacts.Fingerprint || !strings.Contains(string(artifacts.Header), `#define ONTAMA_ABI_FINGERPRINT "`+artifacts.Fingerprint+`"`) {
+	if err := json.Unmarshal(artifacts.Manifest, &manifest); err != nil || manifest.Fingerprint != artifacts.Fingerprint || !strings.Contains(string(artifacts.Header), `#define KINMOKUSEI_ABI_FINGERPRINT "`+artifacts.Fingerprint+`"`) {
 		t.Fatalf("manifest/header fingerprint mismatch: manifest=%#v artifact=%q err=%v", manifest, artifacts.Fingerprint, err)
 	}
 	files := map[string][]byte{
 		"generated.go":      artifacts.GoSource,
 		"generated_cabi.go": artifacts.Gateway,
-		"ontama_abi.h":      artifacts.Header,
-		"ontama_abi.json":   artifacts.Manifest,
+		"kinmokusei_abi.h":      artifacts.Header,
+		"kinmokusei_abi.json":   artifacts.Manifest,
 		"go.mod":            []byte("module cabi.test\n\ngo 1.23\n"),
 		"caller.c": []byte(`#include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
-#include "ontama_abi.h"
+#include "kinmokusei_abi.h"
 
 static void *call_add_repeatedly(void *raw_id) {
   int32_t id = (int32_t)(intptr_t)raw_id;
   for (int32_t index = 0; index < 100; index++) {
     int32_t result = 0;
-    if (ontama_add(id, index, &result) != ONTAMA_ABI_OK || result != id + index) return (void *)(intptr_t)1;
+    if (kinmokusei_add(id, index, &result) != KINMOKUSEI_ABI_OK || result != id + index) return (void *)(intptr_t)1;
   }
   return NULL;
 }
 
 int main(void) {
-	if (strncmp(ONTAMA_ABI_FINGERPRINT, "sha256:", 7) != 0 || strlen(ONTAMA_ABI_FINGERPRINT) != 71) return 9;
+	if (strncmp(KINMOKUSEI_ABI_FINGERPRINT, "sha256:", 7) != 0 || strlen(KINMOKUSEI_ABI_FINGERPRINT) != 71) return 9;
   int32_t result = 0;
-  if (ontama_add(20, 22, &result) != ONTAMA_ABI_OK || result != 42) return 10;
-  if (ontama_add(1, 2, NULL) != ONTAMA_ABI_INVALID_ARGUMENT) return 11;
-  if (ontama_ping() != ONTAMA_ABI_OK) return 12;
-  if (ontama_panics(&result) != ONTAMA_ABI_PANIC) return 13;
+  if (kinmokusei_add(20, 22, &result) != KINMOKUSEI_ABI_OK || result != 42) return 10;
+  if (kinmokusei_add(1, 2, NULL) != KINMOKUSEI_ABI_INVALID_ARGUMENT) return 11;
+  if (kinmokusei_ping() != KINMOKUSEI_ABI_OK) return 12;
+  if (kinmokusei_panics(&result) != KINMOKUSEI_ABI_PANIC) return 13;
   uint8_t flag = 99;
-  if (ontama_not(0, &flag) != ONTAMA_ABI_OK || flag != 1) return 16;
-  if (ontama_not(1, &flag) != ONTAMA_ABI_OK || flag != 0) return 17;
-  if (ontama_not(2, &flag) != ONTAMA_ABI_OK || flag != 0) return 18;
-  if (ontama_not(255, &flag) != ONTAMA_ABI_OK || flag != 0) return 19;
-  if (ontama_not(0, NULL) != ONTAMA_ABI_INVALID_ARGUMENT) return 20;
+  if (kinmokusei_not(0, &flag) != KINMOKUSEI_ABI_OK || flag != 1) return 16;
+  if (kinmokusei_not(1, &flag) != KINMOKUSEI_ABI_OK || flag != 0) return 17;
+  if (kinmokusei_not(2, &flag) != KINMOKUSEI_ABI_OK || flag != 0) return 18;
+  if (kinmokusei_not(255, &flag) != KINMOKUSEI_ABI_OK || flag != 0) return 19;
+  if (kinmokusei_not(0, NULL) != KINMOKUSEI_ABI_INVALID_ARGUMENT) return 20;
   int8_t narrow8 = 0;
-  if (ontama_increment8(127, &narrow8) != ONTAMA_ABI_OK || narrow8 != -128) return 21;
-  if (ontama_increment8(-128, &narrow8) != ONTAMA_ABI_OK || narrow8 != -127) return 22;
+  if (kinmokusei_increment8(127, &narrow8) != KINMOKUSEI_ABI_OK || narrow8 != -128) return 21;
+  if (kinmokusei_increment8(-128, &narrow8) != KINMOKUSEI_ABI_OK || narrow8 != -127) return 22;
   int16_t narrow16 = 0;
-  if (ontama_add16(32760, 7, &narrow16) != ONTAMA_ABI_OK || narrow16 != 32767) return 23;
-  if (ontama_add16(-32760, -8, &narrow16) != ONTAMA_ABI_OK || narrow16 != -32768) return 24;
+  if (kinmokusei_add16(32760, 7, &narrow16) != KINMOKUSEI_ABI_OK || narrow16 != 32767) return 23;
+  if (kinmokusei_add16(-32760, -8, &narrow16) != KINMOKUSEI_ABI_OK || narrow16 != -32768) return 24;
   uint8_t alias_byte = 99;
-  if (ontama_increment_byte(255, &alias_byte) != ONTAMA_ABI_OK || alias_byte != 0) return 25;
+  if (kinmokusei_increment_byte(255, &alias_byte) != KINMOKUSEI_ABI_OK || alias_byte != 0) return 25;
   uint16_t mode = 99;
-  if (ontama_mode(0, &mode) != ONTAMA_ABI_OK || mode != 9) return 26;
-  if (ontama_mode(9, &mode) != ONTAMA_ABI_OK || mode != 0) return 27;
-  if (ontama_mode(22, &mode) != ONTAMA_ABI_OK || mode != 22) return 28;
+  if (kinmokusei_mode(0, &mode) != KINMOKUSEI_ABI_OK || mode != 9) return 26;
+  if (kinmokusei_mode(9, &mode) != KINMOKUSEI_ABI_OK || mode != 0) return 27;
+  if (kinmokusei_mode(22, &mode) != KINMOKUSEI_ABI_OK || mode != 22) return 28;
   int8_t delta = 0;
-  if (ontama_echo_delta(-128, &delta) != ONTAMA_ABI_OK || delta != -128) return 29;
-  if (ontama_echo_delta(127, &delta) != ONTAMA_ABI_OK || delta != 127) return 30;
+  if (kinmokusei_echo_delta(-128, &delta) != KINMOKUSEI_ABI_OK || delta != -128) return 29;
+  if (kinmokusei_echo_delta(127, &delta) != KINMOKUSEI_ABI_OK || delta != 127) return 30;
   pthread_t threads[8];
   for (intptr_t index = 0; index < 8; index++) {
     if (pthread_create(&threads[index], NULL, call_add_repeatedly, (void *)index) != 0) return 14;
@@ -149,9 +149,9 @@ int main(void) {
 		}
 	}
 
-	libraryName := "libontama.so"
+	libraryName := "libkinmokusei.so"
 	if runtime.GOOS == "darwin" {
-		libraryName = "libontama.dylib"
+		libraryName = "libkinmokusei.dylib"
 	}
 	build := exec.Command("go", "build", "-buildmode=c-shared", "-buildvcs=false", "-o", libraryName, ".")
 	build.Dir = directory
@@ -159,7 +159,7 @@ int main(void) {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("c-shared build failed: %v\n%s\n--- gateway ---\n%s", err, output, artifacts.Gateway)
 	}
-	compile := exec.Command(cc, "-pthread", "-I", directory, filepath.Join(directory, "caller.c"), "-L", directory, "-lontama", "-o", filepath.Join(directory, "caller"))
+	compile := exec.Command(cc, "-pthread", "-I", directory, filepath.Join(directory, "caller.c"), "-L", directory, "-lkinmokusei", "-o", filepath.Join(directory, "caller"))
 	if output, err := compile.CombinedOutput(); err != nil {
 		t.Fatalf("C caller compilation failed: %v\n%s\n--- header ---\n%s", err, output, artifacts.Header)
 	}
@@ -183,7 +183,7 @@ func TestEmitCABIFailureMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(directory, test.name+".otm")
+			path := filepath.Join(directory, test.name+".km")
 			if err := os.WriteFile(path, []byte(test.source), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -204,8 +204,8 @@ func TestEmitCABIFailureMatrix(t *testing.T) {
 
 func TestCABIExportListResolvesImportedFunctionAndArrow(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "operations.otm")
-	entry := filepath.Join(directory, "entry.otm")
+	dependency := filepath.Join(directory, "operations.km")
+	entry := filepath.Join(directory, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`
 function add(left: int32, right: int32): int32 { return left + right; }
 const sub = (left: int32, right: int32): int32 => left - right;
@@ -214,7 +214,7 @@ const sub = (left: int32, right: int32): int32 => left - right;
 	}
 	if err := os.WriteFile(entry, []byte(`
 import { add, sub } from "./operations";
-export c("ontama_add", "ontama_sub") {add, sub};
+export c("kinmokusei_add", "kinmokusei_sub") {add, sub};
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ export c("ontama_add", "ontama_sub") {add, sub};
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"//export ontama_add", "//export ontama_sub", "__ontamaResult := add(", "__ontamaResult := sub("} {
+	for _, want := range []string{"//export kinmokusei_add", "//export kinmokusei_sub", "__kinmokuseiResult := add(", "__kinmokuseiResult := sub("} {
 		if !strings.Contains(string(artifacts.Gateway), want) {
 			t.Errorf("gateway missing %q:\n%s", want, artifacts.Gateway)
 		}
@@ -231,8 +231,8 @@ export c("ontama_add", "ontama_sub") {add, sub};
 
 func TestCABIImportedEnumUsesLinkedFixedWidthTransport(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "operations.otm")
-	entry := filepath.Join(directory, "entry.otm")
+	dependency := filepath.Join(directory, "operations.km")
+	entry := filepath.Join(directory, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`
 enum Code: int32 { Empty, Ready = 41 }
 function preserve(value: Code): Code { return value; }
@@ -242,7 +242,7 @@ function preserve(value: Code): Code { return value; }
 	if err := os.WriteFile(entry, []byte(`
 enum Code: uint16 { Local }
 import { preserve } from "./operations";
-export c("ontama_preserve") {preserve};
+export c("kinmokusei_preserve") {preserve};
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -250,11 +250,11 @@ export c("ontama_preserve") {preserve};
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	if !strings.Contains(string(artifacts.Header), "int32_t ontama_preserve(int32_t arg0, int32_t *out_result);") {
+	if !strings.Contains(string(artifacts.Header), "int32_t kinmokusei_preserve(int32_t arg0, int32_t *out_result);") {
 		t.Fatalf("imported enum header:\n%s", artifacts.Header)
 	}
 	gateway := string(artifacts.Gateway)
-	if !strings.Contains(gateway, "__ontamaResult := preserve(") || !strings.Contains(gateway, "Code(arg0))") || !strings.Contains(gateway, "*outResult = C.int32_t(__ontamaResult)") {
+	if !strings.Contains(gateway, "__kinmokuseiResult := preserve(") || !strings.Contains(gateway, "Code(arg0))") || !strings.Contains(gateway, "*outResult = C.int32_t(__kinmokuseiResult)") {
 		t.Fatalf("imported enum gateway:\n%s", artifacts.Gateway)
 	}
 }

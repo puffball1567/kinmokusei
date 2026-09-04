@@ -6,11 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/compiler"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/source"
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type parameterInformation struct {

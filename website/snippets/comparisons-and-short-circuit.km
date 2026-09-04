@@ -1,0 +1,26 @@
+import go fmt from "fmt";
+
+let evaluations = 0;
+
+function record(value: boolean): boolean {
+  evaluations++;
+  return value;
+}
+
+function main(): void {
+  const skippedAnd = false && record(true);
+  const skippedOr = true || record(false);
+  const evaluated = true && record(true);
+
+  fmt.Println(
+    1 == 1,
+    1 === 1,
+    1 != 2,
+    1 !== 2,
+    "hello" < "planet",
+    skippedAnd,
+    skippedOr,
+    evaluated,
+    evaluations,
+  );
+}

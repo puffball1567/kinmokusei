@@ -4,13 +4,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 )
 
 func parseSource(t *testing.T, input string) (*ast.Program, int) {
 	t.Helper()
-	tokens, lexerDiagnostics := lexer.Lex("test.otm", input)
+	tokens, lexerDiagnostics := lexer.Lex("test.km", input)
 	if len(lexerDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics: %v", lexerDiagnostics)
 	}
@@ -292,7 +292,7 @@ func TestFallthroughParserFailureMatrix(t *testing.T) {
 }
 
 func TestParsesRelativeImports(t *testing.T) {
-	tokens, lexerDiagnostics := lexer.Lex("main.otm", `import { add, meaning } from "./math"; function main(): void {}`)
+	tokens, lexerDiagnostics := lexer.Lex("main.km", `import { add, meaning } from "./math"; function main(): void {}`)
 	if len(lexerDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics: %v", lexerDiagnostics)
 	}
@@ -372,12 +372,12 @@ func TestObjectTypeSyntaxMatrix(t *testing.T) {
 }
 
 func TestParsesCABIExportMetadata(t *testing.T) {
-	program, diagnostics := parseSource(t, `export c("ontama_add") function add(left: int32, right: int32): int32 { return left + right; }`)
+	program, diagnostics := parseSource(t, `export c("kinmokusei_add") function add(left: int32, right: int32): int32 { return left + right; }`)
 	if diagnostics != 0 || len(program.Declarations) != 1 {
 		t.Fatalf("diagnostics=%d declarations=%d", diagnostics, len(program.Declarations))
 	}
 	function, ok := program.Declarations[0].(*ast.FunctionDecl)
-	if !ok || !function.CABIExport || function.CABISymbol != "ontama_add" || len(function.Parameters) != 2 || function.CABIExportSpan.Start.Column != 1 || function.CABISymbolSpan.Start.Column == 0 {
+	if !ok || !function.CABIExport || function.CABISymbol != "kinmokusei_add" || len(function.Parameters) != 2 || function.CABIExportSpan.Start.Column != 1 || function.CABISymbolSpan.Start.Column == 0 {
 		t.Fatalf("function=%#v", program.Declarations[0])
 	}
 }
@@ -387,8 +387,8 @@ func TestParsesCABIExportListMetadata(t *testing.T) {
 function add(left: int32, right: int32): int32 { return left + right; }
 const sub = (left: int32, right: int32): int32 => left - right;
 export c(
-  "ontama_add",
-  "ontama_sub",
+  "kinmokusei_add",
+  "kinmokusei_sub",
 ) {
   add,
   sub,
@@ -401,7 +401,7 @@ export c(
 	if !ok {
 		t.Fatalf("declaration=%T", program.Declarations[2])
 	}
-	if got, want := exports.Symbols, []string{"ontama_add", "ontama_sub"}; !reflect.DeepEqual(got, want) {
+	if got, want := exports.Symbols, []string{"kinmokusei_add", "kinmokusei_sub"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("symbols=%v want=%v", got, want)
 	}
 	if got, want := exports.Names, []string{"add", "sub"}; !reflect.DeepEqual(got, want) {
@@ -417,10 +417,10 @@ func TestCABIExportListParserFailureMatrix(t *testing.T) {
 		name, source string
 	}{
 		{"empty symbols", `export c() { add };`},
-		{"empty names", `export c("ontama_add") {};`},
-		{"missing symbol comma", `export c("ontama_add" "ontama_sub") { add, sub };`},
-		{"missing name comma", `export c("ontama_add", "ontama_sub") { add sub };`},
-		{"missing semicolon", `export c("ontama_add") { add }`},
+		{"empty names", `export c("kinmokusei_add") {};`},
+		{"missing symbol comma", `export c("kinmokusei_add" "kinmokusei_sub") { add, sub };`},
+		{"missing name comma", `export c("kinmokusei_add", "kinmokusei_sub") { add sub };`},
+		{"missing semicolon", `export c("kinmokusei_add") { add }`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, diagnostics := parseSource(t, test.source)

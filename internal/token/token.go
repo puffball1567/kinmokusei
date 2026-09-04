@@ -1,6 +1,6 @@
 package token
 
-import "github.com/puffball1567/onsentamago/internal/source"
+import "github.com/puffball1567/kinmokusei/internal/source"
 
 type Kind string
 

@@ -1,0 +1,5 @@
+type UserID = distinct string;
+
+function invalid(raw: string): UserID {
+  return raw;
+}

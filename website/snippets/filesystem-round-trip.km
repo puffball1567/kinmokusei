@@ -1,0 +1,26 @@
+import go fmt from "fmt";
+import go os from "os";
+
+function writeAndRead(text: string): Result<string> {
+  const file = os.CreateTemp("", "kinmokusei-docs-*")?;
+  const path = file.Name();
+  defer os.Remove(path);
+  defer file.Close();
+
+  const written = file.WriteString(text)?;
+  if (written !== len(text)) {
+    return fail(fmt.Errorf("short write: %d of %d bytes", written, len(text)));
+  }
+
+  const contents = os.ReadFile(path)?;
+  return ok(string(contents));
+}
+
+function main(): void {
+  const [contents, err] = writeAndRead("steaming");
+  if (err !== nil) {
+    fmt.Println("error:", err.Error());
+    return;
+  }
+  fmt.Println(contents);
+}

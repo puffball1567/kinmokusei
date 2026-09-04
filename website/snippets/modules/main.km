@@ -1,0 +1,9 @@
+import { Greeting, greeting } from "./format";
+import go fmt from "fmt";
+
+function render(value: Greeting): string { return value.message; }
+
+function main(): void {
+  fmt.Println(render(greeting("Aki")));
+  fmt.Println(render(greeting("")));
+}

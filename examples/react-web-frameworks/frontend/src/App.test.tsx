@@ -25,7 +25,7 @@ function backendFetch(initialTodos: Todo[] = []) {
     const method = options?.method ?? "GET";
 
     if (path.endsWith("/health")) {
-      return jsonResponse({ status: "ok", language: "OnsenTamago", framework });
+      return jsonResponse({ status: "ok", language: "Kinmokusei", framework });
     }
     if (path.endsWith("/todos") && method === "GET") {
       return jsonResponse({ items: todos });
@@ -78,7 +78,7 @@ describe("React web-framework demo", () => {
 
     render(<App />);
 
-    expect(await screen.findByText("OnsenTamago is serving Gin on port 8080")).toBeVisible();
+    expect(await screen.findByText("Kinmokusei is serving Gin on port 8080")).toBeVisible();
     expect(screen.getByText("1/2 complete")).toBeVisible();
     expect(screen.getByRole("textbox", { name: "New todo title" })).toHaveAttribute("maxlength", "80");
     expect(screen.getByRole("button", { name: "Add todo" })).toBeDisabled();
@@ -117,7 +117,7 @@ describe("React web-framework demo", () => {
       const path = String(input);
       if (path.startsWith("/gin-api")) {
         return Promise.resolve(path.endsWith("/health")
-          ? jsonResponse({ status: "ok", language: "OnsenTamago", framework: "Gin" })
+          ? jsonResponse({ status: "ok", language: "Kinmokusei", framework: "Gin" })
           : jsonResponse({ items: [{ id: 1, title: "Gin remains visible", completed: false }] }));
       }
       const request = deferredResponse(options?.signal);
@@ -133,11 +133,11 @@ describe("React web-framework demo", () => {
     expect(screen.getByText("Gin remains visible")).toBeVisible();
     expect(screen.queryByText("Loading Fiber…")).not.toBeInTheDocument();
 
-    pending[0].resolve(jsonResponse({ status: "ok", language: "OnsenTamago", framework: "Fiber" }));
+    pending[0].resolve(jsonResponse({ status: "ok", language: "Kinmokusei", framework: "Fiber" }));
     pending[1].resolve(jsonResponse({ items: [{ id: 7, title: "Fiber is ready", completed: true }] }));
     expect(await screen.findByText("Fiber is ready")).toBeVisible();
     expect(screen.queryByText("Gin remains visible")).not.toBeInTheDocument();
-    expect(screen.getByText("OnsenTamago is serving Fiber on port 8081")).toBeVisible();
+    expect(screen.getByText("Kinmokusei is serving Fiber on port 8081")).toBeVisible();
   });
 
   it("aborts stale backend requests during rapid switching", async () => {
@@ -152,7 +152,7 @@ describe("React web-framework demo", () => {
       }
       if (path.endsWith("/health")) {
         ginGeneration++;
-        return Promise.resolve(jsonResponse({ status: "ok", language: "OnsenTamago", framework: "Gin" }));
+        return Promise.resolve(jsonResponse({ status: "ok", language: "Kinmokusei", framework: "Gin" }));
       }
       return Promise.resolve(jsonResponse({ items: [{ id: ginGeneration, title: `Gin generation ${ginGeneration}`, completed: false }] }));
     });

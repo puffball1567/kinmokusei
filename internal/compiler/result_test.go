@@ -9,7 +9,7 @@ import (
 
 func TestResultPropagationAndSplitCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "result.otm")
+	source := filepath.Join(temp, "result.km")
 	input := `
 import go strconv from "strconv";
 import go errors from "errors";
@@ -68,10 +68,10 @@ class Parser implements Loader {
 	text := string(generated)
 	for _, want := range []string{
 		"func parse(text string) (int, error)",
-		"var value, __ontama_result_error_",
-		"var __ontama_result_value_",
-		"var value int = __ontama_result_value_",
-		"if __ontama_result_error_",
+		"var value, __kinmokusei_result_error_",
+		"var __kinmokusei_result_value_",
+		"var value int = __kinmokusei_result_value_",
+		"if __kinmokusei_result_error_",
 		"return value * 2, nil",
 		"return *new(int), errors.New(\"rejected\")",
 		"func ensure(ready bool) error",

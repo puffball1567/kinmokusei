@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func TestTypeRefShapePredicates(t *testing.T) {
@@ -38,7 +38,7 @@ func TestTypeRefShapePredicates(t *testing.T) {
 }
 
 func TestEveryNodeReturnsItsSpan(t *testing.T) {
-	span := source.Span{Path: "node.otm", Start: source.Position{Offset: 1, Line: 2, Column: 3}, End: source.Position{Offset: 4, Line: 2, Column: 6}}
+	span := source.Span{Path: "node.km", Start: source.Position{Offset: 1, Line: 2, Column: 3}, End: source.Position{Offset: 4, Line: 2, Column: 6}}
 	nodes := []Node{
 		ImportDecl{Span: span}, TypeRef{Span: span},
 		&FunctionDecl{Span: span}, &CABIExportDecl{Span: span}, &ClassDecl{Span: span}, &InterfaceDecl{Span: span}, &VariableDecl{Span: span},

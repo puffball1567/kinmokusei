@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/sema"
+	"github.com/puffball1567/kinmokusei/internal/sema"
 )
 
 type auditImporter map[string]*gotypes.Package

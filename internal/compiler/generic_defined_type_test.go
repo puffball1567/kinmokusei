@@ -9,7 +9,7 @@ import (
 
 func TestGenericDefinedTypesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_defined_type.otm")
+	source := filepath.Join(temporary, "generic_defined_type.km")
 	if err := os.WriteFile(source, []byte(`
 type Values<T> = distinct T[];
 type Lookup<K, V> = distinct Map<K, V>;
@@ -162,8 +162,8 @@ func TestGenericDefinedTypeBehavior(t *testing.T) {
 
 func TestLinkedGenericDefinedTypeMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "values.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "values.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`type Values<T> = distinct T[]; public function size<U>(this: Values<U>): int { return len(this); } function wrap<T>(values: T[]): Values<T> { return Values<T>(values); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

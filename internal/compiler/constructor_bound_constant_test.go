@@ -9,7 +9,7 @@ import (
 
 func TestConstructorBoundConstantProofsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "constructor_bound_constants.otm")
+	source := filepath.Join(temp, "constructor_bound_constants.km")
 	input := `
 const globalEnabled = 2 * 3 === 6;
 const globalPrefix = "温";

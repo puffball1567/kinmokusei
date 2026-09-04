@@ -9,7 +9,7 @@ import (
 
 func TestGenericStructsMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_struct.otm")
+	source := filepath.Join(temporary, "generic_struct.km")
 	if err := os.WriteFile(source, []byte(`
 type UserID = distinct string;
 
@@ -189,8 +189,8 @@ func TestGenericStructBehavior(t *testing.T) {
 
 func TestLinkedGenericStructMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "box.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "box.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`struct Box<T> { public value: T; public function get(): T { return this.value; } } function makeBox<T>(value: T): Box<T> { return Box<T> { value: value }; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

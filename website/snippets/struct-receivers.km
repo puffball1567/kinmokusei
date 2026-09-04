@@ -1,0 +1,22 @@
+import go fmt from "fmt";
+
+struct Counter {
+  public value: int;
+
+  public function added(delta: int): Counter {
+    let copy = this;
+    copy.value += delta;
+    return copy;
+  }
+
+  public pointer function add(delta: int): void {
+    this.value += delta;
+  }
+}
+
+function main(): void {
+  let counter = Counter { value: 10 };
+  const copied = counter.added(5);
+  counter.add(2);
+  fmt.Println(counter.value, copied.value);
+}

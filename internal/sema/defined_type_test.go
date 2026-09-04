@@ -31,6 +31,14 @@ func TestDefinedTypeAndAliasSemanticMatrix(t *testing.T) {
 		{"recursive function", `type Visitor = distinct (next: Visitor) => void;`},
 		{"recursive channel", `type Stream = distinct GoChannel<Stream>;`},
 		{"mutual recursion through pointer", `type Left = distinct Right; type Right = distinct *Left;`},
+		{"distinct native struct conversions and fields", `struct Point { public x: int; public y: int; } type Offset = distinct Point; function use(point: Point): int { const offset = Offset(point); const restored = Point(offset); return offset.x + restored.y; }`},
+		{"distinct native struct literal", `struct Point { public x: int; public y: int; } type Offset = distinct Point; function use(): Offset { return Offset { x: 1, y: 2 }; }`},
+		{"generic distinct native struct", `struct Box<T> { public value: T; } type NamedBox<T> = distinct Box<T>; public function get<U>(this: NamedBox<U>): U { return this.value; } function use(value: string): string { const box = NamedBox<string> { value: value }; return box.get(); }`},
+		{"distinct struct with nested native values", `class User { public name: string; constructor(name: string) { this.name = name; } } struct Entry { public owner: User; public tags: string[]; } type NamedEntry = distinct Entry; function use(value: Entry): string { const entry = NamedEntry(value); return entry.owner.name; }`},
+		{"conversion from structurally identical native struct", `struct Point { public x: int; } struct Coordinate { public x: int; } type Offset = distinct Point; function use(value: Coordinate): int { return Offset(value).x; }`},
+		{"constrained generic distinct native struct", `struct KeyBox<T extends comparable> { public key: T; } type NamedKeyBox<T extends comparable> = distinct KeyBox<T>; function use(value: NamedKeyBox<string>): string { return value.key; }`},
+		{"nested distinct native struct", `struct Point { public x: int; } type Offset = distinct Point; type TaggedOffset = distinct Offset; function use(value: Offset): int { return TaggedOffset(value).x; }`},
+		{"distinct struct with composite storage", `struct Point { public x: int; } struct Wrapper { public callback: (value: Point) => Point; public payload: { point: Point }; public stream: GoChannel<Point>; } type NamedWrapper = distinct Wrapper; function use(value: Wrapper): NamedWrapper { return NamedWrapper(value); }`},
 	}
 	for _, test := range success {
 		t.Run(test.name, func(t *testing.T) {
@@ -61,6 +69,11 @@ func TestDefinedTypeAndAliasFailureMatrix(t *testing.T) {
 		{"void alias", `alias Nothing = void;`, "cannot be used as the underlying type"},
 		{"Result alias", `alias Outcome = Result<int>;`, "cannot be used as the underlying type"},
 		{"distinct class", `class Box {} type OtherBox = distinct Box;`, "cannot yet be used as a distinct defined type"},
+		{"implicit native struct assignment", `struct Point { public x: int; } type Offset = distinct Point; function bad(value: Point): Offset { return value; }`, "cannot use Point as Offset"},
+		{"native struct method is not inherited", `struct Point { public x: int; public function read(): int { return this.x; } } type Offset = distinct Point; function bad(value: Offset): int { return value.read(); }`, "has no field or method"},
+		{"different native struct conversion", `struct Point { public x: int; } struct Label { public value: string; } type Offset = distinct Point; function bad(value: Label): Offset { return Offset(value); }`, "cannot convert Label to Offset"},
+		{"native struct field method conflict", `struct Point { public value: int; } type NamedPoint = distinct Point; public function value(this: NamedPoint): int { return this.value; }`, "conflicts with underlying struct field"},
+		{"generic native struct constraint", `struct KeyBox<T extends comparable> { public key: T; } type NamedKeyBox<T> = distinct KeyBox<T>;`, "does not satisfy"},
 		{"builtin collision", `type string = distinct int;`, "conflicts with a built-in type"},
 	}
 	for _, test := range tests {

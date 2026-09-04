@@ -8,7 +8,7 @@ import (
 )
 
 func TestDefinedTypeNavigationRenameSymbolsAndCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "defined_type.otm")
+	path := filepath.Join(t.TempDir(), "defined_type.km")
 	uri := fileURI(path)
 	text := `type UserID = distinct string;
 alias UserIDText = string;

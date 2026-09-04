@@ -1,0 +1,3 @@
+function move(value: int): int {
+  return value << -1;
+}

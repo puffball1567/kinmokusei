@@ -9,7 +9,7 @@ import (
 
 func TestEnumMatchesIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	path := filepath.Join(root, "enum.otm")
+	path := filepath.Join(root, "enum.km")
 	source := `
 enum Status { Pending, Running = 4, Complete, Failed = -2, Retrying, }
 enum Tiny: int8 { Minimum = -128, Zero = 0, Maximum = 127, }
@@ -123,12 +123,12 @@ func TestEnumMatrix(t *testing.T) {
 
 func TestEnumRelativeModuleAndPublicGoAPI(t *testing.T) {
 	root := t.TempDir()
-	dependency := filepath.Join(root, "status.otm")
-	entry := filepath.Join(root, "entry.otm")
+	dependency := filepath.Join(root, "status.km")
+	entry := filepath.Join(root, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`enum Status: int32 { Pending = 10, Complete, } function local(): Status { return Status.Pending; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(entry, []byte(`import { Status } from "./status.otm"; function selected(): Status { return Status.Complete; }`), 0o644); err != nil {
+	if err := os.WriteFile(entry, []byte(`import { Status } from "./status.km"; function selected(): Status { return Status.Complete; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	generated, diagnostics, err := EmitGo([]string{entry}, "enumapi")

@@ -1,0 +1,1 @@
+is unreachable because an earlier catch for error already handles it

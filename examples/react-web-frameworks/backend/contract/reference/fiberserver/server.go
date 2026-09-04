@@ -1,4 +1,4 @@
-//go:build ontama_demo_contract
+//go:build kinmokusei_demo_contract
 
 package fiberserver
 
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"example.com/onsentamago/react-web-frameworks-backend/contract/reference"
+	"example.com/kinmokusei/react-web-frameworks-backend/contract/reference"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -17,7 +17,7 @@ func NewApp() *fiber.App {
 	app := fiber.New()
 
 	app.Get("/api/health", func(ctx fiber.Ctx) error {
-		return ctx.JSON(fiber.Map{"status": "ok", "language": "OnsenTamago", "framework": "Fiber"})
+		return ctx.JSON(fiber.Map{"status": "ok", "language": "Kinmokusei", "framework": "Fiber"})
 	})
 	app.Get("/api/todos", func(ctx fiber.Ctx) error {
 		return ctx.JSON(fiber.Map{"items": store.List()})

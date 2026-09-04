@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const vscode = require('vscode');
 
-const EXTENSION_ID = 'onsentamago.onsentamago';
+const EXTENSION_ID = 'kinmokusei.kinmokusei';
 const HOVER_TEXT = 'function add(left: int, right: int): int';
 
 async function eventually(operation, description, timeoutMilliseconds = 15000) {
@@ -49,20 +49,20 @@ async function replaceDocument(document, text) {
 }
 
 async function run() {
-  const serverPath = process.env.ONTAMA_E2E_SERVER_PATH;
-  assert.ok(serverPath, 'ONTAMA_E2E_SERVER_PATH is required');
+  const serverPath = process.env.KINMOKUSEI_E2E_SERVER_PATH;
+  assert.ok(serverPath, 'KINMOKUSEI_E2E_SERVER_PATH is required');
 
-  const configuration = vscode.workspace.getConfiguration('onsentamago');
+  const configuration = vscode.workspace.getConfiguration('kinmokusei');
   const previousServerPath = configuration.inspect('server.path')?.workspaceValue;
   await configuration.update('server.path', serverPath, vscode.ConfigurationTarget.Workspace);
 
   const fixture = vscode.Uri.file(path.join(
     vscode.workspace.workspaceFolders[0].uri.fsPath,
-    'main.otm'
+    'main.km'
   ));
   const document = await vscode.workspace.openTextDocument(fixture);
   await vscode.window.showTextDocument(document);
-  assert.equal(document.languageId, 'onsentamago');
+  assert.equal(document.languageId, 'kinmokusei');
 
   const extension = vscode.extensions.getExtension(EXTENSION_ID);
   assert.ok(extension, 'development extension was not discovered');
@@ -88,7 +88,7 @@ async function run() {
       'diagnostics did not clear after restoring valid source'
     );
 
-    await vscode.commands.executeCommand('onsentamago.restartLanguageServer');
+    await vscode.commands.executeCommand('kinmokusei.restartLanguageServer');
     await requestExpectedHover(document);
   } finally {
     await replaceDocument(document, originalText);

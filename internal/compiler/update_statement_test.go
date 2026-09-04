@@ -9,7 +9,7 @@ import (
 
 func TestCompoundAssignmentAndIncrementCompileAndRunMatrix(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "updates.otm")
+	source := filepath.Join(temp, "updates.km")
 	input := `
 import go os from "os";
 import go time from "time";

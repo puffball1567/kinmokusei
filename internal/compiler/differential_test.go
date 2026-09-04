@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-// runGeneratedGoDifferentialTest compiles generated OnsenTamago output beside
+// runGeneratedGoDifferentialTest compiles generated Kinmokusei output beside
 // an independently handwritten Go reference implementation and runs a test
 // which compares their observable behavior. The reference lives in a separate
 // package and may not import any package from the generated module, preventing
@@ -105,7 +105,7 @@ func runGeneratedGoDifferentialTestConfigured(
 	if len(arguments) == 0 {
 		arguments = []string{"test", "./..."}
 	}
-	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" && environmentValue(extraEnvironment, "CGO_ENABLED") != "0" && len(arguments) != 0 && arguments[0] == "test" && !containsArgument(arguments, "-race") {
+	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" && environmentValue(extraEnvironment, "CGO_ENABLED") != "0" && len(arguments) != 0 && arguments[0] == "test" && !containsArgument(arguments, "-race") {
 		arguments = append([]string{"test", "-race"}, arguments[1:]...)
 	}
 	command := exec.Command("go", arguments...)

@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenericInterfaceNavigationRenameSymbolsCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_interface.otm")
+	path := filepath.Join(t.TempDir(), "generic_interface.km")
 	uri := fileURI(path)
 	text := `interface Transformer<T, U> {
   function transform(value: T): U;

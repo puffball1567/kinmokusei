@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/parser"
 )
 
 func TestCABIExportSuccessMatrix(t *testing.T) {
@@ -14,16 +14,16 @@ func TestCABIExportSuccessMatrix(t *testing.T) {
 		name   string
 		source string
 	}{
-		{"void without parameters", `export c("ontama_ping") function ping(): void {}`},
-		{"all fixed scalar types", `export c("ontama_scalars") function scalars(a: byte, b: uint8, c: int8, d: int16, e: int32, f: int64, g: uint16, h: uint32, i: uint64, j: float32, k: float, l: float64, m: number): float64 { return k; }`},
-		{"normalized boolean", `export c("ontama_not") function logicalNot(value: boolean): boolean { return !value; }`},
-		{"multiple exports", `export c("ontama_left") function left(value: int32): int32 { return value; } export c("ontama_right") function right(value: int64): int64 { return value; }`},
-		{"export list functions", `function add(left: int32, right: int32): int32 { return left + right; } function sub(left: int32, right: int32): int32 { return left - right; } export c("ontama_add", "ontama_sub") {add, sub};`},
-		{"export list forward references", `export c("ontama_add", "ontama_sub") {add, sub}; function add(left: int32, right: int32): int32 { return left + right; } const sub = (left: int32, right: int32): int32 => left - right;`},
-		{"export list arrows", `const ping = (): void => {}; const scale = (value: float64): float64 => value * 2.0; export c("ontama_ping", "ontama_scale") {ping, scale};`},
-		{"export list multiline trailing commas", "function add(left: int32, right: int32): int32 { return left + right; }\nconst sub = (left: int32, right: int32): int32 => left - right;\nexport c(\n  \"ontama_add\",\n  \"ontama_sub\",\n) {\n  add,\n  sub,\n};"},
-		{"fixed-width enum", `enum Level: int16 { Minimum = -32768, Normal = 4, Maximum = 32767 } export c("ontama_next") function next(value: Level): Level { return Level(int16(value) + int16(1)); }`},
-		{"fixed-width enum through defined underlying", `type CodeBase = distinct uint32; enum Code: CodeBase { Empty, Ready = 41 } export c("ontama_code") function code(value: Code): Code { return value; }`},
+		{"void without parameters", `export c("kinmokusei_ping") function ping(): void {}`},
+		{"all fixed scalar types", `export c("kinmokusei_scalars") function scalars(a: byte, b: uint8, c: int8, d: int16, e: int32, f: int64, g: uint16, h: uint32, i: uint64, j: float32, k: float, l: float64, m: number): float64 { return k; }`},
+		{"normalized boolean", `export c("kinmokusei_not") function logicalNot(value: boolean): boolean { return !value; }`},
+		{"multiple exports", `export c("kinmokusei_left") function left(value: int32): int32 { return value; } export c("kinmokusei_right") function right(value: int64): int64 { return value; }`},
+		{"export list functions", `function add(left: int32, right: int32): int32 { return left + right; } function sub(left: int32, right: int32): int32 { return left - right; } export c("kinmokusei_add", "kinmokusei_sub") {add, sub};`},
+		{"export list forward references", `export c("kinmokusei_add", "kinmokusei_sub") {add, sub}; function add(left: int32, right: int32): int32 { return left + right; } const sub = (left: int32, right: int32): int32 => left - right;`},
+		{"export list arrows", `const ping = (): void => {}; const scale = (value: float64): float64 => value * 2.0; export c("kinmokusei_ping", "kinmokusei_scale") {ping, scale};`},
+		{"export list multiline trailing commas", "function add(left: int32, right: int32): int32 { return left + right; }\nconst sub = (left: int32, right: int32): int32 => left - right;\nexport c(\n  \"kinmokusei_add\",\n  \"kinmokusei_sub\",\n) {\n  add,\n  sub,\n};"},
+		{"fixed-width enum", `enum Level: int16 { Minimum = -32768, Normal = 4, Maximum = 32767 } export c("kinmokusei_next") function next(value: Level): Level { return Level(int16(value) + int16(1)); }`},
+		{"fixed-width enum through defined underlying", `type CodeBase = distinct uint32; enum Code: CodeBase { Empty, Ready = 41 } export c("kinmokusei_code") function code(value: Code): Code { return value; }`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -57,13 +57,13 @@ func TestCABIExportFailureMatrix(t *testing.T) {
 		{"slice", `export c("value") function value(input: byte[]): void {}`, `parameter "input" has unsupported type byte[]`},
 		{"object result", `export c("value") function value(): { item: int32 } { return { item: 1 }; }`, `result has unsupported type non-scalar type`},
 		{"error result", `export c("value") function value(): error { return nil; }`, `result has unsupported type error`},
-		{"symbol and name count mismatch", `function add(): void {} export c("ontama_add", "ontama_extra") {add};`, `counts must match positionally`},
-		{"undefined target", `export c("ontama_missing") {missing};`, `undefined C ABI export target "missing"`},
-		{"mutable arrow", `let value = (input: int32): int32 => input; export c("ontama_value") {value};`, `must be a const arrow function`},
-		{"const scalar", `const value: int32 = 1; export c("ontama_value") {value};`, `must be a top-level function or const arrow function`},
-		{"arrow inferred result", `const value = (input: int32) => input; export c("ontama_value") {value};`, `requires an explicit return type`},
-		{"arrow unsupported parameter", `const value = (input: string): int32 => 1; export c("ontama_value") {value};`, `parameter "input" has unsupported type string`},
-		{"arrow unsupported result", `const value = (): string => "value"; export c("ontama_value") {value};`, `result has unsupported type string`},
+		{"symbol and name count mismatch", `function add(): void {} export c("kinmokusei_add", "kinmokusei_extra") {add};`, `counts must match positionally`},
+		{"undefined target", `export c("kinmokusei_missing") {missing};`, `undefined C ABI export target "missing"`},
+		{"mutable arrow", `let value = (input: int32): int32 => input; export c("kinmokusei_value") {value};`, `must be a const arrow function`},
+		{"const scalar", `const value: int32 = 1; export c("kinmokusei_value") {value};`, `must be a top-level function or const arrow function`},
+		{"arrow inferred result", `const value = (input: int32) => input; export c("kinmokusei_value") {value};`, `requires an explicit return type`},
+		{"arrow unsupported parameter", `const value = (input: string): int32 => 1; export c("kinmokusei_value") {value};`, `parameter "input" has unsupported type string`},
+		{"arrow unsupported result", `const value = (): string => "value"; export c("kinmokusei_value") {value};`, `result has unsupported type string`},
 		{"duplicate list symbol", `function left(): void {} function right(): void {} export c("same", "same") {left, right};`, `duplicate C ABI symbol "same"`},
 		{"duplicate list target", `function value(): void {} export c("first", "second") {value, value};`, `duplicate C ABI export target "value"`},
 		{"inline and list duplicate target", `export c("first") function value(): void {} export c("second") {value};`, `duplicate C ABI export target "value"`},
@@ -81,10 +81,10 @@ func TestCABIExportFailureMatrix(t *testing.T) {
 }
 
 func TestCABIExportListResolvesPositionalTargets(t *testing.T) {
-	tokens, lexDiagnostics := lexer.Lex("cabi-list.otm", `
+	tokens, lexDiagnostics := lexer.Lex("cabi-list.km", `
 function add(left: int32, right: int32): int32 { return left + right; }
 const sub = (left: int32, right: int32): int32 => left - right;
-export c("ontama_sub", "ontama_add") {sub, add};
+export c("kinmokusei_sub", "kinmokusei_add") {sub, add};
 `)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics=%v", lexDiagnostics)
@@ -99,7 +99,7 @@ export c("ontama_sub", "ontama_add") {sub, add};
 	if len(program.CABIExports) != 2 {
 		t.Fatalf("resolved exports=%#v", program.CABIExports)
 	}
-	for index, want := range []struct{ symbol, name string }{{"ontama_sub", "sub"}, {"ontama_add", "add"}} {
+	for index, want := range []struct{ symbol, name string }{{"kinmokusei_sub", "sub"}, {"kinmokusei_add", "add"}} {
 		got := program.CABIExports[index]
 		if got.Symbol != want.symbol || got.Name != want.name || len(got.Parameters) != 2 || got.ReturnType.Name != "int32" {
 			t.Fatalf("export[%d]=%#v want symbol=%q name=%q", index, got, want.symbol, want.name)

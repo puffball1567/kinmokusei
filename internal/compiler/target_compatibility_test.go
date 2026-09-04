@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 func TestGeneratedGoTargetCompatibilityMatrix(t *testing.T) {
 	directory := t.TempDir()
-	source := filepath.Join(directory, "main.otm")
+	source := filepath.Join(directory, "main.km")
 	contents := `
 import go strconv from "strconv";
 import go strings from "strings";

@@ -2,7 +2,7 @@
 
 ## Conclusion
 
-Go can support OnsenTamago reference classes, encapsulation, interfaces, dynamic polymorphism, single class inheritance, explicit virtual/override behavior, `super`, safe upcasts, and checked downcasts without a custom garbage collector or object runtime. The compiler must generate more than simple embedding, because Go embedding alone is not subtype inheritance.
+Go can support Kinmokusei reference classes, encapsulation, interfaces, dynamic polymorphism, single class inheritance, explicit virtual/override behavior, `super`, safe upcasts, and checked downcasts without a custom garbage collector or object runtime. The compiler must generate more than simple embedding, because Go embedding alone is not subtype inheritance.
 
 Relevant Go references:
 
@@ -38,7 +38,7 @@ Embedding provides field/method promotion, but:
 - Base/derived identity and checked downcasts are not modeled.
 - Constructor and override rules remain undefined.
 
-Therefore OnsenTamago cannot call embedding alone “inheritance.”
+Therefore Kinmokusei cannot call embedding alone “inheritance.”
 
 ## Interface polymorphism
 
@@ -89,11 +89,13 @@ returns nil for a nil derived reference, and otherwise returns the address of
 the embedded base-state region. Repeated upcasts therefore compare equal.
 Virtual self state retains the most-derived dispatch target after construction.
 The hierarchy root also stores the current constructed class reference as a Go
-interface. Checked helpers inspect it with Go type assertions, preserve nil,
-and recognize deeper descendants when the requested target is an intermediate
-base. Forced helpers reuse the checked operation and panic on failure. This
-adds identity metadata only to class hierarchies; classes without inheritance
-retain their direct pointer-only representation.
+interface. Checked helpers inspect it through an unexported typed projection
+interface, preserve nil, and recover the target's embedded view even when the
+dynamic object is a deeper generic descendant. Generic projection arguments
+must match exactly, so remapped and concretely fixed base types remain statically
+safe. Forced helpers reuse the checked operation and panic on failure. This adds
+identity metadata only to class hierarchies; classes without inheritance retain
+their direct pointer-only representation.
 
 For cross-package Go callers, the compiler exposes explicit exported
 upcast/downcast functions. Public virtual methods are wrappers over the internal
@@ -167,9 +169,9 @@ The inheritance work is gated by executable coverage of:
 6. Multiple interface implementation. (implemented)
 7. Final/nonvirtual controls. (implemented; additional final-aware optimization remains optional)
 8. Public Go API consumption. (implemented)
-9. JSON and generic interactions. (remaining)
+9. JSON and generic interactions. (implemented)
 10. Race and allocation profiles. (race gate implemented; allocation profile remains)
 
 The initial single-inheritance stage is implemented and differentially tested.
-The remaining prototype requirements apply to JSON/generic integration,
-optional final-aware optimization, and allocation profiling.
+The remaining prototype requirements apply to optional final-aware optimization
+and allocation profiling.

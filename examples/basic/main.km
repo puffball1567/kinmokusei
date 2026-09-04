@@ -1,0 +1,23 @@
+import { max } from "./math";
+import { Counter } from "./counter";
+import { CounterValue } from "./counter-contract";
+import go strings from "strings";
+
+function apply(value: int, operation: (value: int) => int): int {
+  return operation(value);
+}
+
+function current(counter: CounterValue): int {
+  return counter.current();
+}
+
+function normalize(value: string): string {
+  return strings.ToUpper(strings.TrimSpace(value));
+}
+
+function main(): void {
+  const counter = new Counter(20);
+  counter.increment();
+  apply(current(counter), (value: int) => max(value, 22));
+  normalize("  kinmokusei  ");
+}

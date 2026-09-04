@@ -16,12 +16,12 @@ test('extension entry point delegates activation and deactivation', async (t) =>
   class LanguageClient {
     constructor(id, name, options, clientOptions) {
       events.push('construct');
-      assert.equal(id, 'onsentamago');
-      assert.equal(name, 'OnsenTamago Language Server');
-      assert.equal(options.run.command, 'ontama');
+      assert.equal(id, 'kinmokusei');
+      assert.equal(name, 'Kinmokusei Language Server');
+      assert.equal(options.run.command, 'keika');
       assert.deepEqual(options.run.args, ['lsp', '--stdio']);
       assert.deepEqual(clientOptions.documentSelector, [
-        { scheme: 'file', language: 'onsentamago' }
+        { scheme: 'file', language: 'kinmokusei' }
       ]);
     }
 
@@ -33,18 +33,18 @@ test('extension entry point delegates activation and deactivation', async (t) =>
     workspace: {
       workspaceFolders: [],
       getConfiguration(section) {
-        assert.equal(section, 'onsentamago');
+        assert.equal(section, 'kinmokusei');
         return { get: (_name, fallback) => fallback };
       },
       createFileSystemWatcher(pattern) {
-        assert.equal(pattern, '**/*.otm');
+        assert.equal(pattern, '**/*.km');
         return watcher;
       },
       onDidChangeConfiguration() { return configurationRegistration; }
     },
     commands: {
       registerCommand(command) {
-        assert.equal(command, 'onsentamago.restartLanguageServer');
+        assert.equal(command, 'kinmokusei.restartLanguageServer');
         return commandRegistration;
       }
     },

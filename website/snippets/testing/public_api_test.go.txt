@@ -1,0 +1,16 @@
+package calculator
+
+import "testing"
+
+func TestPublicAPI(t *testing.T) {
+	if got := Add(20, 22); got != 42 {
+		t.Fatalf("Add(20, 22) = %d, want 42", got)
+	}
+
+	if got, err := Half(8); err != nil || got != 4 {
+		t.Fatalf("Half(8) = (%d, %v), want (4, nil)", got, err)
+	}
+	if got, err := Half(3); err == nil || got != 0 {
+		t.Fatalf("Half(3) = (%d, %v), want zero value and error", got, err)
+	}
+}

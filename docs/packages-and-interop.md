@@ -2,32 +2,32 @@
 
 ## Policy
 
-OnsenTamago uses three explicit package paths:
+Kinmokusei uses three explicit package paths:
 
-1. Relative imports between OnsenTamago modules.
-2. Versioned source-only OnsenTamago packages hosted in GitHub repositories
+1. Relative imports between Kinmokusei modules.
+2. Versioned source-only Kinmokusei packages hosted in GitHub repositories
    (future installation work).
 3. Namespaced direct Go imports through `import go`.
 
-Direct Go interop is the low-level ecosystem boundary. Higher-level OnsenTamago wrappers should improve ergonomics without hiding the underlying Go package or changing values implicitly.
+Direct Go interop is the low-level ecosystem boundary. Higher-level Kinmokusei wrappers should improve ergonomics without hiding the underlying Go package or changing values implicitly.
 
-OnsenTamago packages distribute `.otm` source, manifests, licenses, and optional
+Kinmokusei packages distribute `.km` source, manifests, licenses, and optional
 C/C++ shim source rather than prebuilt library binaries. They compile into the
 consumer's ordinary generated Go module. The initial package source is GitHub;
 there is no dedicated binary registry or requirement for a central package
 server. A future optional catalog may map short names to canonical GitHub
 repositories without becoming the source of package contents.
 
-This makes OnsenTamago a source dialect in the Go ecosystem rather than a
+This makes Kinmokusei a source dialect in the Go ecosystem rather than a
 parallel runtime or binary ecosystem. It is not Go-source-compatible: the
-compiler owns `.otm` parsing and semantics, while the completed dependency and
+compiler owns `.km` parsing and semantics, while the completed dependency and
 build graph is an ordinary Go module. Direct Go modules continue to be fetched
-as source by Go tooling, exposed to OnsenTamago through export/type information,
+as source by Go tooling, exposed to Kinmokusei through export/type information,
 compiled by the selected Go toolchain, and reused from Go's build cache.
 
 ## Project manifest and lock
 
-The project files are `ontama.toml` and canonical JSON `ontama.lock`.
+The project files are `kinmokusei.toml` and canonical JSON `kinmokusei.lock`.
 
 ```toml
 [project]
@@ -61,26 +61,26 @@ Rules:
 - Dependencies use complete versions, including complete pseudo-versions.
 - Initial replacements are project-relative local paths inside the project root and must correspond to dependencies.
 - The lock records manifest hash, Go version, resolved target/tags/CGO, module graph/checksums, project-relative replacements, generated `go.mod`/`go.sum` hashes, and license file hashes. It contains no machine-specific absolute paths.
-- Dependency locking parses the project's `.otm` files, collects explicit
+- Dependency locking parses the project's `.km` files, collects explicit
   `import go` paths, and lets the selected Go toolchain materialize the required
   indirect module graph. The resulting locked module builds with
   `-mod=readonly`; comments, ordinary strings, non-source files, and generated
-  `.ontama` state cannot fabricate dependencies.
+  `.kinmokusei` state cannot fabricate dependencies.
 
 Only explicit dependency mutation commands (`install --go-module`, `deps add`,
 `deps update`, `deps remove`, and `deps lock`) may resolve the graph and update
-`.ontama/deps/` or the lock. `--offline` uses `GOPROXY=off` and existing caches.
+`.kinmokusei/deps/` or the lock. `--offline` uses `GOPROXY=off` and existing caches.
 
 Explicit commands:
 
-- `ontama install --go-module <module>@<version> [project]`
-- `ontama deps add <module>@<version> [project]`
-- `ontama deps update <module>@<version> [project]`
-- `ontama deps remove <module> [project]`
-- `ontama deps lock [--offline] [project]`
-- `ontama deps check [project]`
-- `ontama deps licenses [--strict] [project]`
-- `ontama target [project]`
+- `keika install --go-module <module>@<version> [project]`
+- `keika deps add <module>@<version> [project]`
+- `keika deps update <module>@<version> [project]`
+- `keika deps remove <module> [project]`
+- `keika deps lock [--offline] [project]`
+- `keika deps check [project]`
+- `keika deps licenses [--strict] [project]`
+- `keika target [project]`
 
 `install --go-module` is the user-facing spelling for adding a direct Go module;
 it uses the same transactional implementation as `deps add`. The latter remains
@@ -95,22 +95,22 @@ The lock's target controls export loading, checking, and building. Cross-build i
 
 ```ts
 import { User, findUser } from "./users";
-import { Router } from "ontama/http";
+import { Router } from "kinmokusei/http";
 import go http from "net/http";
 ```
 
-- Each `.otm` file has an independent module scope.
+- Each `.km` file has an independent module scope.
 - Only local declarations and explicitly imported names are visible.
 - Transitive imports do not leak names.
 - Import aliases, imported names, and local declarations share collision checks.
 - Multiple root files never share names implicitly.
 - Go symbols are always referenced through their alias namespace.
-- `ontama/*` is reserved for standard/compiler-managed packages. The exact
-  `ontama/http` package is implemented and embedded in the compiler; unknown,
-  differently cased, traversal-like, or otherwise noncanonical `ontama/*`
+- `kinmokusei/*` is reserved for standard/compiler-managed packages. The exact
+  `kinmokusei/http` package is implemented and embedded in the compiler; unknown,
+  differently cased, traversal-like, or otherwise noncanonical `kinmokusei/*`
   paths are rejected rather than normalized or fetched.
 
-Go package internals may use reflection, unsafe, assembly, generated code, or CGO if the selected Go target can build them. Only public boundary types affect OnsenTamago source compatibility.
+Go package internals may use reflection, unsafe, assembly, generated code, or CGO if the selected Go target can build them. Only public boundary types affect Kinmokusei source compatibility.
 
 ## Direct Go interop model
 
@@ -134,13 +134,13 @@ Current connectivity includes package constants/functions/variables, all Go basi
 - Check only referenced symbols and reachable call/type shapes lazily.
 - Never collapse `time.Duration` into a plain `int64` or otherwise erase identity.
 - Use `go/types` for assignability, method sets, addressability, constants, and generic constraints where possible.
-- Never silently convert `(T, error)` to `Result<T>`, erase Go pointer identity when forming nullable types, or convert Go interfaces to class hierarchies. Postfix `?` is the explicit bridge from `(T, error)` or `error` into an enclosing `Result` function. `null` is the checked OnsenTamago literal; `nil` retains raw Go semantics.
+- Never silently convert `(T, error)` to `Result<T>`, erase Go pointer identity when forming nullable types, or convert Go interfaces to class hierarchies. Postfix `?` is the explicit bridge from `(T, error)` or `error` into an enclosing `Result` function. `null` is the checked Kinmokusei literal; `nil` retains raw Go semantics.
 - Keep generated code directly connected to the original Go package without reflection proxies.
 - Record environmental availability in the locked target.
 
 ## Public API audit
 
-`ontama interop audit --stdlib` inspects actual export data for package declarations, direct fields, and value/pointer methods.
+`keika interop audit --stdlib` inspects actual export data for package declarations, direct fields, and value/pointer methods.
 
 Classifications:
 
@@ -251,6 +251,6 @@ Interop diagnostics include:
 
 ## Go-facing output and handwritten integration
 
-Generated packages should expose clean Go APIs where their OnsenTamago types have stable Go representations. Advanced wrappers may be written in OnsenTamago on top of direct interop or in ordinary Go beside generated packages. Handwritten Go remains a supported integration path for optimizations, adapters, and APIs not yet expressible safely.
+Generated packages should expose clean Go APIs where their Kinmokusei types have stable Go representations. Advanced wrappers may be written in Kinmokusei on top of direct interop or in ordinary Go beside generated packages. Handwritten Go remains a supported integration path for optimizations, adapters, and APIs not yet expressible safely.
 
 C ABI/cgo integration is a separate explicit boundary described in [c-ffi.md](c-ffi.md); direct Go interop must not disguise C ownership or lifetime concerns.

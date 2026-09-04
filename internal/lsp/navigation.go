@@ -10,11 +10,11 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/compiler"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/source"
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type textDocumentPositionParams struct {
@@ -50,7 +50,7 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 	program := s.analyze(doc)
 	if detail, builtin := builtinExceptionHover(program, doc, offset); builtin {
 		result := map[string]any{
-			"contents": map[string]any{"kind": "markdown", "value": "```ontama\n" + detail + "\n```"},
+			"contents": map[string]any{"kind": "markdown", "value": "```kinmokusei\n" + detail + "\n```"},
 			"range":    s.protocolRangeFor(doc.Path, identifierSpanAt(doc, offset, identifierAt(doc, offset))),
 		}
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: result})
@@ -60,7 +60,7 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	result := map[string]any{
-		"contents": map[string]any{"kind": "markdown", "value": "```ontama\n" + declaration.Detail + "\n```"},
+		"contents": map[string]any{"kind": "markdown", "value": "```kinmokusei\n" + declaration.Detail + "\n```"},
 		"range":    s.protocolRangeFor(doc.Path, identifierSpanAt(doc, offset, identifierAt(doc, offset))),
 	}
 	return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: result})

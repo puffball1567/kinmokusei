@@ -1,0 +1,18 @@
+import go fmt from "fmt";
+import go strconv from "strconv";
+
+function parsePort(text: string): Result<int> {
+  const port = strconv.Atoi(text)?;
+  if (port < 1 || port > 65535) {
+    return fail(fmt.Errorf("port out of range: %d", port));
+  }
+  return ok(port);
+}
+
+function main(): void {
+  const [port, portErr] = parsePort("8080");
+  fmt.Println(port, portErr === nil);
+
+  const [invalid, invalidErr] = parsePort("70000");
+  fmt.Println(invalid, invalidErr !== nil);
+}

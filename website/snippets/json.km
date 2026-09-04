@@ -1,0 +1,16 @@
+import go json from "encoding/json";
+import go fmt from "fmt";
+
+function encodeVisit(): Result<string> {
+  const payload: { guest: string, temperature: int } = {
+    guest: "Aki",
+    temperature: 42,
+  };
+  const encoded = json.Marshal(payload)?;
+  return ok(string(encoded));
+}
+
+function main(): void {
+  const [text, err] = encodeVisit();
+  fmt.Println(text, err === nil);
+}

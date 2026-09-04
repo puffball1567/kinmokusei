@@ -96,8 +96,8 @@ func TestRejectsInvalidTypedExceptionUses(t *testing.T) {
 		{"pending task at throw", `import go errors from "errors"; function work(): int { return 1; } function bad(): void { const task = go work(); throw errors.New("stop"); }`, "must be consumed with await or detach"},
 		{"catch does not inherit try-only nullable fact", `class Box { public value: int; constructor(value: int) { this.value = value; } } function bad(input: error): int { let box: Box | null = null; let result = 0; try { box = new Box(1); throw input; } catch (_: error) { result = box.value; } return result; }`, "nullable"},
 		{"finally includes exceptional nullable path", `class Box { public value: int; constructor(value: int) { this.value = value; } } function bad(stop: boolean, input: error): int { let box: Box | null = null; let result = 0; try { if (stop) { throw input; } box = new Box(1); } finally { result = box.value; } return result; }`, "nullable"},
-		{"exception interface name collision", `function __ontamaException(): void {} function bad(input: error): void { try { throw input; } catch (_: error) {} }`, "reserved by the exception runtime"},
-		{"exception value name collision", `function __ontamaThrown(): void {} function bad(input: error): void { throw input; }`, "reserved by the exception runtime"},
+		{"exception interface name collision", `function __kinmokuseiException(): void {} function bad(input: error): void { try { throw input; } catch (_: error) {} }`, "reserved by the exception runtime"},
+		{"exception value name collision", `function __kinmokuseiThrown(): void {} function bad(input: error): void { throw input; }`, "reserved by the exception runtime"},
 		{"catch built-in name", `function bad(input: error): void { try { throw input; } catch (error: error) {} }`, "conflicts with a built-in type"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

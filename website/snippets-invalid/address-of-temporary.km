@@ -1,0 +1,11 @@
+struct Point {
+  public x: int;
+}
+
+function makePoint(): Point {
+  return Point { x: 1 };
+}
+
+function invalid(): *Point {
+  return &makePoint();
+}

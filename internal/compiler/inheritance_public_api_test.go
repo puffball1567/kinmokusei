@@ -9,7 +9,7 @@ import (
 
 func TestClassHierarchyPublicGoAPIMatchesIndependentPackage(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "hierarchy.otm")
+	source := filepath.Join(temporary, "hierarchy.km")
 	input := `
 class Animal {
   constructor(public name: string) {}
@@ -37,13 +37,13 @@ final class GuideDog extends Dog {
 	}
 	for _, expected := range []string{
 		"func UpcastGuideDogToAnimal", "func DowncastAnimalToGuideDog", "func MustDowncastAnimalToGuideDog",
-		"func (this *Animal) Speak() string", "return this.__ontamaAnimalSelf.__ontamaAnimalSpeak()",
+		"func (this *Animal) Speak() string", "return this.__kinmokuseiAnimalSelf.__kinmokuseiAnimalSpeak()",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated public Go API does not contain %q:\n%s", expected, generated)
 		}
 	}
-	for _, forbidden := range []string{temporary, source, "github.com/puffball1567/onsentamago"} {
+	for _, forbidden := range []string{temporary, source, "github.com/puffball1567/kinmokusei"} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated Go contains local/compiler-only path %q:\n%s", forbidden, generated)
 		}

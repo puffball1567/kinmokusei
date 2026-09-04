@@ -110,7 +110,10 @@ func LookupType(name string) (Type, bool) {
 func (t Type) IsNumeric() bool {
 	if t.GoType != nil {
 		basic, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Basic)
-		return ok && basic.Info()&gotypes.IsNumeric != 0
+		if ok {
+			return basic.Info()&gotypes.IsNumeric != 0
+		}
+		return goTypeSetSupports(t.GoType, gotypes.IsNumeric)
 	}
 	switch t.Kind {
 	case Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt:
@@ -118,6 +121,17 @@ func (t Type) IsNumeric() bool {
 	default:
 		return false
 	}
+}
+
+func (t Type) IsAddable() bool {
+	if t.GoType != nil {
+		basic, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Basic)
+		if ok {
+			return basic.Info()&(gotypes.IsNumeric|gotypes.IsString) != 0
+		}
+		return goTypeSetSupports(t.GoType, gotypes.IsNumeric|gotypes.IsString)
+	}
+	return t.IsNumeric() || t.IsString()
 }
 
 func (t Type) IsComparable() bool {
@@ -191,6 +205,9 @@ func assignable(target, value Type) bool {
 	if target.Kind == Nil {
 		return value.Kind == Nil
 	}
+	if target.Kind == GoPointer && target.Element != nil && target.Element.Kind == Struct || value.Kind == GoPointer && value.Element != nil && value.Element.Kind == Struct {
+		return target.Kind == GoPointer && value.Kind == GoPointer && target.Element != nil && value.Element != nil && sameType(*target.Element, *value.Element)
+	}
 	if target.Kind == GoPointer && target.GoType == nil || value.Kind == GoPointer && value.GoType == nil {
 		if target.Kind != GoPointer || value.Kind != GoPointer || target.Element == nil || value.Element == nil {
 			return false
@@ -199,6 +216,17 @@ func assignable(target, value Type) bool {
 			return gotypes.AssignableTo(value.GoType, target.GoType)
 		}
 		return sameType(*target.Element, *value.Element)
+	}
+	if target.Kind == Struct || value.Kind == Struct {
+		if target.Kind != Struct || value.Kind != Struct || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
+			return false
+		}
+		for index := range target.TypeArguments {
+			if !sameType(target.TypeArguments[index], value.TypeArguments[index]) {
+				return false
+			}
+		}
+		return true
 	}
 	if targetGo, targetIsGo := goTypeOf(target); targetIsGo {
 		valueGo, valueIsGo := goTypeOf(value)
@@ -244,17 +272,6 @@ func assignable(target, value Type) bool {
 	}
 	if target.Kind == Class || value.Kind == Class {
 		if target.Kind != Class || value.Kind != Class || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
-			return false
-		}
-		for index := range target.TypeArguments {
-			if !sameType(target.TypeArguments[index], value.TypeArguments[index]) {
-				return false
-			}
-		}
-		return true
-	}
-	if target.Kind == Struct || value.Kind == Struct {
-		if target.Kind != Struct || value.Kind != Struct || target.Name != value.Name || len(target.TypeArguments) != len(value.TypeArguments) {
 			return false
 		}
 		for index := range target.TypeArguments {
@@ -537,7 +554,10 @@ func (t Type) IsString() bool {
 		return false
 	}
 	basic, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Basic)
-	return ok && basic.Info()&gotypes.IsString != 0
+	if ok {
+		return basic.Info()&gotypes.IsString != 0
+	}
+	return goTypeSetSupports(t.GoType, gotypes.IsString)
 }
 
 func (t Type) IsBoolean() bool {
@@ -548,13 +568,19 @@ func (t Type) IsBoolean() bool {
 		return false
 	}
 	basic, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Basic)
-	return ok && basic.Info()&gotypes.IsBoolean != 0
+	if ok {
+		return basic.Info()&gotypes.IsBoolean != 0
+	}
+	return goTypeSetSupports(t.GoType, gotypes.IsBoolean)
 }
 
 func (t Type) IsOrdered() bool {
 	if t.GoType != nil {
 		basic, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Basic)
-		return ok && basic.Info()&gotypes.IsOrdered != 0
+		if ok {
+			return basic.Info()&gotypes.IsOrdered != 0
+		}
+		return goTypeSetSupports(t.GoType, gotypes.IsOrdered)
 	}
 	return t.IsNumeric() || t.IsString()
 }
@@ -562,13 +588,70 @@ func (t Type) IsOrdered() bool {
 func (t Type) IsInteger() bool {
 	if t.GoType != nil {
 		basic, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Basic)
-		return ok && basic.Info()&gotypes.IsInteger != 0
+		if ok {
+			return basic.Info()&gotypes.IsInteger != 0
+		}
+		return goTypeSetSupports(t.GoType, gotypes.IsInteger)
 	}
 	switch t.Kind {
 	case Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Byte, UntypedInt:
 		return true
 	default:
 		return false
+	}
+}
+
+const goTypeSetOther uint64 = 1 << 63
+
+func goTypeSetSupports(goType gotypes.Type, required gotypes.BasicInfo) bool {
+	mask := goTypeSetMask(goType, map[gotypes.Type]bool{})
+	if mask == 0 || mask&goTypeSetOther != 0 {
+		return false
+	}
+	for kind := gotypes.Invalid; kind <= gotypes.UntypedNil; kind++ {
+		bit := uint64(1) << uint(kind)
+		if mask&bit == 0 {
+			continue
+		}
+		basic := gotypes.Typ[kind]
+		if basic == nil || basic.Info()&required == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func goTypeSetMask(goType gotypes.Type, visiting map[gotypes.Type]bool) uint64 {
+	if goType == nil {
+		return goTypeSetOther
+	}
+	goType = gotypes.Unalias(goType)
+	if visiting[goType] {
+		return ^uint64(0)
+	}
+	visiting[goType] = true
+	defer delete(visiting, goType)
+	switch typed := goType.(type) {
+	case *gotypes.Basic:
+		return uint64(1) << uint(typed.Kind())
+	case *gotypes.TypeParam:
+		return goTypeSetMask(typed.Constraint(), visiting)
+	case *gotypes.Named:
+		return goTypeSetMask(typed.Underlying(), visiting)
+	case *gotypes.Interface:
+		mask := ^uint64(0)
+		for index := 0; index < typed.NumEmbeddeds(); index++ {
+			mask &= goTypeSetMask(typed.EmbeddedType(index), visiting)
+		}
+		return mask
+	case *gotypes.Union:
+		var mask uint64
+		for index := 0; index < typed.Len(); index++ {
+			mask |= goTypeSetMask(typed.Term(index).Type(), visiting)
+		}
+		return mask
+	default:
+		return goTypeSetOther
 	}
 }
 

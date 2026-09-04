@@ -9,7 +9,7 @@ import (
 
 func TestNullableCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "nullable.otm")
+	source := filepath.Join(temp, "nullable.km")
 	input := `
 class User { constructor(public name: string) {} }
 
@@ -319,7 +319,7 @@ func goBreakLoopName(present bool) string {
 
 func TestDefiniteNonNullFieldInitializationCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "field_initialization.otm")
+	source := filepath.Join(temp, "field_initialization.km")
 	input := `
 import go errors from "errors";
 class User { constructor(public name: string) {} }
