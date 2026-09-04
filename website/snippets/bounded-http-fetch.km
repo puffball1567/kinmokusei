@@ -11,7 +11,7 @@ class StaticTransport implements http.RoundTripper {
     const response = http.Response{
       StatusCode: http.StatusOK,
       Header: headers,
-      Body: io.NopCloser(strings.NewReader("onsen")),
+      Body: io.NopCloser(strings.NewReader("hello")),
       Request: request,
     };
     return ok(&response);

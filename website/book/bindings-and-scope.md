@@ -29,7 +29,7 @@ Use an annotation when it documents a public boundary, selects a non-default num
 ```ts
 const bytes: byte[] = [];
 let current: User | null = null;
-const reader: io.Reader = strings.NewReader("onsen");
+const reader: io.Reader = strings.NewReader("hello");
 ```
 
 `nil` or `null` alone cannot supply a complete inferred type.

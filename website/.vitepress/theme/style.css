@@ -1,71 +1,71 @@
 :root {
-  --yn-ink: #263746;
-  --yn-muted: #63717b;
-  --yn-cream: #fff8f2;
-  --yn-shell: #f1f5f5;
-  --yn-paper: #fffdfb;
-  --yn-sunset: #ef8f72;
-  --yn-horizon: #cc625c;
-  --yn-tide: #5f8f99;
-  --yn-line: rgba(48, 70, 82, 0.14);
+  --km-ink: #354139;
+  --km-muted: #68736b;
+  --km-cream: #fff8e9;
+  --km-shell: #f5f7ef;
+  --km-paper: #fffdf7;
+  --km-bloom: #e4a13a;
+  --km-branch: #b87325;
+  --km-leaf: #688164;
+  --km-line: rgba(61, 77, 65, 0.15);
 
-  --vp-c-bg: var(--yn-paper);
-  --vp-c-bg-alt: var(--yn-shell);
-  --vp-c-bg-elv: #ffffff;
-  --vp-c-bg-soft: #f2f6f5;
-  --vp-c-text-1: var(--yn-ink);
-  --vp-c-text-2: var(--yn-muted);
-  --vp-c-text-3: #78858d;
-  --vp-c-divider: var(--yn-line);
-  --vp-c-gutter: rgba(48, 70, 82, 0.09);
-  --vp-c-brand-1: #b44f52;
-  --vp-c-brand-2: #cc625c;
-  --vp-c-brand-3: #df8170;
-  --vp-c-brand-soft: rgba(204, 98, 92, 0.13);
-  --vp-c-tip-1: #477985;
-  --vp-c-tip-2: #5f8f99;
-  --vp-c-tip-3: #7ca9b0;
-  --vp-c-tip-soft: rgba(95, 143, 153, 0.14);
-  --vp-c-warning-1: #9a604d;
-  --vp-c-warning-soft: rgba(239, 143, 114, 0.16);
-  --vp-code-bg: #1f2c34;
-  --vp-code-color: #edf5f5;
+  --vp-c-bg: var(--km-paper);
+  --vp-c-bg-alt: var(--km-shell);
+  --vp-c-bg-elv: #fffffb;
+  --vp-c-bg-soft: #f5f6ed;
+  --vp-c-text-1: var(--km-ink);
+  --vp-c-text-2: var(--km-muted);
+  --vp-c-text-3: #7d887e;
+  --vp-c-divider: var(--km-line);
+  --vp-c-gutter: rgba(61, 77, 65, 0.09);
+  --vp-c-brand-1: #a8611c;
+  --vp-c-brand-2: #c27b25;
+  --vp-c-brand-3: #dfa044;
+  --vp-c-brand-soft: rgba(228, 161, 58, 0.15);
+  --vp-c-tip-1: #557253;
+  --vp-c-tip-2: #688164;
+  --vp-c-tip-3: #88a083;
+  --vp-c-tip-soft: rgba(104, 129, 100, 0.15);
+  --vp-c-warning-1: #986329;
+  --vp-c-warning-soft: rgba(228, 161, 58, 0.17);
+  --vp-code-bg: #26332b;
+  --vp-code-color: #f2f5ec;
   --vp-font-family-base: Inter, ui-rounded, "Hiragino Kaku Gothic ProN", "Yu Gothic", system-ui, sans-serif;
   --vp-font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(115deg, #af4853 8%, #e47b69 52%, #68869a 94%);
-  --vp-home-hero-image-background-image: radial-gradient(circle, rgba(239, 143, 114, 0.22), rgba(95, 143, 153, 0.12) 46%, transparent 72%);
+  --vp-home-hero-name-background: linear-gradient(115deg, #9e5b1d 8%, #df9b36 52%, #688164 94%);
+  --vp-home-hero-image-background-image: radial-gradient(circle, rgba(228, 161, 58, 0.23), rgba(104, 129, 100, 0.13) 46%, transparent 72%);
   --vp-home-hero-image-filter: blur(34px);
   --vp-layout-max-width: 1480px;
   --vp-sidebar-width: 288px;
 }
 
 .dark {
-  --yn-ink: #edf4f5;
-  --yn-muted: #b6c5ca;
-  --yn-cream: #2b3b45;
-  --yn-shell: #24343d;
-  --yn-paper: #1e2b33;
-  --yn-line: rgba(230, 241, 242, 0.13);
+  --km-ink: #f1f1e7;
+  --km-muted: #bdc7b9;
+  --km-cream: #344038;
+  --km-shell: #29362f;
+  --km-paper: #222e28;
+  --km-line: rgba(236, 240, 227, 0.14);
 
-  --vp-c-bg: var(--yn-paper);
-  --vp-c-bg-alt: var(--yn-shell);
-  --vp-c-bg-elv: #33454f;
-  --vp-c-bg-soft: #293943;
-  --vp-c-text-1: var(--yn-ink);
-  --vp-c-text-2: var(--yn-muted);
-  --vp-c-text-3: #93a8af;
-  --vp-c-divider: var(--yn-line);
-  --vp-c-gutter: rgba(230, 241, 242, 0.08);
-  --vp-c-brand-1: #f2a08a;
-  --vp-c-brand-2: #df8172;
-  --vp-c-brand-3: #c96362;
-  --vp-c-brand-soft: rgba(223, 129, 114, 0.16);
-  --vp-c-tip-1: #9bc5cc;
-  --vp-c-tip-2: #7aa8b0;
-  --vp-c-tip-soft: rgba(122, 168, 176, 0.16);
-  --vp-code-bg: #152129;
-  --vp-code-color: #edf5f5;
+  --vp-c-bg: var(--km-paper);
+  --vp-c-bg-alt: var(--km-shell);
+  --vp-c-bg-elv: #36453b;
+  --vp-c-bg-soft: #2d3b33;
+  --vp-c-text-1: var(--km-ink);
+  --vp-c-text-2: var(--km-muted);
+  --vp-c-text-3: #9eae9e;
+  --vp-c-divider: var(--km-line);
+  --vp-c-gutter: rgba(236, 240, 227, 0.08);
+  --vp-c-brand-1: #f0bd64;
+  --vp-c-brand-2: #dfa044;
+  --vp-c-brand-3: #bc7727;
+  --vp-c-brand-soft: rgba(223, 160, 68, 0.17);
+  --vp-c-tip-1: #a9c2a3;
+  --vp-c-tip-2: #89a485;
+  --vp-c-tip-soft: rgba(137, 164, 133, 0.17);
+  --vp-code-bg: #18231d;
+  --vp-code-color: #f1f4e9;
   color-scheme: dark;
 }
 
@@ -75,13 +75,13 @@ html {
 
 body {
   background-image:
-    radial-gradient(circle at 8% 3%, rgba(239, 143, 114, 0.06), transparent 22rem),
-    radial-gradient(circle at 96% 16%, rgba(95, 143, 153, 0.06), transparent 28rem);
+    radial-gradient(circle at 8% 3%, rgba(228, 161, 58, 0.07), transparent 22rem),
+    radial-gradient(circle at 96% 16%, rgba(104, 129, 100, 0.07), transparent 28rem);
 }
 
 ::selection {
   color: var(--vp-c-text-1);
-  background: rgba(239, 143, 114, 0.28);
+  background: rgba(228, 161, 58, 0.3);
 }
 
 :focus-visible {
@@ -138,7 +138,7 @@ body {
 }
 
 .VPSidebarItem.is-active > .item .indicator {
-  background-color: var(--yn-horizon);
+  background-color: var(--km-branch);
   border-radius: 99px;
   width: 3px;
 }
@@ -221,8 +221,8 @@ body {
   inset: 0 0 auto;
   height: 650px;
   background-image:
-    linear-gradient(rgba(95, 143, 153, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(95, 143, 153, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(104, 129, 100, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(104, 129, 100, 0.07) 1px, transparent 1px);
   background-size: 44px 44px;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 85%);
   pointer-events: none;
@@ -393,8 +393,8 @@ body {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--yn-horizon);
-  box-shadow: 15px 0 var(--yn-sunset), 30px 0 var(--yn-tide);
+  background: var(--km-branch);
+  box-shadow: 15px 0 var(--km-bloom), 30px 0 var(--km-leaf);
   margin-right: 30px;
 }
 
@@ -440,7 +440,7 @@ body {
 }
 
 .terminal-prompt {
-  color: var(--yn-tide);
+  color: var(--km-leaf);
   font-weight: 800;
 }
 

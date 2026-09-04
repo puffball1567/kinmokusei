@@ -14,7 +14,7 @@ function choose<T>(first: T, second: T, useSecond: boolean): T {
 }
 
 function main(): void {
-  const box: Box<string> = Box<string> { value: "onsen" };
+  const box: Box<string> = Box<string> { value: "hello" };
   const selected = choose<int>(21, 42, true);
   fmt.Println(box.get(), selected);
 }

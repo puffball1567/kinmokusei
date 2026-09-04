@@ -28,7 +28,7 @@ keika run main.km
 Expected output:
 
 ```text
-onsen 42
+hello 42
 ```
 
 ## Contract demonstrated

@@ -108,14 +108,14 @@ function pair<T, U>(left: T, right: U): { left: T, right: U } {
 Calls may infer all type arguments:
 
 ```ts
-const value = identity("onsen");
+const value = identity("hello");
 ```
 
 Or supply a leading partial/full list:
 
 ```ts
-identity<string>("onsen");
-identity[string]("onsen");
+identity<string>("hello");
+identity[string]("hello");
 pair<int>(1, "one");
 ```
 

@@ -31,7 +31,7 @@ true true true true true false true true 1
 | `1 == 1` | `true` | Go-shaped equality is typed and non-coercive. |
 | `1 === 1` | `true` | TypeScript-shaped equality has the same semantics. |
 | `1 != 2`, `1 !== 2` | `true`, `true` | Both inequality spellings negate the same typed comparison. |
-| `"onsen" < "tamago"` | `true` | Strings use Go's byte-wise lexicographic order. |
+| `"hello" < "planet"` | `true` | Strings use Go's byte-wise lexicographic order. |
 | `false && record(true)` | `false` | The right operand is skipped. |
 | `true || record(false)` | `true` | The right operand is skipped. |
 | `true && record(true)` | `true` | The right operand runs once. |

@@ -52,7 +52,7 @@ Local initialized bindings may infer their type:
 
 ```ts
 const count = 1;          // int
-const label = "onsen";   // string
+const label = "hello";   // string
 const values = [1, 2, 3]; // int[]
 ```
 

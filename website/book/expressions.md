@@ -118,9 +118,9 @@ This also applies when calls lower through generated adapters, virtual dispatch,
 Type arguments may be inferred or supplied explicitly:
 
 ```ts
-const inferred = identity("onsen");
-const explicit = identity<string>("onsen");
-const goShaped = identity[string]("onsen");
+const inferred = identity("hello");
+const explicit = identity<string>("hello");
+const goShaped = identity[string]("hello");
 ```
 
 The angle form is TypeScript-shaped; the bracket form is useful when mirroring explicit Go generic calls. Partial leading arguments are accepted when the rest can be inferred.

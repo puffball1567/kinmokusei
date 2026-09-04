@@ -21,7 +21,7 @@ keika run exceptions.km
 Expected output:
 
 ```text
-clean onsen
+clean hello
 clean not-found:missing
 clean not-found:closed
 clean error:backend unavailable

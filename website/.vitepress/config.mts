@@ -145,7 +145,7 @@ export default defineConfig({
   lang: "en-US",
   title: "Kinmokusei",
   titleTemplate: ":title · Kinmokusei",
-  description: "The official guide to Kinmokusei, a TypeScript-inspired source language for the Go ecosystem.",
+  description: "The official guide to Kinmokusei Programming Language, a TypeScript-inspired source language for the Go ecosystem.",
   base: deploymentBase,
   cleanUrls: true,
   lastUpdated: true,
@@ -153,7 +153,7 @@ export default defineConfig({
   markdown: { lineNumbers: true },
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: `${deploymentBase}favicon.svg` }],
-    ["meta", { name: "theme-color", content: "#f1f5f5" }],
+    ["meta", { name: "theme-color", content: "#f5f7ef" }],
     ["meta", { name: "color-scheme", content: "light dark" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:site_name", content: "Kinmokusei Documentation" }],

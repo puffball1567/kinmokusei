@@ -98,6 +98,9 @@ function checkProseHygiene(document) {
   if (!permitsFormerIdentity && /\b(?:OnsenTamago|Onsen Tamago|Onsentamago|Onsen-Tamago)\b/i.test(document.source)) {
     findings.push(`${location}: contains the former OnsenTamago name`);
   }
+  if (/\b(?:Yunagi|YuNagi)\b/i.test(document.source)) {
+    findings.push(`${location}: contains the former Yunagi name`);
+  }
 }
 
 for (const document of publicDocuments) {

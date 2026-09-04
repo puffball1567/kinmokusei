@@ -17,7 +17,7 @@ Source is UTF-8 and files use `.km`. Identifiers are case-sensitive and may cont
 const enabled = true;
 const count = 1000;
 const ratio = 1.25;
-const label = "onsen\nたまご";
+const label = "hello\nたまご";
 ```
 
 String escapes and decimal integer/float literals are validated lexically. Numeric separators and base prefixes are not implemented. A malformed escape, unterminated comment/string, invalid UTF-8 byte, or overflowing constant is reported against the original source span.

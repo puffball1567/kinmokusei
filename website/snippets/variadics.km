@@ -14,5 +14,5 @@ function last<T>(fallback: T, ...values: T[]): T {
 function main(): void {
   const values = [3, 4, 5];
   fmt.Println(sum(10), sum(10, 1, 2), sum(10, values...));
-  fmt.Println(last("empty"), last("empty", "onsen", "tamago"));
+  fmt.Println(last("empty"), last("empty", "hello", "planet"));
 }

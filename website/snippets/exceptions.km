@@ -11,7 +11,7 @@ class GoneException extends NotFoundException {
 
 function lookup(kind: int): string {
   try {
-    if (kind == 0) { return "onsen"; }
+    if (kind == 0) { return "hello"; }
     if (kind == 1) { throw new NotFoundException("missing"); }
     if (kind == 2) { throw new GoneException("closed"); }
     throw errors.New("backend unavailable");

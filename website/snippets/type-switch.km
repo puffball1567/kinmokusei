@@ -17,8 +17,8 @@ function classify(value: io.Reader): string {
 }
 
 function main(): void {
-  const text: io.Reader = strings.NewReader("onsen");
-  const buffer: io.Reader = bytes.NewBufferString("tamago");
+  const text: io.Reader = strings.NewReader("hello");
+  const buffer: io.Reader = bytes.NewBufferString("planet");
   const empty: io.Reader = nil;
   fmt.Println(classify(text));
   fmt.Println(classify(buffer));

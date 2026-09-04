@@ -22,7 +22,7 @@ Expected output:
 
 ```text
 200 ok health
-200 tamago:full user
+200 planet:full user
 ```
 
 `App` delegates matching to Go's `http.ServeMux`. The `{id}` path variable is available through `ctx.path("id")`; query and response APIs remain the original `net/http` behavior.

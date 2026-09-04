@@ -14,7 +14,7 @@ For the decision-oriented chapter, read [Failures, results, and exceptions](../b
 Expected output:
 
 ```text
-onsen:21 true
+hello:21 true
 ```
 
 ## `Result<T>` is a return effect

@@ -59,7 +59,7 @@ The rest parameter must be last. Inside the function it is a slice. Functions, m
 function identity<T>(value: T): T { return value; }
 function second<T, U>(left: T, right: U): U { return right; }
 
-const inferred = identity("onsen");
+const inferred = identity("hello");
 const explicit = identity<string>(inferred);
 const goShaped = identity[string](explicit);
 const partial = second<int>(1, goShaped);

@@ -31,11 +31,13 @@ Generated C functions return an `int32_t` status. Non-void results are written t
 
 | Status | Meaning |
 | --- | --- |
-| `0` | Success |
-| `1` | Contained panic in Kinmokusei/Go code |
-| `2` | Invalid boundary argument, such as a null out pointer |
+| `KINMOKUSEI_ABI_OK` (`0`) | Success |
+| `KINMOKUSEI_ABI_PANIC` (`1`) | Contained panic in Kinmokusei/Go code |
+| `KINMOKUSEI_ABI_INVALID_ARGUMENT` (`2`) | Invalid boundary argument, such as a null out pointer |
 
 Panics never cross the C boundary. An out value is unspecified on failure.
+
+The generated header also publishes `KINMOKUSEI_ABI_GATEWAY_VERSION_MAJOR`, `KINMOKUSEI_ABI_GATEWAY_VERSION_MINOR`, and `KINMOKUSEI_ABI_FINGERPRINT`. Generated ABI metadata therefore uses the `KINMOKUSEI_ABI_*` namespace; public example symbols use the lowercase `kinmokusei_*` prefix.
 
 ## Stable outgoing types
 

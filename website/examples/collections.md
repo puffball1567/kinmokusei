@@ -29,7 +29,7 @@ Expected output:
 
 ```text
 5 5 4 40 3 40 0 34 true false 2 8
-onsen 5
+hello 5
 ```
 
 ## What happens
@@ -40,7 +40,7 @@ onsen 5
 4. `viewArray[[3]int](values)` creates a pointer view. Writing `(*viewed)[1]` therefore changes `values[1]`, while `fixed[1]` remains `4`.
 5. `makeSlice[int](3, 5)` separates length from capacity. `copy` reports three copied elements.
 6. `clear(destination)` zeroes its elements without changing its length or capacity.
-7. `copy(encoded, "onsen")` copies five raw string bytes into a `byte[]` and reports the copied count.
+7. `copy(encoded, "hello")` copies five raw string bytes into a `byte[]` and reports the copied count.
 8. Range binds each slice value and evaluates the source once.
 9. `[score, present]` exposes Go's comma-ok map lookup; `delete` makes the temporary key absent again.
 10. `min` and `max` inspect compatible ordered values without changing their type.

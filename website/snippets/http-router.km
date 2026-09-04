@@ -26,5 +26,5 @@ function request(handler: http.Handler, target: string): void {
 function main(): void {
   const handler = router();
   request(handler, "/health");
-  request(handler, "/users/tamago?view=full");
+  request(handler, "/users/planet?view=full");
 }

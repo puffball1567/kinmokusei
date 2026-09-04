@@ -35,7 +35,7 @@ generated-c-abi/
 └── kinmokusei_abi.json
 ```
 
-`generated.go` contains the ordinary Go implementations. `generated_cabi.go` contains panic-isolating cgo gateways. The header exposes explicit status/out signatures, while the canonical JSON manifest supplies the ABI fingerprint.
+`generated.go` contains the ordinary Go implementations. `generated_cabi.go` contains panic-isolating cgo gateways. The header exposes explicit status/out signatures and `KINMOKUSEI_ABI_*` metadata constants, while the canonical JSON manifest supplies the ABI fingerprint. Exported example symbols use the lowercase `kinmokusei_*` prefix.
 
 ## Check a later version
 

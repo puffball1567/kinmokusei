@@ -7,6 +7,12 @@ description: Precise meanings for the storage, type, failure, concurrency, modul
 
 These terms carry specific meanings in the Kinmokusei documentation. This page resolves vocabulary; the linked Manual and Reference pages remain the full semantic contracts.
 
+## Product names
+
+### Kinmokusei
+
+The short name of **Kinmokusei Programming Language**, derived from the Japanese <span lang="ja">金木犀</span>. The suggested English pronunciation is *kin-moh-koo-say*. `keika` names the command-line tool, not the language or its public namespaces. See the [FAQ](../learn/faq#what-does-the-name-mean-and-how-is-it-pronounced).
+
 ## Names and type identity
 
 ### Binding

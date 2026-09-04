@@ -38,6 +38,6 @@ features:
 
 <HomeShowcase />
 
-<div class="yn-contract">
-<strong>One language, a clear boundary.</strong> Kinmokusei borrows familiar TypeScript shapes, but it is neither TypeScript-compatible nor Go-source-compatible. Its source files use <code>.km</code>; its compilation target and runtime model are Go.
+<div class="km-contract">
+<strong>Kinmokusei Programming Language</strong> takes its name from the Japanese <span lang="ja">金木犀</span>. Say it approximately as <em>kin-moh-koo-say</em>. Kinmokusei borrows familiar TypeScript shapes, but it is neither TypeScript-compatible nor Go-source-compatible; <code>.km</code> source compiles to Go.
 </div>

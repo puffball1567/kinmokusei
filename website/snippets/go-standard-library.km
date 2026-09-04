@@ -6,7 +6,7 @@ import go strings from "strings";
 
 function main(): void {
   let buffer: bytes.Buffer = bytes.Buffer {};
-  const [written, writeErr] = buffer.WriteString(strings.ToUpper("onsen"));
+  const [written, writeErr] = buffer.WriteString(strings.ToUpper("hello"));
   const [parsedNumber, parseErr] = strconv.Atoi("42");
   const values = [3, 1, 2];
   sort.Slice(values, (left: int, right: int): boolean => values[left] < values[right]);

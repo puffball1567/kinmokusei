@@ -14,7 +14,7 @@ function parsePositive(text: string): Result<int> {
 }
 
 function findUser(present: boolean): User | null {
-  if (present) { return new User("onsen"); }
+  if (present) { return new User("hello"); }
   return null;
 }
 

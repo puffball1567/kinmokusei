@@ -113,7 +113,7 @@ Radix prefixes, exponent notation, and numeric separators are not implemented. U
 Strings use double quotes and remain on one source line:
 
 ```ts
-const plain = "onsen";
+const plain = "hello";
 const escaped = "first\nsecond";
 const unicode = "温泉たまご";
 ```

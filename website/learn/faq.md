@@ -7,6 +7,12 @@ description: Short answers about Kinmokusei's relationship to TypeScript and Go,
 
 These answers describe the current v0.2 preview. Follow each link when you need the complete contract or an executable example.
 
+## What does the name mean, and how is it pronounced?
+
+The formal name is **Kinmokusei Programming Language**, usually shortened to **Kinmokusei**. The name comes from the Japanese word <span lang="ja">金木犀</span>. The suggested English pronunciation is **kin-moh-koo-say**.
+
+The command-line tool has the separate name `keika`, and Kinmokusei source files use `.km`. Project files, standard modules, ABI symbols, and editor language identifiers use the `kinmokusei` name rather than the CLI name.
+
 ## Is Kinmokusei TypeScript?
 
 No. It borrows recognizable syntax such as type annotations, classes, interfaces, and arrows, but it does not run JavaScript or accept arbitrary TypeScript. There is no DOM, Node.js global environment, npm module resolution, prototype mutation, or JavaScript coercion model.

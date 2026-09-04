@@ -12,7 +12,7 @@ function display(profile: Profile): string {
 function main(): void {
   const profile = new Profile(null);
   fmt.Println(display(profile));
-  profile.user = new User("onsen");
+  profile.user = new User("hello");
   fmt.Println(display(profile));
   profile.user = null;
   fmt.Println(display(profile));

@@ -22,11 +22,11 @@ function main(): void {
   clear(destination);
 
   const encoded = makeSlice[byte](5);
-  const encodedCount = copy(encoded, "onsen");
+  const encodedCount = copy(encoded, "hello");
 
   const scores = makeMap[string, int]();
-  scores["onsen"] = total(extended);
-  const [score, present] = scores["onsen"];
+  scores["hello"] = total(extended);
+  const [score, present] = scores["hello"];
   scores["temporary"] = 1;
   delete(scores, "temporary");
   const [_, temporaryPresent] = scores["temporary"];

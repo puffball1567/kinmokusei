@@ -22,7 +22,7 @@ Expected output:
 
 ```text
 10 13 22
-empty tamago
+empty planet
 ```
 
 ## Call rules

@@ -11,7 +11,7 @@ Types describe more than allowed operations. They tell you whether assignment co
 
 ```ts
 const ready: boolean = true;
-const name: string = "onsen";
+const name: string = "hello";
 const count: int = 42;
 const code: uint16 = 200;
 const ratio: float64 = 0.5;

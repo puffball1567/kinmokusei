@@ -21,8 +21,8 @@ keika run bounded-http-fetch.km
 Expected output:
 
 ```text
-200 true warm onsen
-Xnsen onsen
+200 true warm hello
+Xello hello
 true
 ```
 
@@ -30,11 +30,11 @@ true
 
 `StaticTransport` is a Kinmokusei class that explicitly implements the imported Go `http.RoundTripper` interface. Its `roundTrip` method returns a normal `*http.Response` through `Result`, which lowers to the interface's `(*http.Response, error)` method shape.
 
-`sendWith` uses the caller-owned `http.Client`, reads and closes the response body, clones the response headers, and returns a `Response` value. The limit is measured in response-body bytes; the five-byte body `onsen` fits an `int64(5)` limit exactly.
+`sendWith` uses the caller-owned `http.Client`, reads and closes the response body, clones the response headers, and returns a `Response` value. The limit is measured in response-body bytes; the five-byte body `hello` fits an `int64(5)` limit exactly.
 
 `response.ok()` means the status is from 200 through 299. Other HTTP statuses still produce a successful `Response`; transport, request construction, body reading, cancellation, and configured-limit failures use the `Result<Response>` error path.
 
-`response.bytes()` returns a new slice. Changing the first byte of `bodyCopy` produces `Xnsen`, while a later `response.text()` still returns `onsen`; callers cannot mutate the stored body through the returned slice.
+`response.bytes()` returns a new slice. Changing the first byte of `bodyCopy` produces `Xello`, while a later `response.text()` still returns `hello`; callers cannot mutate the stored body through the returned slice.
 
 ## Oversize path
 

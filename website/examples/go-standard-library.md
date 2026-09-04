@@ -28,7 +28,7 @@ keika run main.km
 Expected output:
 
 ```text
-5 true ONSEN 42 true [1 2 3]
+5 true HELLO 42 true [1 2 3]
 ```
 
 ## Read the boundary

@@ -22,7 +22,7 @@ Expected output:
 
 ```text
 guest
-onsen
+hello
 guest
 ```
 

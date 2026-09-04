@@ -22,7 +22,7 @@ Kinmokusei preserves Go-compatible representations where they matter. It does no
 const values: int[] = [1, 2, 3];
 const pair: [2]string = ["hot", "spring"];
 const scores = makeMap[string, int]();
-scores["onsen"] = 42;
+scores["hello"] = 42;
 ```
 
 Slices alias backing storage as Go slices do. Fixed arrays copy on assignment and parameter passing. Maps are reference-bearing values and have unspecified iteration order.
