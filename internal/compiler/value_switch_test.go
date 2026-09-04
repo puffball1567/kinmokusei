@@ -9,7 +9,7 @@ import (
 
 func TestValueSwitchCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "value_switch.otm")
+	source := filepath.Join(temp, "value_switch.km")
 	input := `
 import go atomic from "sync/atomic";
 

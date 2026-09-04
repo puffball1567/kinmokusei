@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenericDefinedTypeNavigationRenameSymbolsAndCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_defined_type.otm")
+	path := filepath.Join(t.TempDir(), "generic_defined_type.km")
 	uri := fileURI(path)
 	text := `type Lookup<K, V> = distinct Map<K, V>;
 function use(values: Lookup<string, int>): int { return values["answer"]; }`
@@ -60,7 +60,7 @@ function use(values: Lookup<string, int>): int { return values["answer"]; }`
 }
 
 func TestGenericDefinedTypeReceiverCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_defined_type_method.otm")
+	path := filepath.Join(t.TempDir(), "generic_defined_type_method.km")
 	text := `type Values<T> = distinct T[];
 public function size<U>(this: Values<U>): int { return len(this); }
 public function push<U>(this: *Values<U>, value: U): void { *this = append(*this, value); }

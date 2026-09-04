@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/source"
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type Parser struct {

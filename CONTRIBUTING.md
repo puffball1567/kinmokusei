@@ -1,6 +1,6 @@
-# Contributing to OnsenTamago
+# Contributing to Kinmokusei
 
-OnsenTamago accepts focused changes that preserve readable generated Go and
+Kinmokusei accepts focused changes that preserve readable generated Go and
 explicit compatibility with the Go ecosystem. Before contributing, read the
 [language design](docs/language-design.md),
 [compiler architecture](docs/compiler-architecture.md), and
@@ -39,6 +39,6 @@ accepted only from this repository's `devel` or `hotfix/*` branches.
 ## Contribution license
 
 Unless explicitly stated otherwise, contributions intentionally submitted for
-inclusion in OnsenTamago are provided under the
+inclusion in Kinmokusei are provided under the
 [Apache License 2.0](LICENSE), including its contributor patent grant. Submit
 only work that you have the right to license under these terms.

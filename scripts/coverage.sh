@@ -1,14 +1,14 @@
 #!/bin/sh
 set -eu
 
-minimum=${ONTAMA_MIN_COVERAGE:-87.0}
-package_minimum=${ONTAMA_MIN_PACKAGE_COVERAGE:-80.0}
+minimum=${KINMOKUSEI_MIN_COVERAGE:-87.0}
+package_minimum=${KINMOKUSEI_MIN_PACKAGE_COVERAGE:-80.0}
 profile=${1:-}
 temporary=false
-package_report=$(mktemp "${TMPDIR:-/tmp}/ontama-package-coverage.XXXXXX")
+package_report=$(mktemp "${TMPDIR:-/tmp}/kinmokusei-package-coverage.XXXXXX")
 
 if [ -z "$profile" ]; then
-  profile=$(mktemp "${TMPDIR:-/tmp}/ontama-coverage.XXXXXX")
+  profile=$(mktemp "${TMPDIR:-/tmp}/kinmokusei-coverage.XXXXXX")
   temporary=true
 fi
 
@@ -42,7 +42,7 @@ awk '
     }
     for (package in total) {
       display = package
-      sub(/^github[.]com\/puffball1567\/onsentamago\//, "", display)
+      sub(/^github[.]com\/puffball1567\/kinmokusei\//, "", display)
       percentage = 100 * covered[package] / total[package]
       printf "%s\t%.1f%%\t%.12f\t(%d/%d)\n", display, percentage, percentage, covered[package], total[package]
     }

@@ -1,0 +1,3 @@
+function invalidCapacity(values: Map<string, int>): int {
+  return cap(values);
+}

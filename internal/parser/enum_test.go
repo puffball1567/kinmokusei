@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 )
 
 func TestParsesEnumDeclarationMatrix(t *testing.T) {
@@ -42,7 +42,7 @@ func TestEnumSyntaxFailureMatrix(t *testing.T) {
 		{"missing close", `enum Status { Pending,`, "expected '}' after enum body"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			tokens, lexDiagnostics := lexer.Lex("enum_failure.otm", test.source)
+			tokens, lexDiagnostics := lexer.Lex("enum_failure.km", test.source)
 			if len(lexDiagnostics) != 0 {
 				t.Fatalf("lexer diagnostics = %v", lexDiagnostics)
 			}

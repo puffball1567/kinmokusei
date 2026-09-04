@@ -1,0 +1,50 @@
+import { sendWith } from "kinmokusei/http";
+import go fmt from "fmt";
+import go http from "net/http";
+import go io from "io";
+import go strings from "strings";
+
+class StaticTransport implements http.RoundTripper {
+  public function roundTrip(request: *http.Request): Result<*http.Response> {
+    const headers: http.Header = makeMap[string, string[]]();
+    headers.Set("X-Source", "warm");
+    const response = http.Response{
+      StatusCode: http.StatusOK,
+      Header: headers,
+      Body: io.NopCloser(strings.NewReader("hello")),
+      Request: request,
+    };
+    return ok(&response);
+  }
+}
+
+function main(): void {
+  const client = http.Client{Transport: new StaticTransport()};
+  const [request, requestErr] = http.NewRequest(
+    http.MethodGet,
+    "http://fixture.invalid",
+    nil,
+  );
+  if (requestErr !== nil) {
+    fmt.Println("unexpected:", requestErr.Error());
+    return;
+  }
+
+  const [response, err] = sendWith(&client, request, int64(5));
+  if (err !== nil) {
+    fmt.Println("unexpected:", err.Error());
+    return;
+  }
+  fmt.Println(
+    response.status,
+    response.ok(),
+    response.header("X-Source"),
+    response.text(),
+  );
+  const bodyCopy = response.bytes();
+  bodyCopy[0] = byte(88);
+  fmt.Println(string(bodyCopy), response.text());
+
+  const [_, limitErr] = sendWith(&client, request, int64(4));
+  fmt.Println(limitErr !== nil);
+}

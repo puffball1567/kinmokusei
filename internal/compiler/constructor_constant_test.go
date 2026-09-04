@@ -9,7 +9,7 @@ import (
 
 func TestConstructorConstantProofsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "constructor_constants.otm")
+	source := filepath.Join(temp, "constructor_constants.km")
 	input := `
 class User { constructor(public name: string) {} }
 class NegatedHolder {

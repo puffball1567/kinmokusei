@@ -1,0 +1,40 @@
+import go fmt from "fmt";
+
+function total(values: int[]): int {
+  let sum = 0;
+  for (const value of values) {
+    sum += value;
+  }
+  return sum;
+}
+
+function main(): void {
+  const values = [2, 4, 6];
+  const suffix = [10, 12];
+  const extended = append(values, suffix...);
+  const fixed: [3]int = copyArray[[3]int](values);
+  const viewed: *[3]int = viewArray[[3]int](values);
+  (*viewed)[1] = 40;
+
+  const destination = makeSlice[int](3, 5);
+  const copied = copy(destination, values);
+  const copiedMiddle = destination[1];
+  clear(destination);
+
+  const encoded = makeSlice[byte](5);
+  const encodedCount = copy(encoded, "hello");
+
+  const scores = makeMap[string, int]();
+  scores["hello"] = total(extended);
+  const [score, present] = scores["hello"];
+  scores["temporary"] = 1;
+  delete(scores, "temporary");
+  const [_, temporaryPresent] = scores["temporary"];
+
+  fmt.Println(
+    len(extended), cap(destination), fixed[1], values[1],
+    copied, copiedMiddle, destination[1], score, present, temporaryPresent,
+    min(2, 8, 4), max(2, 8, 4),
+  );
+  fmt.Println(string(encoded), encodedCount);
+}

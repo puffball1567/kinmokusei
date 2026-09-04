@@ -9,7 +9,7 @@ import (
 
 func TestGenericInterfacesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_interface.otm")
+	source := filepath.Join(temporary, "generic_interface.km")
 	if err := os.WriteFile(source, []byte(`
 interface Transformer<T, U> {
   function transform(value: T): U;
@@ -177,8 +177,8 @@ func TestGenericInterfaceBehavior(t *testing.T) {
 
 func TestLinkedGenericInterfaceMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "contract.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "contract.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`interface Reader<T> { function read(): T; } function consume<T>(reader: Reader<T>): T { return reader.read(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

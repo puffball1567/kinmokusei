@@ -9,7 +9,7 @@ import (
 
 func TestCollectionBuiltinsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "collections.otm")
+	source := filepath.Join(temp, "collections.km")
 	input := `
 import go net from "net";
 import go http from "net/http";
@@ -85,7 +85,7 @@ function dynamicCapacity(length: int, capacity: int): int[] { return makeSlice[i
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"ontamaMakeLength := 1", "ontamaMakeCapacity := 3", "make([]int, ontamaMakeLength, ontamaMakeCapacity)", "make(map[string]int, 2)", "append(values, suffix...)", `append(values, "abc"...)`, "copy(values[1:], values[:3])", `delete(lookup, "a")`, "len(value)", "cap(value)"} {
+	for _, want := range []string{"kinmokuseiMakeLength := 1", "kinmokuseiMakeCapacity := 3", "make([]int, kinmokuseiMakeLength, kinmokuseiMakeCapacity)", "make(map[string]int, 2)", "append(values, suffix...)", `append(values, "abc"...)`, "copy(values[1:], values[:3])", `delete(lookup, "a")`, "len(value)", "cap(value)"} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
 		}
@@ -212,7 +212,7 @@ func TestCollectionBuiltins(t *testing.T) {
 
 func TestClearMinMaxBuiltinsMatchIndependentGo(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "ordered_clear.otm")
+	source := filepath.Join(temp, "ordered_clear.km")
 	input := `
 import go atomic from "sync/atomic";
 import go http from "net/http";
@@ -364,7 +364,7 @@ func TestOrderedAndClearDifferential(t *testing.T) {
 
 func TestCollectionBuiltinNamesCanBeShadowed(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "shadow.otm")
+	source := filepath.Join(temp, "shadow.km")
 	input := `
 function len(value: int): int { return value + 1; }
 function cap(value: int): int { return value + 2; }

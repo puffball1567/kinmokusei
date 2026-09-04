@@ -1,20 +1,20 @@
 {
-  "name": "onsentamago",
-  "displayName": "OnsenTamago",
-  "description": "Language support for OnsenTamago",
-  "version": "0.1.0",
+  "name": "kinmokusei",
+  "displayName": "Kinmokusei",
+  "description": "Language support for Kinmokusei",
+  "version": "0.2.0",
   "license": "Apache-2.0",
-  "publisher": "onsentamago",
+  "publisher": "kinmokusei",
   "private": true,
   "preview": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/puffball1567/onsentamago.git",
+    "url": "https://github.com/puffball1567/kinmokusei.git",
     "directory": "editors/vscode"
   },
-  "homepage": "https://github.com/puffball1567/onsentamago#readme",
+  "homepage": "https://github.com/puffball1567/kinmokusei#readme",
   "bugs": {
-    "url": "https://github.com/puffball1567/onsentamago/issues"
+    "url": "https://github.com/puffball1567/kinmokusei/issues"
   },
   "engines": {
     "vscode": "^1.103.0"
@@ -23,51 +23,51 @@
     "Programming Languages"
   ],
   "keywords": [
-    "OnsenTamago",
-    "ontama",
-    "otm",
+    "Kinmokusei",
+    "kinmokusei",
+    "yn",
     "language server"
   ],
   "activationEvents": [
-    "onLanguage:onsentamago",
-    "onCommand:onsentamago.restartLanguageServer"
+    "onLanguage:kinmokusei",
+    "onCommand:kinmokusei.restartLanguageServer"
   ],
   "main": "./extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "onsentamago",
+        "id": "kinmokusei",
         "aliases": [
-          "OnsenTamago",
-          "ontama"
+          "Kinmokusei",
+          "kinmokusei"
         ],
         "extensions": [
-          ".otm"
+          ".km"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "onsentamago",
-        "scopeName": "source.onsentamago",
-        "path": "./syntaxes/onsentamago.tmLanguage.json"
+        "language": "kinmokusei",
+        "scopeName": "source.kinmokusei",
+        "path": "./syntaxes/kinmokusei.tmLanguage.json"
       }
     ],
     "commands": [
       {
-        "command": "onsentamago.restartLanguageServer",
-        "title": "OnsenTamago: Restart Language Server"
+        "command": "kinmokusei.restartLanguageServer",
+        "title": "Kinmokusei: Restart Language Server"
       }
     ],
     "configuration": {
-      "title": "OnsenTamago",
+      "title": "Kinmokusei",
       "properties": {
-        "onsentamago.server.path": {
+        "kinmokusei.server.path": {
           "type": "string",
-          "default": "ontama",
+          "default": "keika",
           "scope": "machine-overridable",
-          "description": "Path to the ontama executable. The extension always invokes it as 'ontama lsp --stdio'."
+          "description": "Path to the keika executable. The extension always invokes it as 'keika lsp --stdio'."
         }
       }
     }

@@ -22,7 +22,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: editors/vscode/package-lock.json
+          cache-dependency-path: |
+            editors/vscode/package-lock.json
+            website/package-lock.json
       - name: Verify the compiler
         run: |
           ./scripts/coverage.sh
@@ -30,11 +32,16 @@ jobs:
           go vet ./...
       - name: Build the compiler used by application checks
         run: |
-          mkdir -p "${RUNNER_TEMP}/ontama-bin"
-          go build -trimpath -o "${RUNNER_TEMP}/ontama-bin/ontama" ./cmd/ontama
-          echo "${RUNNER_TEMP}/ontama-bin" >> "$GITHUB_PATH"
+          mkdir -p "${RUNNER_TEMP}/keika-bin"
+          go build -trimpath -o "${RUNNER_TEMP}/keika-bin/keika" ./cmd/keika
+          echo "${RUNNER_TEMP}/keika-bin" >> "$GITHUB_PATH"
+      - name: Verify the public language guide
+        run: |
+          npm --prefix website ci --ignore-scripts
+          ./scripts/check-docs.sh
+          npm --prefix website run docs:build
       - name: Download the locked backend modules
-        working-directory: examples/react-web-frameworks/backend/.ontama/deps
+        working-directory: examples/react-web-frameworks/backend/.kinmokusei/deps
         run: go mod download all
       - name: Compare Gin and Fiber with independent Go implementations
         working-directory: examples/react-web-frameworks/backend
@@ -57,17 +64,17 @@ jobs:
           npm test
           xvfb-run -a npm run test:e2e
           npm run package:vsix
-          cp "dist/onsentamago-${GITHUB_REF_NAME#v}.vsix" ../../dist/
+          cp "dist/kinmokusei-${GITHUB_REF_NAME#v}.vsix" ../../dist/
       - name: Verify release artifacts
         run: |
           ./scripts/write-release-checksums.sh dist
           ./scripts/verify-release.sh "${GITHUB_REF_NAME}"
       - uses: actions/upload-artifact@v4
         with:
-          name: onsentamago-${{ github.ref_name }}
+          name: kinmokusei-${{ github.ref_name }}
           path: dist/
           if-no-files-found: error
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/* --verify-tag --generate-notes --title "OnsenTamago ${GITHUB_REF_NAME}"
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --verify-tag --generate-notes --title "Kinmokusei ${GITHUB_REF_NAME}"

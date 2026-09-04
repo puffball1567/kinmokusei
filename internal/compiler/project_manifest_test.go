@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/product"
-	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 func TestManifestLockedGoDependencyCompilesAndRunsOffline(t *testing.T) {
@@ -33,7 +33,7 @@ go-version = "1.23"
 	if err := os.WriteFile(filepath.Join(library, "library.go"), []byte("package library\ntype ID int\nfunc Value() ID { return 42 }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	if err := os.WriteFile(source, []byte(`import go library from "example.com/library"; function value(): library.ID { return library.Value(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ go-version = "1.23"
 	if err := os.WriteFile(filepath.Join(root, product.ProjectFileName), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	if err := os.WriteFile(source, []byte(`function value(): int { return 42; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -116,14 +116,14 @@ go-version = "1.23"
 		manifestPath:                          manifest,
 		filepath.Join(library, "go.mod"):      "module example.com/tagged-library\n\ngo 1.23\n",
 		filepath.Join(library, "base.go"):     "package library\n",
-		filepath.Join(library, "tagged.go"):   "//go:build ontama_special\n\npackage library\nfunc Tagged() int { return 42 }\n",
-		filepath.Join(library, "untagged.go"): "//go:build !ontama_special\n\npackage library\nfunc Untagged() int { return 0 }\n",
+		filepath.Join(library, "tagged.go"):   "//go:build kinmokusei_special\n\npackage library\nfunc Tagged() int { return 42 }\n",
+		filepath.Join(library, "untagged.go"): "//go:build !kinmokusei_special\n\npackage library\nfunc Untagged() int { return 0 }\n",
 	} {
 		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	if err := os.WriteFile(source, []byte(`import go library from "example.com/tagged-library"; function value(): int { return library.Tagged(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ go-version = "1.23"
 	if err != nil {
 		t.Fatal(err)
 	}
-	canonical = append(canonical, []byte("\n[target]\ncgo = \"disabled\"\ntags = \"ontama_special\"\n")...)
+	canonical = append(canonical, []byte("\n[target]\ncgo = \"disabled\"\ntags = \"kinmokusei_special\"\n")...)
 	if err = os.WriteFile(manifestPath, canonical, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -196,10 +196,10 @@ cgo = "disabled"
 `
 	cgoSource := `package cfixture
 /*
-static int ontama_answer(void) { return 42; }
+static int kinmokusei_answer(void) { return 42; }
 */
 import "C"
-func Answer() int { return int(C.ontama_answer()) }
+func Answer() int { return int(C.kinmokusei_answer()) }
 `
 	for path, contents := range map[string]string{
 		filepath.Join(root, product.ProjectFileName): manifest,
@@ -210,7 +210,7 @@ func Answer() int { return int(C.ontama_answer()) }
 			t.Fatal(err)
 		}
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	if err := os.WriteFile(source, []byte(`import go cfixture from "example.com/cfixture"; function value(): int { return cfixture.Answer(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func Answer() int { return int(C.ontama_answer()) }
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("CC", "ontama-c-compiler-does-not-exist")
+	t.Setenv("CC", "kinmokusei-c-compiler-does-not-exist")
 	missingCompiler, err := CheckFiles([]string{source})
 	if err != nil || !strings.Contains(diagnosticsText(missingCompiler.Diagnostics), "requires a working C toolchain") || !strings.Contains(diagnosticsText(missingCompiler.Diagnostics), "CGO_ENABLED=1") {
 		t.Fatalf("missing C compiler diagnostics=%v err=%v", missingCompiler.Diagnostics, err)
@@ -306,7 +306,7 @@ func (Box) Method() unsafe.Pointer { return nil }
 			t.Fatal(err)
 		}
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	deniedSource := `import go api from "example.com/unsafeapi";
 import go unsafe from "unsafe";
 function pointerIsNil(): boolean { return api.Pointer() == nil; }
@@ -332,7 +332,7 @@ function safe(): int { return api.Safe(); }`
 	if _, err = project.LockDependencies(root, true); err != nil {
 		t.Fatal(err)
 	}
-	directSource := filepath.Join(root, "direct.otm")
+	directSource := filepath.Join(root, "direct.km")
 	if err = os.WriteFile(directSource, []byte(`import go unsafe from "unsafe"; function identity(value: unsafe.Pointer): unsafe.Pointer { return value; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -406,8 +406,8 @@ unsafe = "allow"
 			t.Fatal(err)
 		}
 	}
-	source := filepath.Join(root, "main.otm")
-	ontamaSource := `import go layout from "example.com/layoutapi";
+	source := filepath.Join(root, "main.km")
+	kinmokuseiSource := `import go layout from "example.com/layoutapi";
 import go danger from "unsafe";
 function size(value: int64): int { return int(danger.Sizeof(value)); }
 function alignment(value: int64): int { return int(danger.Alignof(value)); }
@@ -423,13 +423,13 @@ function text(pointer: *byte, length: int): string { return danger.String(pointe
 function namedText(pointer: layout.BytePointer, length: int): string { return danger.String(pointer, length); }
 function textData(value: string): *byte { return danger.StringData(value); }
 `
-	if err := os.WriteFile(source, []byte(ontamaSource), 0o644); err != nil {
+	if err := os.WriteFile(source, []byte(kinmokuseiSource), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := project.LockDependencies(root, true); err != nil {
 		t.Fatal(err)
 	}
-	invalidSource := filepath.Join(root, "invalid.otm")
+	invalidSource := filepath.Join(root, "invalid.km")
 	if err := os.WriteFile(invalidSource, []byte(`import go layout from "example.com/layoutapi"; import go danger from "unsafe"; function invalid(value: layout.Embedded): int { return int(danger.Offsetof(value.C)); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -508,7 +508,7 @@ func TestUnsafeBuiltinResults(t *testing.T) {
   }
 }
 func TestUnsafeBuiltinPanics(t *testing.T) {
-  if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" { t.Skip("race checkptr turns these documented panics into unrecoverable process failures") }
+  if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" { t.Skip("race checkptr turns these documented panics into unrecoverable process failures") }
   if got, want := didPanic(func() { _ = bytes(nil, 1) }), didPanic(func() { _ = reference.Bytes(nil, 1) }); got != want || !got { t.Errorf("slice panic=%v Go=%v", got, want) }
   if got, want := didPanic(func() { _ = text(nil, 1) }), didPanic(func() { _ = reference.Text(nil, 1) }); got != want || !got { t.Errorf("string panic=%v Go=%v", got, want) }
 }

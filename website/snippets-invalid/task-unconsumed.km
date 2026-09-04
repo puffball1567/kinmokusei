@@ -1,0 +1,7 @@
+function work(): int {
+  return 42;
+}
+
+function main(): void {
+  const task = go work();
+}

@@ -1,0 +1,24 @@
+import go fmt from "fmt";
+
+type UserID = distinct string;
+type Scores = distinct Map<UserID, int>;
+alias DisplayName = string;
+
+public function label(this: UserID): string {
+  return "user:" + string(this);
+}
+
+function score(values: Scores, id: UserID): int {
+  const [value, present] = values[id];
+  if (!present) { return -1; }
+  return value;
+}
+
+function main(): void {
+  const id = UserID("42");
+  const name: DisplayName = "Aki";
+  const values = Scores(makeMap[UserID, int]());
+  values[id] = 100;
+  fmt.Println(id.label(), name, score(values, id));
+  fmt.Println(score(values, UserID("missing")));
+}

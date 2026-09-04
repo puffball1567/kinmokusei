@@ -9,7 +9,7 @@ import (
 
 func TestAnonymousGoStructAPIsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "anonymous_struct.otm")
+	source := filepath.Join(temp, "anonymous_struct.km")
 	input := `
 import go context from "context";
 import go runtime from "runtime";

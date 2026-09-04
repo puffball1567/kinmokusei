@@ -9,7 +9,7 @@ import (
 
 func TestStructuredTasksMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "task.otm")
+	source := filepath.Join(root, "task.km")
 	input := `
 import go errors from "errors";
 import go atomic from "sync/atomic";
@@ -106,7 +106,7 @@ function detachPanic(): void { detach go explode(); }
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v\n%s", err, diagnostics, generated)
 	}
-	for _, want := range []string{"type __ontamaTask[T any] struct", "type __ontamaResultTask[T any] struct", "panic(task.panicValue)", "go func()"} {
+	for _, want := range []string{"type __kinmokuseiTask[T any] struct", "type __kinmokuseiResultTask[T any] struct", "panic(task.panicValue)", "go func()"} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated task runtime does not contain %q:\n%s", want, generated)
 		}
@@ -232,14 +232,14 @@ func TestTaskBehavior(t *testing.T) {
 func errorText(err error) string { if err == nil { return "" }; return err.Error() }
 func didPanic(call func() int) (panicked bool) { defer func() { panicked = recover() != nil }(); call(); return false }
 func TestDetachedPanicIsFatal(t *testing.T) {
-  if mode := os.Getenv("ONTAMA_DETACHED_PANIC_CHILD"); mode != "" {
+  if mode := os.Getenv("KINMOKUSEI_DETACHED_PANIC_CHILD"); mode != "" {
     if mode == "generated" { detachPanic() } else { reference.DetachPanic() }
     time.Sleep(time.Second)
     t.Fatal("detached panic did not terminate the process")
   }
   for _, mode := range []string{"generated", "reference"} {
     command := exec.Command(os.Args[0], "-test.run=TestDetachedPanicIsFatal")
-    command.Env = append(os.Environ(), "ONTAMA_DETACHED_PANIC_CHILD="+mode)
+    command.Env = append(os.Environ(), "KINMOKUSEI_DETACHED_PANIC_CHILD="+mode)
     output, err := command.CombinedOutput()
     if err == nil || !strings.Contains(string(output), "panic") {
       t.Errorf("detached panic %s: err=%v output=%s", mode, err, output)

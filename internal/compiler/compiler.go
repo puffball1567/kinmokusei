@@ -10,15 +10,15 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/codegen"
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/parser"
-	"github.com/puffball1567/onsentamago/internal/product"
-	"github.com/puffball1567/onsentamago/internal/project"
-	"github.com/puffball1567/onsentamago/internal/sema"
-	"github.com/puffball1567/onsentamago/stdlib"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/codegen"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/sema"
+	"github.com/puffball1567/kinmokusei/stdlib"
 )
 
 type Result struct {
@@ -529,7 +529,7 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 			standardSource, found := stdlib.Lookup(imported.Path)
 			if !found {
 				message := "package imports are not supported in this compiler stage"
-				if strings.HasPrefix(imported.Path, "ontama/") {
+				if strings.HasPrefix(imported.Path, "kinmokusei/") {
 					message = fmt.Sprintf("standard package %q is not available", imported.Path)
 				}
 				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: message, Span: imported.PathSpan})
@@ -551,7 +551,7 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 		}
 		target := filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(imported.Path)))
 		if filepath.Ext(target) == "" {
-			target += product.SourceExtension
+			target = sourcePathWithMigrationFallback(target)
 		}
 		targetAbsolute, err := filepath.Abs(target)
 		if err != nil {
@@ -568,6 +568,20 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 	l.merged.Imports = append(l.merged.Imports, program.Imports...)
 	l.merged.Declarations = append(l.merged.Declarations, program.Declarations...)
 	return nil
+}
+
+func sourcePathWithMigrationFallback(path string) string {
+	current := path + product.SourceExtension
+	if _, err := os.Stat(current); err == nil || !os.IsNotExist(err) {
+		return current
+	}
+	for _, extension := range product.LegacySourceExtensions {
+		legacy := path + extension
+		if _, err := os.Stat(legacy); err == nil || !os.IsNotExist(err) {
+			return legacy
+		}
+	}
+	return current
 }
 
 func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Program) {

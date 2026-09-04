@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 func TestEnvironmentWithReplacesExistingValue(t *testing.T) {
-	t.Setenv("ONTAMA_TEST_SETTING", "first")
-	environment := environmentWith("ONTAMA_TEST_SETTING", "final")
-	replaced := environmentWithValues(environment, "ONTAMA_TEST_SETTING", "final")
+	t.Setenv("KINMOKUSEI_TEST_SETTING", "first")
+	environment := environmentWith("KINMOKUSEI_TEST_SETTING", "final")
+	replaced := environmentWithValues(environment, "KINMOKUSEI_TEST_SETTING", "final")
 	if replaced != 1 {
 		t.Fatalf("matching final values = %d, want 1", replaced)
 	}

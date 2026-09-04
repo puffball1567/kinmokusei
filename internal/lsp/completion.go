@@ -7,9 +7,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/compiler"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type completionItem struct {

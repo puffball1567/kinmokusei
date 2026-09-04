@@ -1,0 +1,3 @@
+function invalid(values: [2]int): int[] {
+  return values;
+}

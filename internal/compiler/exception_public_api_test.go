@@ -9,7 +9,7 @@ import (
 
 func TestExceptionPublicGoAPIMatchesIndependentPackage(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "exceptions.otm")
+	source := filepath.Join(temporary, "exceptions.km")
 	input := `
 import go errors from "errors";
 
@@ -58,7 +58,7 @@ function RawPanic(): int {
 			t.Errorf("generated public exception API does not contain %q:\n%s", expected, generated)
 		}
 	}
-	for _, forbidden := range []string{temporary, source, "github.com/puffball1567/onsentamago"} {
+	for _, forbidden := range []string{temporary, source, "github.com/puffball1567/kinmokusei"} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated Go contains local/compiler-only path %q:\n%s", forbidden, generated)
 		}
@@ -68,9 +68,9 @@ function RawPanic(): int {
 
 import "errors"
 
-type exception interface { OnsenTamagoExceptionError() error }
+type exception interface { KinmokuseiExceptionError() error }
 type thrown struct { err error }
-func (value thrown) OnsenTamagoExceptionError() error { return value.err }
+func (value thrown) KinmokuseiExceptionError() error { return value.err }
 func throw(err error) { panic(thrown{err: err}) }
 
 type Exception struct { Message string }
@@ -104,7 +104,7 @@ import (
   reference "example.com/exceptions/reference"
 )
 
-type exceptionMarker interface { OnsenTamagoExceptionError() error }
+type exceptionMarker interface { KinmokuseiExceptionError() error }
 type classifier func(error) (string, string)
 
 func observe(call func(), classify classifier) (kind, message string) {
@@ -114,7 +114,7 @@ func observe(call func(), classify classifier) (kind, message string) {
     if recovered == nil { return }
     marked, ok := recovered.(exceptionMarker)
     if !ok { kind = "panic"; message = ""; return }
-    kind, message = classify(marked.OnsenTamagoExceptionError())
+    kind, message = classify(marked.KinmokuseiExceptionError())
   }()
   call()
   return kind, message

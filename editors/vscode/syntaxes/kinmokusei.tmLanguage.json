@@ -1,0 +1,113 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Kinmokusei",
+  "scopeName": "source.kinmokusei",
+  "fileTypes": ["yn"],
+  "patterns": [
+    {"include": "#comments"},
+    {"include": "#strings"},
+    {"include": "#declarations"},
+    {"include": "#keywords"},
+    {"include": "#types"},
+    {"include": "#builtins"},
+    {"include": "#constants"},
+    {"include": "#numbers"},
+    {"include": "#operators"}
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {"name": "comment.line.double-slash.kinmokusei", "begin": "//", "end": "$"},
+        {"name": "comment.block.kinmokusei", "begin": "/\\*", "end": "\\*/"}
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.kinmokusei",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.kinmokusei",
+              "match": "\\\\(?:[\\\\\\\"nrtbfv]|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})"
+            },
+            {"name": "invalid.illegal.escape.kinmokusei", "match": "\\\\."}
+          ]
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(function)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
+          "captures": {
+            "1": {"name": "storage.type.function.kinmokusei"},
+            "2": {"name": "entity.name.function.kinmokusei"}
+          }
+        },
+        {
+          "match": "\\b(class|struct|interface|enum|type|alias)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
+          "captures": {
+            "1": {"name": "storage.type.kinmokusei"},
+            "2": {"name": "entity.name.type.kinmokusei"}
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.kinmokusei",
+          "match": "\\b(return|throw|if|else|while|for|of|select|switch|case|default|break|continue|goto|fallthrough|defer|go|await|detach|try|catch|finally|super)\\b"
+        },
+        {
+          "name": "keyword.declaration.kinmokusei",
+          "match": "\\b(function|const|let|class|struct|enum|type|alias|distinct|constructor|interface|import|from|export)\\b"
+        },
+        {"name": "storage.modifier.kinmokusei", "match": "\\b(public|private|protected|static|implements|extends|virtual|override|final)\\b"},
+        {"name": "storage.modifier.kinmokusei", "match": "\\bpointer(?=\\s+function\\b)"},
+        {"name": "keyword.operator.word.kinmokusei", "match": "\\b(as|new)\\b"},
+        {"name": "variable.language.this.kinmokusei", "match": "\\bthis\\b"}
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.kinmokusei",
+          "match": "\\b(void|boolean|string|int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float|float32|float64|number|byte|error)\\b"
+        },
+        {
+          "name": "support.type.collection.kinmokusei",
+          "match": "\\b(Map|Result|Task|GoChannel|GoSendChannel|GoReceiveChannel)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.kinmokusei",
+          "match": "\\b(len|cap|append|copy|delete|clear|min|max|makeSlice|makeMap|copyArray|viewArray|goChannel|closeGoChannel|ok|fail)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {"name": "constant.language.kinmokusei", "match": "\\b(true|false|nil|null)\\b"}
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {"name": "constant.numeric.kinmokusei", "match": "\\b\\d+(?:\\.\\d*)?\\b"}
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.kinmokusei",
+          "match": "===|!==|==|!=|=>|<-|\\+\\+|--|<<=|>>=|&\\^=|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|&&|\\|\\||<<|>>|&\\^|<=|>=|[=+\\-*\\/%!<>&|^?]"
+        }
+      ]
+    }
+  }
+}

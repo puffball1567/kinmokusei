@@ -9,7 +9,7 @@ import (
 
 func TestSignedNarrowIntegersMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	path := filepath.Join(root, "signed_narrow.otm")
+	path := filepath.Join(root, "signed_narrow.km")
 	source := `
 type Tiny = distinct int8;
 type Small = distinct int16;
@@ -133,7 +133,7 @@ func TestSignedNarrowIntegerFailureMatrix(t *testing.T) {
 		{"implicit widening", `function value(input: int8): int16 { return input; }`, "cannot use int8 as int16"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "invalid.otm")
+			path := filepath.Join(t.TempDir(), "invalid.km")
 			if err := os.WriteFile(path, []byte(test.source), 0o644); err != nil {
 				t.Fatal(err)
 			}

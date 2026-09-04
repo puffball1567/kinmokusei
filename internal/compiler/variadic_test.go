@@ -9,7 +9,7 @@ import (
 
 func TestNativeVariadicDeclarationsMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "variadic.otm")
+	source := filepath.Join(root, "variadic.km")
 	if err := os.WriteFile(source, []byte(`
 function Sum(prefix: int, ...values: int[]): int {
   let total = prefix;

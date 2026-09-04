@@ -91,6 +91,13 @@ var implementedGoCompatibilityContracts = []string{
 	"native integer enums with automatic and explicit values, signed and unsigned fixed-width boundaries, namespace members, conversions, switches, map keys, generics, ordering, value and pointer receiver methods, linked modules, and Go API shape",
 	"native generic reference classes with explicit instantiation, substituted fields and methods, comparable constraints, method values, reference identity, interface implementation and dispatch, nested and reference-bearing values, linked modules, and external Go APIs",
 	"recursive native defined types through slice, map, pointer, function, and channel indirection, including generic and mutually recursive declarations, receiver methods, named-function calls, linked modules, external Go APIs, and finite-size cycle rejection",
+	"generic class static methods with inferred, explicit, partial, and constrained type arguments, private helpers, Result propagation, linked modules, and external Go APIs",
+	"generic class inheritance with substituted base state, constructors, inherited methods and interfaces, concrete and remapped multi-level bases, descendant-aware typed upcasts and downcasts, identity, panic, and external Go APIs",
+	"generic class virtual dispatch and explicit override across substituted, concrete, remapped, and multi-level bases, including construction phases, super calls, interfaces, method values, linked modules, and external Go APIs",
+	"transparent generic aliases expanded for Go 1.23 across identity, slices, maps, fixed arrays, pointers, functions, interfaces, classes, nested aliases, conversions, mutation, Results, linked modules, and external Go APIs",
+	"standard and external Go interface type-set constraints across ordered and integer operators, inference, explicit instantiation, defined types, generic declarations, map keys, erased aliases, and external Go APIs",
+	"stable JSON field names for native structs and classes, generic encoding, inherited public state, private-state exclusion, decoding into constructed class references with preserved virtual dispatch and hierarchy identity, malformed input, and external Go APIs",
+	"distinct definitions over native structs with explicit bidirectional conversion, field access, literals, generic instantiation, value and pointer receiver methods, method values, JSON encoding, and external Go APIs",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
@@ -172,9 +179,20 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"signednarrow.test":                   {implementedGoCompatibilityContracts[70]},
 	"enum.test":                           {implementedGoCompatibilityContracts[72]},
 	"genericclass.test":                   {implementedGoCompatibilityContracts[73]},
-	"genericclass-linked.test":            {implementedGoCompatibilityContracts[73]},
+	"genericclass-linked.test":            {implementedGoCompatibilityContracts[73], implementedGoCompatibilityContracts[75]},
 	"recursivedefined.test":               {implementedGoCompatibilityContracts[74]},
 	"recursivedefined-linked.test":        {implementedGoCompatibilityContracts[74]},
+	"genericclassstatic.test":             {implementedGoCompatibilityContracts[75]},
+	"genericinheritance.test":             {implementedGoCompatibilityContracts[76]},
+	"genericinheritance-linked.test":      {implementedGoCompatibilityContracts[76]},
+	"genericvirtual.test":                 {implementedGoCompatibilityContracts[77]},
+	"genericvirtual-linked.test":          {implementedGoCompatibilityContracts[77]},
+	"genericalias.test":                   {implementedGoCompatibilityContracts[78]},
+	"genericalias-linked.test":            {implementedGoCompatibilityContracts[78]},
+	"gotypesetconstraint.test":            {implementedGoCompatibilityContracts[79]},
+	"customconstraint.test":               {implementedGoCompatibilityContracts[79]},
+	"genericjson.test":                    {implementedGoCompatibilityContracts[80]},
+	"definedstruct.test":                  {implementedGoCompatibilityContracts[81]},
 }
 
 func TestImplementedGoCompatibilityCoverageIsComplete(t *testing.T) {

@@ -1,0 +1,12 @@
+function normalize(name: string): string {
+  if (name === "") { return "guest"; }
+  return name;
+}
+
+class Greeting {
+  constructor(public message: string) {}
+}
+
+function greeting(name: string): Greeting {
+  return new Greeting("Welcome, " + normalize(name));
+}

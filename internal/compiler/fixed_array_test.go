@@ -9,8 +9,8 @@ import (
 
 func TestFixedArraysCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "fixed_array.otm")
-	dependency := filepath.Join(temp, "dependency.otm")
+	source := filepath.Join(temp, "fixed_array.km")
+	dependency := filepath.Join(temp, "dependency.km")
 	input := `
 import go sha256 from "crypto/sha256";
 import go netip from "net/netip";

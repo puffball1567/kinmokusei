@@ -17,10 +17,10 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/puffball1567/onsentamago/internal/compiler"
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/product"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 const maxMessageSize = 16 << 20

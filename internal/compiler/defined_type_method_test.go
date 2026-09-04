@@ -9,7 +9,7 @@ import (
 
 func TestDefinedTypeReceiverMethodsMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "defined_type_method.otm")
+	source := filepath.Join(temporary, "defined_type_method.km")
 	if err := os.WriteFile(source, []byte(`
 type Counter = distinct int;
 type Label = distinct string;
@@ -142,8 +142,8 @@ func TestDefinedTypeReceiverMethodBehavior(t *testing.T) {
 
 func TestLinkedDefinedTypeReceiverMethodMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "counter.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "counter.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`type Counter = distinct int; public function add(this: *Counter, delta: Counter): void { *this += delta; } public function doubled(this: Counter): Counter { return this + this; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -176,8 +176,8 @@ func TestLinked(t *testing.T) {
 
 func TestLinkedDefinedTypePrivateMethodIsRejected(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "counter.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "counter.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`type Counter = distinct int; function hidden(this: Counter): int { return int(this); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

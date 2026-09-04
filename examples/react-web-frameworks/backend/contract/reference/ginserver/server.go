@@ -1,4 +1,4 @@
-//go:build ontama_demo_contract
+//go:build kinmokusei_demo_contract
 
 package ginserver
 
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"example.com/onsentamago/react-web-frameworks-backend/contract/reference"
+	"example.com/kinmokusei/react-web-frameworks-backend/contract/reference"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +18,7 @@ func NewRouter() *gin.Engine {
 	router.Use(gin.Recovery())
 
 	router.GET("/api/health", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, gin.H{"status": "ok", "language": "OnsenTamago", "framework": "Gin"})
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok", "language": "Kinmokusei", "framework": "Gin"})
 	})
 	router.GET("/api/todos", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"items": store.List()})

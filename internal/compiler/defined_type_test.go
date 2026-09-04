@@ -9,7 +9,7 @@ import (
 
 func TestDefinedTypesAndAliasesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "defined_types.otm")
+	source := filepath.Join(temporary, "defined_types.km")
 	if err := os.WriteFile(source, []byte(`
 type UserID = distinct string;
 type OrderID = distinct string;
@@ -129,8 +129,8 @@ func TestDefinedTypes(t *testing.T) {
 
 func TestLinkedDefinedTypeAndAliasMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "identifiers.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "identifiers.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`type UserID = distinct string; alias UserIDText = string; function makeID(value: string): UserID { return UserID(value); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

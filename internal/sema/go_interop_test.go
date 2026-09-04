@@ -304,6 +304,8 @@ func TestGoInterfaceValueAndExplicitClassImplementationMatrix(t *testing.T) {
 		{"concrete pointer to interface", `import go io from "io"; import go strings from "strings"; function consume(reader: io.Reader): int64 { const [count, err] = io.Copy(io.Discard, reader); return count; } function value(): int64 { return consume(strings.NewReader("abc")); }`},
 		{"interface result and method", `import go io from "io"; import go strings from "strings"; function value(): error { const reader = io.NopCloser(strings.NewReader("abc")); return reader.Close(); }`},
 		{"typed nil interface", `import go io from "io"; function value(): boolean { let reader: io.Reader = nil; return reader == nil; }`},
+		{"class to empty interface", `import go json from "encoding/json"; class Value {} function encode(): Result<byte[]> { const data = json.Marshal(new Value())?; return ok(data); }`},
+		{"generic class to empty interface", `import go json from "encoding/json"; class Value<T> { constructor(public item: T) {} } function encode(value: string): Result<byte[]> { const data = json.Marshal(new Value<string>(value))?; return ok(data); }`},
 		{"explicit class implementation", `import go sort from "sort"; class Numbers implements sort.Interface { constructor(private values: int[]) {} public function len(): int { return this.values[0] * 0 + 3; } public function less(left: int, right: int): boolean { return this.values[left] < this.values[right]; } public function swap(left: int, right: int): void { const saved = this.values[left]; this.values[left] = this.values[right]; this.values[right] = saved; } } function value(values: int[]): void { sort.Sort(new Numbers(values)); }`},
 	}
 	for _, test := range success {

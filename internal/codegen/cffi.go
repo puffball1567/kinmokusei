@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 type CFFIOutput struct {
@@ -132,14 +132,14 @@ var cffiIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 var cffiReservedGoNames = map[string]bool{
 	"C": true, "fmt": true, "sync": true, "errors": true, "strings": true,
-	"StatusError": true, "ErrClosedHandle": true, "ontamaCFFIMutex": true,
+	"StatusError": true, "ErrClosedHandle": true, "kinmokuseiCFFIMutex": true,
 	"ErrHandleHasActiveRegistrations": true,
 	"ErrEmbeddedNUL":                  true, "ErrNullCString": true,
 	"ErrNullOwnedCString": true,
 	"ErrNullOwnedBuffer":  true, "ErrOwnedBufferTooLarge": true,
 	"ErrNullOwnedArray": true, "ErrOwnedArrayTooLarge": true,
 	"ErrNilCallback": true, "ErrClosedCallbackRegistration": true, "CallbackPanicError": true, "CallbackInputError": true,
-	"ontamaResult": true, "ontamaError": true,
+	"kinmokuseiResult": true, "kinmokuseiError": true,
 }
 
 var cffiScalars = map[string]cffiScalar{
@@ -161,7 +161,7 @@ var cffiScalars = map[string]cffiScalar{
 }
 
 // GenerateCFFI emits a private cgo package from a strictly checked manifest.
-// The resulting ordinary Go API is intended to be wrapped by OnsenTamago code
+// The resulting ordinary Go API is intended to be wrapped by Kinmokusei code
 // through direct Go interop; C names and representations never enter its type
 // system.
 func GenerateCFFI(data []byte) (CFFIOutput, error) {
@@ -186,19 +186,19 @@ func GenerateCFFI(data []byte) (CFFIOutput, error) {
 	source.WriteString(manifest.Package)
 	source.WriteString("\n\n/*\n#include <stdint.h>\n#include <stdbool.h>\n#include <stdlib.h>\n")
 	if cffiManifestUsesType(manifest, "cInt32") {
-		source.WriteString("typedef char ontama_c_int_must_be_32_bits[(sizeof(int) == 4) ? 1 : -1];\n")
+		source.WriteString("typedef char kinmokusei_c_int_must_be_32_bits[(sizeof(int) == 4) ? 1 : -1];\n")
 	}
 	if cffiManifestUsesType(manifest, "cUint32") {
-		source.WriteString("typedef char ontama_c_uint_must_be_32_bits[(sizeof(unsigned int) == 4) ? 1 : -1];\n")
+		source.WriteString("typedef char kinmokusei_c_uint_must_be_32_bits[(sizeof(unsigned int) == 4) ? 1 : -1];\n")
 	}
 	usesRetainedCString := cffiManifestHasRegistrationParameterType(manifest, "retainedCString")
 	usesRetainedBytes := cffiManifestHasRegistrationParameterType(manifest, "retainedBytes")
 	usesCopiedCallbackBytes := cffiManifestHasCallbackParameterType(manifest, "copiedBytes") || cffiManifestHasCallbackParameterType(manifest, "inoutBytes")
 	if cffiManifestHasParameterType(manifest, "cstring") || usesRetainedCString {
-		source.WriteString("static inline void ontama_cffi_free_string(char *value) { free(value); }\n")
+		source.WriteString("static inline void kinmokusei_cffi_free_string(char *value) { free(value); }\n")
 	}
 	if cffiManifestHasParameterType(manifest, "borrowedBytes") || usesRetainedBytes {
-		source.WriteString("static inline void ontama_cffi_free_bytes(void *value) { free(value); }\n")
+		source.WriteString("static inline void kinmokusei_cffi_free_bytes(void *value) { free(value); }\n")
 	}
 	if len(manifest.CFlags) != 0 {
 		source.WriteString("#cgo CFLAGS: ")
@@ -269,24 +269,24 @@ func GenerateCFFI(data []byte) (CFFIOutput, error) {
 	source.WriteString("type StatusError struct { Function string; Code int32 }\n")
 	source.WriteString("func (err *StatusError) Error() string { return fmt.Sprintf(\"C FFI %s failed with status %d\", err.Function, err.Code) }\n")
 	if manifest.ThreadPolicy == "serialized" {
-		source.WriteString("var ontamaCFFIMutex sync.Mutex\n")
+		source.WriteString("var kinmokuseiCFFIMutex sync.Mutex\n")
 	}
 	if manifest.ThreadPolicy == "threadAffine" {
-		source.WriteString(`type ontamaCFFIRequest struct {
+		source.WriteString(`type kinmokuseiCFFIRequest struct {
 	call func()
 	done chan struct{}
 	panicValue any
 }
-var ontamaCFFIOnce sync.Once
-var ontamaCFFIRequests chan *ontamaCFFIRequest
-func ontamaCFFIDo(call func()) {
-	ontamaCFFIOnce.Do(func() {
-		ontamaCFFIRequests = make(chan *ontamaCFFIRequest)
+var kinmokuseiCFFIOnce sync.Once
+var kinmokuseiCFFIRequests chan *kinmokuseiCFFIRequest
+func kinmokuseiCFFIDo(call func()) {
+	kinmokuseiCFFIOnce.Do(func() {
+		kinmokuseiCFFIRequests = make(chan *kinmokuseiCFFIRequest)
 		ready := make(chan struct{})
 		go func() {
 			runtime.LockOSThread()
 			close(ready)
-			for request := range ontamaCFFIRequests {
+			for request := range kinmokuseiCFFIRequests {
 				func() {
 					defer func() { request.panicValue = recover() }()
 					request.call()
@@ -296,8 +296,8 @@ func ontamaCFFIDo(call func()) {
 		}()
 		<-ready
 	})
-	request := &ontamaCFFIRequest{call: call, done: make(chan struct{})}
-	ontamaCFFIRequests <- request
+	request := &kinmokuseiCFFIRequest{call: call, done: make(chan struct{})}
+	kinmokuseiCFFIRequests <- request
 	<-request.done
 	if request.panicValue != nil { panic(request.panicValue) }
 }
@@ -836,8 +836,8 @@ func cffiNamedTypes(manifest cffiManifest) map[string]cffiScalar {
 		cType := structure.CType
 		types[name] = cffiScalar{
 			goType: name, cgoType: "C." + cType, zero: name + "{}", canResult: true,
-			fromC: func(value string) string { return "ontamaCFFIFrom" + name + "(" + value + ")" },
-			toC:   func(value string) string { return "ontamaCFFITo" + name + "(" + value + ")" },
+			fromC: func(value string) string { return "kinmokuseiCFFIFrom" + name + "(" + value + ")" },
+			toC:   func(value string) string { return "kinmokuseiCFFITo" + name + "(" + value + ")" },
 		}
 	}
 	for _, union := range manifest.TaggedUnions {
@@ -845,8 +845,8 @@ func cffiNamedTypes(manifest cffiManifest) map[string]cffiScalar {
 		cType := union.CType
 		types[name] = cffiScalar{
 			goType: name, cgoType: "C." + cType, zero: name + "{}", canResult: true,
-			fromC: func(value string) string { return "ontamaCFFIFrom" + name + "(" + value + ")" },
-			toC:   func(value string) string { return "ontamaCFFITo" + name + "(" + value + ")" },
+			fromC: func(value string) string { return "kinmokuseiCFFIFrom" + name + "(" + value + ")" },
+			toC:   func(value string) string { return "kinmokuseiCFFITo" + name + "(" + value + ")" },
 		}
 	}
 	return types
@@ -1005,7 +1005,7 @@ func generateCFFIEnum(source *strings.Builder, enum cffiEnum) {
 
 func generateCFFIUnionCHelpers(source *strings.Builder, union cffiTaggedUnion, namedTypes map[string]cffiScalar) {
 	tag := cffiTypeInfo(union.Tag.Type, namedTypes)
-	prefix := "ontama_cffi_" + union.Name
+	prefix := "kinmokusei_cffi_" + union.Name
 	source.WriteString("static inline " + strings.TrimPrefix(tag.cgoType, "C.") + " " + prefix + "_get_tag(const " + union.CType + " *value) { return value->" + union.Tag.CName + "; }\n")
 	source.WriteString("static inline void " + prefix + "_set_tag(" + union.CType + " *value, " + strings.TrimPrefix(tag.cgoType, "C.") + " tag) { value->" + union.Tag.CName + " = tag; }\n")
 	for _, variant := range union.Variants {
@@ -1028,7 +1028,7 @@ func cffiCType(typeInfo cffiScalar) string {
 }
 
 func generateCFFICallbackCHelpers(source *strings.Builder, callback cffiCallback, namedTypes map[string]cffiScalar) {
-	prefix := "ontama_cffi_callback_" + callback.Name
+	prefix := "kinmokusei_cffi_callback_" + callback.Name
 	ownedBytesResult := callback.Result == "ownedBytes"
 	ownedCStringResult := callback.Result == "ownedCString"
 	ownedArrayResult := callback.Result == "ownedArray"
@@ -1110,7 +1110,7 @@ func generateCFFICallbackFunctionCHelper(source *strings.Builder, function cffiF
 		name := "value" + strconv.Itoa(index)
 		if callback, exists := callbacks[parameter.Type]; exists {
 			parameters = append(parameters, "uintptr_t "+name)
-			arguments = append(arguments, "ontama_cffi_callback_"+callback.Name+"_bridge", "(void *)(uintptr_t)"+name)
+			arguments = append(arguments, "kinmokusei_cffi_callback_"+callback.Name+"_bridge", "(void *)(uintptr_t)"+name)
 		} else if handle, exists := handles[parameter.Type]; exists {
 			parameters = append(parameters, handle.CType+" *"+name)
 			arguments = append(arguments, name)
@@ -1128,7 +1128,7 @@ func generateCFFICallbackFunctionCHelper(source *strings.Builder, function cffiF
 		parameters = append(parameters, cffiCType(result)+" *output")
 		arguments = append(arguments, "output")
 	}
-	source.WriteString("static inline " + resultType + " ontama_cffi_call_" + function.Name + "(" + strings.Join(parameters, ", ") + ") { ")
+	source.WriteString("static inline " + resultType + " kinmokusei_cffi_call_" + function.Name + "(" + strings.Join(parameters, ", ") + ") { ")
 	if resultType != "void" {
 		source.WriteString("return ")
 	}
@@ -1137,7 +1137,7 @@ func generateCFFICallbackFunctionCHelper(source *strings.Builder, function cffiF
 
 func generateCFFICallbackRegistrationCHelpers(source *strings.Builder, registration cffiCallbackRegistration, callbacks map[string]cffiCallback, handles map[string]cffiHandle, namedTypes map[string]cffiScalar) {
 	callback := callbacks[registration.Callback]
-	bridge := "ontama_cffi_callback_" + callback.Name + "_bridge"
+	bridge := "kinmokusei_cffi_callback_" + callback.Name + "_bridge"
 	parameters := make([]string, 0, len(registration.Parameters)+1)
 	arguments := make([]string, 0, len(registration.Parameters)+2)
 	for index, parameter := range registration.Parameters {
@@ -1160,7 +1160,7 @@ func generateCFFICallbackRegistrationCHelpers(source *strings.Builder, registrat
 	parameters = append(parameters, "uintptr_t context")
 	arguments = append(arguments, bridge)
 	if callback.Result == "ownedBytes" || callback.Result == "ownedCString" || callback.Result == "ownedArray" {
-		arguments = append(arguments, "ontama_cffi_callback_"+callback.Name+"_release")
+		arguments = append(arguments, "kinmokusei_cffi_callback_"+callback.Name+"_release")
 	}
 	arguments = append(arguments, "(void *)(uintptr_t)context")
 	for _, operation := range []struct {
@@ -1170,20 +1170,20 @@ func generateCFFICallbackRegistrationCHelpers(source *strings.Builder, registrat
 		{"register", registration.Register},
 		{"unregister", registration.Unregister},
 	} {
-		source.WriteString("static inline int32_t ontama_cffi_" + operation.name + "_" + registration.Name + "(" + strings.Join(parameters, ", ") + ") { return " + operation.symbol + "(" + strings.Join(arguments, ", ") + "); }\n")
+		source.WriteString("static inline int32_t kinmokusei_cffi_" + operation.name + "_" + registration.Name + "(" + strings.Join(parameters, ", ") + ") { return " + operation.symbol + "(" + strings.Join(arguments, ", ") + "); }\n")
 	}
 }
 
 func generateCFFITaggedUnion(source *strings.Builder, union cffiTaggedUnion, namedTypes map[string]cffiScalar) {
 	tag := cffiTypeInfo(union.Tag.Type, namedTypes)
-	prefix := "C.ontama_cffi_" + union.Name
+	prefix := "C.kinmokusei_cffi_" + union.Name
 	source.WriteString("\ntype " + union.Name + " struct {\n" + union.Tag.Name + " " + tag.goType + "\n")
 	for _, variant := range union.Variants {
 		typeInfo := cffiTypeInfo(variant.Type, namedTypes)
 		source.WriteString(variant.Name + " " + typeInfo.goType + "\n")
 	}
 	source.WriteString("}\n")
-	source.WriteString("func ontamaCFFIFrom" + union.Name + "(value C." + union.CType + ") " + union.Name + " {\n")
+	source.WriteString("func kinmokuseiCFFIFrom" + union.Name + "(value C." + union.CType + ") " + union.Name + " {\n")
 	source.WriteString("var output " + union.Name + "\n")
 	source.WriteString("output." + union.Tag.Name + " = " + tag.fromC(prefix+"_get_tag(&value)") + "\n")
 	source.WriteString("switch output." + union.Tag.Name + " {\n")
@@ -1193,7 +1193,7 @@ func generateCFFITaggedUnion(source *strings.Builder, union cffiTaggedUnion, nam
 		source.WriteString("output." + variant.Name + " = " + typeInfo.fromC(prefix+"_get_"+variant.Name+"(&value)") + "\n")
 	}
 	source.WriteString("}\nreturn output\n}\n")
-	source.WriteString("func ontamaCFFITo" + union.Name + "(value " + union.Name + ") C." + union.CType + " {\n")
+	source.WriteString("func kinmokuseiCFFITo" + union.Name + "(value " + union.Name + ") C." + union.CType + " {\n")
 	source.WriteString("var output C." + union.CType + "\n")
 	source.WriteString("switch value." + union.Tag.Name + " {\n")
 	for _, variant := range union.Variants {
@@ -1250,7 +1250,7 @@ func generateCFFICallback(source *strings.Builder, callback cffiCallback, namedT
 		source.WriteString(" " + result.goType)
 	}
 	source.WriteByte('\n')
-	stateType := "ontamaCFFI" + callback.Name + "State"
+	stateType := "kinmokuseiCFFI" + callback.Name + "State"
 	stateFields := "mutex sync.Mutex; callback " + callback.Name + "; failureKind uint8; panicValue any; inputParameter string; inputReason string"
 	if callback.Lifetime == "registered" {
 		stateFields += "; closing bool; inFlight sync.WaitGroup"
@@ -1267,7 +1267,7 @@ func generateCFFICallback(source *strings.Builder, callback cffiCallback, namedT
 		source.WriteString("func (state *" + stateType + ") resume() { state.mutex.Lock(); state.closing = false; state.mutex.Unlock() }\n")
 		source.WriteString("func (state *" + stateType + ") wait() { state.inFlight.Wait() }\n")
 	}
-	exportName := "ontama_cffi_callback_" + callback.Name + "_go"
+	exportName := "kinmokusei_cffi_callback_" + callback.Name + "_go"
 	source.WriteString("//export " + exportName + "\nfunc " + exportName + "(context C.uintptr_t")
 	arguments := make([]string, 0, len(callback.Parameters))
 	conversions := make([]string, 0, len(callback.Parameters))
@@ -1286,15 +1286,15 @@ func generateCFFICallback(source *strings.Builder, callback cffiCallback, namedT
 			conversions = append(conversions, "if "+name+" == nil { state.recordInputError("+strconv.Quote(parameter.Name)+", \"null string pointer\"); "+failureReturn+" }\n")
 			arguments = append(arguments, "C.GoString("+name+")")
 		case "nullableCopiedCString":
-			local := "ontamaNullableString" + strconv.Itoa(index)
+			local := "kinmokuseiNullableString" + strconv.Itoa(index)
 			source.WriteString(", " + name + " *C.char")
-			conversions = append(conversions, "var "+local+" *string\nif "+name+" != nil { ontamaString := C.GoString("+name+"); "+local+" = &ontamaString }\n")
+			conversions = append(conversions, "var "+local+" *string\nif "+name+" != nil { kinmokuseiString := C.GoString("+name+"); "+local+" = &kinmokuseiString }\n")
 			arguments = append(arguments, local)
 		case "copiedBytes", "inoutBytes":
-			local := "ontamaCopiedBytes" + strconv.Itoa(index)
+			local := "kinmokuseiCopiedBytes" + strconv.Itoa(index)
 			length := name + "Length"
 			source.WriteString(", " + name + " *C.uint8_t, " + length + " C.size_t")
-			conversions = append(conversions, "var "+local+" []byte\nif "+name+" == nil {\nif "+length+" != 0 { state.recordInputError("+strconv.Quote(parameter.Name)+", \"null byte pointer with non-zero length\"); "+failureReturn+" }\n"+local+" = []byte{}\n} else {\nif uint64("+length+") > uint64(^uint(0)>>1) { state.recordInputError("+strconv.Quote(parameter.Name)+", \"byte length exceeds Go int\"); "+failureReturn+" }\nontamaSource := unsafe.Slice((*byte)(unsafe.Pointer("+name+")), int("+length+"))\n"+local+" = append([]byte{}, ontamaSource...)\n}\n")
+			conversions = append(conversions, "var "+local+" []byte\nif "+name+" == nil {\nif "+length+" != 0 { state.recordInputError("+strconv.Quote(parameter.Name)+", \"null byte pointer with non-zero length\"); "+failureReturn+" }\n"+local+" = []byte{}\n} else {\nif uint64("+length+") > uint64(^uint(0)>>1) { state.recordInputError("+strconv.Quote(parameter.Name)+", \"byte length exceeds Go int\"); "+failureReturn+" }\nkinmokuseiSource := unsafe.Slice((*byte)(unsafe.Pointer("+name+")), int("+length+"))\n"+local+" = append([]byte{}, kinmokuseiSource...)\n}\n")
 			arguments = append(arguments, local)
 			if parameter.Type == "inoutBytes" {
 				copyBacks = append(copyBacks, "if "+name+" != nil { copy(unsafe.Slice((*byte)(unsafe.Pointer("+name+")), int("+length+")), "+local+") }\n")
@@ -1356,43 +1356,43 @@ func generateCFFICallback(source *strings.Builder, callback cffiCallback, namedT
 		source.WriteString(conversion)
 	}
 	if ownedBytesResult {
-		source.WriteString("ontamaCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
-		source.WriteString("if len(ontamaCallbackResult) != 0 { output = (*C.uint8_t)(C.CBytes(ontamaCallbackResult)) }\n")
+		source.WriteString("kinmokuseiCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
+		source.WriteString("if len(kinmokuseiCallbackResult) != 0 { output = (*C.uint8_t)(C.CBytes(kinmokuseiCallbackResult)) }\n")
 		for _, copyBack := range copyBacks {
 			source.WriteString(copyBack)
 		}
-		source.WriteString("*outputLength = C.size_t(len(ontamaCallbackResult))\nreturn output\n")
+		source.WriteString("*outputLength = C.size_t(len(kinmokuseiCallbackResult))\nreturn output\n")
 	} else if ownedCStringResult {
-		source.WriteString("ontamaCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
-		source.WriteString("if strings.ContainsRune(ontamaCallbackResult, '\\x00') { state.recordInputError(\"$result\", \"embedded NUL in owned string result\"); return nil }\n")
+		source.WriteString("kinmokuseiCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
+		source.WriteString("if strings.ContainsRune(kinmokuseiCallbackResult, '\\x00') { state.recordInputError(\"$result\", \"embedded NUL in owned string result\"); return nil }\n")
 		for _, copyBack := range copyBacks {
 			source.WriteString(copyBack)
 		}
-		source.WriteString("return C.CString(ontamaCallbackResult)\n")
+		source.WriteString("return C.CString(kinmokuseiCallbackResult)\n")
 	} else if ownedArrayResult {
-		source.WriteString("ontamaCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
-		source.WriteString("if len(ontamaCallbackResult) != 0 {\n")
-		source.WriteString("var ontamaArrayElement " + arrayElement.cgoType + "\n")
-		source.WriteString("ontamaElementSize := uint64(unsafe.Sizeof(ontamaArrayElement))\n")
-		source.WriteString("if uint64(len(ontamaCallbackResult)) > uint64(^uintptr(0))/ontamaElementSize { state.recordInputError(\"$result\", \"owned array size exceeds address space\"); return nil }\n")
-		source.WriteString("output = (*" + arrayElement.cgoType + ")(C.malloc(C.size_t(uint64(len(ontamaCallbackResult)) * ontamaElementSize)))\n")
+		source.WriteString("kinmokuseiCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
+		source.WriteString("if len(kinmokuseiCallbackResult) != 0 {\n")
+		source.WriteString("var kinmokuseiArrayElement " + arrayElement.cgoType + "\n")
+		source.WriteString("kinmokuseiElementSize := uint64(unsafe.Sizeof(kinmokuseiArrayElement))\n")
+		source.WriteString("if uint64(len(kinmokuseiCallbackResult)) > uint64(^uintptr(0))/kinmokuseiElementSize { state.recordInputError(\"$result\", \"owned array size exceeds address space\"); return nil }\n")
+		source.WriteString("output = (*" + arrayElement.cgoType + ")(C.malloc(C.size_t(uint64(len(kinmokuseiCallbackResult)) * kinmokuseiElementSize)))\n")
 		source.WriteString("if output == nil { panic(\"C allocation failed\") }\n")
-		source.WriteString("ontamaOutput := unsafe.Slice(output, len(ontamaCallbackResult))\n")
-		source.WriteString("for index, value := range ontamaCallbackResult { ontamaOutput[index] = " + arrayElement.toC("value") + " }\n")
+		source.WriteString("kinmokuseiOutput := unsafe.Slice(output, len(kinmokuseiCallbackResult))\n")
+		source.WriteString("for index, value := range kinmokuseiCallbackResult { kinmokuseiOutput[index] = " + arrayElement.toC("value") + " }\n")
 		source.WriteString("}\n")
 		for _, copyBack := range copyBacks {
 			source.WriteString(copyBack)
 		}
-		source.WriteString("*outputLength = C.size_t(len(ontamaCallbackResult))\nreturn output\n")
+		source.WriteString("*outputLength = C.size_t(len(kinmokuseiCallbackResult))\nreturn output\n")
 	} else if callback.Result != "void" {
 		if len(copyBacks) == 0 {
 			source.WriteString("return " + result.toC("state.callback("+strings.Join(arguments, ", ")+")") + "\n")
 		} else {
-			source.WriteString("ontamaCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
+			source.WriteString("kinmokuseiCallbackResult := state.callback(" + strings.Join(arguments, ", ") + ")\n")
 			for _, copyBack := range copyBacks {
 				source.WriteString(copyBack)
 			}
-			source.WriteString("return " + result.toC("ontamaCallbackResult") + "\n")
+			source.WriteString("return " + result.toC("kinmokuseiCallbackResult") + "\n")
 		}
 	} else {
 		source.WriteString("state.callback(" + strings.Join(arguments, ", ") + ")\n")
@@ -1405,9 +1405,9 @@ func generateCFFICallback(source *strings.Builder, callback cffiCallback, namedT
 
 func generateCFFICallbackRegistration(source *strings.Builder, policy string, registration cffiCallbackRegistration, callbacks map[string]cffiCallback, handles map[string]cffiHandle, namedTypes map[string]cffiScalar) {
 	callback := callbacks[registration.Callback]
-	stateType := "ontamaCFFI" + callback.Name + "State"
-	rawRegister := "ontamaCFFIRawRegister" + registration.Name
-	rawClose := "ontamaCFFIRawClose"
+	stateType := "kinmokuseiCFFI" + callback.Name + "State"
+	rawRegister := "kinmokuseiCFFIRawRegister" + registration.Name
+	rawClose := "kinmokuseiCFFIRawClose"
 	fields := []string{"mutex sync.Mutex", "context cgo.Handle", "state *" + stateType, "closed bool"}
 	publicParameters := make([]string, 0, len(registration.Parameters)+1)
 	parameterNames := make([]string, 0, len(registration.Parameters)+1)
@@ -1432,26 +1432,26 @@ func generateCFFICallbackRegistration(source *strings.Builder, policy string, re
 			coupledHandleField = field
 			initializers = append(initializers, field+": "+parameter.Name)
 		} else if parameter.Type == "retainedCString" {
-			local := "ontamaCString" + strconv.Itoa(index)
+			local := "kinmokuseiCString" + strconv.Itoa(index)
 			fields = append(fields, field+" *C.char")
 			publicParameters = append(publicParameters, parameter.Name+" string")
 			registerArguments = append(registerArguments, local)
 			unregisterArguments = append(unregisterArguments, "registration."+field)
 			stringChecks = append(stringChecks, "if strings.IndexByte("+parameter.Name+", 0) >= 0 { return nil, ErrEmbeddedNUL }\n")
 			allocations = append(allocations, local+" := C.CString("+parameter.Name+")\n")
-			localCleanups = append(localCleanups, "C.ontama_cffi_free_string("+local+")\n")
-			closeCleanups = append(closeCleanups, "C.ontama_cffi_free_string(registration."+field+")\n")
+			localCleanups = append(localCleanups, "C.kinmokusei_cffi_free_string("+local+")\n")
+			closeCleanups = append(closeCleanups, "C.kinmokusei_cffi_free_string(registration."+field+")\n")
 			initializers = append(initializers, field+": "+local)
 		} else if parameter.Type == "retainedBytes" {
-			local := "ontamaBytes" + strconv.Itoa(index)
+			local := "kinmokuseiBytes" + strconv.Itoa(index)
 			length := local + "Length"
 			fields = append(fields, field+" unsafe.Pointer", field+"Length C.size_t")
 			publicParameters = append(publicParameters, parameter.Name+" []byte")
 			registerArguments = append(registerArguments, "(*C.uint8_t)("+local+")", length)
 			unregisterArguments = append(unregisterArguments, "(*C.uint8_t)(registration."+field+")", "registration."+field+"Length")
 			allocations = append(allocations, "var "+local+" unsafe.Pointer\nif len("+parameter.Name+") != 0 { "+local+" = C.CBytes("+parameter.Name+") }\n"+length+" := C.size_t(len("+parameter.Name+"))\n")
-			localCleanups = append(localCleanups, "if "+local+" != nil { C.ontama_cffi_free_bytes("+local+") }\n")
-			closeCleanups = append(closeCleanups, "if registration."+field+" != nil { C.ontama_cffi_free_bytes(registration."+field+") }\n")
+			localCleanups = append(localCleanups, "if "+local+" != nil { C.kinmokusei_cffi_free_bytes("+local+") }\n")
+			closeCleanups = append(closeCleanups, "if registration."+field+" != nil { C.kinmokusei_cffi_free_bytes(registration."+field+") }\n")
 			initializers = append(initializers, field+": "+local, field+"Length: "+length)
 		} else {
 			typeInfo := cffiTypeInfo(parameter.Type, namedTypes)
@@ -1469,7 +1469,7 @@ func generateCFFICallbackRegistration(source *strings.Builder, policy string, re
 	source.WriteString("\ntype " + registration.Name + " struct { " + strings.Join(fields, "; ") + " }\n")
 	source.WriteString("func Register" + registration.Name + "(" + strings.Join(publicParameters, ", ") + ") (*" + registration.Name + ", error) {\n")
 	if policy == "threadAffine" {
-		source.WriteString("var result *" + registration.Name + "\nvar resultError error\nontamaCFFIDo(func() { result, resultError = " + rawRegister + "(" + strings.Join(parameterNames, ", ") + ") })\nreturn result, resultError\n}\n")
+		source.WriteString("var result *" + registration.Name + "\nvar resultError error\nkinmokuseiCFFIDo(func() { result, resultError = " + rawRegister + "(" + strings.Join(parameterNames, ", ") + ") })\nreturn result, resultError\n}\n")
 	} else {
 		source.WriteString("return " + rawRegister + "(" + strings.Join(parameterNames, ", ") + ")\n}\n")
 	}
@@ -1486,27 +1486,27 @@ func generateCFFICallbackRegistration(source *strings.Builder, policy string, re
 	}
 	source.WriteString("state := &" + stateType + "{callback: callback}\ncontext := cgo.NewHandle(state)\n")
 	if policy == "serialized" {
-		source.WriteString("ontamaCFFIMutex.Lock()\n")
+		source.WriteString("kinmokuseiCFFIMutex.Lock()\n")
 	}
 	if coupledHandleName != "" {
 		source.WriteString(coupledHandleName + ".mutex.Lock()\n")
 		source.WriteString("if " + coupledHandleName + ".closed || " + coupledHandleName + ".pointer == nil {\n")
 		source.WriteString(coupledHandleName + ".mutex.Unlock()\n")
 		if policy == "serialized" {
-			source.WriteString("ontamaCFFIMutex.Unlock()\n")
+			source.WriteString("kinmokuseiCFFIMutex.Unlock()\n")
 		}
 		for _, cleanup := range localCleanups {
 			source.WriteString(cleanup)
 		}
 		source.WriteString("context.Delete()\nreturn nil, ErrClosedHandle\n}\n")
 	}
-	source.WriteString("status := int32(C.ontama_cffi_register_" + registration.Name + "(" + strings.Join(registerArguments, ", ") + "))\n")
+	source.WriteString("status := int32(C.kinmokusei_cffi_register_" + registration.Name + "(" + strings.Join(registerArguments, ", ") + "))\n")
 	if coupledHandleName != "" {
 		source.WriteString("if status == 0 { " + coupledHandleName + ".registrations++ }\n")
 		source.WriteString(coupledHandleName + ".mutex.Unlock()\n")
 	}
 	if policy == "serialized" {
-		source.WriteString("ontamaCFFIMutex.Unlock()\n")
+		source.WriteString("kinmokuseiCFFIMutex.Unlock()\n")
 	}
 	source.WriteString("if status != 0 {\n")
 	for _, cleanup := range localCleanups {
@@ -1517,7 +1517,7 @@ func generateCFFICallbackRegistration(source *strings.Builder, policy string, re
 	source.WriteString("func (registration *" + registration.Name + ") CallbackError() error { if registration == nil || registration.state == nil { return ErrClosedCallbackRegistration }; return registration.state.callbackError(" + strconv.Quote(registration.Name) + ") }\n")
 	source.WriteString("func (registration *" + registration.Name + ") Close() error {\n")
 	if policy == "threadAffine" {
-		source.WriteString("var result error\nontamaCFFIDo(func() { result = registration." + rawClose + "() })\nreturn result\n}\n")
+		source.WriteString("var result error\nkinmokuseiCFFIDo(func() { result = registration." + rawClose + "() })\nreturn result\n}\n")
 	} else {
 		source.WriteString("return registration." + rawClose + "()\n}\n")
 	}
@@ -1525,17 +1525,17 @@ func generateCFFICallbackRegistration(source *strings.Builder, policy string, re
 	source.WriteString("if registration == nil { return ErrClosedCallbackRegistration }\nregistration.mutex.Lock()\ndefer registration.mutex.Unlock()\n")
 	source.WriteString("if registration.closed || registration.state == nil || registration.context == 0 { return ErrClosedCallbackRegistration }\nregistration.state.stop()\n")
 	if policy == "serialized" {
-		source.WriteString("ontamaCFFIMutex.Lock()\n")
+		source.WriteString("kinmokuseiCFFIMutex.Lock()\n")
 	}
 	if coupledHandleField != "" {
 		source.WriteString("registration." + coupledHandleField + ".mutex.Lock()\n")
 	}
-	source.WriteString("status := int32(C.ontama_cffi_unregister_" + registration.Name + "(" + strings.Join(unregisterArguments, ", ") + "))\n")
+	source.WriteString("status := int32(C.kinmokusei_cffi_unregister_" + registration.Name + "(" + strings.Join(unregisterArguments, ", ") + "))\n")
 	if coupledHandleField != "" {
 		source.WriteString("registration." + coupledHandleField + ".mutex.Unlock()\n")
 	}
 	if policy == "serialized" {
-		source.WriteString("ontamaCFFIMutex.Unlock()\n")
+		source.WriteString("kinmokuseiCFFIMutex.Unlock()\n")
 	}
 	source.WriteString("if status != 0 { registration.state.resume(); return &StatusError{Function: " + strconv.Quote(registration.Name+".Close") + ", Code: status} }\n")
 	source.WriteString("registration.state.wait()\n")
@@ -1557,14 +1557,14 @@ func generateCFFIStruct(source *strings.Builder, structure cffiStruct, namedType
 		source.WriteString(field.Name + " " + typeInfo.goType + "\n")
 	}
 	source.WriteString("}\n")
-	source.WriteString("func ontamaCFFITo" + structure.Name + "(value " + structure.Name + ") C." + structure.CType + " {\n")
+	source.WriteString("func kinmokuseiCFFITo" + structure.Name + "(value " + structure.Name + ") C." + structure.CType + " {\n")
 	source.WriteString("var output C." + structure.CType + "\n")
 	for _, field := range structure.Fields {
 		typeInfo := cffiTypeInfo(field.Type, namedTypes)
 		source.WriteString("output." + field.CName + " = " + typeInfo.toC("value."+field.Name) + "\n")
 	}
 	source.WriteString("return output\n}\n")
-	source.WriteString("func ontamaCFFIFrom" + structure.Name + "(value C." + structure.CType + ") " + structure.Name + " {\n")
+	source.WriteString("func kinmokuseiCFFIFrom" + structure.Name + "(value C." + structure.CType + ") " + structure.Name + " {\n")
 	source.WriteString("var output " + structure.Name + "\n")
 	for _, field := range structure.Fields {
 		typeInfo := cffiTypeInfo(field.Type, namedTypes)
@@ -1647,9 +1647,9 @@ func generateThreadAffineCFFIFunction(source *strings.Builder, function cffiFunc
 	source.WriteString(" {\n")
 	results := cffiGoResultTypes(function, handles, namedTypes, callbacks)
 	for index, result := range results {
-		name := "ontamaResult"
+		name := "kinmokuseiResult"
 		if index == 1 {
-			name = "ontamaError"
+			name = "kinmokuseiError"
 		}
 		source.WriteString("var " + name + " " + result + "\n")
 	}
@@ -1657,23 +1657,23 @@ func generateThreadAffineCFFIFunction(source *strings.Builder, function cffiFunc
 	for _, parameter := range function.Parameters {
 		arguments = append(arguments, parameter.Name)
 	}
-	call := "ontamaCFFIRaw" + function.Name + "(" + strings.Join(arguments, ", ") + ")"
-	source.WriteString("ontamaCFFIDo(func() { ")
+	call := "kinmokuseiCFFIRaw" + function.Name + "(" + strings.Join(arguments, ", ") + ")"
+	source.WriteString("kinmokuseiCFFIDo(func() { ")
 	if len(results) == 1 {
-		source.WriteString("ontamaResult = ")
+		source.WriteString("kinmokuseiResult = ")
 	} else if len(results) == 2 {
-		source.WriteString("ontamaResult, ontamaError = ")
+		source.WriteString("kinmokuseiResult, kinmokuseiError = ")
 	}
 	source.WriteString(call + " })\n")
 	if len(results) == 1 {
-		source.WriteString("return ontamaResult\n")
+		source.WriteString("return kinmokuseiResult\n")
 	} else if len(results) == 2 {
-		source.WriteString("return ontamaResult, ontamaError\n")
+		source.WriteString("return kinmokuseiResult, kinmokuseiError\n")
 	}
 	source.WriteString("}\n")
 	var raw strings.Builder
 	generateCFFIFunction(&raw, "threadSafe", function, handles, namedTypes, callbacks)
-	rawSource := strings.Replace(raw.String(), "\nfunc "+function.Name+"(", "\nfunc ontamaCFFIRaw"+function.Name+"(", 1)
+	rawSource := strings.Replace(raw.String(), "\nfunc "+function.Name+"(", "\nfunc kinmokuseiCFFIRaw"+function.Name+"(", 1)
 	source.WriteString(rawSource)
 }
 
@@ -1681,13 +1681,13 @@ func generateCFFIHandle(source *strings.Builder, policy string, handle cffiHandl
 	source.WriteString("\ntype " + handle.Name + " struct { mutex sync.Mutex; pointer *C." + handle.CType + "; closed bool; registrations int }\n")
 	if policy == "threadAffine" {
 		source.WriteString("\nfunc (handle *" + handle.Name + ") Close() error {\n")
-		source.WriteString("var ontamaResult error\nontamaCFFIDo(func() { ontamaResult = handle.ontamaCFFIRawClose() })\nreturn ontamaResult\n}\n")
-		source.WriteString("func (handle *" + handle.Name + ") ontamaCFFIRawClose() error {\n")
+		source.WriteString("var kinmokuseiResult error\nkinmokuseiCFFIDo(func() { kinmokuseiResult = handle.kinmokuseiCFFIRawClose() })\nreturn kinmokuseiResult\n}\n")
+		source.WriteString("func (handle *" + handle.Name + ") kinmokuseiCFFIRawClose() error {\n")
 	} else {
 		source.WriteString("func (handle *" + handle.Name + ") Close() error {\n")
 	}
 	if policy == "serialized" {
-		source.WriteString("ontamaCFFIMutex.Lock()\ndefer ontamaCFFIMutex.Unlock()\n")
+		source.WriteString("kinmokuseiCFFIMutex.Lock()\ndefer kinmokuseiCFFIMutex.Unlock()\n")
 	}
 	source.WriteString("if handle == nil { return ErrClosedHandle }\nhandle.mutex.Lock()\ndefer handle.mutex.Unlock()\n")
 	source.WriteString("if handle.closed || handle.pointer == nil { return ErrClosedHandle }\n")
@@ -1734,16 +1734,16 @@ func generateCFFIFunction(source *strings.Builder, policy string, function cffiF
 		}
 		if _, exists := callbacks[parameter.Type]; exists {
 			source.WriteString(parameter.Name + " " + parameter.Type)
-			arguments = append(arguments, "C.uintptr_t(ontamaCallbackHandle"+strconv.Itoa(index)+")")
+			arguments = append(arguments, "C.uintptr_t(kinmokuseiCallbackHandle"+strconv.Itoa(index)+")")
 		} else if handle, exists := handles[parameter.Type]; exists {
 			source.WriteString(parameter.Name + " *" + handle.Name)
 			arguments = append(arguments, parameter.Name+".pointer")
 		} else if parameter.Type == "cstring" {
 			source.WriteString(parameter.Name + " string")
-			arguments = append(arguments, "ontamaCString"+strconv.Itoa(index))
+			arguments = append(arguments, "kinmokuseiCString"+strconv.Itoa(index))
 		} else if parameter.Type == "borrowedBytes" {
 			source.WriteString(parameter.Name + " []byte")
-			arguments = append(arguments, "ontamaBytes"+strconv.Itoa(index), "C.size_t(len("+parameter.Name+"))")
+			arguments = append(arguments, "kinmokuseiBytes"+strconv.Itoa(index), "C.size_t(len("+parameter.Name+"))")
 		} else {
 			typeInfo := cffiTypeInfo(parameter.Type, namedTypes)
 			source.WriteString(parameter.Name + " " + typeInfo.goType)
@@ -1774,9 +1774,9 @@ func generateCFFIFunction(source *strings.Builder, policy string, function cffiF
 		}
 		failure := cffiFailureReturn(function, handleResult, result, "ErrEmbeddedNUL")
 		source.WriteString("if strings.IndexByte(" + parameter.Name + ", 0) >= 0 { " + failure + " }\n")
-		name := "ontamaCString" + strconv.Itoa(index)
+		name := "kinmokuseiCString" + strconv.Itoa(index)
 		source.WriteString(name + " := C.CString(" + parameter.Name + ")\n")
-		source.WriteString("defer C.ontama_cffi_free_string(" + name + ")\n")
+		source.WriteString("defer C.kinmokusei_cffi_free_string(" + name + ")\n")
 	}
 	var callbackState string
 	for index, parameter := range function.Parameters {
@@ -1786,25 +1786,25 @@ func generateCFFIFunction(source *strings.Builder, policy string, function cffiF
 		}
 		failure := cffiFailureReturn(function, handleResult, result, "ErrNilCallback")
 		source.WriteString("if " + parameter.Name + " == nil { " + failure + " }\n")
-		callbackState = "ontamaCallbackState" + strconv.Itoa(index)
-		source.WriteString(callbackState + " := &ontamaCFFI" + callbackType.Name + "State{callback: " + parameter.Name + "}\n")
-		source.WriteString("ontamaCallbackHandle" + strconv.Itoa(index) + " := cgo.NewHandle(" + callbackState + ")\n")
-		source.WriteString("defer ontamaCallbackHandle" + strconv.Itoa(index) + ".Delete()\n")
+		callbackState = "kinmokuseiCallbackState" + strconv.Itoa(index)
+		source.WriteString(callbackState + " := &kinmokuseiCFFI" + callbackType.Name + "State{callback: " + parameter.Name + "}\n")
+		source.WriteString("kinmokuseiCallbackHandle" + strconv.Itoa(index) + " := cgo.NewHandle(" + callbackState + ")\n")
+		source.WriteString("defer kinmokuseiCallbackHandle" + strconv.Itoa(index) + ".Delete()\n")
 	}
 	for index, parameter := range function.Parameters {
 		if parameter.Type != "borrowedBytes" {
 			continue
 		}
-		name := "ontamaBytes" + strconv.Itoa(index)
+		name := "kinmokuseiBytes" + strconv.Itoa(index)
 		source.WriteString("var " + name + " *C.uint8_t\n")
 		source.WriteString("if len(" + parameter.Name + ") != 0 {\n")
-		source.WriteString("ontamaBuffer := C.CBytes(" + parameter.Name + ")\n")
-		source.WriteString(name + " = (*C.uint8_t)(ontamaBuffer)\n")
-		source.WriteString("defer C.ontama_cffi_free_bytes(ontamaBuffer)\n")
+		source.WriteString("kinmokuseiBuffer := C.CBytes(" + parameter.Name + ")\n")
+		source.WriteString(name + " = (*C.uint8_t)(kinmokuseiBuffer)\n")
+		source.WriteString("defer C.kinmokusei_cffi_free_bytes(kinmokuseiBuffer)\n")
 		source.WriteString("}\n")
 	}
 	if policy == "serialized" {
-		source.WriteString("ontamaCFFIMutex.Lock()\ndefer ontamaCFFIMutex.Unlock()\n")
+		source.WriteString("kinmokuseiCFFIMutex.Lock()\ndefer kinmokuseiCFFIMutex.Unlock()\n")
 	}
 	for _, parameter := range function.Parameters {
 		if _, exists := handles[parameter.Type]; exists {
@@ -1824,7 +1824,7 @@ func generateCFFIFunction(source *strings.Builder, policy string, function cffiF
 	callArguments := strings.Join(arguments, ", ")
 	callSymbol := function.Symbol
 	if hasCallback {
-		callSymbol = "ontama_cffi_call_" + function.Name
+		callSymbol = "kinmokusei_cffi_call_" + function.Name
 	}
 	callbackFailure := ""
 	if hasCallback {

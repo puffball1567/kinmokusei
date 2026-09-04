@@ -20,7 +20,7 @@ func TestRequestCancellationIDMatrix(t *testing.T) {
 		{"string", `"hover-request"`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "cancel.otm")
+			path := filepath.Join(t.TempDir(), "cancel.km")
 			uri := fileURI(path)
 			text := `function value(input: int): int { return input; }`
 			requestMessage := fmt.Sprintf(`{"jsonrpc":"2.0","id":%s,"method":"textDocument/hover","params":{"textDocument":{"uri":%q},"position":{"line":0,"character":10}}}`, test.id, uri)
@@ -74,7 +74,7 @@ func TestRequestIDValidationMatrix(t *testing.T) {
 }
 
 func TestUnknownAndMalformedCancellationAreIgnored(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "ignored_cancel.otm")
+	path := filepath.Join(t.TempDir(), "ignored_cancel.km")
 	uri := fileURI(path)
 	text := `function value(input: int): int { return input; }`
 	hover := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{"textDocument":{"uri":%q},"position":{"line":0,"character":10}}}`, uri)
@@ -101,7 +101,7 @@ func TestUnknownAndMalformedCancellationAreIgnored(t *testing.T) {
 }
 
 func TestDocumentChangeSuppressesStaleRequestResult(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "stale.otm")
+	path := filepath.Join(t.TempDir(), "stale.km")
 	uri := fileURI(path)
 	initial := `function value(input: int): int { return input; }`
 	updated := `function value(input: int): int { return input + 1; }`
@@ -150,7 +150,7 @@ func TestDocumentChangeSuppressesStaleRequestResult(t *testing.T) {
 }
 
 func TestShutdownDrainsAcceptedRequestsBeforeResponding(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "shutdown.otm")
+	path := filepath.Join(t.TempDir(), "shutdown.km")
 	uri := fileURI(path)
 	text := `function value(input: int): int { return input; }`
 	hover := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{"textDocument":{"uri":%q},"position":{"line":0,"character":10}}}`, uri)

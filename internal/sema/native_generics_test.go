@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/parser"
 )
 
 func TestNativeGenericFunctionSemanticMatrix(t *testing.T) {
@@ -46,7 +46,7 @@ func TestNativeGenericFunctionSemanticMatrix(t *testing.T) {
 func TestNativeGenericFunctionResolvedMetadata(t *testing.T) {
 	input := `function identity<T>(value: T): T { return value; }
 function use(value: string): string { return identity<string>(value); }`
-	tokens, lexDiagnostics := lexer.Lex("generic_metadata.otm", input)
+	tokens, lexDiagnostics := lexer.Lex("generic_metadata.km", input)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics = %v", lexDiagnostics)
 	}

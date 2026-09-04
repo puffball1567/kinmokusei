@@ -9,7 +9,7 @@ import (
 
 func TestGoCompatibleStringConversions(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "string_conversion.otm")
+	source := filepath.Join(temp, "string_conversion.km")
 	input := `
 import go net from "net";
 

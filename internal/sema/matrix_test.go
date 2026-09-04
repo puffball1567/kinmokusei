@@ -123,7 +123,7 @@ func TestSemanticFailureMatrix(t *testing.T) {
 		{"type switch unknown case type", `function value(input: error): void { switch (input) { case const typed as Missing {} } }`, `unknown type "Missing"`},
 		{"type switch class case type", `class Value {} function inspect(input: error): void { switch (input) { case const typed as Value {} } }`, "cannot be represented as a Go type"},
 		{"continue in type switch without loop", `function value(input: error): void { switch (input) { case const typed as error {} default { continue; } } }`, "continue may only be used inside a loop"},
-		{"type switch reserved binding", `import go os from "os"; function value(input: error): void { switch (input) { case const __ontama_type_switch_1 as *os.PathError {} } }`, "conflicts with a compiler built-in"},
+		{"type switch reserved binding", `import go os from "os"; function value(input: error): void { switch (input) { case const __kinmokusei_type_switch_1 as *os.PathError {} } }`, "conflicts with a compiler built-in"},
 		{"value switch noncomparable subject", `function value(input: int[]): void { switch (input) { default {} } }`, "value switch expression type int[] is not comparable"},
 		{"value switch case mismatch", `function value(input: int): void { switch (input) { case "wrong" {} } }`, "cannot use string as int"},
 		{"value switch duplicate integer expression", `function value(input: int): void { switch (input) { case 3 {} case 1 + 2 {} } }`, "duplicate value switch case 3"},
@@ -185,7 +185,7 @@ func TestSemanticFailureMatrix(t *testing.T) {
 		{"implements array", `interface Value {} class Child implements Value[] {}`, "implements expects an interface name"},
 		{"generated constructor collision", `class Value {} function NewValue(): int { return 1; }`, "generated Go name"},
 		{"public static generated collision", `function MeterCreate(value: int): int { return value; } class Meter { public static function create(value: int): int { return value; } }`, `generated Go name "MeterCreate" collides`},
-		{"private static generated collision", `function __ontamaStaticMetermagnitude(value: int): int { return value; } class Meter { private static function magnitude(value: int): int { return value; } }`, `generated Go name "__ontamaStaticMetermagnitude" collides`},
+		{"private static generated collision", `function __kinmokuseiStaticMetermagnitude(value: int): int { return value; } class Meter { private static function magnitude(value: int): int { return value; } }`, `generated Go name "__kinmokuseiStaticMetermagnitude" collides`},
 		{"generated keyword collision", `function package(): int { return 1; } function package_(): int { return 2; }`, "generated Go name"},
 		{"class Go keyword", `class type {}`, "is a Go keyword"},
 	}

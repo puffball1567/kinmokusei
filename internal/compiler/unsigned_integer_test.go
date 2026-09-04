@@ -9,7 +9,7 @@ import (
 
 func TestUnsignedIntegerCompileAndGoDifferentialMatrix(t *testing.T) {
 	root := t.TempDir()
-	path := filepath.Join(root, "unsigned.otm")
+	path := filepath.Join(root, "unsigned.km")
 	source := `
 import go bits from "math/bits";
 
@@ -186,7 +186,7 @@ func TestUnsignedIntegerRejectsInvalidMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "invalid.otm")
+			path := filepath.Join(t.TempDir(), "invalid.km")
 			if err := os.WriteFile(path, []byte(test.source), 0o644); err != nil {
 				t.Fatal(err)
 			}

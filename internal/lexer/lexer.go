@@ -5,9 +5,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/source"
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type Lexer struct {

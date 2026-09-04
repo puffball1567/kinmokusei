@@ -58,7 +58,7 @@ function verifyEntries(entries) {
     'extension/extension.js',
     'extension/client.js',
     'extension/language-configuration.json',
-    'extension/syntaxes/onsentamago.tmLanguage.json',
+    'extension/syntaxes/kinmokusei.tmLanguage.json',
     'extension/readme.md',
     'extension/LICENSE.txt',
     'extension/node_modules/vscode-languageclient/package.json'
@@ -95,7 +95,7 @@ async function createPackage(packagePath) {
 async function main() {
   process.env.SOURCE_DATE_EPOCH = '315532800';
   const temporaryDirectory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'onsentamago-vsix-')
+    path.join(os.tmpdir(), 'kinmokusei-vsix-')
   );
   const first = path.join(temporaryDirectory, 'first.vsix');
   const second = path.join(temporaryDirectory, 'second.vsix');

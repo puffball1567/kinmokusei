@@ -9,7 +9,7 @@ import (
 
 func TestStaticMethodPublicGoAPIMatchesIndependentPackage(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "static_api.otm")
+	source := filepath.Join(temporary, "static_api.km")
 	input := `
 class Meter {
   constructor(public value: int) {}
@@ -42,7 +42,7 @@ function BuildMeter(value: int): Meter { return Meter.create(value); }
 	for _, expected := range []string{
 		"func MeterCreate(value int) *Meter",
 		"func MeterSum(left int, right int) (*Meter, error)",
-		"func __ontamaStaticMetermagnitude(value int) int",
+		"func __kinmokuseiStaticMetermagnitude(value int) int",
 		"return MeterCreate(value)",
 	} {
 		if !strings.Contains(string(generated), expected) {
@@ -51,7 +51,7 @@ function BuildMeter(value: int): Meter { return Meter.create(value); }
 	}
 	for _, forbidden := range []string{
 		"func Meter_Create", "func Meter_Sum", "func Meter_magnitude", "func MeterMagnitude",
-		temporary, source, "github.com/puffball1567/onsentamago",
+		temporary, source, "github.com/puffball1567/kinmokusei",
 	} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated Go contains forbidden public/static artifact %q:\n%s", forbidden, generated)

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 func vscodeRoot(t *testing.T) string {
@@ -69,11 +69,11 @@ func TestVSCodeManifestContract(t *testing.T) {
 	}
 	readJSON(t, "package.json", &manifest)
 
-	if manifest.Name != "onsentamago" || manifest.DisplayName != product.DisplayName {
+	if manifest.Name != "kinmokusei" || manifest.DisplayName != product.DisplayName {
 		t.Fatalf("manifest identity = %q/%q", manifest.Name, manifest.DisplayName)
 	}
-	if manifest.Publisher != "onsentamago" {
-		t.Fatalf("manifest publisher = %q, want onsentamago", manifest.Publisher)
+	if manifest.Publisher != "kinmokusei" {
+		t.Fatalf("manifest publisher = %q, want kinmokusei", manifest.Publisher)
 	}
 	if manifest.Main != "./extension.js" || manifest.Engines.VSCode == "" {
 		t.Fatalf("invalid entry point or VS Code engine: %#v", manifest)
@@ -101,7 +101,7 @@ func TestVSCodeManifestContract(t *testing.T) {
 		t.Fatalf("languages = %d, want 1", len(manifest.Contributes.Languages))
 	}
 	language := manifest.Contributes.Languages[0]
-	if language.ID != "onsentamago" ||
+	if language.ID != "kinmokusei" ||
 		len(language.Extensions) != 1 ||
 		language.Extensions[0] != product.SourceExtension ||
 		language.Configuration != "./language-configuration.json" {
@@ -109,22 +109,22 @@ func TestVSCodeManifestContract(t *testing.T) {
 	}
 	if len(manifest.Contributes.Grammars) != 1 ||
 		manifest.Contributes.Grammars[0].Language != language.ID ||
-		manifest.Contributes.Grammars[0].ScopeName != "source.onsentamago" ||
-		manifest.Contributes.Grammars[0].Path != "./syntaxes/onsentamago.tmLanguage.json" {
+		manifest.Contributes.Grammars[0].ScopeName != "source.kinmokusei" ||
+		manifest.Contributes.Grammars[0].Path != "./syntaxes/kinmokusei.tmLanguage.json" {
 		t.Fatalf("grammar contribution = %#v", manifest.Contributes.Grammars)
 	}
 	if len(manifest.Contributes.Commands) != 1 ||
-		manifest.Contributes.Commands[0].Command != "onsentamago.restartLanguageServer" {
+		manifest.Contributes.Commands[0].Command != "kinmokusei.restartLanguageServer" {
 		t.Fatalf("commands = %#v", manifest.Contributes.Commands)
 	}
-	server := manifest.Contributes.Configuration.Properties["onsentamago.server.path"]
+	server := manifest.Contributes.Configuration.Properties["kinmokusei.server.path"]
 	if server.Type != "string" || server.Default != product.CommandName ||
 		server.Scope != "machine-overridable" {
 		t.Fatalf("server path configuration = %#v", server)
 	}
 	for _, event := range []string{
-		"onLanguage:onsentamago",
-		"onCommand:onsentamago.restartLanguageServer",
+		"onLanguage:kinmokusei",
+		"onCommand:kinmokusei.restartLanguageServer",
 	} {
 		if !contains(manifest.ActivationEvents, event) {
 			t.Errorf("activation event %q is missing", event)
@@ -135,12 +135,12 @@ func TestVSCodeManifestContract(t *testing.T) {
 		"client.js",
 		"package-lock.json",
 		"language-configuration.json",
-		"syntaxes/onsentamago.tmLanguage.json",
+		"syntaxes/kinmokusei.tmLanguage.json",
 		"README.md",
 		"scripts/package-vsix.js",
 		"test/e2e/run.js",
 		"test/e2e/suite/index.js",
-		"test/e2e/fixture/main.otm",
+		"test/e2e/fixture/main.km",
 	} {
 		if _, err := os.Stat(filepath.Join(vscodeRoot(t), name)); err != nil {
 			t.Errorf("required asset %s: %v", name, err)
@@ -178,9 +178,13 @@ func TestVSCodeLanguageConfigurationContract(t *testing.T) {
 
 func TestVSCodeGrammarCoversLanguageVocabulary(t *testing.T) {
 	var grammar map[string]any
-	readJSON(t, "syntaxes/onsentamago.tmLanguage.json", &grammar)
-	if grammar["scopeName"] != "source.onsentamago" {
+	readJSON(t, "syntaxes/kinmokusei.tmLanguage.json", &grammar)
+	if grammar["scopeName"] != "source.kinmokusei" {
 		t.Fatalf("scopeName = %v", grammar["scopeName"])
+	}
+	fileTypes, ok := grammar["fileTypes"].([]any)
+	if !ok || len(fileTypes) != 1 || fileTypes[0] != "yn" {
+		t.Fatalf("fileTypes = %#v, want [yn]", grammar["fileTypes"])
 	}
 	encoded, err := json.Marshal(grammar)
 	if err != nil {

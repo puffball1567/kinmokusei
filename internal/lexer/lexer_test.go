@@ -3,11 +3,11 @@ package lexer
 import (
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 func TestLexesUnicodeIdentifiersAndOperators(t *testing.T) {
-	tokens, diagnostics := Lex("example.otm", "const 合計: int = 20 + 22;")
+	tokens, diagnostics := Lex("example.km", "const 合計: int = 20 + 22;")
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
 	}
@@ -26,7 +26,7 @@ func TestLexesUnicodeIdentifiersAndOperators(t *testing.T) {
 }
 
 func TestReportsUnterminatedStringAndContinues(t *testing.T) {
-	tokens, diagnostics := Lex("broken.otm", "\"missing\nconst ok: boolean = true;")
+	tokens, diagnostics := Lex("broken.km", "\"missing\nconst ok: boolean = true;")
 	if len(diagnostics) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %v", len(diagnostics), diagnostics)
 	}
@@ -45,7 +45,7 @@ func TestReportsUnterminatedStringAndContinues(t *testing.T) {
 }
 
 func TestSkipsComments(t *testing.T) {
-	tokens, diagnostics := Lex("comments.otm", "/* header */ // line\nfunction main(): void {}")
+	tokens, diagnostics := Lex("comments.km", "/* header */ // line\nfunction main(): void {}")
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
 	}
@@ -55,7 +55,7 @@ func TestSkipsComments(t *testing.T) {
 }
 
 func TestLexesSelectKeywords(t *testing.T) {
-	tokens, diagnostics := Lex("select.otm", "select { case <-channel {} default {} }")
+	tokens, diagnostics := Lex("select.km", "select { case <-channel {} default {} }")
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
 	}
@@ -71,7 +71,7 @@ func TestLexesSelectKeywords(t *testing.T) {
 }
 
 func TestLexesTypeSwitchKeyword(t *testing.T) {
-	tokens, diagnostics := Lex("switch.otm", "switch (value) { case const typed as Type {} case nil {} default {} }")
+	tokens, diagnostics := Lex("switch.km", "switch (value) { case const typed as Type {} case nil {} default {} }")
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
 	}

@@ -9,7 +9,7 @@ import (
 
 func TestCollectionRangeCompileAndRunMatrix(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "range.otm")
+	source := filepath.Join(temp, "range.km")
 	input := `
 import go url from "net/url";
 

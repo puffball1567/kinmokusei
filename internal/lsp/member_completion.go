@@ -3,8 +3,8 @@ package lsp
 import (
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type completionReceiver struct {
@@ -468,7 +468,8 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	case *ast.ClassDecl:
 		bindings := genericClassTypeRefBindings(declaration, ref)
 		if declaration.Base != nil {
-			collectTypeMemberCompletions(program, *declaration.Base, owner, static, seen, add)
+			base := substituteTypeRefParameters(*declaration.Base, bindings)
+			collectTypeMemberCompletions(program, base, owner, static, seen, add)
 		}
 		for _, field := range declaration.Fields {
 			if !static && memberVisible(program, owner, declaration.Name, field.Visibility) {
@@ -536,9 +537,16 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			}
 		}
 	case *ast.TypeDecl:
-		if static || declaration.Alias {
+		if declaration.Alias {
+			bindings := genericAliasTypeRefBindings(declaration, ref)
+			underlying := substituteTypeRefParameters(declaration.Underlying, bindings)
+			collectTypeMemberCompletions(program, underlying, owner, static, seen, add)
 			return
 		}
+		if static {
+			return
+		}
+		collectDefinedStructFieldCompletions(program, declaration, ref, owner, add)
 		for _, candidate := range program.Declarations {
 			method, ok := candidate.(*ast.MethodDecl)
 			if !ok || !method.External {
@@ -595,6 +603,37 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	}
 }
 
+func collectDefinedStructFieldCompletions(program *ast.Program, declaration *ast.TypeDecl, instantiated ast.TypeRef, owner string, add func(completionItem)) {
+	seen := map[*ast.TypeDecl]bool{}
+	currentDeclaration := declaration
+	currentType := instantiated
+	for currentDeclaration != nil && !seen[currentDeclaration] {
+		seen[currentDeclaration] = true
+		bindings := genericAliasTypeRefBindings(currentDeclaration, currentType)
+		underlying := substituteTypeRefParameters(currentDeclaration.Underlying, bindings)
+		switch next := sourceTypeDeclaration(program, underlying).(type) {
+		case *ast.TypeDecl:
+			if next.Alias {
+				return
+			}
+			currentDeclaration = next
+			currentType = underlying
+		case *ast.StructDecl:
+			structBindings := genericStructTypeRefBindings(next, underlying)
+			for _, field := range next.Fields {
+				if !memberVisible(program, owner, next.Name, field.Visibility) {
+					continue
+				}
+				fieldType := substituteTypeRefParameters(field.Type, structBindings)
+				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
+			}
+			return
+		default:
+			return
+		}
+	}
+}
+
 func externalReceiverTypeRefBindings(receiver ast.TypeRef, selected ast.TypeRef) map[string]ast.TypeRef {
 	bindings := map[string]ast.TypeRef{}
 	for index, argument := range receiver.GenericArguments {
@@ -639,6 +678,17 @@ func genericInterfaceTypeRefBindings(declaration *ast.InterfaceDecl, instantiate
 	return bindings
 }
 
+func genericAliasTypeRefBindings(declaration *ast.TypeDecl, instantiated ast.TypeRef) map[string]ast.TypeRef {
+	if len(declaration.TypeParameters) == 0 || len(declaration.TypeParameters) != len(instantiated.GenericArguments) {
+		return nil
+	}
+	bindings := make(map[string]ast.TypeRef, len(declaration.TypeParameters))
+	for index, parameter := range declaration.TypeParameters {
+		bindings[parameter.Name] = instantiated.GenericArguments[index]
+	}
+	return bindings
+}
+
 func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRef) ast.TypeRef {
 	if ref.Qualifier == "" && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && len(ref.GenericArguments) == 0 {
 		if replacement, ok := bindings[ref.Name]; ok {
@@ -646,6 +696,10 @@ func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRe
 		}
 	}
 	result := ref
+	if ref.LoweredType != nil {
+		lowered := substituteTypeRefParameters(*ref.LoweredType, bindings)
+		result.LoweredType = &lowered
+	}
 	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
 	for index := range result.GenericArguments {
 		result.GenericArguments[index] = substituteTypeRefParameters(result.GenericArguments[index], bindings)

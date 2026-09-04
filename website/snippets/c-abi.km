@@ -1,0 +1,9 @@
+function add(left: int32, right: int32): int32 {
+  return left + right;
+}
+
+function scale(value: float64, factor: float64): float64 {
+  return value * factor;
+}
+
+export c("kinmokusei_add", "kinmokusei_scale") { add, scale };

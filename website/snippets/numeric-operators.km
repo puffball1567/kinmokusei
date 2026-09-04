@@ -1,0 +1,25 @@
+import go fmt from "fmt";
+
+function main(): void {
+  const read: byte = 1;
+  const write: byte = 2;
+  const permissions = read | write;
+  const canWrite = permissions & write !== byte(0);
+  const withoutRead = permissions &^ read;
+  const complement = ^byte(240);
+  const signedHalf = int32(-8) >> 1;
+
+  let updated = 3;
+  updated <<= 1;
+  updated ^= 1;
+
+  fmt.Println(
+    permissions,
+    canWrite,
+    withoutRead,
+    complement,
+    signedHalf,
+    updated,
+    int64(permissions),
+  );
+}

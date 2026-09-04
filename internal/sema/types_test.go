@@ -61,7 +61,7 @@ func TestGoFunctionMultipleResultType(t *testing.T) {
 		gotypes.NewVar(0, nil, "err", gotypes.Universe.Lookup("error").Type()),
 	)
 	signature := gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(), results, false)
-	converted, err := ontamaFunctionFromGo(signature)
+	converted, err := kinmokuseiFunctionFromGo(signature)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			converted, err := ontamaTypeFromGo(test.input)
+			converted, err := kinmokuseiTypeFromGo(test.input)
 			if test.failed {
 				if err == nil {
 					t.Fatalf("conversion unexpectedly succeeded: %#v", converted)
@@ -128,7 +128,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 			}
 		})
 	}
-	converted, err := ontamaTypeFromGo(anonymousStruct)
+	converted, err := kinmokuseiTypeFromGo(anonymousStruct)
 	if err != nil || len(converted.GoFields) != 1 || converted.GoFields[0].Name != "Value" || converted.GoFields[0].Tag != `json:"value"` || converted.GoFields[0].Type.Kind != Int {
 		t.Fatalf("anonymous struct fields = %#v, err=%v", converted.GoFields, err)
 	}
@@ -140,15 +140,15 @@ func TestGoNamedPointerAndNilAssignabilityMatrix(t *testing.T) {
 	durationGo := gotypes.NewNamed(durationName, gotypes.Typ[gotypes.Int64], nil)
 	monthName := gotypes.NewTypeName(0, pkg, "Month", nil)
 	monthGo := gotypes.NewNamed(monthName, gotypes.Typ[gotypes.Int64], nil)
-	duration, err := ontamaTypeFromGo(durationGo)
+	duration, err := kinmokuseiTypeFromGo(durationGo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	month, err := ontamaTypeFromGo(monthGo)
+	month, err := kinmokuseiTypeFromGo(monthGo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pointer, err := ontamaTypeFromGo(gotypes.NewPointer(durationGo))
+	pointer, err := kinmokuseiTypeFromGo(gotypes.NewPointer(durationGo))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,5 +307,53 @@ func TestVariadicFunctionTypeDisplay(t *testing.T) {
 	function := Type{Kind: Function, Parameters: []Type{text, integer}, Variadic: true, Result: &text}
 	if got, want := function.String(), "(string, ...int) => string"; got != want {
 		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestGoTypeParameterOperatorCapabilitiesFollowCompleteTypeSet(t *testing.T) {
+	constraint := func(types ...gotypes.Type) gotypes.Type {
+		terms := make([]*gotypes.Term, len(types))
+		for index, item := range types {
+			terms[index] = gotypes.NewTerm(true, item)
+		}
+		contract := gotypes.NewInterfaceType(nil, []gotypes.Type{gotypes.NewUnion(terms)})
+		contract.Complete()
+		return contract
+	}
+	intersection := func(left, right gotypes.Type) gotypes.Type {
+		contract := gotypes.NewInterfaceType(nil, []gotypes.Type{left, right})
+		contract.Complete()
+		return contract
+	}
+	ordered := constraint(gotypes.Typ[gotypes.Int], gotypes.Typ[gotypes.String])
+	integer := constraint(gotypes.Typ[gotypes.Int], gotypes.Typ[gotypes.Uint8])
+	text := constraint(gotypes.Typ[gotypes.String])
+	boolean := constraint(gotypes.Typ[gotypes.Bool])
+	slice := constraint(gotypes.NewSlice(gotypes.Typ[gotypes.Int]))
+	narrowed := intersection(ordered, constraint(gotypes.Typ[gotypes.Int], gotypes.Typ[gotypes.Bool]))
+	any := gotypes.NewInterfaceType(nil, nil)
+	any.Complete()
+	tests := []struct {
+		name                                     string
+		constraint                               gotypes.Type
+		numeric, integer, ordered, text, boolean bool
+		addable                                  bool
+	}{
+		{"integer union", integer, true, true, true, false, false, true},
+		{"mixed ordered union", ordered, false, false, true, false, false, true},
+		{"string", text, false, false, true, true, false, true},
+		{"boolean", boolean, false, false, false, false, true, false},
+		{"slice", slice, false, false, false, false, false, false},
+		{"intersection narrows to integer", narrowed, true, true, true, false, false, true},
+		{"unconstrained", any, false, false, false, false, false, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			parameter := gotypes.NewTypeParam(gotypes.NewTypeName(0, nil, "T", nil), test.constraint)
+			value := Type{Kind: TypeParameter, Name: "T", GoType: parameter}
+			if value.IsNumeric() != test.numeric || value.IsInteger() != test.integer || value.IsOrdered() != test.ordered || value.IsString() != test.text || value.IsBoolean() != test.boolean || value.IsAddable() != test.addable {
+				t.Fatalf("capabilities numeric=%v integer=%v ordered=%v string=%v boolean=%v addable=%v", value.IsNumeric(), value.IsInteger(), value.IsOrdered(), value.IsString(), value.IsBoolean(), value.IsAddable())
+			}
+		})
 	}
 }
