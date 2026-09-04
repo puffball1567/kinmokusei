@@ -9,7 +9,7 @@ import (
 
 func TestBitwiseAndShiftCompileAndRunMatrix(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "bitwise.otm")
+	source := filepath.Join(temp, "bitwise.km")
 	input := `
 import go os from "os";
 import go bits from "math/bits";

@@ -1,6 +1,11 @@
+---
+title: Implementation status
+description: Review the implemented language, interoperability, tooling, and explicitly deferred areas.
+---
+
 # Implementation status
 
-OnsenTamago is a pre-1.0 public language. The following areas are implemented and covered by automated tests:
+Kinmokusei is a pre-1.0 public language. The following areas are implemented and covered by automated tests:
 
 - Typed functions, arrows, generics, enums, defined types, aliases, objects, collections, and Go-style control flow
 - Reference classes, value structs, interfaces, explicit single inheritance, virtual dispatch, override, final, super, and conversions
@@ -9,6 +14,6 @@ OnsenTamago is a pre-1.0 public language. The following areas are implemented an
 - Direct standard-library and external Go module interoperability
 - Generated Go, C ABI export, checked incoming C FFI, projects, locks, target builds, LSP, and VS Code packaging
 
-Known future work includes broader OnsenTamago package distribution, automatic task cancellation/context inheritance, broader constructor cardinality proofs, and remaining advanced FFI ownership cases.
+Known future work includes broader Kinmokusei package distribution, automatic task cancellation/context inheritance, broader constructor cardinality proofs, and remaining advanced FFI ownership cases.
 
-The detailed [quality policy](https://github.com/puffball1567/onsentamago/blob/main/docs/quality-and-go-compatibility.md) explains the difference between statement coverage and the independently handwritten-Go runtime contract gate.
+The detailed [quality policy](https://github.com/puffball1567/kinmokusei/blob/main/docs/quality-and-go-compatibility.md) explains the difference between statement coverage and the independently handwritten-Go runtime contract gate.

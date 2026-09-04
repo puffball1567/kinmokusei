@@ -1,4 +1,4 @@
-//go:build ontama_demo_contract
+//go:build kinmokusei_demo_contract
 
 package reference
 
@@ -20,7 +20,7 @@ func NewStore() *Store {
 	return &Store{
 		nextID: 3,
 		todos: []Todo{
-			{ID: 1, Title: "Read the OnsenTamago source", Completed: true},
+			{ID: 1, Title: "Read the Kinmokusei source", Completed: true},
 			{ID: 2, Title: "Try both Go backends", Completed: false},
 		},
 	}

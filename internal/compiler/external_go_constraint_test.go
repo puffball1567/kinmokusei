@@ -36,8 +36,8 @@ type Integer interface {
 	if err := os.WriteFile(filepath.Join(library, "constraints.go"), []byte(librarySource), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(root, "main.otm")
-	ontamaSource := `
+	source := filepath.Join(root, "main.km")
+	kinmokuseiSource := `
 import go constraints from "example.com/constraints";
 
 type Score = distinct int;
@@ -56,7 +56,7 @@ function byteTransform(left: byte, right: byte, shift: uint): byte {
 }
 function counterLength(values: int[]): int { return len(Counters<int>(values)); }
 `
-	if err := os.WriteFile(source, []byte(ontamaSource), 0o644); err != nil {
+	if err := os.WriteFile(source, []byte(kinmokuseiSource), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	directory, diagnostics, err := WriteGeneratedModule([]string{source}, "customconstraint")

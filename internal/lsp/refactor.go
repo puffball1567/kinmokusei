@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/compiler"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/source"
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type symbolOccurrence struct {
@@ -95,7 +95,7 @@ func (s *Server) rename(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	if !validRenameIdentifier(params.NewName) {
-		return s.renameError(id, fmt.Sprintf("%q is not a valid OnsenTamago identifier", params.NewName))
+		return s.renameError(id, fmt.Sprintf("%q is not a valid Kinmokusei identifier", params.NewName))
 	}
 
 	program, diagnostics, err := s.analyzeForRename(doc, nil)

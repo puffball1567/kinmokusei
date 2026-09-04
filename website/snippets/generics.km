@@ -1,0 +1,20 @@
+import go fmt from "fmt";
+
+struct Box<T> {
+  public value: T;
+
+  public function get(): T {
+    return this.value;
+  }
+}
+
+function choose<T>(first: T, second: T, useSecond: boolean): T {
+  if (useSecond) { return second; }
+  return first;
+}
+
+function main(): void {
+  const box: Box<string> = Box<string> { value: "onsen" };
+  const selected = choose<int>(21, 42, true);
+  fmt.Println(box.get(), selected);
+}

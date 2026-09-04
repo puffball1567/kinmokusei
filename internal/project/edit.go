@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 func RenderManifest(manifest Manifest) ([]byte, error) {

@@ -11,14 +11,14 @@ const validEntries = [
   'extension/extension.js',
   'extension/client.js',
   'extension/language-configuration.json',
-  'extension/syntaxes/onsentamago.tmLanguage.json',
+  'extension/syntaxes/kinmokusei.tmLanguage.json',
   'extension/readme.md',
   'extension/LICENSE.txt',
   'extension/node_modules/vscode-languageclient/package.json'
 ];
 
 test('package contract has a stable artifact name and production contents', () => {
-  assert.equal(artifactName, 'onsentamago-0.1.0.vsix');
+  assert.equal(artifactName, 'kinmokusei-0.2.0.vsix');
   assert.doesNotThrow(() => verifyEntries(validEntries));
 });
 

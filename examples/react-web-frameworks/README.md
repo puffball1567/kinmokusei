@@ -1,7 +1,7 @@
 # React with Gin and Fiber
 
 This example uses one React and TypeScript frontend with two interchangeable
-OnsenTamago backends. One backend calls Gin directly and the other calls Fiber
+Kinmokusei backends. One backend calls Gin directly and the other calls Fiber
 directly through `import go`; both compile to ordinary Go.
 
 The application is a small in-memory todo service with health, list, create,
@@ -10,11 +10,11 @@ backends without changing its HTTP contract.
 
 ## Requirements
 
-- The `ontama` command built with Go 1.27
+- The `keika` command built with Go 1.27
 - Go 1.27
 - Node.js 22.12 or later
 
-The backend dependencies are pinned by `ontama.toml` and `ontama.lock`. The
+The backend dependencies are pinned by `kinmokusei.toml` and `kinmokusei.lock`. The
 frontend dependencies are pinned by `package.json` and `package-lock.json`.
 
 ## Run both backends
@@ -23,15 +23,15 @@ Start Gin from the backend directory:
 
 ```sh
 cd examples/react-web-frameworks/backend
-ontama deps check
-ontama run gin/main.otm
+keika deps check
+keika run gin/main.km
 ```
 
 In another terminal, start Fiber from the same directory:
 
 ```sh
 cd examples/react-web-frameworks/backend
-ontama run fiber/main.otm
+keika run fiber/main.km
 ```
 
 Gin listens on port 8080 and Fiber listens on port 8081. `PORT` may override
@@ -71,7 +71,7 @@ From the backend directory:
 ./verify.sh
 ```
 
-The verification script checks both OnsenTamago roots, emits each as an
+The verification script checks both Kinmokusei roots, emits each as an
 isolated Go package, and runs the HTTP contract under Go's race detector. The
 expected side is an independently handwritten Go implementation; generated Go
 is never reused as the oracle. The matrix covers valid CRUD sequences,
@@ -80,7 +80,7 @@ concurrent creation without lost or duplicate records.
 
 The handwritten Go packages under `contract/reference` exist only as the
 differential oracle. Application authors write the frontend in TypeScript and
-the backend in OnsenTamago.
+the backend in Kinmokusei.
 
 After installing the frontend dependencies, the complete Vite proxy and both
 generated server binaries can be exercised together from the example root:
@@ -98,7 +98,7 @@ removes its temporary binaries and logs.
 | Path | Purpose |
 | --- | --- |
 | `frontend/` | Shared React and TypeScript application |
-| `backend/store.otm` | Shared concurrent todo store and JSON data shapes |
-| `backend/gin/main.otm` | Gin routes and server entry point |
-| `backend/fiber/main.otm` | Fiber routes and server entry point |
+| `backend/store.km` | Shared concurrent todo store and JSON data shapes |
+| `backend/gin/main.km` | Gin routes and server entry point |
+| `backend/fiber/main.km` | Fiber routes and server entry point |
 | `backend/contract/` | Independent Go oracle and differential tests |

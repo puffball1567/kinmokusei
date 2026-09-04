@@ -9,7 +9,7 @@ import (
 
 func TestDefinedNativeStructTypesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "defined_struct_type.otm")
+	source := filepath.Join(temporary, "defined_struct_type.km")
 	if err := os.WriteFile(source, []byte(`
 import go json from "encoding/json";
 

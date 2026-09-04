@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 )
 
 func TestParsesNativeStructDeclarationsAndLiterals(t *testing.T) {
@@ -104,7 +104,7 @@ func TestNativeStructSyntaxFailureMatrix(t *testing.T) {
 		`struct Point { public x: int; } function (this: Point) copied(): Point { return this; }`,
 	}
 	for _, source := range tests {
-		tokens, lexDiagnostics := lexer.Lex("struct_failure.otm", source)
+		tokens, lexDiagnostics := lexer.Lex("struct_failure.km", source)
 		if len(lexDiagnostics) != 0 {
 			t.Fatalf("lexer diagnostics = %v", lexDiagnostics)
 		}

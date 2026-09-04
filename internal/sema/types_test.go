@@ -61,7 +61,7 @@ func TestGoFunctionMultipleResultType(t *testing.T) {
 		gotypes.NewVar(0, nil, "err", gotypes.Universe.Lookup("error").Type()),
 	)
 	signature := gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(), results, false)
-	converted, err := ontamaFunctionFromGo(signature)
+	converted, err := kinmokuseiFunctionFromGo(signature)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			converted, err := ontamaTypeFromGo(test.input)
+			converted, err := kinmokuseiTypeFromGo(test.input)
 			if test.failed {
 				if err == nil {
 					t.Fatalf("conversion unexpectedly succeeded: %#v", converted)
@@ -128,7 +128,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 			}
 		})
 	}
-	converted, err := ontamaTypeFromGo(anonymousStruct)
+	converted, err := kinmokuseiTypeFromGo(anonymousStruct)
 	if err != nil || len(converted.GoFields) != 1 || converted.GoFields[0].Name != "Value" || converted.GoFields[0].Tag != `json:"value"` || converted.GoFields[0].Type.Kind != Int {
 		t.Fatalf("anonymous struct fields = %#v, err=%v", converted.GoFields, err)
 	}
@@ -140,15 +140,15 @@ func TestGoNamedPointerAndNilAssignabilityMatrix(t *testing.T) {
 	durationGo := gotypes.NewNamed(durationName, gotypes.Typ[gotypes.Int64], nil)
 	monthName := gotypes.NewTypeName(0, pkg, "Month", nil)
 	monthGo := gotypes.NewNamed(monthName, gotypes.Typ[gotypes.Int64], nil)
-	duration, err := ontamaTypeFromGo(durationGo)
+	duration, err := kinmokuseiTypeFromGo(durationGo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	month, err := ontamaTypeFromGo(monthGo)
+	month, err := kinmokuseiTypeFromGo(monthGo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	pointer, err := ontamaTypeFromGo(gotypes.NewPointer(durationGo))
+	pointer, err := kinmokuseiTypeFromGo(gotypes.NewPointer(durationGo))
 	if err != nil {
 		t.Fatal(err)
 	}

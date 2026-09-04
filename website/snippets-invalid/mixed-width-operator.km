@@ -1,0 +1,3 @@
+function combine(left: int, right: int32): int {
+  return left | right;
+}

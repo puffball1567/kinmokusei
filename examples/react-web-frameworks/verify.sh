@@ -42,8 +42,8 @@ wait_for() {
 }
 
 cd "$example_dir/backend"
-ontama build -o "$workspace/gin-demo" gin/main.otm
-ontama build -o "$workspace/fiber-demo" fiber/main.otm
+keika build -o "$workspace/gin-demo" gin/main.km
+keika build -o "$workspace/fiber-demo" fiber/main.km
 "$workspace/gin-demo" >"$workspace/gin.log" 2>&1 &
 gin_pid=$!
 "$workspace/fiber-demo" >"$workspace/fiber.log" 2>&1 &
@@ -59,8 +59,8 @@ wait_for http://127.0.0.1:5173/fiber-api/health
 
 page=$(curl -fsS http://127.0.0.1:5173/)
 case "$page" in
-  *"OnsenTamago Web Demo"*) ;;
-  *) fail_with_logs "Vite did not serve the OnsenTamago application" ;;
+  *"Kinmokusei Web Demo"*) ;;
+  *) fail_with_logs "Vite did not serve the Kinmokusei application" ;;
 esac
 
 gin_health=$(curl -fsS http://127.0.0.1:5173/gin-api/health)
@@ -68,8 +68,8 @@ fiber_health=$(curl -fsS http://127.0.0.1:5173/fiber-api/health)
 gin_created=$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{"title":"full-stack Gin"}' http://127.0.0.1:5173/gin-api/todos)
 fiber_created=$(curl -fsS -X POST -H 'Content-Type: application/json' -d '{"title":"full-stack Fiber"}' http://127.0.0.1:5173/fiber-api/todos)
 
-[ "$gin_health" = '{"framework":"Gin","language":"OnsenTamago","status":"ok"}' ] || fail_with_logs "unexpected Gin health response: $gin_health"
-[ "$fiber_health" = '{"framework":"Fiber","language":"OnsenTamago","status":"ok"}' ] || fail_with_logs "unexpected Fiber health response: $fiber_health"
+[ "$gin_health" = '{"framework":"Gin","language":"Kinmokusei","status":"ok"}' ] || fail_with_logs "unexpected Gin health response: $gin_health"
+[ "$fiber_health" = '{"framework":"Fiber","language":"Kinmokusei","status":"ok"}' ] || fail_with_logs "unexpected Fiber health response: $fiber_health"
 [ "$gin_created" = '{"item":{"completed":false,"id":3,"title":"full-stack Gin"}}' ] || fail_with_logs "unexpected Gin create response: $gin_created"
 [ "$fiber_created" = '{"item":{"completed":false,"id":3,"title":"full-stack Fiber"}}' ] || fail_with_logs "unexpected Fiber create response: $fiber_created"
 

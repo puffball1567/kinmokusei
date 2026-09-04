@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/parser"
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 type listedModule struct {
@@ -181,7 +181,7 @@ func writeDependencyProbe(root, directory string) error {
 			}
 			return nil
 		}
-		if filepath.Ext(path) != product.SourceExtension {
+		if !product.IsSourceExtension(filepath.Ext(path)) {
 			return nil
 		}
 		contents, readErr := os.ReadFile(path)
@@ -206,7 +206,7 @@ func writeDependencyProbe(root, directory string) error {
 	}
 	sort.Strings(paths)
 	var source strings.Builder
-	source.WriteString("package ontamadependencies\n")
+	source.WriteString("package kinmokuseidependencies\n")
 	if len(paths) != 0 {
 		source.WriteString("\nimport (\n")
 		for _, path := range paths {
@@ -214,7 +214,7 @@ func writeDependencyProbe(root, directory string) error {
 		}
 		source.WriteString(")\n")
 	}
-	return os.WriteFile(filepath.Join(directory, "ontama_dependencies.go"), []byte(source.String()), 0o644)
+	return os.WriteFile(filepath.Join(directory, "kinmokusei_dependencies.go"), []byte(source.String()), 0o644)
 }
 
 func readGoModRequirements(directory string, target BuildTarget) (map[string]string, error) {

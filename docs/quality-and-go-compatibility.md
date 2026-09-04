@@ -1,6 +1,6 @@
 # Quality and Go compatibility
 
-OnsenTamago verifies compatible behavior against independently handwritten Go
+Kinmokusei verifies compatible behavior against independently handwritten Go
 programs. Successfully generating and compiling Go is necessary, but it is not
 treated as proof that the source program has the intended runtime semantics.
 
@@ -9,7 +9,7 @@ treated as proof that the source program has the intended runtime semantics.
 For every implemented runtime contract with a direct Go equivalent, the test
 suite contains two independent implementations:
 
-1. An OnsenTamago program compiled to Go by the current compiler.
+1. A Kinmokusei program compiled to Go by the current compiler.
 2. A handwritten Go reference program authored from the documented language
    rule.
 
@@ -56,7 +56,7 @@ A new accepted runtime feature is incomplete until the same change adds:
 - comparisons for all relevant observable behavior.
 
 The 82/82 figure describes contract coverage for the implemented runtime
-surface. It is not a claim that every Go feature or every planned OnsenTamago
+surface. It is not a claim that every Go feature or every planned Kinmokusei
 feature has already been implemented.
 
 ## Complementary quality gates
@@ -94,4 +94,4 @@ Generated Go is a first-class artifact. It must remain deterministic,
 `gofmt`-formatted, readable, buildable as an ordinary Go module, and suitable
 for publication or consumption by ordinary Go projects. Generated packages
 must not depend on machine-specific paths, private workspace state, or the
-OnsenTamago compiler at consumer build time.
+Kinmokusei compiler at consumer build time.

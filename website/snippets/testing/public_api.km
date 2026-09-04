@@ -1,0 +1,12 @@
+import go errors from "errors";
+
+function Add(left: int, right: int): int {
+  return left + right;
+}
+
+function Half(value: int): Result<int> {
+  if (value % 2 !== 0) {
+    return fail(errors.New("value must be even"));
+  }
+  return ok(value / 2);
+}

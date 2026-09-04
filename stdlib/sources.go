@@ -1,19 +1,19 @@
-// Package stdlib embeds the source-written OnsenTamago standard modules that
+// Package stdlib embeds the source-written Kinmokusei standard modules that
 // ship in the compiler distribution.
 package stdlib
 
 import _ "embed"
 
-const HTTPImportPath = "ontama/http"
+const HTTPImportPath = "kinmokusei/http"
 
-// Source is one compiler-managed OnsenTamago source module.
+// Source is one compiler-managed Kinmokusei source module.
 type Source struct {
 	ImportPath  string
 	VirtualPath string
 	Contents    string
 }
 
-//go:embed http/fetch.otm
+//go:embed http/fetch.km
 var httpSource string
 
 // Lookup returns an exact canonical standard-package source. Paths are not
@@ -24,7 +24,7 @@ func Lookup(importPath string) (Source, bool) {
 	case HTTPImportPath:
 		return Source{
 			ImportPath:  HTTPImportPath,
-			VirtualPath: "@stdlib/ontama/http/fetch.otm",
+			VirtualPath: "@stdlib/kinmokusei/http/fetch.km",
 			Contents:    httpSource,
 		}, true
 	default:

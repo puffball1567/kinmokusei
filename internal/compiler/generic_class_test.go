@@ -9,7 +9,7 @@ import (
 
 func TestGenericClassesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_class.otm")
+	source := filepath.Join(temporary, "generic_class.km")
 	if err := os.WriteFile(source, []byte(`
 interface Reader<T> { function read(): T; }
 
@@ -167,8 +167,8 @@ func TestGenericClassBehavior(t *testing.T) {
 
 func TestLinkedGenericClassMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "box.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "box.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`
 interface Reader<T> { function read(): T; }
 class Box<T> implements Reader<T> {

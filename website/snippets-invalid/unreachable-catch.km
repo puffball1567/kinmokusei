@@ -1,0 +1,11 @@
+class NotFoundException extends Exception {
+  constructor(message: string) { super(message); }
+}
+
+function run(): void {
+  try {
+    throw new NotFoundException("missing");
+  } catch (_: error) {
+  } catch (_: NotFoundException) {
+  }
+}

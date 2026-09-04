@@ -58,7 +58,7 @@ function main(): void {
 
 func TestJSONAPIDogfoodCompileRunAndRaceMatrix(t *testing.T) {
 	directory := t.TempDir()
-	source := filepath.Join(directory, "api.otm")
+	source := filepath.Join(directory, "api.km")
 	if err := os.WriteFile(source, []byte(jsonAPIDogfoodSource), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -136,8 +136,8 @@ func TestHTTPMatrix(t *testing.T) {
     t.Run(test.name, func(t *testing.T) {
       got, gotErr := request(generatedHandler, test.method, test.target)
       want, wantErr := request(referenceHandler, test.method, test.target)
-      if gotErr != nil || wantErr != nil { t.Fatalf("OnsenTamago error=%v, Go error=%v", gotErr, wantErr) }
-      if got != want { t.Errorf("OnsenTamago=%#v, Go=%#v", got, want) }
+      if gotErr != nil || wantErr != nil { t.Fatalf("Kinmokusei error=%v, Go error=%v", gotErr, wantErr) }
+      if got != want { t.Errorf("Kinmokusei=%#v, Go=%#v", got, want) }
       if got.Status != test.status || got.Message != test.message || got.ContentType != "application/json; charset=utf-8" { t.Errorf("protocol result=%#v", got) }
     })
   }
@@ -145,7 +145,7 @@ func TestHTTPMatrix(t *testing.T) {
   generatedHandler.ServeHTTP(got, httptest.NewRequest(http.MethodGet, "/missing", nil))
   want := httptest.NewRecorder()
   referenceHandler.ServeHTTP(want, httptest.NewRequest(http.MethodGet, "/missing", nil))
-  if got.Code != want.Code || got.Body.String() != want.Body.String() || got.Code != http.StatusNotFound { t.Errorf("404 OnsenTamago=(%d,%q), Go=(%d,%q)", got.Code, got.Body.String(), want.Code, want.Body.String()) }
+  if got.Code != want.Code || got.Body.String() != want.Body.String() || got.Code != http.StatusNotFound { t.Errorf("404 Kinmokusei=(%d,%q), Go=(%d,%q)", got.Code, got.Body.String(), want.Code, want.Body.String()) }
 }
 func TestConcurrentRequests(t *testing.T) {
   generatedHandler, referenceHandler := newHandler(), reference.NewHandler()
@@ -159,7 +159,7 @@ func TestConcurrentRequests(t *testing.T) {
       got, gotErr := request(generatedHandler, http.MethodGet, target)
       want, wantErr := request(referenceHandler, http.MethodGet, target)
       if gotErr != nil || wantErr != nil || got != want || got.Status != http.StatusOK || got.Message != fmt.Sprintf("hello item-%d", index) {
-        failures <- fmt.Sprintf("index=%d OnsenTamago=%#v/%v Go=%#v/%v", index, got, gotErr, want, wantErr)
+        failures <- fmt.Sprintf("index=%d Kinmokusei=%#v/%v Go=%#v/%v", index, got, gotErr, want, wantErr)
       }
     }(index)
   }
@@ -168,7 +168,7 @@ func TestConcurrentRequests(t *testing.T) {
   for failure := range failures { t.Error(failure) }
 }
 `
-	t.Setenv("ONTAMA_DIFFERENTIAL_RACE", "1")
+	t.Setenv("KINMOKUSEI_DIFFERENTIAL_RACE", "1")
 	t.Setenv("GOPROXY", "off")
 	runGeneratedGoDifferentialTest(t, directory, "jsonapi.test", generated, referenceSource, testSource)
 }

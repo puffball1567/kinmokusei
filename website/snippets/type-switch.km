@@ -1,0 +1,26 @@
+import go bytes from "bytes";
+import go fmt from "fmt";
+import go io from "io";
+import go strings from "strings";
+
+function classify(value: io.Reader): string {
+  switch (value) {
+    case const reader as *strings.Reader {
+      return "string:" + fmt.Sprint(reader.Len());
+    }
+    case const buffer as *bytes.Buffer {
+      return "buffer:" + fmt.Sprint(buffer.Len());
+    }
+    case nil { return "nil"; }
+    default { return "other"; }
+  }
+}
+
+function main(): void {
+  const text: io.Reader = strings.NewReader("onsen");
+  const buffer: io.Reader = bytes.NewBufferString("tamago");
+  const empty: io.Reader = nil;
+  fmt.Println(classify(text));
+  fmt.Println(classify(buffer));
+  fmt.Println(classify(empty));
+}

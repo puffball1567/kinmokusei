@@ -1,0 +1,32 @@
+import go errors from "errors";
+import go fmt from "fmt";
+
+class NotFoundException extends Exception {
+  constructor(message: string) { super(message); }
+}
+
+class GoneException extends NotFoundException {
+  constructor(message: string) { super(message); }
+}
+
+function lookup(kind: int): string {
+  try {
+    if (kind == 0) { return "onsen"; }
+    if (kind == 1) { throw new NotFoundException("missing"); }
+    if (kind == 2) { throw new GoneException("closed"); }
+    throw errors.New("backend unavailable");
+  } catch (err: NotFoundException) {
+    return "not-found:" + err.message;
+  } catch (err: error) {
+    return "error:" + err.Error();
+  } finally {
+    fmt.Print("clean ");
+  }
+}
+
+function main(): void {
+  fmt.Println(lookup(0));
+  fmt.Println(lookup(1));
+  fmt.Println(lookup(2));
+  fmt.Println(lookup(3));
+}

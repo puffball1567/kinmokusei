@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/puffball1567/onsentamago/internal/source"
+import "github.com/puffball1567/kinmokusei/internal/source"
 
 type Node interface{ GetSpan() source.Span }
 
@@ -706,7 +706,7 @@ type GoTypeAssertionExpr struct {
 func (*GoTypeAssertionExpr) expression()            {}
 func (e *GoTypeAssertionExpr) GetSpan() source.Span { return e.Span }
 
-// PropagateExpr explicitly unwraps an OnsenTamago Result or a Go (T, error)
+// PropagateExpr explicitly unwraps an Kinmokusei Result or a Go (T, error)
 // operation and returns the error from the enclosing Result function.
 type PropagateExpr struct {
 	Value      Expression

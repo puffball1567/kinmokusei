@@ -1,9 +1,9 @@
-# OnsenTamago design documentation
+# Kinmokusei design documentation
 
-This directory is the design source of truth for OnsenTamago. Documents distinguish settled decisions from proposals and future candidates. Implementation status must be stated explicitly; proposed syntax is not automatically part of the language.
+This directory is the design source of truth for Kinmokusei. Documents distinguish settled decisions from proposals and future candidates. Implementation status must be stated explicitly; proposed syntax is not automatically part of the language.
 
 New users should start with [installation.md](installation.md) to install
-`ontama`, create a `.otm` source file, and run the first program.
+`keika`, create a `.km` source file, and run the first program.
 
 ## Status vocabulary
 
@@ -14,7 +14,7 @@ New users should start with [installation.md](installation.md) to install
 
 ## Settled core direction
 
-1. Compile OnsenTamago source to readable, buildable Go source.
+1. Compile Kinmokusei source to readable, buildable Go source.
 2. Treat generated Go as an inspectable, standalone, publishable artifact, not a hidden implementation detail.
 3. Use TypeScript-inspired syntax without claiming TypeScript compatibility.
 4. Add language-specific types and syntax whenever predictable Go generation requires them.
@@ -26,7 +26,7 @@ New users should start with [installation.md](installation.md) to install
 10. Provide explicit single inheritance with `virtual`, `override`, and `super`; do not emulate JavaScript prototypes.
 11. Make `import go` the official low-level boundary to buildable Go packages.
 12. Preserve Go named types, pointers, multiple results, interfaces, generics, channels, and identity without silently simplifying them.
-13. Keep direct Go interop separate from higher-level OnsenTamago wrappers for errors, null safety, and application APIs.
+13. Keep direct Go interop separate from higher-level Kinmokusei wrappers for errors, null safety, and application APIs.
 14. Make the C ABI a first-class external boundary for explicit outgoing exports and checked incoming libraries.
 15. Ship the language server with the compiler so frontend behavior and diagnostics cannot drift by version.
 16. Require automated normal, edge, failure, integration, race, vet, and fuzz coverage appropriate to every feature.
@@ -35,6 +35,7 @@ New users should start with [installation.md](installation.md) to install
 ## Documents
 
 - [installation.md](installation.md): release archives, PATH placement, source builds, and editor installation.
+- [migrating-from-v0.1.md](migrating-from-v0.1.md): the breaking v0.1-to-v0.2 identity migration.
 - [language-design.md](language-design.md): syntax, types, inference, value/reference semantics, operators, and core control flow.
 - [oop-design.md](oop-design.md): classes, interfaces, visibility, composition, and inheritance direction.
 - [oop-feasibility.md](oop-feasibility.md): feasibility and lowering constraints for OOP features.

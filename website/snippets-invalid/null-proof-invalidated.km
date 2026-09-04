@@ -1,0 +1,9 @@
+class User { constructor(public name: string) {} }
+
+function display(user: User | null): string {
+  if (user !== null) {
+    user = null;
+    return user.name;
+  }
+  return "guest";
+}

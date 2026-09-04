@@ -2,7 +2,7 @@
 
 ## Semantic compatibility invariant
 
-For accepted constructs with a Go equivalent, OnsenTamago must preserve the
+For accepted constructs with a Go equivalent, Kinmokusei must preserve the
 observable behavior of an independently handwritten Go implementation. This
 includes values and errors, mutation, evaluation order/count, copy versus
 aliasing, identity, nil behavior, panics, channel behavior, and concurrency.
@@ -15,7 +15,7 @@ in differential tests.
 The first compiler is implemented in Go to simplify single-binary distribution and integration with the generated Go toolchain.
 
 ```text
-OnsenTamago source
+Kinmokusei source
       |
 lexer / parser
       |
@@ -25,7 +25,7 @@ module resolution ----------------> Go module graph / build target
       |                                      |
 name resolution / type checking <---- Go package export data (go/types)
       |
-typed OnsenTamago representation
+typed Kinmokusei representation
       |
 Go lowering
       |
@@ -42,7 +42,7 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 ### Lexing and parsing
 
-- Accept only syntax that OnsenTamago actually supports; do not parse all TypeScript and reject it later.
+- Accept only syntax that Kinmokusei actually supports; do not parse all TypeScript and reject it later.
 - Recover after syntax errors so one malformed statement does not suppress the rest of the file.
 - Preserve source spans on every AST node.
 - Resolve lexical ambiguities in context. For example, `>>` is a shift in expressions and two generic closers in nested type syntax.
@@ -71,11 +71,11 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 - Predeclare incomplete `go/types.Named` values for distinct types, complete them after resolving their underlyings, and permit recursive re-entry only beyond slice, map, pointer, function, or channel indirection. Keep direct, fixed-array-only, and alias cycles as source diagnostics.
 - Lower native generic classes to pointer-backed generic Go structs with generic constructors and receiver methods; preserve concrete type arguments through member substitution, interface conformance, module linking, public Go APIs, and source-name JSON tags. Decoding into a constructor-created class leaves its unexported hierarchy identity and virtual-dispatch state intact.
 - Attach non-generic defined-type receiver signatures to the same `go/types.Named` method set used for source checking, generated Go validation, and external interface compatibility.
-- Validate lowered Go conformance when OnsenTamago classes/functions cross Go interface or callback boundaries.
+- Validate lowered Go conformance when Kinmokusei classes/functions cross Go interface or callback boundaries.
 - Preserve Go bitwise/shift groups, named-type identity, and left-operand result types.
 - Diagnose negative/excessive constant shifts, constant integer zero divisors, and fixed-width constant overflow before Go generation.
 - Keep compound assignment and `++`/`--` as dedicated statement nodes and lower them directly to Go `AssignStmt`/`IncDecStmt`; never duplicate a selector/index/pointer target.
-- Diagnose nonassignable string indexes, temporary array indexes, methods, constants, and nonaddressable fields at the OnsenTamago source location. Map indexes remain assignable as in Go.
+- Diagnose nonassignable string indexes, temporary array indexes, methods, constants, and nonaddressable fields at the Kinmokusei source location. Map indexes remain assignable as in Go.
 - Lower native struct `function` declarations to value receivers and contextual `pointer function` declarations to pointer receivers. Preserve Go automatic address/dereference selector rules, method-value capture, receiver-before-argument evaluation, and nil-pointer receiver behavior.
 - Normalize top-level `function name(this: Struct, ...)` and `function name(this: *Struct, ...)` declarations into the same native method set as nested struct methods. Remove the receiver from callable parameters, and reject duplicate mixed-form declarations and receiver types not declared in the same source module.
 - Nullable references use explicit nil-backed types, callable-local and stable class-member mutation facts, and checked constructor initialization. `Task<T>` uses explicit single-consumption control-flow state, and `Result<T>` is a checked return effect; neither is inferred from wrapper-like shapes.
@@ -135,10 +135,10 @@ Outgoing fixed-width C ABI export separates ordinary Go implementation functions
 
 ## Go package loading
 
-Direct interop does not translate Go source into the OnsenTamago AST. The compiler asks the selected Go toolchain to load export data for the locked Go version, module graph, OS, architecture, build tags, and CGO configuration.
+Direct interop does not translate Go source into the Kinmokusei AST. The compiler asks the selected Go toolchain to load export data for the locked Go version, module graph, OS, architecture, build tags, and CGO configuration.
 
 ```text
-OnsenTamago manifest + lock + target
+Kinmokusei manifest + lock + target
                     |
           Go package/module loader
                     |
@@ -162,33 +162,33 @@ OnsenTamago manifest + lock + target
 Generated Go is a user-inspectable artifact and must:
 
 - Be formatted by `gofmt`.
-- Pass Go syntax and type validation after OnsenTamago checking.
+- Pass Go syntax and type validation after Kinmokusei checking.
 - Build under ordinary `go build` and `go test`.
 - Avoid unnecessary reflection and dynamic boxing.
 - Preserve module structure where practical.
 - Use deterministic generated names and declaration ordering.
-- Point diagnostics back to OnsenTamago files and spans.
-- Absorb Go-only restrictions such as unused locals without changing OnsenTamago semantics.
+- Point diagnostics back to Kinmokusei files and spans.
+- Absorb Go-only restrictions such as unused locals without changing Kinmokusei semantics.
 - Preserve expression evaluation count and Go runtime behavior.
 
-Project builds use `.ontama/gen/` for intermediate modules. Explicit `emit-go` writes a consumable artifact to a user-selected location.
+Project builds use `.kinmokusei/gen/` for intermediate modules. Explicit `emit-go` writes a consumable artifact to a user-selected location.
 
 ## CLI
 
 The primary commands are:
 
 ```text
-ontama version
-ontama check [--json] <sources...>
-ontama build <sources...>
-ontama run <sources...>
-ontama emit-go <sources...>
-ontama emit-c-abi <sources...>
-ontama abi check --baseline <manifest> <sources...>
-ontama interop audit --stdlib [--json] [--allow-incomplete]
-ontama install --go-module <module>@<version> [project]
-ontama deps lock|check|add|remove|update|licenses
-ontama lsp --stdio
+keika version
+keika check [--json] <sources...>
+keika build <sources...>
+keika run <sources...>
+keika emit-go <sources...>
+keika emit-c-abi <sources...>
+keika abi check --baseline <manifest> <sources...>
+keika interop audit --stdlib [--json] [--allow-incomplete]
+keika install --go-module <module>@<version> [project]
+keika deps lock|check|add|remove|update|licenses
+keika lsp --stdio
 ```
 
 Commands that check, build, run, or emit code must not implicitly resolve dependencies or update lockfiles.
@@ -207,7 +207,7 @@ error. `--json` always writes one object to standard output:
   "diagnostics": [
     {
       "message": "cannot use string as int",
-      "path": "src/main.otm",
+      "path": "src/main.km",
       "start": { "line": 3, "column": 10, "offset": 52 },
       "end": { "line": 3, "column": 17, "offset": 59 }
     }
@@ -225,19 +225,19 @@ without parsing prose.
 
 ## Language Server
 
-The LSP is part of the `ontama` binary and uses the same lexer, parser, resolver, type checker, target loader, and diagnostics as the CLI.
+The LSP is part of the `keika` binary and uses the same lexer, parser, resolver, type checker, target loader, and diagnostics as the CLI.
 
-Implemented capabilities include lifecycle handling, transactional incremental synchronization, monotonic document versions, multiple open documents, unsaved overlays, UTF-16 and CRLF-aware positions, diagnostics, hover, semantic definition and references, scope-safe value-symbol rename with `prepareRename`, document symbols, lexical completion, selective-import completion, Go package and value API completion, visibility-aware OnsenTamago class/struct/interface/object member completion, and signature help. Source member completion follows parameters, scoped locals, catch bindings, constructor and callable result inference, `this`, inheritance, static/instance separation, concrete generic class/struct/interface arguments, native internal and external receiver methods, and selected relative imports. Checked binding-type metadata lets Go value completion follow explicit or inferred locals, globals, multiple results, range and select bindings, pointers, named/alias types, promoted fields and methods, and Go addressable-value method sets. Go value method signature help uses the same selector rules and recovers from incomplete calls and unclosed source braces without mutating the document. Compiler-provided declarations such as `Exception`, `message`, and `error()` expose completion, hover, and constructor signatures without inventing a source definition location. Semantic requests run asynchronously against immutable document snapshots. `$/cancelRequest` produces the standard request-cancelled error, and a document change that overtakes an in-flight request suppresses its result with a content-modified error. Shutdown drains already accepted requests before responding.
+Implemented capabilities include lifecycle handling, transactional incremental synchronization, monotonic document versions, multiple open documents, unsaved overlays, UTF-16 and CRLF-aware positions, diagnostics, hover, semantic definition and references, scope-safe value-symbol rename with `prepareRename`, document symbols, lexical completion, selective-import completion, Go package and value API completion, visibility-aware Kinmokusei class/struct/interface/object member completion, and signature help. Source member completion follows parameters, scoped locals, catch bindings, constructor and callable result inference, `this`, inheritance, static/instance separation, concrete generic class/struct/interface arguments, native internal and external receiver methods, and selected relative imports. Checked binding-type metadata lets Go value completion follow explicit or inferred locals, globals, multiple results, range and select bindings, pointers, named/alias types, promoted fields and methods, and Go addressable-value method sets. Go value method signature help uses the same selector rules and recovers from incomplete calls and unclosed source braces without mutating the document. Compiler-provided declarations such as `Exception`, `message`, and `error()` expose completion, hover, and constructor signatures without inventing a source definition location. Semantic requests run asynchronously against immutable document snapshots. `$/cancelRequest` produces the standard request-cancelled error, and a document change that overtakes an in-flight request suppresses its result with a content-modified error. Shutdown drains already accepted requests before responding.
 
-Signature help uses semantically resolved callable types for complete programs and declaration/import fallbacks for temporarily incomplete edits. It covers OnsenTamago functions including inferred and explicitly instantiated native generics, native rest parameters, substituted generic-class constructors and class/struct/interface methods, defined-type receiver methods, function values and arrows, compiler built-ins, generic and variadic Go package functions, nested calls, and active-parameter tracking. Native function/class/struct/interface/defined-type parameters and native defined/alias declarations also participate in hover, definition, references, rename, symbols, and completion. Optional compiler-built-in parameters are marked with `?` in the presentation only; `?` is not declaration syntax.
+Signature help uses semantically resolved callable types for complete programs and declaration/import fallbacks for temporarily incomplete edits. It covers Kinmokusei functions including inferred and explicitly instantiated native generics, native rest parameters, substituted generic-class constructors and class/struct/interface methods, defined-type receiver methods, function values and arrows, compiler built-ins, generic and variadic Go package functions, nested calls, and active-parameter tracking. Native function/class/struct/interface/defined-type parameters and native defined/alias declarations also participate in hover, definition, references, rename, symbols, and completion. Optional compiler-built-in parameters are marked with `?` in the presentation only; `?` is not declaration syntax.
 
 Incremental changes are applied in notification order against the updated snapshot. Invalid ranges, split UTF-16 surrogate pairs, mismatched `rangeLength`, and stale versions leave the text, version, and diagnostics unchanged; a notification never commits only a valid prefix of its edits.
 
 References and rename use declaration identity produced by semantic checking rather than identifier spelling. Rename covers functions, variables, parameters, local bindings, types, classes, fields, methods, selected relative imports, and Go package aliases, including aliases used as Go type qualifiers. Renaming an interface method updates the connected implementation family across every explicitly implementing class. It validates the edited overlay by recompiling it and verifies that every edited use still resolves to the corresponding renamed declaration, rejecting capture, collisions, and invalid programs. External Go declarations are intentionally read-only.
 
-The official Visual Studio Code client is a thin adapter in `editors/vscode`. It contributes the `.otm` language identity and syntax grammar, launches `ontama lsp --stdio`, selects only real file documents, supports a configurable executable path, and serializes configuration/manual restarts. Startup failures remain visible and retryable instead of leaving a partially active client. A real Extension Development Host test builds the current server and exercises language identification, hover, live diagnostic publication and recovery, and restart behavior.
+The official Visual Studio Code client is a thin adapter in `editors/vscode`. It contributes the `.km` language identity and syntax grammar, launches `keika lsp --stdio`, selects only real file documents, supports a configurable executable path, and serializes configuration/manual restarts. Startup failures remain visible and retryable instead of leaving a partially active client. A real Extension Development Host test builds the current server and exercises language identification, hover, live diagnostic publication and recovery, and restart behavior.
 
-Local VSIX packaging includes production dependencies, excludes development-only inputs, fixes archive timestamps, and compares two independently generated archives byte for byte. Tagged releases attach the matching VSIX beside the `ontama` command archives; marketplace publication remains future release work. Other LSP-capable clients can launch `ontama lsp --stdio` directly.
+Local VSIX packaging includes production dependencies, excludes development-only inputs, fixes archive timestamps, and compares two independently generated archives byte for byte. Tagged releases attach the matching VSIX beside the `keika` command archives; marketplace publication remains future release work. Other LSP-capable clients can launch `keika lsp --stdio` directly.
 
 The LSP must never acquire dependencies, update manifests, or mutate external state implicitly.
 
@@ -285,7 +285,7 @@ Completed foundations include:
     generated direct-interop cross-builds for Linux AMD64/ARM64, macOS ARM64,
     and Windows AMD64.
 14. `Result<T>`/`Result<void>` return effects, explicit `ok`/`fail`, and postfix `?`
-    propagation for OnsenTamago results and direct Go error-returning APIs.
+    propagation for Kinmokusei results and direct Go error-returning APIs.
 15. Nil-backed `T | null`, a dedicated `null` literal, unsafe-use diagnostics,
     and immutable-local branch/guard narrowing composed with Result lowering.
 16. Stable mutable-local/parameter nullable narrowing plus definite
@@ -326,5 +326,5 @@ cancellation/context propagation, and broader constructor cardinality proofs.
 New functionality must extend parser,
 semantic, generated-Go, independently handwritten-Go differential,
 diagnostics, and fuzz matrices together. Public generated artifacts must also
-be consumable from an external ordinary Go package without the OnsenTamago
+be consumable from an external ordinary Go package without the Kinmokusei
 compiler or machine-local build state.

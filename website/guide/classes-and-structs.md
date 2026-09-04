@@ -1,8 +1,13 @@
+---
+title: Classes and structs
+description: Choose reference classes or Go-compatible value structs and define their methods explicitly.
+---
+
 # Classes and structs
 
 Classes and structs may both have methods, but they make different promises. A class is a reference with identity. A struct is a value copied according to Go's struct rules.
 
-<<< ../snippets/classes-and-structs.otm{ts}
+<<< ../snippets/classes-and-structs.km{ts}
 
 The original `Point` remains unchanged because `moved` works on a value-receiver copy. The `Counter` instance is shared by reference.
 
@@ -24,7 +29,7 @@ Classes support public, protected, and private members; static members; interfac
 
 ## JSON
 
-Public class and struct fields use their OnsenTamago names as JSON keys. Private
+Public class and struct fields use their Kinmokusei names as JSON keys. Private
 and protected class state is not serialized. Generic fields and inherited
 public fields work with Go's `encoding/json` package:
 

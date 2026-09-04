@@ -9,8 +9,8 @@ import (
 
 func TestExternalNativeStructReceiversMatchIndependentGo(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "receiver.otm")
-	dependency := filepath.Join(temp, "meter.otm")
+	source := filepath.Join(temp, "receiver.km")
+	dependency := filepath.Join(temp, "meter.km")
 	input := `
 import { Meter, meter } from "./meter";
 
@@ -117,8 +117,8 @@ func TestExternalReceiverRuntimeContract(t *testing.T) {
 
 func TestExternalReceiverCannotExtendImportedStruct(t *testing.T) {
 	temp := t.TempDir()
-	dependency := filepath.Join(temp, "dependency.otm")
-	source := filepath.Join(temp, "root.otm")
+	dependency := filepath.Join(temp, "dependency.km")
+	source := filepath.Join(temp, "root.km")
 	if err := os.WriteFile(dependency, []byte(`struct Imported { public value: int; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

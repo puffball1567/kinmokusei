@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenericAliasNavigationRenameSymbolsAndCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_alias.otm")
+	path := filepath.Join(t.TempDir(), "generic_alias.km")
 	uri := fileURI(path)
 	text := `alias Lookup<K, V> = Map<K, V>;
 function use(values: Lookup<string, int>): int { return values["answer"]; }`
@@ -60,7 +60,7 @@ function use(values: Lookup<string, int>): int { return values["answer"]; }`
 }
 
 func TestGenericAliasToClassMemberCompletionUsesTypeArguments(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_alias_member.otm")
+	path := filepath.Join(t.TempDir(), "generic_alias_member.km")
 	text := `class Box<T> {
   constructor(public value: T) {}
   public function get(): T { return this.value; }

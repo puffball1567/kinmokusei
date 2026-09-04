@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
 func TestGenericConstraintDeclarationDetailsPreserveSourceSyntax(t *testing.T) {
@@ -25,7 +25,7 @@ func TestGenericConstraintDeclarationDetailsPreserveSourceSyntax(t *testing.T) {
 }
 
 func TestGoTypeSetConstraintNavigationAndImportRename(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "go_constraint.otm")
+	path := filepath.Join(t.TempDir(), "go_constraint.km")
 	uri := fileURI(path)
 	text := `import go cmp from "cmp";
 function minimum<T extends cmp.Ordered>(left: T, right: T): T {

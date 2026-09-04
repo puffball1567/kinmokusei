@@ -9,7 +9,7 @@ import (
 
 func TestSliceToArrayConversionsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "array_conversion.otm")
+	source := filepath.Join(temp, "array_conversion.km")
 	input := `
 import go net from "net";
 import go crc32 from "hash/crc32";

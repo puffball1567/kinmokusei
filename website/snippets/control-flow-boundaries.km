@@ -1,0 +1,42 @@
+import go fmt from "fmt";
+
+function deferredEvaluation(): void {
+  let value = 1;
+  defer fmt.Print(value, " ");
+  value = 2;
+  fmt.Print(value, " ");
+}
+
+function explicitFallthrough(value: int): void {
+  switch (value) {
+    case 1 {
+      fmt.Print("one ");
+      fallthrough;
+    }
+    case 2 { fmt.Print("next "); }
+    default { fmt.Print("other "); }
+  }
+}
+
+function countVisited(): int {
+  let visited = 0;
+  outer: for (let row = 0; row < 3; row++) {
+    for (let column = 0; column < 3; column++) {
+      if (column === 1) { continue outer; }
+      visited++;
+    }
+  }
+  return visited;
+}
+
+function dispatch(ready: boolean): string {
+  if (ready) { goto readyPath; }
+  return "cold";
+  readyPath: return "ready";
+}
+
+function main(): void {
+  deferredEvaluation();
+  explicitFallthrough(1);
+  fmt.Println(countVisited(), dispatch(true));
+}

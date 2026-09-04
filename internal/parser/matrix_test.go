@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 )
 
 func TestValidSyntaxMatrix(t *testing.T) {
@@ -44,12 +44,12 @@ func TestValidSyntaxMatrix(t *testing.T) {
 		{"variadic slice expansion", `import go path from "path"; function join(parts: string[]): string { return path.Join(parts...); }`},
 		{"native rest declarations", `function sum(prefix: int, ...values: int[]): int { return prefix; } interface Joiner { function join(...parts: string[]): string; } class Batch { constructor(public ...values: int[]) {} public function add(...values: int[]): void {} } struct Values { public function add(...values: int[]): void {} } function arrows(): void { const sum = (...values: int[]): int => len(values); new Batch([1, 2]...); }`},
 		{"explicit Go generic arguments", `import go slices from "slices"; function clone(items: int[]): int[] { return slices.Clone[int[]](items); }`},
-		{"explicit C ABI export", `export c("ontama_add") function add(left: int32, right: int32): int32 { return left + right; }`},
+		{"explicit C ABI export", `export c("kinmokusei_add") function add(left: int32, right: int32): int32 { return left + right; }`},
 		{"qualified member index remains indexing", `function value(holder: Map<string, int[]>): int { return holder.values[0]; }`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tokens, lexDiagnostics := lexer.Lex("valid.otm", test.source)
+			tokens, lexDiagnostics := lexer.Lex("valid.km", test.source)
 			if len(lexDiagnostics) != 0 {
 				t.Fatalf("lexer diagnostics = %v", lexDiagnostics)
 			}
@@ -153,7 +153,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tokens, lexDiagnostics := lexer.Lex("invalid.otm", test.source)
+			tokens, lexDiagnostics := lexer.Lex("invalid.km", test.source)
 			if len(lexDiagnostics) != 0 {
 				t.Fatalf("unexpected lexer diagnostics = %v", lexDiagnostics)
 			}
@@ -167,12 +167,12 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 
 func FuzzParseNeverPanics(f *testing.F) {
 	for _, seed := range []string{
-		"", "function main(): void {}", `export c("ontama_value") function value(input: int32): int32 { return input; }`, "const fn = (value: int) => value + 1;", "function f(): Result<int> { const task: Task<Result<int>> = go load(); const value = await task?; detach go notify(); return ok(value); }", "function f(err: error): void { try { throw err; } catch (caught: error) { throw caught; } finally {} }", "class C implements I {", "for (((", "select { case const [value, open] = <-channel {", "switch (value) { case const typed as", "function f(value: [2][3]int): [0]byte { return []; }", "function f(value: [999999999999999999999]int): void {", "function f(values: int[]): int[] { return values[1:2:3]; }", "function f(values: int[]): int[] { return values[1::]; }", "function f(): void { makeSlice[int](1, 2); makeMap[string, int](); append([1], [2]...); }", "function f(values: int[]): void { copyArray[[2]int](values); viewArray[[2]int](values); }", "function f(values: int[]): void { copyArray[[2]int](values...); viewArray[](values); }", "function f(): void { makeSlice[](1); makeMap[string,](1); }", "interface I { function f(): int; }", `import go strings from "strings";`, `function f(): void { const [value, err] = call(); [value, err] = call(); }`, `function f(values: int[]): void { call(values...); }`, `function f(value: error): void { const [typed, ok] = value as? error; }`, `function f(value: int): int { return ^value & 7 | value &^ 3 << 2 >> 1; }`, `function f(value: int, items: int[]): void { value += 1; items[0] &^= value; for (; value < 3; value++) {} value--; }`, `function f(value: Outer<Middle<Inner<int>>>): void {}`, `struct Point { public x: int; } public function move(this: *Point, delta: int): void { this.x += delta; }`,
+		"", "function main(): void {}", `export c("kinmokusei_value") function value(input: int32): int32 { return input; }`, "const fn = (value: int) => value + 1;", "function f(): Result<int> { const task: Task<Result<int>> = go load(); const value = await task?; detach go notify(); return ok(value); }", "function f(err: error): void { try { throw err; } catch (caught: error) { throw caught; } finally {} }", "class C implements I {", "for (((", "select { case const [value, open] = <-channel {", "switch (value) { case const typed as", "function f(value: [2][3]int): [0]byte { return []; }", "function f(value: [999999999999999999999]int): void {", "function f(values: int[]): int[] { return values[1:2:3]; }", "function f(values: int[]): int[] { return values[1::]; }", "function f(): void { makeSlice[int](1, 2); makeMap[string, int](); append([1], [2]...); }", "function f(values: int[]): void { copyArray[[2]int](values); viewArray[[2]int](values); }", "function f(values: int[]): void { copyArray[[2]int](values...); viewArray[](values); }", "function f(): void { makeSlice[](1); makeMap[string,](1); }", "interface I { function f(): int; }", `import go strings from "strings";`, `function f(): void { const [value, err] = call(); [value, err] = call(); }`, `function f(values: int[]): void { call(values...); }`, `function f(value: error): void { const [typed, ok] = value as? error; }`, `function f(value: int): int { return ^value & 7 | value &^ 3 << 2 >> 1; }`, `function f(value: int, items: int[]): void { value += 1; items[0] &^= value; for (; value < 3; value++) {} value--; }`, `function f(value: Outer<Middle<Inner<int>>>): void {}`, `struct Point { public x: int; } public function move(this: *Point, delta: int): void { this.x += delta; }`,
 	} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, input string) {
-		tokens, _ := lexer.Lex("fuzz.otm", input)
+		tokens, _ := lexer.Lex("fuzz.km", input)
 		program, _ := Parse(tokens)
 		if program == nil {
 			t.Fatal("parser returned a nil program")

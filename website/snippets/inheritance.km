@@ -1,0 +1,38 @@
+import go fmt from "fmt";
+
+interface Speaker { function speak(): string; }
+
+class Animal implements Speaker {
+  constructor(public name: string) {}
+  public virtual function speak(): string { return "animal"; }
+  public function describe(): string { return this.name + ":" + this.speak(); }
+}
+
+class Dog extends Animal {
+  constructor(name: string, public sound: string) { super(name); }
+  public override function speak(): string {
+    return super.speak() + "/" + this.sound;
+  }
+}
+
+final class GuideDog extends Dog {
+  constructor(name: string) { super(name, "woof"); }
+  public final override function speak(): string {
+    return super.speak() + "/guide";
+  }
+}
+
+function describe(value: Animal): string { return value.describe(); }
+
+function main(): void {
+  const guide = new GuideDog("Hana");
+  const animal: Animal = guide;
+  fmt.Println(describe(animal));
+
+  const [restored, ok] = animal as? GuideDog;
+  if (ok) { fmt.Println(restored.speak(), restored === guide); }
+
+  const plain: Animal = new Animal("Mugi");
+  const [missing, found] = plain as? GuideDog;
+  fmt.Println(found, missing === nil);
+}

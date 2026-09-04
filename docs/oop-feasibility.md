@@ -2,7 +2,7 @@
 
 ## Conclusion
 
-Go can support OnsenTamago reference classes, encapsulation, interfaces, dynamic polymorphism, single class inheritance, explicit virtual/override behavior, `super`, safe upcasts, and checked downcasts without a custom garbage collector or object runtime. The compiler must generate more than simple embedding, because Go embedding alone is not subtype inheritance.
+Go can support Kinmokusei reference classes, encapsulation, interfaces, dynamic polymorphism, single class inheritance, explicit virtual/override behavior, `super`, safe upcasts, and checked downcasts without a custom garbage collector or object runtime. The compiler must generate more than simple embedding, because Go embedding alone is not subtype inheritance.
 
 Relevant Go references:
 
@@ -38,7 +38,7 @@ Embedding provides field/method promotion, but:
 - Base/derived identity and checked downcasts are not modeled.
 - Constructor and override rules remain undefined.
 
-Therefore OnsenTamago cannot call embedding alone “inheritance.”
+Therefore Kinmokusei cannot call embedding alone “inheritance.”
 
 ## Interface polymorphism
 

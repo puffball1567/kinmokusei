@@ -1,0 +1,18 @@
+import go fmt from "fmt";
+
+function sum(prefix: int, ...values: int[]): int {
+  let total = prefix;
+  for (const value of values) { total += value; }
+  return total;
+}
+
+function last<T>(fallback: T, ...values: T[]): T {
+  if (len(values) === 0) { return fallback; }
+  return values[len(values) - 1];
+}
+
+function main(): void {
+  const values = [3, 4, 5];
+  fmt.Println(sum(10), sum(10, 1, 2), sum(10, values...));
+  fmt.Println(last("empty"), last("empty", "onsen", "tamago"));
+}

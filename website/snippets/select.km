@@ -1,0 +1,24 @@
+import go fmt from "fmt";
+
+function receive(ready: boolean): string {
+  const channel = goChannel[int](1);
+  if (ready) { channel <- 42; }
+  select {
+    case const value = <-channel { return "value:" + fmt.Sprint(value); }
+    default { return "idle"; }
+  }
+}
+
+function send(full: boolean): string {
+  const channel = goChannel[int](1);
+  if (full) { channel <- 1; }
+  select {
+    case channel <- 2 { return "sent"; }
+    default { return "blocked"; }
+  }
+}
+
+function main(): void {
+  fmt.Println(receive(true), receive(false));
+  fmt.Println(send(false), send(true));
+}

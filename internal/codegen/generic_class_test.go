@@ -30,7 +30,7 @@ function use(): string {
 	for _, expected := range []string{
 		"type Box[T any] struct",
 		`Value T ` + "`json:\"value\"`",
-		"func __ontamaInitBox[T any](this *Box[T], value T)",
+		"func __kinmokuseiInitBox[T any](this *Box[T], value T)",
 		"func NewBox[T any](value T) *Box[T]",
 		"func (this *Box[T]) Get() T",
 		"func (this *Box[T]) Set(value T)",
@@ -64,16 +64,16 @@ function use(value: Child<string>): Base<string> { return value; }
 	for _, expected := range []string{
 		"type Child[U any] struct",
 		"Base[U]",
-		"func __ontamaUpcastChildToBase[U any](value *Child[U]) *Base[U]",
-		"func __ontamaDowncastBaseToChild[U any](value *Base[U]) (*Child[U], bool)",
+		"func __kinmokuseiUpcastChildToBase[U any](value *Child[U]) *Base[U]",
+		"func __kinmokuseiDowncastBaseToChild[U any](value *Base[U]) (*Child[U], bool)",
 		"func UpcastChildToBase[U any](value *Child[U]) *Base[U]",
-		"func __ontamaInitChild[U any](this *Child[U], value U)",
-		"__ontamaInitBase(&this.Base, value)",
+		"func __kinmokuseiInitChild[U any](this *Child[U], value U)",
+		"__kinmokuseiInitBase(&this.Base, value)",
 		"func (this *Child[U]) Read() U",
 		"return this.Base.Get()",
 		"type Concrete struct",
 		"Base[int]",
-		"return __ontamaUpcastChildToBase[string](value)",
+		"return __kinmokuseiUpcastChildToBase[string](value)",
 	} {
 		if !strings.Contains(generated, expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
@@ -98,15 +98,15 @@ class Concrete extends Base<string> {
 }
 `))
 	for _, expected := range []string{
-		"type __ontamaBaseVirtual[T any] interface",
-		"__ontamaBaseRead() T",
-		"__ontamaBaseChoose(value T) T",
-		"__ontamaBaseSelf __ontamaBaseVirtual[T]",
+		"type __kinmokuseiBaseVirtual[T any] interface",
+		"__kinmokuseiBaseRead() T",
+		"__kinmokuseiBaseChoose(value T) T",
+		"__kinmokuseiBaseSelf __kinmokuseiBaseVirtual[T]",
 		"func (this *Base[T]) Read() T",
-		"func (this *Base[T]) __ontamaBaseRead() T",
-		"func (this *Child[U]) __ontamaBaseRead() U",
-		"this.__ontamaBaseSelf = this",
-		"func (this *Concrete) __ontamaBaseRead() string",
+		"func (this *Base[T]) __kinmokuseiBaseRead() T",
+		"func (this *Child[U]) __kinmokuseiBaseRead() U",
+		"this.__kinmokuseiBaseSelf = this",
+		"func (this *Concrete) __kinmokuseiBaseRead() string",
 	} {
 		if !strings.Contains(generated, expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)

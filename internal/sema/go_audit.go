@@ -53,7 +53,7 @@ func unsupportedGoInteropTypeReason(goType gotypes.Type, path string, seen map[g
 	seen[goType] = true
 	switch typed := goType.(type) {
 	case *gotypes.Basic:
-		if _, err := ontamaTypeFromGo(typed); err != nil {
+		if _, err := kinmokuseiTypeFromGo(typed); err != nil {
 			return path + " uses " + err.Error()
 		}
 		return ""

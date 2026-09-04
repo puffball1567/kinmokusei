@@ -9,8 +9,8 @@ import (
 
 func TestConstructorImportedConstantProofsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	proofs := filepath.Join(temp, "proofs.otm")
-	entry := filepath.Join(temp, "entry.otm")
+	proofs := filepath.Join(temp, "proofs.km")
+	entry := filepath.Join(temp, "entry.km")
 	if err := os.WriteFile(proofs, []byte(`
 const internalPrefix = "温";
 const importedEnabled = 2 * 3 === 6;
@@ -119,8 +119,8 @@ func TestConstructorImportedConstantProofsRejectDynamicOrEmptyValues(t *testing.
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			temp := t.TempDir()
-			proofs := filepath.Join(temp, "proofs.otm")
-			entry := filepath.Join(temp, "entry.otm")
+			proofs := filepath.Join(temp, "proofs.km")
+			entry := filepath.Join(temp, "entry.km")
 			if err := os.WriteFile(proofs, []byte(test.dependency), 0o644); err != nil {
 				t.Fatal(err)
 			}

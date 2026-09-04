@@ -9,7 +9,7 @@ import (
 
 func TestGenericClassInheritanceMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_class_inheritance.otm")
+	source := filepath.Join(temporary, "generic_class_inheritance.km")
 	input := `
 interface Reader<T> { function read(): T; }
 
@@ -146,8 +146,8 @@ function ForcedFailure(value: string): string {
 		"func UpcastLeafToBase[X any](value *Leaf[X]) *Base[X]",
 		"func DowncastBaseToLeaf[X any](value *Base[X]) (*Leaf[X], bool)",
 		"func DowncastBaseToConcrete(value *Base[int]) (*Concrete, bool)",
-		"type __ontamaMiddleProjection[A any, B any] interface",
-		"__ontamaAsMiddle() *Middle[A, B]",
+		"type __kinmokuseiMiddleProjection[A any, B any] interface",
+		"__kinmokuseiAsMiddle() *Middle[A, B]",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
@@ -246,8 +246,8 @@ func TestGenericInheritanceBehavior(t *testing.T) {
 
 func TestLinkedGenericClassInheritanceMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	baseSource := filepath.Join(temporary, "base.otm")
-	entrySource := filepath.Join(temporary, "entry.otm")
+	baseSource := filepath.Join(temporary, "base.km")
+	entrySource := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(baseSource, []byte(`
 class Base<T> {
   constructor(protected value: T) {}

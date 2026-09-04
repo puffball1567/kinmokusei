@@ -1,0 +1,3 @@
+function main(): void {
+  const temperature: int = "hot";
+}

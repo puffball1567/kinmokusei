@@ -9,8 +9,8 @@ import (
 
 func TestNativeStructsCompileAndMatchIndependentGo(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "struct.otm")
-	dependency := filepath.Join(temp, "dependency.otm")
+	source := filepath.Join(temp, "struct.km")
+	dependency := filepath.Join(temp, "dependency.km")
 	input := `
 import { ImportedPair, importedPair } from "./dependency";
 import go fmt from "fmt";

@@ -9,7 +9,7 @@ import (
 
 func TestRawGoChannelSelectCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "select.otm")
+	source := filepath.Join(temp, "select.km")
 	input := `
 import go time from "time";
 import go atomic from "sync/atomic";

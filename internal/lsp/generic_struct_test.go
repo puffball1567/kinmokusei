@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenericStructNavigationRenameSymbolsCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_struct.otm")
+	path := filepath.Join(t.TempDir(), "generic_struct.km")
 	uri := fileURI(path)
 	text := `struct Box<T> {
   public value: T;
@@ -74,7 +74,7 @@ function use(box: *Box<string>, value: string): string {
 }
 
 func TestExternalGenericStructReceiverNavigationCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "external_generic_struct.otm")
+	path := filepath.Join(t.TempDir(), "external_generic_struct.km")
 	uri := fileURI(path)
 	text := `struct Box<T> { public value: T; }
 public function get<U>(this: Box<U>): U { return this.value; }

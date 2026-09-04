@@ -1,12 +1,14 @@
 {
-  "name": "onsentamago-language-guide",
+  "name": "kinmokusei-language-guide",
   "private": true,
   "version": "0.2.0",
   "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev .",
     "docs:build": "vitepress build .",
-    "docs:preview": "vitepress preview ."
+    "docs:preview": "vitepress preview .",
+    "docs:check-links": "node ../scripts/check-doc-links.mjs",
+    "docs:check-content": "node ../scripts/check-doc-content.mjs"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

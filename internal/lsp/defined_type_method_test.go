@@ -8,7 +8,7 @@ import (
 )
 
 func TestDefinedTypeReceiverMethodNavigationRenameCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "defined_type_method.otm")
+	path := filepath.Join(t.TempDir(), "defined_type_method.km")
 	uri := fileURI(path)
 	text := `type Counter = distinct int;
 public function add(this: *Counter, delta: Counter): void { *this += delta; }

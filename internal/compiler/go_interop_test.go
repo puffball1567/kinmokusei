@@ -9,7 +9,7 @@ import (
 
 func TestGoStandardLibraryInteropCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "interop.otm")
+	source := filepath.Join(temp, "interop.km")
 	input := `
 import go strings from "strings";
 import go strconv from "strconv";
@@ -86,7 +86,7 @@ func TestInterop(t *testing.T) {
 
 func TestGoCallbacksClosuresAndFunctionValuesCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "callbacks.otm")
+	source := filepath.Join(temp, "callbacks.km")
 	input := `
 import go sort from "sort";
 import go strings from "strings";
@@ -143,7 +143,7 @@ func TestCallbacks(t *testing.T) {
 
 func TestGoInterfaceValuesAndExplicitClassImplementationCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "interfaces.otm")
+	source := filepath.Join(temp, "interfaces.km")
 	input := `
 import go io from "io";
 import go sort from "sort";
@@ -209,7 +209,7 @@ func TestInterfaces(t *testing.T) {
 
 func TestGoGenericInferenceAndExplicitArgumentsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "generics.otm")
+	source := filepath.Join(temp, "generics.km")
 	input := `
 import go maps from "maps";
 import go slices from "slices";
@@ -281,7 +281,7 @@ func TestGenerics(t *testing.T) {
 
 func TestGoGenericNamedTypesAndMethodsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "generic_types.otm")
+	source := filepath.Join(temp, "generic_types.km")
 	input := `
 import go atomic from "sync/atomic";
 import go time from "time";
@@ -351,7 +351,7 @@ func TestGenericTypes(t *testing.T) {
 
 func TestGoCheckedAndUncheckedTypeAssertionsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "assertions.otm")
+	source := filepath.Join(temp, "assertions.km")
 	input := `
 import go io from "io";
 import go strings from "strings";
@@ -409,7 +409,7 @@ func TestAssertions(t *testing.T) {
 
 func TestGoNamedTypesPointersFieldsMethodsAndVariablesCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "level_one.otm")
+	source := filepath.Join(temp, "level_one.km")
 	input := `
 import go bytes from "bytes";
 import go http from "net/http";
@@ -506,7 +506,7 @@ func TestLevelOne(t *testing.T) {
 
 func TestGoMultipleResultsAndErrorCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "level_two.otm")
+	source := filepath.Join(temp, "level_two.km")
 	input := `
 import go errors from "errors";
 import go strconv from "strconv";
@@ -630,8 +630,8 @@ func hidden() int { return 1 }
 	if err := os.WriteFile(filepath.Join(library, "library.go"), []byte(librarySource), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(root, "main.otm")
-	ontamaSource := `
+	source := filepath.Join(root, "main.km")
+	kinmokuseiSource := `
 import go library from "example.com/library";
 import go time from "time";
 function render(text: string): string {
@@ -646,7 +646,7 @@ function dependencySum(): int { return library.Sum(10, 1, 2, 3); }
 function dependencySpread(values: int[]): int { return library.Sum(10, values...); }
 function narrowIntegers(): int { return int(library.Eight(8)) + int(library.Sixteen(16)); }
 `
-	if err := os.WriteFile(source, []byte(ontamaSource), 0o644); err != nil {
+	if err := os.WriteFile(source, []byte(kinmokuseiSource), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	directory, diagnostics, err := WriteGeneratedModule([]string{source}, "externalmodule")
@@ -758,7 +758,7 @@ replace example.com/library => ./library
 	if err := os.WriteFile(filepath.Join(library, "library.go"), []byte("package library\nfunc Value() int { return 1 }\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	if err := os.WriteFile(source, []byte(`import go library from "example.com/library"; function value(): int { return library.Value(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -796,7 +796,7 @@ example.invalid/unavailable v1.0.0/go.mod h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJW
 	if err := os.WriteFile(filepath.Join(root, "go.sum"), []byte(checksums), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(root, "main.otm")
+	source := filepath.Join(root, "main.km")
 	if err := os.WriteFile(source, []byte(`import go unavailable from "example.invalid/unavailable"; function value(): int { return unavailable.Value(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -824,7 +824,7 @@ example.invalid/unavailable v1.0.0/go.mod h1:47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJW
 
 func TestUnusedGoImportIsNotGenerated(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "unused.otm")
+	source := filepath.Join(temp, "unused.km")
 	if err := os.WriteFile(source, []byte(`import go strings from "strings"; function answer(): int { return 42; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -858,7 +858,7 @@ func TestGoInteropFailureMatrix(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			temp := t.TempDir()
-			source := filepath.Join(temp, "invalid.otm")
+			source := filepath.Join(temp, "invalid.km")
 			if err := os.WriteFile(source, []byte(test.source), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -880,17 +880,17 @@ func TestGoInteropFailureMatrix(t *testing.T) {
 func TestGoImportAliasesAreLinkedAcrossModules(t *testing.T) {
 	temp := t.TempDir()
 	files := map[string]string{
-		"upper.otm":  `import go text from "strings"; function upper(value: string): string { return text.ToUpper(value); }`,
-		"trim.otm":   `import go words from "strings"; function trim(value: string): string { return words.TrimSpace(value); }`,
-		"digits.otm": `import go text from "strconv"; function digits(value: int): string { return text.Itoa(value); }`,
-		"entry.otm":  `import { upper } from "./upper"; import { trim } from "./trim"; import { digits } from "./digits"; function value(): string { return upper(trim(" x ")) + digits(1); }`,
+		"upper.km":  `import go text from "strings"; function upper(value: string): string { return text.ToUpper(value); }`,
+		"trim.km":   `import go words from "strings"; function trim(value: string): string { return words.TrimSpace(value); }`,
+		"digits.km": `import go text from "strconv"; function digits(value: int): string { return text.Itoa(value); }`,
+		"entry.km":  `import { upper } from "./upper"; import { trim } from "./trim"; import { digits } from "./digits"; function value(): string { return upper(trim(" x ")) + digits(1); }`,
 	}
 	for name, source := range files {
 		if err := os.WriteFile(filepath.Join(temp, name), []byte(source), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.otm")}, "aliases")
+	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.km")}, "aliases")
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
@@ -923,15 +923,15 @@ func TestAliases(t *testing.T) {
 func TestGoMultipleAssignmentLinksGlobalAcrossModules(t *testing.T) {
 	temp := t.TempDir()
 	files := map[string]string{
-		"state.otm": `import go os from "os"; let directory: string = ""; function refresh(): boolean { let err: error = nil; [directory, err] = os.Getwd(); return err == nil; }`,
-		"entry.otm": `import { directory, refresh } from "./state"; function current(): string { refresh(); return directory; }`,
+		"state.km": `import go os from "os"; let directory: string = ""; function refresh(): boolean { let err: error = nil; [directory, err] = os.Getwd(); return err == nil; }`,
+		"entry.km": `import { directory, refresh } from "./state"; function current(): string { refresh(); return directory; }`,
 	}
 	for name, source := range files {
 		if err := os.WriteFile(filepath.Join(temp, name), []byte(source), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.otm")}, "multilink")
+	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.km")}, "multilink")
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
@@ -960,16 +960,16 @@ func TestMultipleAssignment(t *testing.T) {
 func TestQualifiedGoTypesUseCanonicalAliasesAcrossModules(t *testing.T) {
 	temp := t.TempDir()
 	files := map[string]string{
-		"add.otm":    `import go clock from "time"; function add(value: clock.Duration): clock.Duration { return value + clock.Second; }`,
-		"double.otm": `import go moment from "time"; function double(value: moment.Duration): moment.Duration { return value * 2; }`,
-		"entry.otm":  `import go duration from "time"; import { add } from "./add"; import { double } from "./double"; function value(): duration.Duration { return double(add(duration.Second)); }`,
+		"add.km":    `import go clock from "time"; function add(value: clock.Duration): clock.Duration { return value + clock.Second; }`,
+		"double.km": `import go moment from "time"; function double(value: moment.Duration): moment.Duration { return value * 2; }`,
+		"entry.km":  `import go duration from "time"; import { add } from "./add"; import { double } from "./double"; function value(): duration.Duration { return double(add(duration.Second)); }`,
 	}
 	for name, source := range files {
 		if err := os.WriteFile(filepath.Join(temp, name), []byte(source), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.otm")}, "qualifiedaliases")
+	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.km")}, "qualifiedaliases")
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}

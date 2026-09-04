@@ -1,0 +1,34 @@
+import go errors from "errors";
+import go fmt from "fmt";
+import go strings from "strings";
+
+enum BathStatus { Open, Resting }
+
+struct Visit {
+  public guest: string;
+  public temperature: int;
+
+  public function label(): string {
+    return fmt.Sprintf("%s · %d°C", this.guest, this.temperature);
+  }
+}
+
+function prepareVisit(name: string, temperature: int): Result<Visit> {
+  const guest = strings.TrimSpace(name);
+  if (guest === "") {
+    return fail(errors.New("guest name is required"));
+  }
+  return ok(Visit { guest: guest, temperature: temperature });
+}
+
+function main(): void {
+  const [visit, err] = prepareVisit("  Aki  ", 42);
+  if (err !== nil) {
+    fmt.Println(err.Error());
+    return;
+  }
+  const status = BathStatus.Open;
+  if (status === BathStatus.Open) {
+    fmt.Println(visit.label());
+  }
+}

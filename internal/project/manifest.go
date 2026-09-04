@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 type Project struct {

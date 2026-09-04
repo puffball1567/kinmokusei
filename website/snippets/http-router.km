@@ -1,0 +1,30 @@
+import { App, Context } from "kinmokusei/http";
+import go fmt from "fmt";
+import go http from "net/http";
+import go httptest from "net/http/httptest";
+
+function router(): http.Handler {
+  const app = new App();
+  app.get("/health", (ctx: Context): void => {
+    ctx.writer.Header().Set("X-Route", "health");
+    fmt.Fprint(ctx.writer, "ok");
+  });
+  app.get("/users/{id}", (ctx: Context): void => {
+    ctx.writer.Header().Set("X-Route", "user");
+    fmt.Fprintf(ctx.writer, "%s:%s", ctx.path("id"), ctx.query("view"));
+  });
+  return app.handler();
+}
+
+function request(handler: http.Handler, target: string): void {
+  const recorder = httptest.NewRecorder();
+  const incoming = httptest.NewRequest(http.MethodGet, target, nil);
+  handler.ServeHTTP(recorder, incoming);
+  fmt.Println(recorder.Code, recorder.Body.String(), recorder.Header().Get("X-Route"));
+}
+
+function main(): void {
+  const handler = router();
+  request(handler, "/health");
+  request(handler, "/users/tamago?view=full");
+}

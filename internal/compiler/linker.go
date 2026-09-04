@@ -8,9 +8,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type moduleNames map[string]string
@@ -223,7 +223,7 @@ func (l *moduleLoader) linkedModuleName(path, name string) string {
 		}
 	}
 	digest := sha256.Sum256([]byte(filepath.ToSlash(stablePath)))
-	return fmt.Sprintf("_ontama_%s_%x_%s", cleaned.String(), digest[:4], name)
+	return fmt.Sprintf("_kinmokusei_%s_%x_%s", cleaned.String(), digest[:4], name)
 }
 
 func linkProgram(program *ast.Program, declarations, visible moduleNames) {

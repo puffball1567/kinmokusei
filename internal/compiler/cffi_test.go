@@ -19,7 +19,7 @@ func TestIncomingCFFIGeneratesAndRunsScalarStatusMatrix(t *testing.T) {
   "package": "fixtureffi",
   "header": "fixture.h",
   "threadPolicy": "serialized",
-  "targets": [{"goos":"linux", "goarch":"amd64", "cFlags":["-DONTAMA_FFI_TARGET=1"], "ldFlags":["-lm"]}],
+  "targets": [{"goos":"linux", "goarch":"amd64", "cFlags":["-DKINMOKUSEI_FFI_TARGET=1"], "ldFlags":["-lm"]}],
   "enums": [{"name":"Mode", "cType":"fixture_mode", "underlying":"cInt32", "values":[{"name":"ModeAdd","symbol":"FIXTURE_MODE_ADD"},{"name":"ModeMultiply","symbol":"FIXTURE_MODE_MULTIPLY"}]},{"name":"ValueKind", "cType":"fixture_value_kind", "underlying":"cInt32", "values":[{"name":"ValueInteger","symbol":"FIXTURE_VALUE_INTEGER"},{"name":"ValueNumber","symbol":"FIXTURE_VALUE_NUMBER"}]}],
   "structs": [
     {"name":"Point", "cType":"fixture_point", "fields":[{"name":"X","cName":"x","type":"float32"},{"name":"Y","cName":"y","type":"float32"}]},
@@ -73,7 +73,7 @@ func TestIncomingCFFIGeneratesAndRunsScalarStatusMatrix(t *testing.T) {
 		t.Fatalf("package = %q", artifacts.Package)
 	}
 	generated := string(artifacts.Source)
-	for _, want := range []string{"import \"C\"", "ontamaCFFIMutex.Lock()", "func CheckedDouble(value int32) (int32, error)", "&StatusError{Function: \"CheckedDouble\", Code: status}", "type Counter struct", "func (handle *Counter) Close() error", "func CounterAdd(counter *Counter, delta int64) (int64, error)", "func TitleLength(title string) (int32, error)", "ErrEmbeddedNUL", "ErrNullCString", "ontama_c_int_must_be_32_bits", "#cgo linux,amd64 CFLAGS:", "#cgo linux,amd64 LDFLAGS:", "type Point struct", "type Pose struct", "type Mode int32", "func OffsetPoint(point Point, delta float32) Point", "func Label(missing bool) (string, error)", "func MakeName(mode byte) (string, error)", "defer C.fixture_string_free(output)", "ErrNullOwnedCString", "C.GoString(output)", "func Checksum(data []byte) uint64", "C.CBytes(data)", "C.size_t(len(data))", "ontama_cffi_free_bytes", "func MakeBytes(seed byte, count uint32) ([]byte, error)", "defer C.fixture_bytes_free(output)", "ErrNullOwnedBuffer", "ErrOwnedBufferTooLarge", "func MakePoints(count uint32, mode byte) ([]Point, error)", "unsafe.Slice(output", "ontamaCFFIFromPoint(value)", "defer C.fixture_points_free(output)", "type Event struct", "ontama_cffi_Event_get_tag", "func EventScore(event Event) int32", "func CheckedEvent(eventType uint32) (Event, error)", "type Value struct", "type ValueKind int32", "func EchoValue(value Value) Value"} {
+	for _, want := range []string{"import \"C\"", "kinmokuseiCFFIMutex.Lock()", "func CheckedDouble(value int32) (int32, error)", "&StatusError{Function: \"CheckedDouble\", Code: status}", "type Counter struct", "func (handle *Counter) Close() error", "func CounterAdd(counter *Counter, delta int64) (int64, error)", "func TitleLength(title string) (int32, error)", "ErrEmbeddedNUL", "ErrNullCString", "kinmokusei_c_int_must_be_32_bits", "#cgo linux,amd64 CFLAGS:", "#cgo linux,amd64 LDFLAGS:", "type Point struct", "type Pose struct", "type Mode int32", "func OffsetPoint(point Point, delta float32) Point", "func Label(missing bool) (string, error)", "func MakeName(mode byte) (string, error)", "defer C.fixture_string_free(output)", "ErrNullOwnedCString", "C.GoString(output)", "func Checksum(data []byte) uint64", "C.CBytes(data)", "C.size_t(len(data))", "kinmokusei_cffi_free_bytes", "func MakeBytes(seed byte, count uint32) ([]byte, error)", "defer C.fixture_bytes_free(output)", "ErrNullOwnedBuffer", "ErrOwnedBufferTooLarge", "func MakePoints(count uint32, mode byte) ([]Point, error)", "unsafe.Slice(output", "kinmokuseiCFFIFromPoint(value)", "defer C.fixture_points_free(output)", "type Event struct", "kinmokusei_cffi_Event_get_tag", "func EventScore(event Event) int32", "func CheckedEvent(eventType uint32) (Event, error)", "type Value struct", "type ValueKind int32", "func EchoValue(value Value) Value"} {
 		if !strings.Contains(generated, want) {
 			t.Errorf("generated C FFI does not contain %q:\n%s", want, generated)
 		}
@@ -258,7 +258,7 @@ int32_t fixture_event_score(fixture_event event) {
 }
 fixture_value fixture_echo_value(fixture_value value) { return value; }
 `,
-		"app/binding.otm": `import go ffi from "fixtureffi.test";
+		"app/binding.km": `import go ffi from "fixtureffi.test";
 function Checked(value: int32): Result<int32> {
   const doubled = ffi.CheckedDouble(value)?;
   return ok(doubled);
@@ -413,9 +413,9 @@ func main() {
 			t.Fatal(err)
 		}
 	}
-	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.otm")}, "app")
+	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.km")}, "app")
 	if err != nil || len(diagnostics) != 0 {
-		t.Fatalf("generate OnsenTamago FFI wrapper: err=%v diagnostics=%v", err, diagnostics)
+		t.Fatalf("generate Kinmokusei FFI wrapper: err=%v diagnostics=%v", err, diagnostics)
 	}
 	if err := os.WriteFile(filepath.Join(root, "app", "generated.go"), generatedApp, 0o644); err != nil {
 		t.Fatal(err)
@@ -425,7 +425,7 @@ func main() {
 		runner += ".exe"
 	}
 	arguments := []string{"build", "-buildvcs=false", "-o", runner, "./cmd"}
-	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" {
+	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" {
 		arguments = []string{"build", "-race", "-buildvcs=false", "-o", runner, "./cmd"}
 	}
 	command := exec.Command("go", arguments...)
@@ -517,7 +517,7 @@ func TestIncomingCFFICallScopedCallbacks(t *testing.T) {
 		t.Fatal(err)
 	}
 	generated := string(artifacts.Source)
-	for _, want := range []string{"type VisitCallback func(value int32, index uint32) bool", "type ObserveCallback func(value int64)", "type DecideCallback func(value int32) Decision", "type PayloadCallback func(point PayloadPointValue, event PayloadEvent) int32", "type StoredPayloadCallback func(point PayloadPointValue, event PayloadEvent) int32", "type OverlayCallback func(event OverlayEvent) int32", "type TextBufferCallback func(title string, optional *string, data []byte) int32", "type StoredTextBufferCallback func(title string, optional *string, data []byte) int32", "type TransformBytesCallback func(data []byte, salt []byte) bool", "type StoredTransformBytesCallback func(data []byte)", "type OwnedDataCallback func(seed byte) []byte", "ontama_cffi_callback_OwnedDataCallback_release", "C.CBytes(ontamaCallbackResult)", "*outputLength = C.size_t(len(ontamaCallbackResult))", "type OwnedTextCallback func(path string) string", "ontama_cffi_callback_OwnedTextCallback_release", "strings.ContainsRune(ontamaCallbackResult", "return C.CString(ontamaCallbackResult)", "type OwnedPointArrayCallback func(seed int32) []PayloadPointValue", "ontama_cffi_callback_OwnedPointArrayCallback_release", "ontamaOutput[index] = ontamaCFFIToPayloadPointValue(value)", "owned array size exceeds address space", "ontamaCallbackResult := state.callback", "copy(unsafe.Slice((*byte)(unsafe.Pointer(value0))", "type CallbackInputError struct", "const char *value0", "const uint8_t *value2", "C.GoString(value0)", "unsafe.Slice((*byte)(unsafe.Pointer(value2))", "ontamaCFFIFromPayloadPointValue(value0)", "ontamaCFFIFromPayloadEvent(value1)", "ontamaCFFIFromOverlayEvent(value0)", "runtime/cgo", "cgo.NewHandle", "defer ontamaCallbackHandle", "//export ontama_cffi_callback_VisitCallback_go", "ontama_cffi_call_Around", "ontama_c_int_must_be_32_bits", "ontama_c_uint_must_be_32_bits", "ErrNilCallback", "type CallbackPanicError struct", "func Fold(seed int32, count uint32, visit VisitCallback) (int32, error)", "func Observe(start int64, count uint32, observe ObserveCallback) error"} {
+	for _, want := range []string{"type VisitCallback func(value int32, index uint32) bool", "type ObserveCallback func(value int64)", "type DecideCallback func(value int32) Decision", "type PayloadCallback func(point PayloadPointValue, event PayloadEvent) int32", "type StoredPayloadCallback func(point PayloadPointValue, event PayloadEvent) int32", "type OverlayCallback func(event OverlayEvent) int32", "type TextBufferCallback func(title string, optional *string, data []byte) int32", "type StoredTextBufferCallback func(title string, optional *string, data []byte) int32", "type TransformBytesCallback func(data []byte, salt []byte) bool", "type StoredTransformBytesCallback func(data []byte)", "type OwnedDataCallback func(seed byte) []byte", "kinmokusei_cffi_callback_OwnedDataCallback_release", "C.CBytes(kinmokuseiCallbackResult)", "*outputLength = C.size_t(len(kinmokuseiCallbackResult))", "type OwnedTextCallback func(path string) string", "kinmokusei_cffi_callback_OwnedTextCallback_release", "strings.ContainsRune(kinmokuseiCallbackResult", "return C.CString(kinmokuseiCallbackResult)", "type OwnedPointArrayCallback func(seed int32) []PayloadPointValue", "kinmokusei_cffi_callback_OwnedPointArrayCallback_release", "kinmokuseiOutput[index] = kinmokuseiCFFIToPayloadPointValue(value)", "owned array size exceeds address space", "kinmokuseiCallbackResult := state.callback", "copy(unsafe.Slice((*byte)(unsafe.Pointer(value0))", "type CallbackInputError struct", "const char *value0", "const uint8_t *value2", "C.GoString(value0)", "unsafe.Slice((*byte)(unsafe.Pointer(value2))", "kinmokuseiCFFIFromPayloadPointValue(value0)", "kinmokuseiCFFIFromPayloadEvent(value1)", "kinmokuseiCFFIFromOverlayEvent(value0)", "runtime/cgo", "cgo.NewHandle", "defer kinmokuseiCallbackHandle", "//export kinmokusei_cffi_callback_VisitCallback_go", "kinmokusei_cffi_call_Around", "kinmokusei_c_int_must_be_32_bits", "kinmokusei_c_uint_must_be_32_bits", "ErrNilCallback", "type CallbackPanicError struct", "func Fold(seed int32, count uint32, visit VisitCallback) (int32, error)", "func Observe(start int64, count uint32, observe ObserveCallback) error"} {
 		if !strings.Contains(generated, want) {
 			t.Errorf("generated callback FFI does not contain %q:\n%s", want, generated)
 		}
@@ -712,7 +712,7 @@ int32_t fixture_owned_decision_array_unregister(fixture_owned_decision_array_cal
 int32_t fixture_owned_decision_array_fire(bool empty) { if (!owned_decision_array_callback) return -1; size_t count = 0; fixture_decision *values = owned_decision_array_callback(empty, &count, owned_decision_array_context); if (count == 0) return values == NULL ? 0 : -2; if (!values) return -3; int32_t sum = 0; for (size_t index = 0; index < count; index++) sum += (int32_t)values[index]; owned_decision_array_release(values); owned_decision_array_release_count++; return sum; }
 int32_t fixture_owned_decision_array_release_count(void) { return owned_decision_array_release_count; }
 `,
-		"app/binding.otm": `import go ffi from "callbackffi.test";
+		"app/binding.km": `import go ffi from "callbackffi.test";
 function FoldThree(seed: int32, count: uint32): Result<int32> {
   const total = ffi.Fold(seed, count, (value: int32, index: uint32): boolean => index < 3)?;
   return ok(total);
@@ -889,15 +889,15 @@ func main() {
 			t.Fatal(err)
 		}
 	}
-	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.otm")}, "app")
+	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.km")}, "app")
 	if err != nil || len(diagnostics) != 0 {
-		t.Fatalf("generate callScoped callback OnsenTamago wrapper: err=%v diagnostics=%v", err, diagnostics)
+		t.Fatalf("generate callScoped callback Kinmokusei wrapper: err=%v diagnostics=%v", err, diagnostics)
 	}
 	if err := os.WriteFile(filepath.Join(root, "app", "generated.go"), generatedApp, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	arguments := []string{"run", "-buildvcs=false", "./cmd"}
-	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" {
+	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" {
 		arguments = []string{"run", "-race", "-buildvcs=false", "./cmd"}
 	}
 	command := exec.Command("go", arguments...)
@@ -942,7 +942,7 @@ func TestIncomingCFFIRegisteredCallbacks(t *testing.T) {
 		t.Fatal(err)
 	}
 	generated := string(artifacts.Source)
-	for _, want := range []string{"type EventCallback func(value int32) bool", "type Watch struct", "func RegisterWatch(callback EventCallback) (*Watch, error)", "func RegisterTopicWatch(topic Topic, callback EventCallback) (*TopicWatch, error)", "func RegisterFilteredWatch(topic Topic, filter Filter, callback EventCallback) (*FilteredWatch, error)", "func RegisterResourceWatch(resource *Resource, topic Topic, callback EventCallback) (*ResourceWatch, error)", "func RegisterRetainedWatch(label string, data []byte, callback EventCallback) (*RetainedWatch, error)", "parameter0 Topic", "parameter1 Filter", "parameter0 *Resource", "*C.char", "unsafe.Pointer", "C.CString(label)", "C.CBytes(data)", "C.ontama_cffi_free_string(registration.parameter0)", "C.ontama_cffi_free_bytes(registration.parameter1)", "resource.registrations++", "registration.parameter0.registrations--", "ErrHandleHasActiveRegistrations", "func (registration *Watch) Close() error", "func (registration *Watch) CallbackError() error", "ErrClosedCallbackRegistration", "state.inFlight.Add(1)", "registration.state.stop()", "registration.state.wait()", "registration.state.resume()", "registration.context.Delete()", "ontama_cffi_register_Watch", "ontama_cffi_unregister_Watch"} {
+	for _, want := range []string{"type EventCallback func(value int32) bool", "type Watch struct", "func RegisterWatch(callback EventCallback) (*Watch, error)", "func RegisterTopicWatch(topic Topic, callback EventCallback) (*TopicWatch, error)", "func RegisterFilteredWatch(topic Topic, filter Filter, callback EventCallback) (*FilteredWatch, error)", "func RegisterResourceWatch(resource *Resource, topic Topic, callback EventCallback) (*ResourceWatch, error)", "func RegisterRetainedWatch(label string, data []byte, callback EventCallback) (*RetainedWatch, error)", "parameter0 Topic", "parameter1 Filter", "parameter0 *Resource", "*C.char", "unsafe.Pointer", "C.CString(label)", "C.CBytes(data)", "C.kinmokusei_cffi_free_string(registration.parameter0)", "C.kinmokusei_cffi_free_bytes(registration.parameter1)", "resource.registrations++", "registration.parameter0.registrations--", "ErrHandleHasActiveRegistrations", "func (registration *Watch) Close() error", "func (registration *Watch) CallbackError() error", "ErrClosedCallbackRegistration", "state.inFlight.Add(1)", "registration.state.stop()", "registration.state.wait()", "registration.state.resume()", "registration.context.Delete()", "kinmokusei_cffi_register_Watch", "kinmokusei_cffi_unregister_Watch"} {
 		if !strings.Contains(generated, want) {
 			t.Errorf("generated registered callback FFI does not contain %q:\n%s", want, generated)
 		}
@@ -1061,7 +1061,7 @@ int32_t fixture_retained_watch_unregister(char *label, uint8_t *data, size_t dat
 int32_t fixture_retained_fire(void) { if (!retained_callback) return 0; int32_t value = 0; while (retained_label[value] != 0) value++; for (size_t index = 0; index < retained_data_length; index++) value += retained_data[index]; return retained_callback(value, retained_context) ? 1 : 0; }
 void fixture_retained_fail_next_unregister(void) { fail_next_retained_unregister = true; }
 `,
-		"app/binding.otm": `import go ffi from "registeredffi.test";
+		"app/binding.km": `import go ffi from "registeredffi.test";
 function CountOnce(value: int32): Result<int32> {
   let observed: int32 = 0;
   const watch = ffi.RegisterWatch((current: int32): boolean => { observed += current; return true; })?;
@@ -1206,15 +1206,15 @@ func main() {
 			t.Fatal(err)
 		}
 	}
-	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.otm")}, "app")
+	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.km")}, "app")
 	if err != nil || len(diagnostics) != 0 {
-		t.Fatalf("generate registered callback OnsenTamago wrapper: err=%v diagnostics=%v", err, diagnostics)
+		t.Fatalf("generate registered callback Kinmokusei wrapper: err=%v diagnostics=%v", err, diagnostics)
 	}
 	if err := os.WriteFile(filepath.Join(root, "app", "generated.go"), generatedApp, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	arguments := []string{"run", "-buildvcs=false", "./cmd"}
-	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" {
+	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" {
 		arguments = []string{"run", "-race", "-buildvcs=false", "./cmd"}
 	}
 	command := exec.Command("go", arguments...)
@@ -1279,7 +1279,7 @@ func TestIncomingCFFIThreadAffineUsesOneOSThread(t *testing.T) {
 		t.Fatal(err)
 	}
 	generated := string(artifacts.Source)
-	for _, want := range []string{"runtime.LockOSThread()", "func ontamaCFFIDo(call func())", "func ThreadToken() uint64", "func ontamaCFFIRawThreadToken() uint64", "ontamaCFFIDo(func()", "ontamaCFFIRawClose", "func MakeThreadName() (string, error)", "func ontamaCFFIRawMakeThreadName() (string, error)", "defer C.fixture_string_free(output)", "func Invoke(value uint64, callback AffineCallback) (uint64, error)", "func ontamaCFFIRawInvoke", "func EmitAffineText(mode byte, callback AffineTextCallback) (uint64, error)", "func ontamaCFFIRawEmitAffineText", "func MutateAffine(mode byte, callback AffineMutateCallback) error", "func ontamaCFFIRawMutateAffine", "func RegisterAffineWatch", "ontamaCFFIRawRegisterAffineWatch", "func RegisterAffineResourceWatch(resource *Resource", "ontamaCFFIRawRegisterAffineResourceWatch", "func RegisterAffineRetainedWatch(label string, data []byte", "ontamaCFFIRawRegisterAffineRetainedWatch", "func RegisterAffineOwnedWatch(callback AffineOwnedCallback)", "ontamaCFFIRawRegisterAffineOwnedWatch", "func RegisterAffineOwnedTextWatch(callback AffineOwnedTextCallback)", "ontamaCFFIRawRegisterAffineOwnedTextWatch", "func RegisterAffineOwnedArrayWatch(callback AffineOwnedArrayCallback)", "ontamaCFFIRawRegisterAffineOwnedArrayWatch"} {
+	for _, want := range []string{"runtime.LockOSThread()", "func kinmokuseiCFFIDo(call func())", "func ThreadToken() uint64", "func kinmokuseiCFFIRawThreadToken() uint64", "kinmokuseiCFFIDo(func()", "kinmokuseiCFFIRawClose", "func MakeThreadName() (string, error)", "func kinmokuseiCFFIRawMakeThreadName() (string, error)", "defer C.fixture_string_free(output)", "func Invoke(value uint64, callback AffineCallback) (uint64, error)", "func kinmokuseiCFFIRawInvoke", "func EmitAffineText(mode byte, callback AffineTextCallback) (uint64, error)", "func kinmokuseiCFFIRawEmitAffineText", "func MutateAffine(mode byte, callback AffineMutateCallback) error", "func kinmokuseiCFFIRawMutateAffine", "func RegisterAffineWatch", "kinmokuseiCFFIRawRegisterAffineWatch", "func RegisterAffineResourceWatch(resource *Resource", "kinmokuseiCFFIRawRegisterAffineResourceWatch", "func RegisterAffineRetainedWatch(label string, data []byte", "kinmokuseiCFFIRawRegisterAffineRetainedWatch", "func RegisterAffineOwnedWatch(callback AffineOwnedCallback)", "kinmokuseiCFFIRawRegisterAffineOwnedWatch", "func RegisterAffineOwnedTextWatch(callback AffineOwnedTextCallback)", "kinmokuseiCFFIRawRegisterAffineOwnedTextWatch", "func RegisterAffineOwnedArrayWatch(callback AffineOwnedArrayCallback)", "kinmokuseiCFFIRawRegisterAffineOwnedArrayWatch"} {
 		if !strings.Contains(generated, want) {
 			t.Errorf("thread-affine generated C FFI does not contain %q:\n%s", want, generated)
 		}
@@ -1462,7 +1462,7 @@ int32_t fixture_affine_owned_array_release_held(void) { if (!affine_owned_array_
 int32_t fixture_affine_owned_array_release_count(void) { return affine_owned_array_release_count; }
 bool fixture_affine_owned_array_thread_mismatch(void) { return affine_owned_array_thread_mismatch; }
 `,
-		"app/binding.otm": `import go ffi from "affineffi.test";
+		"app/binding.km": `import go ffi from "affineffi.test";
 function Token(): uint64 { return ffi.ThreadToken(); }
 function TitleSize(title: string): Result<int32> {
   const size = ffi.TitleLength(title)?;
@@ -1573,15 +1573,15 @@ func main() {
 			t.Fatal(err)
 		}
 	}
-	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.otm")}, "app")
+	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.km")}, "app")
 	if err != nil || len(diagnostics) != 0 {
-		t.Fatalf("generate thread-affine OnsenTamago wrapper: err=%v diagnostics=%v", err, diagnostics)
+		t.Fatalf("generate thread-affine Kinmokusei wrapper: err=%v diagnostics=%v", err, diagnostics)
 	}
 	if err := os.WriteFile(filepath.Join(root, "app", "generated.go"), generatedApp, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	arguments := []string{"run", "-buildvcs=false", "./cmd"}
-	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" {
+	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" {
 		arguments = []string{"run", "-race", "-buildvcs=false", "./cmd"}
 	}
 	command := exec.Command("go", arguments...)
@@ -1617,8 +1617,8 @@ func TestIncomingCFFIRaylibStyleLoadUnloadShim(t *testing.T) {
 	generated := string(artifacts.Source)
 	for _, want := range []string{
 		"type LoadFileDataCallback func(path string) []byte",
-		"typedef uint8_t * (*ontama_cffi_callback_LoadFileDataCallback_fn)(const char *value0, size_t *output_length, void *context)",
-		"shim_file_data_register(ontama_cffi_callback_LoadFileDataCallback_bridge, ontama_cffi_callback_LoadFileDataCallback_release",
+		"typedef uint8_t * (*kinmokusei_cffi_callback_LoadFileDataCallback_fn)(const char *value0, size_t *output_length, void *context)",
+		"shim_file_data_register(kinmokusei_cffi_callback_LoadFileDataCallback_bridge, kinmokusei_cffi_callback_LoadFileDataCallback_release",
 		"func RegisterFileDataHooks(callback LoadFileDataCallback)",
 	} {
 		if !strings.Contains(generated, want) {
@@ -1690,7 +1690,7 @@ int32_t fake_raylib_release_held_file(void) {
 }
 int32_t fake_raylib_unload_count(void) { return unload_count; }
 `,
-		"app/binding.otm": `import go ffi from "raylibshimffi.test";
+		"app/binding.km": `import go ffi from "raylibshimffi.test";
 function LoadAsset(path: string): Result<int32> {
   const hooks = ffi.RegisterFileDataHooks((requested: string): byte[] => [1, 2, 3, 4])?;
   const checksum = ffi.RaylibLoadChecksum(path)?;
@@ -1727,15 +1727,15 @@ func main() {
 			t.Fatal(err)
 		}
 	}
-	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.otm")}, "app")
+	generatedApp, diagnostics, err := EmitGo([]string{filepath.Join(root, "app", "binding.km")}, "app")
 	if err != nil || len(diagnostics) != 0 {
-		t.Fatalf("generate Raylib-style OnsenTamago wrapper: err=%v diagnostics=%v", err, diagnostics)
+		t.Fatalf("generate Raylib-style Kinmokusei wrapper: err=%v diagnostics=%v", err, diagnostics)
 	}
 	if err := os.WriteFile(filepath.Join(root, "app", "generated.go"), generatedApp, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	arguments := []string{"run", "-buildvcs=false", "./cmd"}
-	if os.Getenv("ONTAMA_DIFFERENTIAL_RACE") == "1" {
+	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" {
 		arguments = []string{"run", "-race", "-buildvcs=false", "./cmd"}
 	}
 	command := exec.Command("go", arguments...)

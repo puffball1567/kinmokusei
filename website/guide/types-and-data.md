@@ -1,6 +1,11 @@
+---
+title: Types and data
+description: Use Kinmokusei scalars, collections, nominal types, nullability, pointers, and conversions.
+---
+
 # Types and data
 
-OnsenTamago preserves Go-compatible representations where they matter. It does not collapse integers into `number`, erase named types, or hide pointer and collection behavior.
+Kinmokusei preserves Go-compatible representations where they matter. It does not collapse integers into `number`, erase named types, or hide pointer and collection behavior.
 
 ## Scalar types
 

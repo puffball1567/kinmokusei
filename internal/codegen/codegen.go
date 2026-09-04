@@ -13,15 +13,15 @@ import (
 	"strconv"
 	"strings"
 
-	ontamaAST "github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/product"
+	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
-func Generate(program *ontamaAST.Program, packageName string) ([]byte, error) {
+func Generate(program *kinmokuseiAST.Program, packageName string) ([]byte, error) {
 	return GenerateWithImporter(program, packageName, importer.Default())
 }
 
-func GenerateWithImporter(program *ontamaAST.Program, packageName string, goImporter types.Importer) ([]byte, error) {
+func GenerateWithImporter(program *kinmokuseiAST.Program, packageName string, goImporter types.Importer) ([]byte, error) {
 	if packageName == "" {
 		packageName = "main"
 	}
@@ -82,10 +82,10 @@ func GenerateWithImporter(program *ontamaAST.Program, packageName string, goImpo
 
 func taskRuntimeDeclarations() ([]goast.Decl, error) {
 	const runtimeSource = `package taskruntime
-type __ontamaTask[T any] struct { done chan struct{}; value T; panicValue any }
-type __ontamaVoidTask struct { done chan struct{}; panicValue any }
-type __ontamaResultTask[T any] struct { done chan struct{}; value T; err error; panicValue any }
-type __ontamaVoidResultTask struct { done chan struct{}; err error; panicValue any }
+type __kinmokuseiTask[T any] struct { done chan struct{}; value T; panicValue any }
+type __kinmokuseiVoidTask struct { done chan struct{}; panicValue any }
+type __kinmokuseiResultTask[T any] struct { done chan struct{}; value T; err error; panicValue any }
+type __kinmokuseiVoidResultTask struct { done chan struct{}; err error; panicValue any }
 `
 	parsed, err := parser.ParseFile(token.NewFileSet(), "task_runtime.go", runtimeSource, parser.AllErrors)
 	if err != nil {
@@ -96,19 +96,19 @@ type __ontamaVoidResultTask struct { done chan struct{}; err error; panicValue a
 
 func exceptionRuntimeDeclarations() ([]goast.Decl, error) {
 	const runtimeSource = `package exceptionruntime
-type __ontamaException interface { OnsenTamagoExceptionError() error }
-type __ontamaThrown struct { err error }
-func (value __ontamaThrown) OnsenTamagoExceptionError() error { return value.err }
-type __ontamaReturn struct { value any; err error }
-func __ontamaReturnValue[T any](value any) T {
+type __kinmokuseiException interface { KinmokuseiExceptionError() error }
+type __kinmokuseiThrown struct { err error }
+func (value __kinmokuseiThrown) KinmokuseiExceptionError() error { return value.err }
+type __kinmokuseiReturn struct { value any; err error }
+func __kinmokuseiReturnValue[T any](value any) T {
 	if value == nil { var zero T; return zero }
 	return value.(T)
 }
-type Exception struct { __ontamaRoot any; Message string }
-func __ontamaInitException(this *Exception, message string) { this.Message = message; this.__ontamaRoot = this }
-func NewException(message string) *Exception { this := &Exception{}; __ontamaInitException(this, message); return this }
+type Exception struct { __kinmokuseiRoot any; Message string }
+func __kinmokuseiInitException(this *Exception, message string) { this.Message = message; this.__kinmokuseiRoot = this }
+func NewException(message string) *Exception { this := &Exception{}; __kinmokuseiInitException(this, message); return this }
 func (this *Exception) Error() string { return this.Message }
-func __ontamaExceptionFromError(err error) *Exception {
+func __kinmokuseiExceptionFromError(err error) *Exception {
 	if value, ok := err.(*Exception); ok { return value }
 	if err == nil { return NewException("") }
 	return NewException(err.Error())
@@ -139,9 +139,9 @@ func validateGeneratedGoWithImporter(generated []byte, goImporter types.Importer
 	return err
 }
 
-func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
+func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 	switch decl := decl.(type) {
-	case *ontamaAST.FunctionDecl:
+	case *kinmokuseiAST.FunctionDecl:
 		params := make([]*goast.Field, 0, len(decl.Parameters))
 		for _, param := range decl.Parameters {
 			params = append(params, goParameterField(param))
@@ -160,13 +160,13 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			return nil, err
 		}
 		return []goast.Decl{&goast.FuncDecl{Name: goast.NewIdent(goName(decl.Name)), Type: fnType, Body: body}}, nil
-	case *ontamaAST.MethodDecl:
+	case *kinmokuseiAST.MethodDecl:
 		generated, err := generateNativeStructMethod(decl, decl.ReceiverName, goType(decl.ReceiverType))
 		if err != nil {
 			return nil, err
 		}
 		return []goast.Decl{generated}, nil
-	case *ontamaAST.VariableDecl:
+	case *kinmokuseiAST.VariableDecl:
 		value, err := generateExpression(decl.Value)
 		if err != nil {
 			return nil, err
@@ -180,11 +180,11 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			spec.Type = goType(decl.Type)
 		}
 		return []goast.Decl{&goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil
-	case *ontamaAST.CABIExportDecl:
+	case *kinmokuseiAST.CABIExportDecl:
 		return nil, nil
-	case *ontamaAST.ClassDecl:
+	case *kinmokuseiAST.ClassDecl:
 		return generateClass(decl)
-	case *ontamaAST.StructDecl:
+	case *kinmokuseiAST.StructDecl:
 		fields := make([]*goast.Field, 0, len(decl.Fields))
 		for _, field := range decl.Fields {
 			name := field.GoName
@@ -223,7 +223,7 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			declarations = append(declarations, generated)
 		}
 		return declarations, nil
-	case *ontamaAST.TypeDecl:
+	case *kinmokuseiAST.TypeDecl:
 		if decl.Alias && len(decl.TypeParameters) != 0 {
 			return nil, nil
 		}
@@ -240,7 +240,7 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			spec.TypeParams = &goast.FieldList{List: typeFields}
 		}
 		return []goast.Decl{&goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{spec}}}, nil
-	case *ontamaAST.EnumDecl:
+	case *kinmokuseiAST.EnumDecl:
 		typeDeclaration := &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
 			Name: goast.NewIdent(decl.Name), Type: goType(decl.Underlying),
 		}}}
@@ -253,7 +253,7 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			})
 		}
 		return []goast.Decl{typeDeclaration, &goast.GenDecl{Tok: token.CONST, Specs: constants}}, nil
-	case *ontamaAST.InterfaceDecl:
+	case *kinmokuseiAST.InterfaceDecl:
 		methods := make([]*goast.Field, 0, len(decl.Methods))
 		for _, method := range decl.Methods {
 			parameters := make([]*goast.Field, 0, len(method.Parameters))
@@ -264,7 +264,7 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 			methodType.Results = functionResults(method.ReturnType)
 			name := method.GoName
 			if name == "" {
-				name = memberName(method.Name, ontamaAST.Public)
+				name = memberName(method.Name, kinmokuseiAST.Public)
 			}
 			methods = append(methods, &goast.Field{Names: []*goast.Ident{goast.NewIdent(name)}, Type: methodType})
 		}
@@ -282,7 +282,7 @@ func generateDeclaration(decl ontamaAST.Declaration) ([]goast.Decl, error) {
 	}
 }
 
-func goTypeParameterField(parameter ontamaAST.TypeParameter, inferredComparable bool) *goast.Field {
+func goTypeParameterField(parameter kinmokuseiAST.TypeParameter, inferredComparable bool) *goast.Field {
 	var constraint goast.Expr = goast.NewIdent("any")
 	if parameter.Constraint != nil {
 		if parameter.Constraint.Qualifier == "" && parameter.Constraint.Name == "comparable" {
@@ -307,13 +307,13 @@ func goTypeParameterField(parameter ontamaAST.TypeParameter, inferredComparable 
 	}
 }
 
-func comparableTypeParameters(ref ontamaAST.TypeRef) map[string]bool {
+func comparableTypeParameters(ref kinmokuseiAST.TypeRef) map[string]bool {
 	result := map[string]bool{}
 	collectComparableTypeParameters(ref, result)
 	return result
 }
 
-func collectComparableTypeParameters(ref ontamaAST.TypeRef, result map[string]bool) {
+func collectComparableTypeParameters(ref kinmokuseiAST.TypeRef, result map[string]bool) {
 	if ref.Name == "Map" && len(ref.GenericArguments) == 2 {
 		collectTypeParametersRequiringComparability(ref.GenericArguments[0], result)
 	}
@@ -337,7 +337,7 @@ func collectComparableTypeParameters(ref ontamaAST.TypeRef, result map[string]bo
 	}
 }
 
-func collectTypeParametersRequiringComparability(ref ontamaAST.TypeRef, result map[string]bool) {
+func collectTypeParametersRequiringComparability(ref kinmokuseiAST.TypeRef, result map[string]bool) {
 	if ref.IsPointer() || ref.IsSlice() || ref.Name == "Map" || ref.IsFunction() || ref.Object || ref.GoStruct {
 		return
 	}
@@ -353,7 +353,7 @@ func collectTypeParametersRequiringComparability(ref ontamaAST.TypeRef, result m
 	}
 }
 
-func goParameterField(parameter ontamaAST.Parameter) *goast.Field {
+func goParameterField(parameter kinmokuseiAST.Parameter) *goast.Field {
 	parameterType := goType(parameter.Type)
 	if parameter.Variadic && parameter.Type.Element != nil {
 		parameterType = &goast.Ellipsis{Elt: goType(*parameter.Type.Element)}
@@ -364,18 +364,18 @@ func goParameterField(parameter ontamaAST.Parameter) *goast.Field {
 	}
 }
 
-func goStoredField(name, jsonName string, visibility ontamaAST.Visibility, fieldType ontamaAST.TypeRef) *goast.Field {
+func goStoredField(name, jsonName string, visibility kinmokuseiAST.Visibility, fieldType kinmokuseiAST.TypeRef) *goast.Field {
 	field := &goast.Field{
 		Names: []*goast.Ident{goast.NewIdent(goName(name))},
 		Type:  goType(fieldType),
 	}
-	if visibility == ontamaAST.Public {
+	if visibility == kinmokuseiAST.Public {
 		field.Tag = &goast.BasicLit{Kind: token.STRING, Value: "`json:\"" + jsonName + "\"`"}
 	}
 	return field
 }
 
-func generateNativeStructMethod(method *ontamaAST.MethodDecl, receiverName string, receiver goast.Expr) (*goast.FuncDecl, error) {
+func generateNativeStructMethod(method *kinmokuseiAST.MethodDecl, receiverName string, receiver goast.Expr) (*goast.FuncDecl, error) {
 	parameters := make([]*goast.Field, 0, len(method.Parameters))
 	for _, parameter := range method.Parameters {
 		parameters = append(parameters, goParameterField(parameter))
@@ -395,7 +395,7 @@ func generateNativeStructMethod(method *ontamaAST.MethodDecl, receiverName strin
 	}, nil
 }
 
-func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
+func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	var declarations []goast.Decl
 	typeParameterFields := make([]*goast.Field, 0, len(class.TypeParameters))
 	for _, parameter := range class.TypeParameters {
@@ -494,7 +494,7 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		})
 	}
 	for ancestorIndex, ancestor := range class.Ancestors {
-		ancestorRef := ontamaAST.TypeRef{Name: ancestor}
+		ancestorRef := kinmokuseiAST.TypeRef{Name: ancestor}
 		if ancestorIndex < len(class.AncestorTypes) {
 			ancestorRef = class.AncestorTypes[ancestorIndex]
 		}
@@ -583,7 +583,7 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 	if len(typeParameterFields) != 0 {
 		initializerType.TypeParams = &goast.FieldList{List: typeParameterFields}
 	}
-	var constructorParameters []ontamaAST.Parameter
+	var constructorParameters []kinmokuseiAST.Parameter
 	if class.Constructor != nil {
 		constructorParameters = class.Constructor.Parameters
 	}
@@ -593,15 +593,15 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		initializerType.Params.List = append(initializerType.Params.List, goParameterField(parameter))
 	}
 	initializerBody := &goast.BlockStmt{}
-	constructorStatements := []ontamaAST.Statement(nil)
+	constructorStatements := []kinmokuseiAST.Statement(nil)
 	if class.Constructor != nil {
 		constructorStatements = class.Constructor.Body.Statements
 	}
 	if class.Base != nil {
 		var baseCall goast.Stmt
 		if len(constructorStatements) != 0 {
-			if expression, ok := constructorStatements[0].(*ontamaAST.ExpressionStmt); ok {
-				if call, ok := expression.Value.(*ontamaAST.CallExpr); ok && call.SuperConstructor {
+			if expression, ok := constructorStatements[0].(*kinmokuseiAST.ExpressionStmt); ok {
+				if call, ok := expression.Value.(*kinmokuseiAST.CallExpr); ok && call.SuperConstructor {
 					generated, err := generateExpression(call)
 					if err != nil {
 						return nil, err
@@ -637,7 +637,7 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 		})
 	}
 	if len(constructorStatements) != 0 {
-		body, err := generateBlock(&ontamaAST.BlockStmt{Statements: constructorStatements})
+		body, err := generateBlock(&kinmokuseiAST.BlockStmt{Statements: constructorStatements})
 		if err != nil {
 			return nil, err
 		}
@@ -703,23 +703,23 @@ func generateClass(class *ontamaAST.ClassDecl) ([]goast.Decl, error) {
 	return declarations, nil
 }
 
-func typeRefsForTypeParameters(parameters []ontamaAST.TypeParameter) []ontamaAST.TypeRef {
-	result := make([]ontamaAST.TypeRef, len(parameters))
+func typeRefsForTypeParameters(parameters []kinmokuseiAST.TypeParameter) []kinmokuseiAST.TypeRef {
+	result := make([]kinmokuseiAST.TypeRef, len(parameters))
 	for index, parameter := range parameters {
-		result[index] = ontamaAST.TypeRef{Name: parameter.Name, TypeParameter: true, Span: parameter.Span}
+		result[index] = kinmokuseiAST.TypeRef{Name: parameter.Name, TypeParameter: true, Span: parameter.Span}
 	}
 	return result
 }
 
-func typeRefForClass(class *ontamaAST.ClassDecl) ontamaAST.TypeRef {
-	return ontamaAST.TypeRef{Name: class.Name, GenericArguments: typeRefsForTypeParameters(class.TypeParameters), Span: class.NameSpan}
+func typeRefForClass(class *kinmokuseiAST.ClassDecl) kinmokuseiAST.TypeRef {
+	return kinmokuseiAST.TypeRef{Name: class.Name, GenericArguments: typeRefsForTypeParameters(class.TypeParameters), Span: class.NameSpan}
 }
 
-func goClassType(ref ontamaAST.TypeRef) goast.Expr {
+func goClassType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	return indexedGoType(goast.NewIdent(ref.Name), ref.GenericArguments)
 }
 
-func generateVirtualWrapper(class *ontamaAST.ClassDecl, method *ontamaAST.MethodDecl, name string) *goast.FuncDecl {
+func generateVirtualWrapper(class *kinmokuseiAST.ClassDecl, method *kinmokuseiAST.MethodDecl, name string) *goast.FuncDecl {
 	className := class.Name
 	parameters := make([]*goast.Field, 0, len(method.Parameters))
 	arguments := make([]goast.Expr, 0, len(method.Parameters))
@@ -774,27 +774,27 @@ func generateVirtualWrapper(class *ontamaAST.ClassDecl, method *ontamaAST.Method
 	}
 }
 
-func virtualInterfaceName(className string) string { return "__ontama" + className + "Virtual" }
-func virtualSelfName(className string) string      { return "__ontama" + className + "Self" }
-func virtualSlotName(owner, method string) string  { return "__ontama" + owner + method }
-func initializerName(className string) string      { return "__ontamaInit" + className }
-func upcastName(source, target string) string      { return "__ontamaUpcast" + source + "To" + target }
-func downcastName(source, target string) string    { return "__ontamaDowncast" + source + "To" + target }
+func virtualInterfaceName(className string) string { return "__kinmokusei" + className + "Virtual" }
+func virtualSelfName(className string) string      { return "__kinmokusei" + className + "Self" }
+func virtualSlotName(owner, method string) string  { return "__kinmokusei" + owner + method }
+func initializerName(className string) string      { return "__kinmokuseiInit" + className }
+func upcastName(source, target string) string      { return "__kinmokuseiUpcast" + source + "To" + target }
+func downcastName(source, target string) string    { return "__kinmokuseiDowncast" + source + "To" + target }
 func mustDowncastName(source, target string) string {
-	return "__ontamaMustDowncast" + source + "To" + target
+	return "__kinmokuseiMustDowncast" + source + "To" + target
 }
 func publicUpcastName(source, target string) string   { return "Upcast" + source + "To" + target }
 func publicDowncastName(source, target string) string { return "Downcast" + source + "To" + target }
 func publicMustDowncastName(source, target string) string {
 	return "MustDowncast" + source + "To" + target
 }
-func classRootName() string { return "__ontamaRoot" }
+func classRootName() string { return "__kinmokuseiRoot" }
 func classProjectionInterfaceName(className string) string {
-	return "__ontama" + className + "Projection"
+	return "__kinmokusei" + className + "Projection"
 }
-func classProjectionMethodName(className string) string { return "__ontamaAs" + className }
+func classProjectionMethodName(className string) string { return "__kinmokuseiAs" + className }
 
-func generateConversionWrapper(name, implementation string, source, target ontamaAST.TypeRef, parameters []ontamaAST.TypeParameter, checked bool) *goast.FuncDecl {
+func generateConversionWrapper(name, implementation string, source, target kinmokuseiAST.TypeRef, parameters []kinmokuseiAST.TypeParameter, checked bool) *goast.FuncDecl {
 	results := []*goast.Field{{Type: goType(target)}}
 	if checked {
 		results = append(results, &goast.Field{Type: goast.NewIdent("bool")})
@@ -820,11 +820,11 @@ func generateConversionWrapper(name, implementation string, source, target ontam
 	}
 }
 
-func generateBlock(block *ontamaAST.BlockStmt) (*goast.BlockStmt, error) {
+func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 	result := &goast.BlockStmt{}
 	for _, stmt := range block.Statements {
-		if variable, ok := stmt.(*ontamaAST.VariableDecl); ok {
-			if propagated, ok := variable.Value.(*ontamaAST.PropagateExpr); ok {
+		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
+			if propagated, ok := variable.Value.(*kinmokuseiAST.PropagateExpr); ok {
 				generated, err := generatePropagationStatements(propagated, variable)
 				if err != nil {
 					return nil, err
@@ -839,8 +839,8 @@ func generateBlock(block *ontamaAST.BlockStmt) (*goast.BlockStmt, error) {
 				continue
 			}
 		}
-		if expression, ok := stmt.(*ontamaAST.ExpressionStmt); ok {
-			if propagated, ok := expression.Value.(*ontamaAST.PropagateExpr); ok {
+		if expression, ok := stmt.(*kinmokuseiAST.ExpressionStmt); ok {
+			if propagated, ok := expression.Value.(*kinmokuseiAST.PropagateExpr); ok {
 				generated, err := generatePropagationStatements(propagated, nil)
 				if err != nil {
 					return nil, err
@@ -854,13 +854,13 @@ func generateBlock(block *ontamaAST.BlockStmt) (*goast.BlockStmt, error) {
 			return nil, err
 		}
 		result.List = append(result.List, generated)
-		if variable, ok := stmt.(*ontamaAST.VariableDecl); ok && !variable.Used {
+		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && !variable.Used {
 			result.List = append(result.List, &goast.AssignStmt{
 				Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN,
 				Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
 			})
 		}
-		if declaration, ok := stmt.(*ontamaAST.MultiVariableDecl); ok {
+		if declaration, ok := stmt.(*kinmokuseiAST.MultiVariableDecl); ok {
 			for _, binding := range declaration.Bindings {
 				if binding.Name == "_" || binding.Used {
 					continue
@@ -875,7 +875,7 @@ func generateBlock(block *ontamaAST.BlockStmt) (*goast.BlockStmt, error) {
 	return result, nil
 }
 
-func functionResults(ref ontamaAST.TypeRef) *goast.FieldList {
+func functionResults(ref kinmokuseiAST.TypeRef) *goast.FieldList {
 	if ref.Name == "void" {
 		return nil
 	}
@@ -891,11 +891,11 @@ func functionResults(ref ontamaAST.TypeRef) *goast.FieldList {
 	return &goast.FieldList{List: []*goast.Field{{Type: goType(ref)}}}
 }
 
-func generateResultReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
-	call, isCall := stmt.Value.(*ontamaAST.CallExpr)
+func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
+	call, isCall := stmt.Value.(*kinmokuseiAST.CallExpr)
 	switch stmt.ResultKind {
-	case ontamaAST.ResultSuccessReturn:
-		if !isCall || call.Builtin != ontamaAST.ResultOKCall {
+	case kinmokuseiAST.ResultSuccessReturn:
+		if !isCall || call.Builtin != kinmokuseiAST.ResultOKCall {
 			return nil, fmt.Errorf("Result success return has an invalid expression")
 		}
 		results := []goast.Expr{}
@@ -911,8 +911,8 @@ func generateResultReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 		}
 		results = append(results, goast.NewIdent("nil"))
 		return &goast.ReturnStmt{Results: results}, nil
-	case ontamaAST.ResultFailureReturn:
-		if !isCall || call.Builtin != ontamaAST.ResultFailCall || len(call.Arguments) != 1 {
+	case kinmokuseiAST.ResultFailureReturn:
+		if !isCall || call.Builtin != kinmokuseiAST.ResultFailCall || len(call.Arguments) != 1 {
 			return nil, fmt.Errorf("Result failure return requires one error")
 		}
 		errorValue, err := generateExpression(call.Arguments[0])
@@ -925,7 +925,7 @@ func generateResultReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 		}
 		results = append(results, errorValue)
 		return &goast.ReturnStmt{Results: results}, nil
-	case ontamaAST.ResultForwardReturn:
+	case kinmokuseiAST.ResultForwardReturn:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -936,7 +936,7 @@ func generateResultReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 	}
 }
 
-func generateExceptionReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
+func generateExceptionReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
 	returnPanic := func(value, errValue goast.Expr) goast.Stmt {
 		fields := []goast.Expr{}
 		if value != nil {
@@ -946,11 +946,11 @@ func generateExceptionReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 			fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent("err"), Value: errValue})
 		}
 		return &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{
-			&goast.CompositeLit{Type: goast.NewIdent("__ontamaReturn"), Elts: fields},
+			&goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiReturn"), Elts: fields},
 		}}}
 	}
 
-	if stmt.ResultKind == ontamaAST.NormalReturn {
+	if stmt.ResultKind == kinmokuseiAST.NormalReturn {
 		if stmt.Value == nil {
 			return returnPanic(nil, nil), nil
 		}
@@ -961,10 +961,10 @@ func generateExceptionReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 		return returnPanic(value, nil), nil
 	}
 
-	call, isCall := stmt.Value.(*ontamaAST.CallExpr)
+	call, isCall := stmt.Value.(*kinmokuseiAST.CallExpr)
 	switch stmt.ResultKind {
-	case ontamaAST.ResultSuccessReturn:
-		if !isCall || call.Builtin != ontamaAST.ResultOKCall {
+	case kinmokuseiAST.ResultSuccessReturn:
+		if !isCall || call.Builtin != kinmokuseiAST.ResultOKCall {
 			return nil, fmt.Errorf("Result success return has an invalid expression")
 		}
 		if stmt.ResultType.Name == "void" {
@@ -978,8 +978,8 @@ func generateExceptionReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 			return nil, err
 		}
 		return returnPanic(value, goast.NewIdent("nil")), nil
-	case ontamaAST.ResultFailureReturn:
-		if !isCall || call.Builtin != ontamaAST.ResultFailCall || len(call.Arguments) != 1 {
+	case kinmokuseiAST.ResultFailureReturn:
+		if !isCall || call.Builtin != kinmokuseiAST.ResultFailCall || len(call.Arguments) != 1 {
 			return nil, fmt.Errorf("Result failure return requires one error")
 		}
 		errorValue, err := generateExpression(call.Arguments[0])
@@ -987,7 +987,7 @@ func generateExceptionReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 			return nil, err
 		}
 		return returnPanic(nil, errorValue), nil
-	case ontamaAST.ResultForwardReturn:
+	case kinmokuseiAST.ResultForwardReturn:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1010,14 +1010,14 @@ func generateExceptionReturn(stmt *ontamaAST.ReturnStmt) (goast.Stmt, error) {
 	}
 }
 
-func generatePropagationStatements(expr *ontamaAST.PropagateExpr, variable *ontamaAST.VariableDecl) ([]goast.Stmt, error) {
+func generatePropagationStatements(expr *kinmokuseiAST.PropagateExpr, variable *kinmokuseiAST.VariableDecl) ([]goast.Stmt, error) {
 	value, err := generateExpression(expr.Value)
 	if err != nil {
 		return nil, err
 	}
 	errorName := expr.ErrorName
 	if errorName == "" {
-		errorName = fmt.Sprintf("__ontama_result_error_%d", expr.Span.Start.Offset)
+		errorName = fmt.Sprintf("__kinmokusei_result_error_%d", expr.Span.Start.Offset)
 	}
 	names := []*goast.Ident{}
 	valueName := ""
@@ -1028,7 +1028,7 @@ func generatePropagationStatements(expr *ontamaAST.PropagateExpr, variable *onta
 		}
 		valueName = goName(variable.Name)
 		if explicitType {
-			valueName = fmt.Sprintf("__ontama_result_value_%d", expr.Span.Start.Offset)
+			valueName = fmt.Sprintf("__kinmokusei_result_value_%d", expr.Span.Start.Offset)
 		}
 		names = append(names, goast.NewIdent(valueName))
 	}
@@ -1055,13 +1055,13 @@ func generatePropagationStatements(expr *ontamaAST.PropagateExpr, variable *onta
 	return statements, nil
 }
 
-func zeroValue(ref ontamaAST.TypeRef) goast.Expr {
+func zeroValue(ref kinmokuseiAST.TypeRef) goast.Expr {
 	return &goast.StarExpr{X: &goast.CallExpr{Fun: goast.NewIdent("new"), Args: []goast.Expr{goType(ref)}}}
 }
 
-func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
+func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 	switch stmt := stmt.(type) {
-	case *ontamaAST.VariableDecl:
+	case *kinmokuseiAST.VariableDecl:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1075,7 +1075,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			spec.Type = goType(stmt.Type)
 		}
 		return &goast.DeclStmt{Decl: &goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil
-	case *ontamaAST.MultiVariableDecl:
+	case *kinmokuseiAST.MultiVariableDecl:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1086,11 +1086,11 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 		}
 		spec := &goast.ValueSpec{Names: names, Values: []goast.Expr{value}}
 		return &goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{spec}}}, nil
-	case *ontamaAST.ReturnStmt:
+	case *kinmokuseiAST.ReturnStmt:
 		if stmt.CrossesTry {
 			return generateExceptionReturn(stmt)
 		}
-		if stmt.ResultKind != ontamaAST.NormalReturn {
+		if stmt.ResultKind != kinmokuseiAST.NormalReturn {
 			return generateResultReturn(stmt)
 		}
 		result := &goast.ReturnStmt{}
@@ -1102,23 +1102,23 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			result.Results = []goast.Expr{value}
 		}
 		return result, nil
-	case *ontamaAST.ThrowStmt:
+	case *kinmokuseiAST.ThrowStmt:
 		if stmt.Bare {
 			return &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{
-				goast.NewIdent(fmt.Sprintf("__ontama_thrown_%d", stmt.RethrowOffset)),
+				goast.NewIdent(fmt.Sprintf("__kinmokusei_thrown_%d", stmt.RethrowOffset)),
 			}}}, nil
 		}
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
 		}
-		thrown := &goast.CompositeLit{Type: goast.NewIdent("__ontamaThrown"), Elts: []goast.Expr{
+		thrown := &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiThrown"), Elts: []goast.Expr{
 			&goast.KeyValueExpr{Key: goast.NewIdent("err"), Value: value},
 		}}
 		return &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{thrown}}}, nil
-	case *ontamaAST.TryStmt:
+	case *kinmokuseiAST.TryStmt:
 		return generateTryStatement(stmt)
-	case *ontamaAST.IfStmt:
+	case *kinmokuseiAST.IfStmt:
 		condition, err := generateExpression(stmt.Condition)
 		if err != nil {
 			return nil, err
@@ -1135,15 +1135,15 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			}
 		}
 		return result, nil
-	case *ontamaAST.BlockStmt:
+	case *kinmokuseiAST.BlockStmt:
 		return generateBlock(stmt)
-	case *ontamaAST.ExpressionStmt:
+	case *kinmokuseiAST.ExpressionStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
 		}
 		return &goast.ExprStmt{X: value}, nil
-	case *ontamaAST.AssignmentStmt:
+	case *kinmokuseiAST.AssignmentStmt:
 		target, err := generateExpression(stmt.Target)
 		if err != nil {
 			return nil, err
@@ -1153,7 +1153,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			return nil, err
 		}
 		return &goast.AssignStmt{Lhs: []goast.Expr{target}, Tok: goAssignmentToken(stmt.Operator), Rhs: []goast.Expr{value}}, nil
-	case *ontamaAST.IncDecStmt:
+	case *kinmokuseiAST.IncDecStmt:
 		target, err := generateExpression(stmt.Target)
 		if err != nil {
 			return nil, err
@@ -1163,7 +1163,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			operator = token.DEC
 		}
 		return &goast.IncDecStmt{X: target, Tok: operator}, nil
-	case *ontamaAST.MultiAssignmentStmt:
+	case *kinmokuseiAST.MultiAssignmentStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1173,7 +1173,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			targets[i] = goast.NewIdent(goName(binding.Name))
 		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil
-	case *ontamaAST.WhileStmt:
+	case *kinmokuseiAST.WhileStmt:
 		condition, err := generateExpression(stmt.Condition)
 		if err != nil {
 			return nil, err
@@ -1183,7 +1183,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			return nil, err
 		}
 		return &goast.ForStmt{Cond: condition, Body: body}, nil
-	case *ontamaAST.ForStmt:
+	case *kinmokuseiAST.ForStmt:
 		result := &goast.ForStmt{}
 		var err error
 		if stmt.Initializer != nil {
@@ -1209,7 +1209,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			return nil, err
 		}
 		return result, nil
-	case *ontamaAST.ForRangeStmt:
+	case *kinmokuseiAST.ForRangeStmt:
 		source, err := generateExpression(stmt.Source)
 		if err != nil {
 			return nil, err
@@ -1229,7 +1229,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 				Rhs: []goast.Expr{goast.NewIdent(goName(binding.Name))},
 			}}, body.List...)
 		}
-		if stmt.Kind == ontamaAST.ChannelRange {
+		if stmt.Kind == kinmokuseiAST.ChannelRange {
 			if len(stmt.Bindings) == 1 && rangeBindingNeeded(stmt.Bindings[0]) {
 				result.Key = goast.NewIdent(goName(stmt.Bindings[0].Name))
 				result.Tok = token.DEFINE
@@ -1260,7 +1260,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			}
 		}
 		return result, nil
-	case *ontamaAST.SelectStmt:
+	case *kinmokuseiAST.SelectStmt:
 		body := &goast.BlockStmt{}
 		for i := range stmt.Cases {
 			clause, err := generateSelectCase(&stmt.Cases[i])
@@ -1270,7 +1270,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			body.List = append(body.List, clause)
 		}
 		return &goast.SelectStmt{Body: body}, nil
-	case *ontamaAST.ValueSwitchStmt:
+	case *kinmokuseiAST.ValueSwitchStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1284,12 +1284,12 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			body.List = append(body.List, clause)
 		}
 		return &goast.SwitchStmt{Tag: value, Body: body}, nil
-	case *ontamaAST.TypeSwitchStmt:
+	case *kinmokuseiAST.TypeSwitchStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
 		}
-		guardName := fmt.Sprintf("__ontama_type_switch_%d", stmt.Span.Start.Offset)
+		guardName := fmt.Sprintf("__kinmokusei_type_switch_%d", stmt.Span.Start.Offset)
 		guardUsed := false
 		body := &goast.BlockStmt{}
 		for i := range stmt.Cases {
@@ -1306,13 +1306,13 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			guard = &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(guardName)}, Tok: token.DEFINE, Rhs: []goast.Expr{assertion}}
 		}
 		return &goast.TypeSwitchStmt{Assign: guard, Body: body}, nil
-	case *ontamaAST.BranchStmt:
+	case *kinmokuseiAST.BranchStmt:
 		branch := token.BREAK
-		if stmt.Kind == ontamaAST.ContinueBranch {
+		if stmt.Kind == kinmokuseiAST.ContinueBranch {
 			branch = token.CONTINUE
-		} else if stmt.Kind == ontamaAST.GotoBranch {
+		} else if stmt.Kind == kinmokuseiAST.GotoBranch {
 			branch = token.GOTO
-		} else if stmt.Kind == ontamaAST.FallthroughBranch {
+		} else if stmt.Kind == kinmokuseiAST.FallthroughBranch {
 			branch = token.FALLTHROUGH
 		}
 		generated := &goast.BranchStmt{Tok: branch}
@@ -1320,13 +1320,13 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			generated.Label = goast.NewIdent(stmt.Label)
 		}
 		return generated, nil
-	case *ontamaAST.LabeledStmt:
+	case *kinmokuseiAST.LabeledStmt:
 		statement, err := generateStatement(stmt.Statement)
 		if err != nil {
 			return nil, err
 		}
 		return &goast.LabeledStmt{Label: goast.NewIdent(stmt.Label), Stmt: statement}, nil
-	case *ontamaAST.CallControlStmt:
+	case *kinmokuseiAST.CallControlStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1335,11 +1335,11 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 		if !ok {
 			return nil, fmt.Errorf("call-control statement at %v does not contain a call", stmt.Span.Start)
 		}
-		if stmt.Kind == ontamaAST.GoCall {
+		if stmt.Kind == kinmokuseiAST.GoCall {
 			return &goast.GoStmt{Call: call}, nil
 		}
 		return &goast.DeferStmt{Call: call}, nil
-	case *ontamaAST.DetachStmt:
+	case *kinmokuseiAST.DetachStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1352,7 +1352,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 			}}},
 		}}
 		return &goast.GoStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("task")}, Type: taskType}}}}, Body: body}, Args: []goast.Expr{value}}}, nil
-	case *ontamaAST.ChannelSendStmt:
+	case *kinmokuseiAST.ChannelSendStmt:
 		channel, err := generateExpression(stmt.Channel)
 		if err != nil {
 			return nil, err
@@ -1367,7 +1367,7 @@ func generateStatement(stmt ontamaAST.Statement) (goast.Stmt, error) {
 	}
 }
 
-func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
+func generateTryStatement(stmt *kinmokuseiAST.TryStmt) (goast.Stmt, error) {
 	tryBody, err := generateBlock(stmt.Body)
 	if err != nil {
 		return nil, err
@@ -1386,13 +1386,13 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 		outerBody.List = append(outerBody.List, tryBody.List...)
 	} else {
 		offset := stmt.Span.Start.Offset
-		caughtName := fmt.Sprintf("__ontama_caught_%d", offset)
-		handledName := fmt.Sprintf("__ontama_handled_%d", offset)
-		errorName := fmt.Sprintf("__ontama_caught_error_%d", offset)
-		recoveredName := fmt.Sprintf("__ontama_recovered_%d", offset)
-		thrownName := fmt.Sprintf("__ontama_thrown_%d", offset)
-		candidateName := fmt.Sprintf("__ontama_candidate_%d", offset)
-		okName := fmt.Sprintf("__ontama_thrown_ok_%d", offset)
+		caughtName := fmt.Sprintf("__kinmokusei_caught_%d", offset)
+		handledName := fmt.Sprintf("__kinmokusei_handled_%d", offset)
+		errorName := fmt.Sprintf("__kinmokusei_caught_error_%d", offset)
+		recoveredName := fmt.Sprintf("__kinmokusei_recovered_%d", offset)
+		thrownName := fmt.Sprintf("__kinmokusei_thrown_%d", offset)
+		candidateName := fmt.Sprintf("__kinmokusei_candidate_%d", offset)
+		okName := fmt.Sprintf("__kinmokusei_thrown_ok_%d", offset)
 
 		outerBody.List = append(outerBody.List,
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{
@@ -1402,7 +1402,7 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 				Names: []*goast.Ident{goast.NewIdent(errorName)}, Type: goast.NewIdent("error"),
 			}}}},
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{
-				Names: []*goast.Ident{goast.NewIdent(thrownName)}, Type: goast.NewIdent("__ontamaException"),
+				Names: []*goast.Ident{goast.NewIdent(thrownName)}, Type: goast.NewIdent("__kinmokuseiException"),
 			}}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent(errorName)}},
 		)
@@ -1415,7 +1415,7 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 				&goast.ReturnStmt{},
 			}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(candidateName), goast.NewIdent(okName)}, Tok: token.DEFINE, Rhs: []goast.Expr{
-				&goast.TypeAssertExpr{X: goast.NewIdent(recoveredName), Type: goast.NewIdent("__ontamaException")},
+				&goast.TypeAssertExpr{X: goast.NewIdent(recoveredName), Type: goast.NewIdent("__kinmokuseiException")},
 			}},
 			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: goast.NewIdent(okName)}, Body: &goast.BlockStmt{List: []goast.Stmt{
 				&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{goast.NewIdent(recoveredName)}}},
@@ -1423,7 +1423,7 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(thrownName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent(candidateName)}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(caughtName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent("true")}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(errorName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{
-				&goast.CallExpr{Fun: &goast.SelectorExpr{X: goast.NewIdent(candidateName), Sel: goast.NewIdent("OnsenTamagoExceptionError")}},
+				&goast.CallExpr{Fun: &goast.SelectorExpr{X: goast.NewIdent(candidateName), Sel: goast.NewIdent("KinmokuseiExceptionError")}},
 			}},
 		}}
 		tryBody.List = append([]goast.Stmt{&goast.DeferStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{
@@ -1451,8 +1451,8 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 			}
 			if len(clause.MatchingClasses) != 0 {
 				for matchIndex, matchingClass := range clause.MatchingClasses {
-					typedName := fmt.Sprintf("__ontama_typed_catch_%d_%d_%d", offset, index, matchIndex)
-					typedOKName := fmt.Sprintf("__ontama_typed_catch_ok_%d_%d_%d", offset, index, matchIndex)
+					typedName := fmt.Sprintf("__kinmokusei_typed_catch_%d_%d_%d", offset, index, matchIndex)
+					typedOKName := fmt.Sprintf("__kinmokusei_typed_catch_ok_%d_%d_%d", offset, index, matchIndex)
 					typedTarget := goast.Expr(goast.NewIdent(typedName))
 					if clause.Name == "_" || !clause.Used {
 						typedTarget = goast.NewIdent("_")
@@ -1476,7 +1476,7 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 					})
 				}
 				if clause.Type.Name == "Exception" {
-					fallback := &goast.CallExpr{Fun: goast.NewIdent("__ontamaExceptionFromError"), Args: []goast.Expr{goast.NewIdent(errorName)}}
+					fallback := &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiExceptionFromError"), Args: []goast.Expr{goast.NewIdent(errorName)}}
 					catchBody, err := generateTypedCatchBody(clause, handledName, goType(clause.Type), fallback)
 					if err != nil {
 						return nil, err
@@ -1488,8 +1488,8 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 				continue
 			}
 
-			typedName := fmt.Sprintf("__ontama_typed_catch_%d_%d", offset, index)
-			typedOKName := fmt.Sprintf("__ontama_typed_catch_ok_%d_%d", offset, index)
+			typedName := fmt.Sprintf("__kinmokusei_typed_catch_%d_%d", offset, index)
+			typedOKName := fmt.Sprintf("__kinmokusei_typed_catch_ok_%d_%d", offset, index)
 			typedTarget := goast.Expr(goast.NewIdent(typedName))
 			if clause.Name == "_" || !clause.Used {
 				typedTarget = goast.NewIdent("_")
@@ -1519,15 +1519,15 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 	call := goast.Stmt(&goast.ExprStmt{X: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: outerBody}}})
 	if stmt.HandlesReturn {
 		offset := stmt.Span.Start.Offset
-		returningName := fmt.Sprintf("__ontama_returning_%d", offset)
-		controlName := fmt.Sprintf("__ontama_return_%d", offset)
-		recoveredName := fmt.Sprintf("__ontama_return_recovered_%d", offset)
-		candidateName := fmt.Sprintf("__ontama_return_candidate_%d", offset)
-		okName := fmt.Sprintf("__ontama_return_ok_%d", offset)
+		returningName := fmt.Sprintf("__kinmokusei_returning_%d", offset)
+		controlName := fmt.Sprintf("__kinmokusei_return_%d", offset)
+		recoveredName := fmt.Sprintf("__kinmokusei_return_recovered_%d", offset)
+		candidateName := fmt.Sprintf("__kinmokusei_return_candidate_%d", offset)
+		okName := fmt.Sprintf("__kinmokusei_return_ok_%d", offset)
 		returnRecoveryBody := &goast.BlockStmt{List: []goast.Stmt{
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(recoveredName)}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("recover")}}},
 			&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent(recoveredName), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{}}}},
-			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(candidateName), goast.NewIdent(okName)}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{X: goast.NewIdent(recoveredName), Type: goast.NewIdent("__ontamaReturn")}}},
+			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(candidateName), goast.NewIdent(okName)}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{X: goast.NewIdent(recoveredName), Type: goast.NewIdent("__kinmokuseiReturn")}}},
 			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: goast.NewIdent(okName)}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{goast.NewIdent(recoveredName)}}}}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(controlName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent(candidateName)}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(returningName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent("true")}},
@@ -1539,7 +1539,7 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 		returnStatement := exceptionControlReturn(stmt.ReturnType, controlName)
 		call = &goast.BlockStmt{List: []goast.Stmt{
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(returningName)}, Type: goast.NewIdent("bool")}}}},
-			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(controlName)}, Type: goast.NewIdent("__ontamaReturn")}}}},
+			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(controlName)}, Type: goast.NewIdent("__kinmokuseiReturn")}}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent(controlName)}},
 			&goast.ExprStmt{X: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: wrapperBody}}},
 			&goast.IfStmt{Cond: goast.NewIdent(returningName), Body: &goast.BlockStmt{List: []goast.Stmt{returnStatement}}},
@@ -1549,11 +1549,11 @@ func generateTryStatement(stmt *ontamaAST.TryStmt) (goast.Stmt, error) {
 		return call, nil
 	}
 	return &goast.BlockStmt{List: []goast.Stmt{call, &goast.ExprStmt{X: &goast.CallExpr{
-		Fun: goast.NewIdent("panic"), Args: []goast.Expr{&goast.BasicLit{Kind: token.STRING, Value: strconv.Quote("unreachable after terminal OnsenTamago try")}},
+		Fun: goast.NewIdent("panic"), Args: []goast.Expr{&goast.BasicLit{Kind: token.STRING, Value: strconv.Quote("unreachable after terminal Kinmokusei try")}},
 	}}}}, nil
 }
 
-func generateTypedCatchBody(clause *ontamaAST.CatchClause, handledName string, bindingType, bindingValue goast.Expr) (*goast.BlockStmt, error) {
+func generateTypedCatchBody(clause *kinmokuseiAST.CatchClause, handledName string, bindingType, bindingValue goast.Expr) (*goast.BlockStmt, error) {
 	catchBody, err := generateBlock(clause.Body)
 	if err != nil {
 		return nil, err
@@ -1570,7 +1570,7 @@ func generateTypedCatchBody(clause *ontamaAST.CatchClause, handledName string, b
 	return catchBody, nil
 }
 
-func exceptionControlReturn(returnType ontamaAST.TypeRef, controlName string) goast.Stmt {
+func exceptionControlReturn(returnType kinmokuseiAST.TypeRef, controlName string) goast.Stmt {
 	control := func(field string) goast.Expr {
 		return &goast.SelectorExpr{X: goast.NewIdent(controlName), Sel: goast.NewIdent(field)}
 	}
@@ -1587,11 +1587,11 @@ func exceptionControlReturn(returnType ontamaAST.TypeRef, controlName string) go
 	return &goast.ReturnStmt{Results: []goast.Expr{exceptionReturnValue(returnType, control("value"))}}
 }
 
-func exceptionReturnValue(valueType ontamaAST.TypeRef, value goast.Expr) goast.Expr {
-	return &goast.CallExpr{Fun: &goast.IndexExpr{X: goast.NewIdent("__ontamaReturnValue"), Index: goType(valueType)}, Args: []goast.Expr{value}}
+func exceptionReturnValue(valueType kinmokuseiAST.TypeRef, value goast.Expr) goast.Expr {
+	return &goast.CallExpr{Fun: &goast.IndexExpr{X: goast.NewIdent("__kinmokuseiReturnValue"), Index: goType(valueType)}, Args: []goast.Expr{value}}
 }
 
-func generateValueSwitchCase(clause *ontamaAST.ValueSwitchCase) (*goast.CaseClause, error) {
+func generateValueSwitchCase(clause *kinmokuseiAST.ValueSwitchCase) (*goast.CaseClause, error) {
 	generated := &goast.CaseClause{}
 	for _, value := range clause.Values {
 		expression, err := generateExpression(value)
@@ -1608,9 +1608,9 @@ func generateValueSwitchCase(clause *ontamaAST.ValueSwitchCase) (*goast.CaseClau
 	return generated, nil
 }
 
-func generateSelectCase(clause *ontamaAST.SelectCase) (*goast.CommClause, error) {
+func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, error) {
 	generated := &goast.CommClause{}
-	if clause.Kind == ontamaAST.SelectSend {
+	if clause.Kind == kinmokuseiAST.SelectSend {
 		channel, err := generateExpression(clause.Channel)
 		if err != nil {
 			return nil, err
@@ -1620,7 +1620,7 @@ func generateSelectCase(clause *ontamaAST.SelectCase) (*goast.CommClause, error)
 			return nil, err
 		}
 		generated.Comm = &goast.SendStmt{Chan: channel, Value: value}
-	} else if clause.Kind == ontamaAST.SelectReceive {
+	} else if clause.Kind == kinmokuseiAST.SelectReceive {
 		channel, err := generateExpression(clause.Channel)
 		if err != nil {
 			return nil, err
@@ -1663,7 +1663,7 @@ func generateSelectCase(clause *ontamaAST.SelectCase) (*goast.CommClause, error)
 	return generated, nil
 }
 
-func generateTypeSwitchCase(clause *ontamaAST.TypeSwitchCase, guardName string) (*goast.CaseClause, error) {
+func generateTypeSwitchCase(clause *kinmokuseiAST.TypeSwitchCase, guardName string) (*goast.CaseClause, error) {
 	generated := &goast.CaseClause{}
 	if clause.Nil {
 		generated.List = []goast.Expr{goast.NewIdent("nil")}
@@ -1685,8 +1685,8 @@ func generateTypeSwitchCase(clause *ontamaAST.TypeSwitchCase, guardName string) 
 	return generated, nil
 }
 
-func generateForClause(stmt ontamaAST.Statement, initializer bool) (goast.Stmt, error) {
-	if variable, ok := stmt.(*ontamaAST.VariableDecl); ok {
+func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.Stmt, error) {
+	if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
 		value, err := generateExpression(variable.Value)
 		if err != nil {
 			return nil, err
@@ -1699,7 +1699,7 @@ func generateForClause(stmt ontamaAST.Statement, initializer bool) (goast.Stmt, 
 		}
 		return &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(name)}, Tok: operator, Rhs: []goast.Expr{value}}, nil
 	}
-	if declaration, ok := stmt.(*ontamaAST.MultiVariableDecl); ok {
+	if declaration, ok := stmt.(*kinmokuseiAST.MultiVariableDecl); ok {
 		value, err := generateExpression(declaration.Value)
 		if err != nil {
 			return nil, err
@@ -1738,36 +1738,36 @@ func generateForClause(stmt ontamaAST.Statement, initializer bool) (goast.Stmt, 
 	}
 }
 
-func rangeBindingNeeded(binding ontamaAST.RangeBinding) bool {
+func rangeBindingNeeded(binding kinmokuseiAST.RangeBinding) bool {
 	return binding.Name != "_" && (binding.Used || binding.Assigned)
 }
 
-func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
+func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
-	case *ontamaAST.IdentifierExpr:
+	case *kinmokuseiAST.IdentifierExpr:
 		return goast.NewIdent(goName(expr.Name)), nil
-	case *ontamaAST.LiteralExpr:
-		if expr.Kind == ontamaAST.NilLiteral || expr.Kind == ontamaAST.NullLiteral {
+	case *kinmokuseiAST.LiteralExpr:
+		if expr.Kind == kinmokuseiAST.NilLiteral || expr.Kind == kinmokuseiAST.NullLiteral {
 			return goast.NewIdent("nil"), nil
 		}
-		if expr.Kind == ontamaAST.BooleanLiteral {
+		if expr.Kind == kinmokuseiAST.BooleanLiteral {
 			return goast.NewIdent(expr.Text), nil
 		}
 		kind := token.INT
 		switch expr.Kind {
-		case ontamaAST.FloatLiteral:
+		case kinmokuseiAST.FloatLiteral:
 			kind = token.FLOAT
-		case ontamaAST.StringLiteral:
+		case kinmokuseiAST.StringLiteral:
 			kind = token.STRING
 		}
 		return &goast.BasicLit{Kind: kind, Value: expr.Text}, nil
-	case *ontamaAST.UnaryExpr:
+	case *kinmokuseiAST.UnaryExpr:
 		value, err := generateExpression(expr.Operand)
 		if err != nil {
 			return nil, err
 		}
 		return &goast.UnaryExpr{Op: goToken(expr.Operator), X: value}, nil
-	case *ontamaAST.BinaryExpr:
+	case *kinmokuseiAST.BinaryExpr:
 		left, err := generateExpression(expr.Left)
 		if err != nil {
 			return nil, err
@@ -1777,7 +1777,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			return nil, err
 		}
 		return &goast.BinaryExpr{X: left, Op: goToken(expr.Operator), Y: right}, nil
-	case *ontamaAST.GoTypeAssertionExpr:
+	case *kinmokuseiAST.GoTypeAssertionExpr:
 		value, err := generateExpression(expr.Value)
 		if err != nil {
 			return nil, err
@@ -1790,13 +1790,13 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: []goast.Expr{value}}, nil
 		}
 		return &goast.TypeAssertExpr{X: value, Type: goType(expr.Type)}, nil
-	case *ontamaAST.TaskStartExpr:
+	case *kinmokuseiAST.TaskStartExpr:
 		return generateTaskStart(expr)
-	case *ontamaAST.AwaitExpr:
+	case *kinmokuseiAST.AwaitExpr:
 		return generateAwait(expr)
-	case *ontamaAST.PropagateExpr:
+	case *kinmokuseiAST.PropagateExpr:
 		return nil, fmt.Errorf("result propagation was not lowered from its statement context")
-	case *ontamaAST.CallExpr:
+	case *kinmokuseiAST.CallExpr:
 		if expr.SuperConstructor {
 			args := []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(expr.SuperBase)}}}
 			for _, argument := range expr.Arguments {
@@ -1812,15 +1812,15 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			}
 			return call, nil
 		}
-		if expr.Builtin == ontamaAST.ResultOKCall || expr.Builtin == ontamaAST.ResultFailCall {
+		if expr.Builtin == kinmokuseiAST.ResultOKCall || expr.Builtin == kinmokuseiAST.ResultFailCall {
 			return nil, fmt.Errorf("Result constructor was not lowered from a return statement")
 		}
-		if expr.Builtin == ontamaAST.CopyArrayCall || expr.Builtin == ontamaAST.ViewArrayCall {
+		if expr.Builtin == kinmokuseiAST.CopyArrayCall || expr.Builtin == kinmokuseiAST.ViewArrayCall {
 			if len(expr.TypeArguments) != 1 || len(expr.Arguments) != 1 {
 				return nil, fmt.Errorf("slice-to-array lowering received an invalid call shape")
 			}
 			target := goType(expr.TypeArguments[0])
-			if expr.Builtin == ontamaAST.ViewArrayCall {
+			if expr.Builtin == kinmokuseiAST.ViewArrayCall {
 				target = &goast.ParenExpr{X: &goast.StarExpr{X: target}}
 			}
 			argument, err := generateExpression(expr.Arguments[0])
@@ -1829,12 +1829,12 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: target, Args: []goast.Expr{argument}}, nil
 		}
-		if expr.Builtin == ontamaAST.MakeSliceCall || expr.Builtin == ontamaAST.MakeMapCall {
-			if (expr.Builtin == ontamaAST.MakeSliceCall && len(expr.TypeArguments) != 1) || (expr.Builtin == ontamaAST.MakeMapCall && len(expr.TypeArguments) != 2) {
+		if expr.Builtin == kinmokuseiAST.MakeSliceCall || expr.Builtin == kinmokuseiAST.MakeMapCall {
+			if (expr.Builtin == kinmokuseiAST.MakeSliceCall && len(expr.TypeArguments) != 1) || (expr.Builtin == kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 2) {
 				return nil, fmt.Errorf("collection make lowering received invalid type arguments")
 			}
 			var collectionType goast.Expr
-			if expr.Builtin == ontamaAST.MakeSliceCall {
+			if expr.Builtin == kinmokuseiAST.MakeSliceCall {
 				collectionType = &goast.ArrayType{Elt: goType(expr.TypeArguments[0])}
 			} else {
 				collectionType = &goast.MapType{Key: goType(expr.TypeArguments[0]), Value: goType(expr.TypeArguments[1])}
@@ -1847,7 +1847,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 				}
 				arguments[index] = generated
 			}
-			if expr.Builtin == ontamaAST.MakeSliceCall && len(arguments) == 2 {
+			if expr.Builtin == kinmokuseiAST.MakeSliceCall && len(arguments) == 2 {
 				// Evaluate size expressions in source order before invoking Go's make
 				// intrinsic so behavior does not vary between Go toolchains.
 				return orderedSliceMake(collectionType, arguments[0], arguments[1]), nil
@@ -1855,7 +1855,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			args := append([]goast.Expr{collectionType}, arguments...)
 			return &goast.CallExpr{Fun: goast.NewIdent("make"), Args: args}, nil
 		}
-		if expr.Builtin == ontamaAST.MakeGoChannelCall {
+		if expr.Builtin == kinmokuseiAST.MakeGoChannelCall {
 			if len(expr.TypeArguments) != 1 {
 				return nil, fmt.Errorf("goChannel lowering requires exactly one type argument")
 			}
@@ -1869,7 +1869,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: goast.NewIdent("make"), Args: args}, nil
 		}
-		if expr.Builtin == ontamaAST.CloseGoChannelCall {
+		if expr.Builtin == kinmokuseiAST.CloseGoChannelCall {
 			args := make([]goast.Expr, len(expr.Arguments))
 			for i, argument := range expr.Arguments {
 				generated, err := generateExpression(argument)
@@ -1880,10 +1880,10 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: goast.NewIdent("close"), Args: args}, nil
 		}
-		if expr.Builtin >= ontamaAST.LenCall && expr.Builtin <= ontamaAST.MaxCall {
-			name := map[ontamaAST.BuiltinCallKind]string{
-				ontamaAST.LenCall: "len", ontamaAST.CapCall: "cap", ontamaAST.AppendCall: "append", ontamaAST.CopyCall: "copy", ontamaAST.DeleteCall: "delete",
-				ontamaAST.ClearCall: "clear", ontamaAST.MinCall: "min", ontamaAST.MaxCall: "max",
+		if expr.Builtin >= kinmokuseiAST.LenCall && expr.Builtin <= kinmokuseiAST.MaxCall {
+			name := map[kinmokuseiAST.BuiltinCallKind]string{
+				kinmokuseiAST.LenCall: "len", kinmokuseiAST.CapCall: "cap", kinmokuseiAST.AppendCall: "append", kinmokuseiAST.CopyCall: "copy", kinmokuseiAST.DeleteCall: "delete",
+				kinmokuseiAST.ClearCall: "clear", kinmokuseiAST.MinCall: "min", kinmokuseiAST.MaxCall: "max",
 			}[expr.Builtin]
 			args := make([]goast.Expr, len(expr.Arguments))
 			for i, argument := range expr.Arguments {
@@ -1934,7 +1934,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			call.Ellipsis = token.Pos(1)
 		}
 		return call, nil
-	case *ontamaAST.ArrowExpr:
+	case *kinmokuseiAST.ArrowExpr:
 		parameters := make([]*goast.Field, 0, len(expr.Parameters))
 		for _, parameter := range expr.Parameters {
 			parameters = append(parameters, goParameterField(parameter))
@@ -1960,7 +1960,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			}
 		}
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
-	case *ontamaAST.ArrayLiteralExpr:
+	case *kinmokuseiAST.ArrayLiteralExpr:
 		elements := make([]goast.Expr, 0, len(expr.Elements))
 		for _, element := range expr.Elements {
 			generated, err := generateExpression(element)
@@ -1974,7 +1974,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			arrayType.Len = &goast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(expr.ResolvedLength, 10)}
 		}
 		return &goast.CompositeLit{Type: arrayType, Elts: elements}, nil
-	case *ontamaAST.ObjectLiteralExpr:
+	case *kinmokuseiAST.ObjectLiteralExpr:
 		fields := make([]*goast.Field, 0, len(expr.Fields))
 		values := make([]goast.Expr, 0, len(expr.Fields))
 		indices := make([]int, len(expr.Fields))
@@ -1999,7 +1999,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			values = append(values, &goast.KeyValueExpr{Key: goast.NewIdent(goName(resolvedName)), Value: value})
 		}
 		return &goast.CompositeLit{Type: &goast.StructType{Fields: &goast.FieldList{List: fields}}, Elts: values}, nil
-	case *ontamaAST.GoCompositeLiteralExpr:
+	case *kinmokuseiAST.GoCompositeLiteralExpr:
 		fields := make([]goast.Expr, 0, len(expr.Fields))
 		for index, field := range expr.Fields {
 			value, err := generateExpression(field.Value)
@@ -2013,7 +2013,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent(goName(name)), Value: value})
 		}
 		return &goast.CompositeLit{Type: goType(expr.Type), Elts: fields}, nil
-	case *ontamaAST.MemberExpr:
+	case *kinmokuseiAST.MemberExpr:
 		if expr.Static {
 			return goast.NewIdent(goName(expr.ResolvedName)), nil
 		}
@@ -2036,7 +2036,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			name = virtualSlotName(expr.VirtualOwner, name)
 		}
 		return &goast.SelectorExpr{X: object, Sel: goast.NewIdent(goName(name))}, nil
-	case *ontamaAST.IndexExpr:
+	case *kinmokuseiAST.IndexExpr:
 		object, err := generateExpression(expr.Object)
 		if err != nil {
 			return nil, err
@@ -2046,12 +2046,12 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			return nil, err
 		}
 		return &goast.IndexExpr{X: object, Index: index}, nil
-	case *ontamaAST.SliceExpr:
+	case *kinmokuseiAST.SliceExpr:
 		object, err := generateExpression(expr.Object)
 		if err != nil {
 			return nil, err
 		}
-		generateBound := func(bound ontamaAST.Expression) (goast.Expr, error) {
+		generateBound := func(bound kinmokuseiAST.Expression) (goast.Expr, error) {
 			if bound == nil {
 				return nil, nil
 			}
@@ -2070,7 +2070,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			return nil, err
 		}
 		return &goast.SliceExpr{X: object, Low: low, High: high, Max: max, Slice3: expr.Full}, nil
-	case *ontamaAST.NewExpr:
+	case *kinmokuseiAST.NewExpr:
 		args := make([]goast.Expr, 0, len(expr.Arguments))
 		for _, argument := range expr.Arguments {
 			generated, err := generateExpression(argument)
@@ -2084,7 +2084,7 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 			call.Ellipsis = token.Pos(1)
 		}
 		return call, nil
-	case *ontamaAST.ClassUpcastExpr:
+	case *kinmokuseiAST.ClassUpcastExpr:
 		value, err := generateExpression(expr.Value)
 		if err != nil {
 			return nil, err
@@ -2095,22 +2095,22 @@ func generateExpression(expr ontamaAST.Expression) (goast.Expr, error) {
 	}
 }
 
-func taskTypeFromAnnotation(value ontamaAST.TypeRef, resultTask, void bool) goast.Expr {
+func taskTypeFromAnnotation(value kinmokuseiAST.TypeRef, resultTask, void bool) goast.Expr {
 	if void {
-		name := "__ontamaVoidTask"
+		name := "__kinmokuseiVoidTask"
 		if resultTask {
-			name = "__ontamaVoidResultTask"
+			name = "__kinmokuseiVoidResultTask"
 		}
 		return &goast.StarExpr{X: goast.NewIdent(name)}
 	}
-	name := "__ontamaTask"
+	name := "__kinmokuseiTask"
 	if resultTask {
-		name = "__ontamaResultTask"
+		name = "__kinmokuseiResultTask"
 	}
 	return &goast.StarExpr{X: &goast.IndexExpr{X: goast.NewIdent(name), Index: goType(value)}}
 }
 
-func generateTaskStart(expr *ontamaAST.TaskStartExpr) (goast.Expr, error) {
+func generateTaskStart(expr *kinmokuseiAST.TaskStartExpr) (goast.Expr, error) {
 	callee, err := generateExpression(expr.Call.Callee)
 	if err != nil {
 		return nil, err
@@ -2167,7 +2167,7 @@ func generateTaskStart(expr *ontamaAST.TaskStartExpr) (goast.Expr, error) {
 	return &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: taskType}}}}, Body: body}}, nil
 }
 
-func generateAwait(expr *ontamaAST.AwaitExpr) (goast.Expr, error) {
+func generateAwait(expr *kinmokuseiAST.AwaitExpr) (goast.Expr, error) {
 	value, err := generateExpression(expr.Value)
 	if err != nil {
 		return nil, err
@@ -2197,8 +2197,8 @@ func generateAwait(expr *ontamaAST.AwaitExpr) (goast.Expr, error) {
 }
 
 func orderedSliceMake(sliceType, length, capacity goast.Expr) goast.Expr {
-	lengthName := goast.NewIdent("ontamaMakeLength")
-	capacityName := goast.NewIdent("ontamaMakeCapacity")
+	lengthName := goast.NewIdent("kinmokuseiMakeLength")
+	capacityName := goast.NewIdent("kinmokuseiMakeCapacity")
 	returnType := &goast.FieldList{List: []*goast.Field{{Type: sliceType}}}
 	body := &goast.BlockStmt{List: []goast.Stmt{
 		&goast.AssignStmt{
@@ -2216,7 +2216,7 @@ func orderedSliceMake(sliceType, length, capacity goast.Expr) goast.Expr {
 	}}
 }
 
-func goType(ref ontamaAST.TypeRef) goast.Expr {
+func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	if ref.Nullable {
 		ref.Nullable = false
 		return goType(ref)
@@ -2268,11 +2268,11 @@ func goType(ref ontamaAST.TypeRef) goast.Expr {
 		}
 	}
 	if ref.IsObject() {
-		objectFields := append([]ontamaAST.ObjectTypeField(nil), ref.ObjectFields...)
+		objectFields := append([]kinmokuseiAST.ObjectTypeField(nil), ref.ObjectFields...)
 		sort.Slice(objectFields, func(left, right int) bool { return objectFields[left].Name < objectFields[right].Name })
 		fields := make([]*goast.Field, 0, len(objectFields))
 		for _, field := range objectFields {
-			fieldName := memberName(field.Name, ontamaAST.Public)
+			fieldName := memberName(field.Name, kinmokuseiAST.Public)
 			generated := &goast.Field{Names: []*goast.Ident{goast.NewIdent(goName(fieldName))}, Type: goType(field.Type)}
 			if field.JSONName != "" {
 				generated.Tag = &goast.BasicLit{Kind: token.STRING, Value: "`json:\"" + field.JSONName + "\"`"}
@@ -2334,7 +2334,7 @@ func goType(ref ontamaAST.TypeRef) goast.Expr {
 	return &goast.StarExpr{X: indexedGoType(goast.NewIdent(name), ref.GenericArguments)}
 }
 
-func indexedGoType(base goast.Expr, arguments []ontamaAST.TypeRef) goast.Expr {
+func indexedGoType(base goast.Expr, arguments []kinmokuseiAST.TypeRef) goast.Expr {
 	if len(arguments) == 1 {
 		return &goast.IndexExpr{X: base, Index: goType(arguments[0])}
 	}
@@ -2348,22 +2348,22 @@ func indexedGoType(base goast.Expr, arguments []ontamaAST.TypeRef) goast.Expr {
 	return base
 }
 
-func taskGoType(result ontamaAST.TypeRef) goast.Expr {
+func taskGoType(result kinmokuseiAST.TypeRef) goast.Expr {
 	resultTask := result.Name == "Result" && len(result.GenericArguments) == 1
 	value := result
 	if resultTask {
 		value = result.GenericArguments[0]
 	}
 	if value.Name == "void" {
-		name := "__ontamaVoidTask"
+		name := "__kinmokuseiVoidTask"
 		if resultTask {
-			name = "__ontamaVoidResultTask"
+			name = "__kinmokuseiVoidResultTask"
 		}
 		return &goast.StarExpr{X: goast.NewIdent(name)}
 	}
-	name := "__ontamaTask"
+	name := "__kinmokuseiTask"
 	if resultTask {
-		name = "__ontamaResultTask"
+		name = "__kinmokuseiResultTask"
 	}
 	return &goast.StarExpr{X: &goast.IndexExpr{X: goast.NewIdent(name), Index: goType(value)}}
 }
@@ -2377,8 +2377,8 @@ func isGoBuiltinType(name string) bool {
 	}
 }
 
-func memberName(name string, visibility ontamaAST.Visibility) string {
-	if visibility != ontamaAST.Public || name == "" {
+func memberName(name string, visibility kinmokuseiAST.Visibility) string {
+	if visibility != kinmokuseiAST.Public || name == "" {
 		return name
 	}
 	first := []rune(name)
@@ -2386,11 +2386,11 @@ func memberName(name string, visibility ontamaAST.Visibility) string {
 	return string(first)
 }
 
-func staticMethodName(className, methodName string, visibility ontamaAST.Visibility) string {
-	if visibility == ontamaAST.Public {
+func staticMethodName(className, methodName string, visibility kinmokuseiAST.Visibility) string {
+	if visibility == kinmokuseiAST.Public {
 		return goName(className + methodName)
 	}
-	return goName("__ontamaStatic" + className + methodName)
+	return goName("__kinmokuseiStatic" + className + methodName)
 }
 
 func goName(name string) string {
@@ -2421,7 +2421,7 @@ func goTypeName(name string) string {
 }
 
 func enumMemberGoName(enumName, memberNameValue string) string {
-	return enumName + memberName(memberNameValue, ontamaAST.Public)
+	return enumName + memberName(memberNameValue, kinmokuseiAST.Public)
 }
 
 func goIntegerConstant(value string) goast.Expr {
@@ -2511,21 +2511,21 @@ func goAssignmentToken(operator string) token.Token {
 	}
 }
 
-func isGoConstant(expr ontamaAST.Expression) bool {
+func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	switch expr := expr.(type) {
-	case *ontamaAST.LiteralExpr:
-		return expr.Kind != ontamaAST.NilLiteral && expr.Kind != ontamaAST.NullLiteral
-	case *ontamaAST.UnaryExpr:
+	case *kinmokuseiAST.LiteralExpr:
+		return expr.Kind != kinmokuseiAST.NilLiteral && expr.Kind != kinmokuseiAST.NullLiteral
+	case *kinmokuseiAST.UnaryExpr:
 		return isGoConstant(expr.Operand)
-	case *ontamaAST.BinaryExpr:
+	case *kinmokuseiAST.BinaryExpr:
 		return isGoConstant(expr.Left) && isGoConstant(expr.Right)
-	case *ontamaAST.CallExpr:
-		name, ok := expr.Callee.(*ontamaAST.IdentifierExpr)
+	case *kinmokuseiAST.CallExpr:
+		name, ok := expr.Callee.(*kinmokuseiAST.IdentifierExpr)
 		if !ok || !isBuiltinConversion(name.Name) {
 			return false
 		}
 		return !expr.Expanded && len(expr.Arguments) == 1 && isGoConstant(expr.Arguments[0])
-	case *ontamaAST.MemberExpr:
+	case *kinmokuseiAST.MemberExpr:
 		return expr.Constant
 	default:
 		return false

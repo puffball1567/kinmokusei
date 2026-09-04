@@ -60,19 +60,19 @@ jobs:
           go-version: 1.27.x
           cache: true
       - name: Build the release compiler with Go 1.27
-        run: go build -trimpath -o "${RUNNER_TEMP}/ontama-release" ./cmd/ontama
+        run: go build -trimpath -o "${RUNNER_TEMP}/keika-release" ./cmd/keika
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
           cache: false
       - name: Check direct package import with the target Go toolchain
         run: |
-          "${RUNNER_TEMP}/ontama-release" check examples/basic/main.otm
+          "${RUNNER_TEMP}/keika-release" check examples/basic/main.km
       - name: Build and run with the target Go toolchain
         run: |
-          "${RUNNER_TEMP}/ontama-release" build -o "${RUNNER_TEMP}/hello" examples/hello/main.otm
+          "${RUNNER_TEMP}/keika-release" build -o "${RUNNER_TEMP}/hello" examples/hello/main.km
           output=$("${RUNNER_TEMP}/hello")
-          test "$output" = "Hello from OnsenTamago"
+          test "$output" = "Hello from Kinmokusei"
 
   race:
     name: Race detector
@@ -139,19 +139,19 @@ jobs:
           cache: true
           cache-dependency-path: |
             go.mod
-            examples/react-web-frameworks/backend/.ontama/deps/go.sum
+            examples/react-web-frameworks/backend/.kinmokusei/deps/go.sum
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: examples/react-web-frameworks/frontend/package-lock.json
-      - name: Build the OnsenTamago compiler
+      - name: Build the Kinmokusei compiler
         run: |
-          mkdir -p "${RUNNER_TEMP}/ontama-bin"
-          go build -o "${RUNNER_TEMP}/ontama-bin/ontama" ./cmd/ontama
-          echo "${RUNNER_TEMP}/ontama-bin" >> "$GITHUB_PATH"
+          mkdir -p "${RUNNER_TEMP}/keika-bin"
+          go build -o "${RUNNER_TEMP}/keika-bin/keika" ./cmd/keika
+          echo "${RUNNER_TEMP}/keika-bin" >> "$GITHUB_PATH"
       - name: Download the locked backend modules
-        working-directory: examples/react-web-frameworks/backend/.ontama/deps
+        working-directory: examples/react-web-frameworks/backend/.kinmokusei/deps
         run: go mod download all
       - name: Compare Gin and Fiber with independent Go implementations
         working-directory: examples/react-web-frameworks/backend

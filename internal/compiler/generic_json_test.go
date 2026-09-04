@@ -9,7 +9,7 @@ import (
 
 func TestGenericClassAndStructJSONMatchesIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "generic_json.otm")
+	source := filepath.Join(root, "generic_json.km")
 	input := `
 import go json from "encoding/json";
 

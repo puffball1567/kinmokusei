@@ -13,7 +13,7 @@ import (
 
 func emitCABIManifestForTest(t *testing.T, source string) []byte {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "library.otm")
+	path := filepath.Join(t.TempDir(), "library.km")
 	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -25,10 +25,10 @@ func emitCABIManifestForTest(t *testing.T, source string) []byte {
 }
 
 func TestCompareCABIManifestsCompatibilityMatrix(t *testing.T) {
-	base := emitCABIManifestForTest(t, `export c("ontama_value") function value(input: int32): int32 { return input; }`)
-	additive := emitCABIManifestForTest(t, `export c("ontama_value") function value(input: int32): int32 { return input; } export c("ontama_ping") function ping(): void {}`)
-	changed := emitCABIManifestForTest(t, `export c("ontama_value") function value(input: int64): int32 { return int32(input); }`)
-	renamed := emitCABIManifestForTest(t, `export c("ontama_other") function value(input: int32): int32 { return input; }`)
+	base := emitCABIManifestForTest(t, `export c("kinmokusei_value") function value(input: int32): int32 { return input; }`)
+	additive := emitCABIManifestForTest(t, `export c("kinmokusei_value") function value(input: int32): int32 { return input; } export c("kinmokusei_ping") function ping(): void {}`)
+	changed := emitCABIManifestForTest(t, `export c("kinmokusei_value") function value(input: int64): int32 { return int32(input); }`)
+	renamed := emitCABIManifestForTest(t, `export c("kinmokusei_other") function value(input: int32): int32 { return input; }`)
 
 	tests := []struct {
 		name         string
@@ -39,10 +39,10 @@ func TestCompareCABIManifestsCompatibilityMatrix(t *testing.T) {
 		breakingText []string
 	}{
 		{"exact", base, base, true, nil, nil},
-		{"additive", base, additive, false, []string{"ontama_ping"}, nil},
-		{"removal", additive, base, false, nil, []string{`removed C ABI symbol "ontama_ping"`}},
-		{"signature", base, changed, false, nil, []string{`changed signature of C ABI symbol "ontama_value"`}},
-		{"rename", base, renamed, false, []string{"ontama_other"}, []string{`removed C ABI symbol "ontama_value"`}},
+		{"additive", base, additive, false, []string{"kinmokusei_ping"}, nil},
+		{"removal", additive, base, false, nil, []string{`removed C ABI symbol "kinmokusei_ping"`}},
+		{"signature", base, changed, false, nil, []string{`changed signature of C ABI symbol "kinmokusei_value"`}},
+		{"rename", base, renamed, false, []string{"kinmokusei_other"}, []string{`removed C ABI symbol "kinmokusei_value"`}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -64,7 +64,7 @@ func TestCompareCABIManifestsCompatibilityMatrix(t *testing.T) {
 }
 
 func TestCompareCABIManifestsGatewayAndStatusMatrix(t *testing.T) {
-	base := emitCABIManifestForTest(t, `export c("ontama_value") function value(): void {}`)
+	base := emitCABIManifestForTest(t, `export c("kinmokusei_value") function value(): void {}`)
 	majorChanged := rewriteCABIManifestForTest(t, base, func(manifest *cabiCompatibilityManifest) {
 		manifest.GatewayVersion.Major++
 	})
@@ -101,7 +101,7 @@ func TestCompareCABIManifestsGatewayAndStatusMatrix(t *testing.T) {
 }
 
 func TestCompareCABIManifestsRejectsInvalidMatrix(t *testing.T) {
-	valid := emitCABIManifestForTest(t, `export c("ontama_value") function value(): void {}`)
+	valid := emitCABIManifestForTest(t, `export c("kinmokusei_value") function value(): void {}`)
 	tests := []struct {
 		name string
 		data []byte

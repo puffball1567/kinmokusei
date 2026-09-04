@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenericClassNavigationRenameSymbolsCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_class.otm")
+	path := filepath.Join(t.TempDir(), "generic_class.km")
 	uri := fileURI(path)
 	text := `class Box<T> {
   constructor(public value: T) {}
@@ -86,7 +86,7 @@ function use(value: string): string {
 }
 
 func TestGenericClassInheritanceCompletionAndDefinitionUseSubstitutedBase(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_inheritance.otm")
+	path := filepath.Join(t.TempDir(), "generic_inheritance.km")
 	text := `class Base<T> {
   constructor(protected value: T) {}
   public function get(): T { return this.value; }
@@ -117,7 +117,7 @@ function use(child: Leaf<string>): string {
 }
 
 func TestGenericClassVirtualOverrideCompletionAndDefinition(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_virtual.otm")
+	path := filepath.Join(t.TempDir(), "generic_virtual.km")
 	text := `class Base<T> {
   public virtual function read(value: T): T { return value; }
 }

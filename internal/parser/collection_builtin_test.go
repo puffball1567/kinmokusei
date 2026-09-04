@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
 func TestParsesCollectionBuiltinCallShapes(t *testing.T) {

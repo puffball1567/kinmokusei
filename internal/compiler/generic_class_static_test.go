@@ -9,7 +9,7 @@ import (
 
 func TestGenericClassStaticMethodsMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_class_static.otm")
+	source := filepath.Join(temporary, "generic_class_static.km")
 	input := `
 class Box<T> {
   constructor(public value: T) {}
@@ -69,7 +69,7 @@ function Present(value: string): Result<string> {
 		t.Fatalf("err=%v diagnostics=%v\n%s", err, diagnostics, generated)
 	}
 	for _, expected := range []string{
-		"func __ontamaStaticBoxnormalize[T any](value T) T",
+		"func __kinmokuseiStaticBoxnormalize[T any](value T) T",
 		"func BoxMake[T any](value T) *Box[T]",
 		"func BoxChoose[T any](primary T, fallback T, first bool) *Box[T]",
 		"func BoxPresent[T any](value T) (*Box[T], error)",

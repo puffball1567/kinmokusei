@@ -9,7 +9,7 @@ import (
 
 func TestGenericClassVirtualDispatchMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_class_virtual.otm")
+	source := filepath.Join(temporary, "generic_class_virtual.km")
 	input := `
 interface Reader<T> { function read(): T; }
 
@@ -105,16 +105,16 @@ function ComparableBehavior(left: string, right: string): boolean {
 		t.Fatalf("err=%v diagnostics=%v\n%s", err, diagnostics, generated)
 	}
 	for _, expected := range []string{
-		"type __ontamaBaseVirtual[T any] interface",
-		"__ontamaBaseSelf __ontamaBaseVirtual[T]",
-		"__ontamaBaseChoose(value T) T",
+		"type __kinmokuseiBaseVirtual[T any] interface",
+		"__kinmokuseiBaseSelf __kinmokuseiBaseVirtual[T]",
+		"__kinmokuseiBaseChoose(value T) T",
 		"func (this *Base[T]) Read() T",
-		"func (this *Child[U]) __ontamaBaseRead() U",
-		"type __ontamaChildVirtual[U any] interface",
-		"func (this *GrandChild[V]) __ontamaChildLabel(value V) V",
-		"func (this *Concrete) __ontamaBaseRead() string",
-		"func (this *Leaf[X]) __ontamaBaseRead() X",
-		"type __ontamaComparableBaseVirtual[K comparable] interface",
+		"func (this *Child[U]) __kinmokuseiBaseRead() U",
+		"type __kinmokuseiChildVirtual[U any] interface",
+		"func (this *GrandChild[V]) __kinmokuseiChildLabel(value V) V",
+		"func (this *Concrete) __kinmokuseiBaseRead() string",
+		"func (this *Leaf[X]) __kinmokuseiBaseRead() X",
+		"type __kinmokuseiComparableBaseVirtual[K comparable] interface",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
@@ -205,8 +205,8 @@ func TestGenericVirtualBehavior(t *testing.T) {
 
 func TestLinkedGenericClassVirtualDispatchMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	baseSource := filepath.Join(temporary, "base.otm")
-	entrySource := filepath.Join(temporary, "entry.otm")
+	baseSource := filepath.Join(temporary, "base.km")
+	entrySource := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(baseSource, []byte(`
 class Base<T> {
   constructor(protected value: T) {}

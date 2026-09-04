@@ -9,7 +9,7 @@ import (
 
 func TestGenericAliasesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_alias.otm")
+	source := filepath.Join(temporary, "generic_alias.km")
 	if err := os.WriteFile(source, []byte(`
 import go atomic from "sync/atomic";
 alias Identity<T> = T;
@@ -169,8 +169,8 @@ func TestGenericAliasBehavior(t *testing.T) {
 
 func TestLinkedGenericAliasesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "values.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "values.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`alias Values<T> = T[]; function wrap<T>(values: T[]): Values<T> { return Values<T>(values); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestDefinedStructFieldCompletionAndNavigation(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "defined_struct_type.otm")
+	path := filepath.Join(t.TempDir(), "defined_struct_type.km")
 	uri := fileURI(path)
 	text := `struct Box<T> {
   public value: T;

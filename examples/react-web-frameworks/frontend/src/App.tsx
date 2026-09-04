@@ -122,10 +122,10 @@ export default function App() {
   return (
     <main className="shell">
       <section className="hero">
-        <div className="eyebrow">React × OnsenTamago × Go</div>
+        <div className="eyebrow">React × Kinmokusei × Go</div>
         <h1>One app. Two Go frameworks.</h1>
         <p className="intro">
-          The same OnsenTamago API runs through Gin and Fiber. Switch backends while keeping the
+          The same Kinmokusei API runs through Gin and Fiber. Switch backends while keeping the
           React application and HTTP contract unchanged.
         </p>
 

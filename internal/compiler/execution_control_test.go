@@ -9,7 +9,7 @@ import (
 
 func TestDeferAndGoStatementsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "execution.otm")
+	source := filepath.Join(temp, "execution.km")
 	input := `
 import go atomic from "sync/atomic";
 import go sync from "sync";
@@ -125,7 +125,7 @@ func TestExecutionControl(t *testing.T) {
 
 func TestRawGoChannelDirectionsSendReceiveAndStandardAPICompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "channels.otm")
+	source := filepath.Join(temp, "channels.km")
 	input := `
 import go time from "time";
 

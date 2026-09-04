@@ -2,7 +2,7 @@
 
 ## Testing is part of the specification
 
-OnsenTamago is developed with generated code and AI-assisted implementation, so automated tests are a required correctness boundary, not a final cleanup task. A feature is incomplete until its accepted behavior, rejected behavior, generated form, and runtime behavior are covered at the appropriate layers.
+Kinmokusei is developed with generated code and AI-assisted implementation, so automated tests are a required correctness boundary, not a final cleanup task. A feature is incomplete until its accepted behavior, rejected behavior, generated form, and runtime behavior are covered at the appropriate layers.
 
 Every new feature should consider these axes:
 
@@ -13,7 +13,7 @@ Every new feature should consider these axes:
 | Failure | syntax, type, generated validation, runtime panic, external failure |
 | State | initial, active, completed, cancelled, closed |
 | Concurrency | isolated, simultaneous, reversed ordering, race, timeout |
-| Public boundary | OnsenTamago API, generated Go, HTTP, C ABI |
+| Public boundary | Kinmokusei API, generated Go, HTTP, C ABI |
 
 Expected results must be explicit enough for a reviewer to validate independently. A generated test list is not itself a specification.
 
@@ -41,7 +41,7 @@ those remain explicit source/diagnostic matrices. Hard-coded constants may
 supplement a differential test for readability, but do not replace the
 independent Go oracle when an equivalent Go program exists.
 
-The handwritten Go reference expresses the specified OnsenTamago semantics,
+The handwritten Go reference expresses the specified Kinmokusei semantics,
 not merely the shortest visually similar Go syntax. If a Go compiler intrinsic
 has toolchain-dependent operand evaluation, the reference must store operands
 in the specified order before invoking it. This remains independent because it
@@ -70,7 +70,7 @@ generated module. Existing locked modules, build tags, target environments,
 CGO, and offline module graphs use the same isolation rule.
 
 This 100% figure is contract coverage for the implemented Go-equivalent runtime
-surface, not line coverage and not a claim that all future Go or OnsenTamago
+surface, not line coverage and not a claim that all future Go or Kinmokusei
 features exist. Language-specific rejection diagnostics, CLI/LSP behavior, C
 ABI behavior, and other intentionally non-equivalent boundaries retain their
 own matrices. Adding an accepted runtime feature requires adding its contract,
@@ -130,9 +130,9 @@ these percentages replaces the independent-Go runtime contract gate.
 | Targets/dependencies | locked graph, replace, target settings, `install --go-module`, lower-level dependency commands, license hashes | malformed/inexact install input, duplicate modules, stale/tampered locks, target/cgo mismatch, transactional rollback, unknown/missing licenses | offline install/import, reproducibility, cross-build, target-specific fixture |
 | Unsafe policy | explicit allow, pointers/conversions/built-ins | default denial, nested/public exposure, invalid arity/types/overflow | generated Go and panic matrix |
 | C ABI | all fixed-width scalars, normalized boolean, void, symbols, gateway/header/manifest/fingerprint | nonzero boolean inputs, normalized boolean outputs, invalid/reserved/duplicate symbols, unsupported types, null out, panic, compatibility changes | build shared library and run a C caller |
-| Incoming C FFI | fixed/C-width scalars, bool, borrowed strings/byte buffers, released-and-copied owned C strings and byte/scalar/enum/POD arrays, enums, nested POD structs, normalized tagged unions, call-scoped and explicitly registered callbacks carrying scalar/enum/POD/tagged-union values, copied string/byte inputs, transactional mutable byte buffers, registered C-owned string/byte/scalar/enum/POD-array results with paired release, registration-owned retained strings/byte buffers, and one optional handle lifetime lease, status and status/out, opaque handles, target flags, thread-safe/serialized/OS-thread-affine policies | malformed/injected manifests, embedded NUL/null result, owned null success, allocated empty string, C failure after allocation, empty/binary buffers, null/nonzero length, target-int byte/product overflow, unsupported array element, missing release, width mismatch, duplicate/recursive POD declarations, empty/duplicate/unsupported union declarations, invalid overlaid scalar variants, unknown union tags, invalid callback lifetime/signature/registration/combinations, call-scoped owned callback result, copied/inout null/length violations, null owned-result length output, embedded NUL owned callback result, missing/unsupported/unexpected callback result element, owned callback array-size overflow, unsupported callback pointer types, duplicate/borrowed/multiple-handle registration parameters, retained/copied/inout-type misuse, nil callback, callback panic, registration capacity failure, unregister failure/retry, active-registration handle close, double/nil close, closed/nil handles | generate cgo, compile real C fixtures and a Raylib-shaped context-free load/unload shim, count string/buffer/array releases on every path, execute external-tag scalar/enum payloads and SDL-shaped overlaid POD payloads, execute zero/one/many/concurrent C-thread callbacks with bool/void/enum and owned-string/byte/scalar/enum/POD-array results and scalar/enum/POD/tagged-union/copied/inout inputs through direct/status/status-out and thread-affine calls, prove callback input copies survive C-side mutation, prove inout copy-back on normal true/false/void completion and no copy-back on panic/input failure, exercise required/nullable strings, empty/binary/repeated buffers and oversized/null-invalid inputs, verify owned callback null/zero, embedded-NUL, and array-size failure, exact-once release, and delayed release after registration close, adapt `size_t *` plus context to `int *bytesRead` without context, multiple registered subscribers, unknown callback union tags, enum routing, POD-filter value copying, retained-input copy isolation/exact-pointer unregister/failure retry/empty values, handle-coupled register/fire/unregister and retry, panic/input-failure disabling, in-flight Close draining, post-close silence, direct Go and high-level OnsenTamago wrappers, compare C allocation/release/register thread identity, concurrent/race calls |
+| Incoming C FFI | fixed/C-width scalars, bool, borrowed strings/byte buffers, released-and-copied owned C strings and byte/scalar/enum/POD arrays, enums, nested POD structs, normalized tagged unions, call-scoped and explicitly registered callbacks carrying scalar/enum/POD/tagged-union values, copied string/byte inputs, transactional mutable byte buffers, registered C-owned string/byte/scalar/enum/POD-array results with paired release, registration-owned retained strings/byte buffers, and one optional handle lifetime lease, status and status/out, opaque handles, target flags, thread-safe/serialized/OS-thread-affine policies | malformed/injected manifests, embedded NUL/null result, owned null success, allocated empty string, C failure after allocation, empty/binary buffers, null/nonzero length, target-int byte/product overflow, unsupported array element, missing release, width mismatch, duplicate/recursive POD declarations, empty/duplicate/unsupported union declarations, invalid overlaid scalar variants, unknown union tags, invalid callback lifetime/signature/registration/combinations, call-scoped owned callback result, copied/inout null/length violations, null owned-result length output, embedded NUL owned callback result, missing/unsupported/unexpected callback result element, owned callback array-size overflow, unsupported callback pointer types, duplicate/borrowed/multiple-handle registration parameters, retained/copied/inout-type misuse, nil callback, callback panic, registration capacity failure, unregister failure/retry, active-registration handle close, double/nil close, closed/nil handles | generate cgo, compile real C fixtures and a Raylib-shaped context-free load/unload shim, count string/buffer/array releases on every path, execute external-tag scalar/enum payloads and SDL-shaped overlaid POD payloads, execute zero/one/many/concurrent C-thread callbacks with bool/void/enum and owned-string/byte/scalar/enum/POD-array results and scalar/enum/POD/tagged-union/copied/inout inputs through direct/status/status-out and thread-affine calls, prove callback input copies survive C-side mutation, prove inout copy-back on normal true/false/void completion and no copy-back on panic/input failure, exercise required/nullable strings, empty/binary/repeated buffers and oversized/null-invalid inputs, verify owned callback null/zero, embedded-NUL, and array-size failure, exact-once release, and delayed release after registration close, adapt `size_t *` plus context to `int *bytesRead` without context, multiple registered subscribers, unknown callback union tags, enum routing, POD-filter value copying, retained-input copy isolation/exact-pointer unregister/failure retry/empty values, handle-coupled register/fire/unregister and retry, panic/input-failure disabling, in-flight Close draining, post-close silence, direct Go and high-level Kinmokusei wrappers, compare C allocation/release/register thread identity, concurrent/race calls |
 | LSP | lifecycle, transactional incremental synchronization, overlays, asynchronous requests, cancellation, content-modified suppression, UTF-16/CRLF diagnostics, hover including compiler-provided exception declarations, native generic signatures, and native type declarations, semantic definition/references, value/type/type-parameter/class/member/interface-family rename, symbols, lexical/import/Go package and Go value completion, generic type-parameter and native type completion, substituted source class/struct/interface member completion, callable/constructor/built-in/Go package function/Go value method signature help | malformed protocol/request IDs/cancellation, invalid/surrogate-splitting ranges, mismatched lengths, stale versions/results, invalid names, shadowing/capture/collisions, comments/strings, closed scopes, external Go declarations, source-less built-ins, static/instance and private/protected boundaries, unselected imports, unexported/ambiguous Go members, fields used as methods, incomplete and nested calls | CLI diagnostic consistency, cross-file overlay rename/signature help, target-aware module fixtures, shutdown ordering, and race coverage |
-| HTTP dogfood | direct `net/http` and `encoding/json`, object DTOs, `ontama/http` App/Context routing | malformed JSON, method/path/status behavior, route conflicts, missing cookies, cancellation/timeout where relevant | compile/run/race against an in-process server, independent-Go method/path/query/header/cookie matrices, external Go handler use, and concurrent requests |
+| HTTP dogfood | direct `net/http` and `encoding/json`, object DTOs, `kinmokusei/http` App/Context routing | malformed JSON, method/path/status behavior, route conflicts, missing cookies, cancellation/timeout where relevant | compile/run/race against an in-process server, independent-Go method/path/query/header/cookie matrices, external Go handler use, and concurrent requests |
 
 ## Go interop compatibility method
 
@@ -147,7 +147,7 @@ Compatibility is driven by actual Go type information, not package allowlists.
 - Test single, multiple, unknown, missing, misleading, modified, symlinked, and oversized license files.
 - Run generated output through ordinary `go test`, and use `-race`/`go vet` where applicable.
 
-`ontama interop audit --stdlib` is a repeatable coverage measurement for public API type connectivity. It must report safe-default, unsafe-enabled, unsupported, and package-load failures separately; an unreadable package is never counted as supported.
+`keika interop audit --stdlib` is a repeatable coverage measurement for public API type connectivity. It must report safe-default, unsafe-enabled, unsupported, and package-load failures separately; an unreadable package is never counted as supported.
 
 Real Go-package connectivity is a release property, not a collection of
 allowlisted demos. Fixtures must exercise standard packages and external
@@ -158,7 +158,7 @@ counted as usable.
 
 ## Generated-Go publication gate
 
-Generated output must remain useful outside an OnsenTamago checkout. Tests
+Generated output must remain useful outside a Kinmokusei checkout. Tests
 should increasingly compile it from an external Go package, consume its public
 API, run its own isolated Go tests, and scan generated module/source metadata
 for machine-specific paths. Deterministic emission, `gofmt`, `go test`,
@@ -214,13 +214,13 @@ Core items are implemented and continuously extended.
 
 ### Phase 1.5: immediately usable LSP
 
-Implemented: overlay frontend, same-binary `lsp --stdio`, lifecycle, transactional incremental document synchronization, monotonic version handling, multiple open documents, CLI-equivalent diagnostics, asynchronous semantic requests, explicit request cancellation, stale-result suppression, UTF-16/CRLF conversion, hover, semantic definition/references, scope-safe rename for values, types, classes, members, interface implementation families, and import aliases, symbols, local/import/Go completion, signature help for OnsenTamago and Go callables, and a thin official Visual Studio Code client with tested configuration, startup failure, retry, restart ordering, lifecycle behavior, real Extension Host coverage, and reproducible local VSIX generation.
+Implemented: overlay frontend, same-binary `lsp --stdio`, lifecycle, transactional incremental document synchronization, monotonic version handling, multiple open documents, CLI-equivalent diagnostics, asynchronous semantic requests, explicit request cancellation, stale-result suppression, UTF-16/CRLF conversion, hover, semantic definition/references, scope-safe rename for values, types, classes, members, interface implementation families, and import aliases, symbols, local/import/Go completion, signature help for Kinmokusei and Go callables, and a thin official Visual Studio Code client with tested configuration, startup failure, retry, restart ordering, lifecycle behavior, real Extension Host coverage, and reproducible local VSIX generation.
 
 ### Phase 2: practical language and OOP foundation
 
 - Classes, visibility, constructors, static members.
 - Interfaces, composition, polymorphism.
-- OnsenTamago module/package distribution.
+- Kinmokusei module/package distribution.
 - `Result<T>` and explicit error propagation. (implemented)
 - Core nil-backed nullable references, assignment-sensitive local flow narrowing/joins, and definite constructor field initialization. (implemented)
 - Object DTOs and public Go API generation.
@@ -314,7 +314,7 @@ work.
 - Reproducible dependency resolution and locks.
 - Explicit `emit-go`.
 - Outgoing C ABI 0 for fixed-width scalars.
-- Go API documentation generation and OnsenTamago package test runner.
+- Go API documentation generation and Kinmokusei package test runner.
 - External Go module license reports.
 - Incoming C FFI generation with integers, bytes, handles, results, and release.
 
@@ -322,7 +322,7 @@ Dependency locking, `emit-go`, license inspection, outgoing C ABI 0, and the
 manifest-driven incoming schema 1 scalar/string/enum/POD/tagged-union/
 call-scoped-and-registered-callback/status/opaque-handle path are implemented.
 Exact Go module installation is also exposed as transactional
-`ontama install --go-module`; source-only GitHub installation for OnsenTamago
+`keika install --go-module`; source-only GitHub installation for Kinmokusei
 packages remains future work.
 
 ### Phase 4.5: production C FFI
@@ -350,7 +350,7 @@ packages remains future work.
 
 The v0.2 track now includes the initial progressive VitePress guide, local
 search, release navigation, and GitHub Pages deployment workflow. Executable
-guide snippets are stored as ordinary `.otm` sources, checked with the release
+guide snippets are stored as ordinary `.km` sources, checked with the release
 compiler, run against explicit output files, and rebuilt with the site in the
 required compatibility and release workflows. Broader examples and archived
 version snapshots remain ongoing documentation work.

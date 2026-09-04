@@ -9,7 +9,7 @@ import (
 
 func TestSingleInheritanceVirtualDispatchMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "inheritance.otm")
+	source := filepath.Join(temporary, "inheritance.km")
 	input := `
 interface Speaker { function speak(): string; }
 
@@ -158,7 +158,7 @@ function protectedLabel(): string { return new ProtectedChild(3).labelText(); }
 		t.Fatalf("err=%v diagnostics=%v\n%s", err, diagnostics, generated)
 	}
 	for _, expected := range []string{
-		"type Dog struct", "Animal", "__ontamaAnimalSelf", "__ontamaInitAnimal", "__ontamaInitDog", "this.Animal.__ontamaAnimalSpeak()", "__ontamaUpcastGuideDogToAnimal",
+		"type Dog struct", "Animal", "__kinmokuseiAnimalSelf", "__kinmokuseiInitAnimal", "__kinmokuseiInitDog", "this.Animal.__kinmokuseiAnimalSpeak()", "__kinmokuseiUpcastGuideDogToAnimal",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)

@@ -1,18 +1,31 @@
-# Language basics
+---
+title: Declarations and control flow
+description: Learn Kinmokusei source structure, declarations, scope, visibility, and control-flow statements.
+---
 
-OnsenTamago uses typed functions, TypeScript-inspired annotations, braces, and semicolons. It keeps Go's explicit control flow and runtime behavior.
+# Declarations and control flow
 
-<<< ../snippets/language-basics.otm{ts}
+Kinmokusei uses braces, semicolons, typed declarations, and explicit control flow. The syntax is TypeScript-inspired; evaluation and generated behavior are deliberately Go-shaped.
 
-This example prints:
+For a connected language treatment, read [Source text](../book/source-and-lexical), [Bindings and scope](../book/bindings-and-scope), and [Control flow](../book/control-flow) in the Language Manual.
+
+<<< ../snippets/language-basics.km{ts}
+
+Expected output:
 
 ```text
 12 complete
 ```
 
+## Source files and comments
+
+Source files use the `.km` extension and UTF-8 text. Line comments begin with `//`; block comments use `/* ... */`. Every file has an independent module scope.
+
+Semicolons terminate declarations and simple statements. Blocks, functions, classes, structs, interfaces, and `switch` clauses use braces.
+
 ## Bindings
 
-Use `const` when a binding will not be reassigned and `let` when it will. Both are statically typed, and an initializer usually provides the type.
+Use `const` for a binding that will not be reassigned and `let` for one that will:
 
 ```ts
 const serviceName = "api";
@@ -20,31 +33,73 @@ let attempts: int = 0;
 attempts += 1;
 ```
 
-`const` freezes the binding, not the object behind a reference. Value/reference behavior comes from the type.
+`const` protects the binding, not the storage behind a class reference, slice, map, pointer, or other reference-bearing value. Mutability and copy behavior come from the value's type.
 
-## Functions
+Local bindings infer types from their initializer in Go-like cases. Parameters, results, fields, and other public boundaries use explicit types.
 
-Functions declare parameter and return types. `void` means no result.
+## Scope and visibility
 
-```ts
-function greet(name: string): string {
-  return "Hello, " + name;
-}
+Bindings are lexical and shadowing is resolved by declaration identity. Relative imports are selective and explicit; transitive imports do not expose names.
 
-const twice = (value: int): int => value * 2;
-```
+Class and struct members use `public`, `protected`, or `private` where supported. Generated Go capitalization does not define Kinmokusei visibility—the compiler resolves visibility first and then chooses deterministic Go names.
 
-Top-level functions may be generic and may constrain a type parameter with `extends comparable`.
+## Conditions
 
-## Control flow
-
-The language supports `if`, `switch`, `while`, C-style `for`, `for-of`, `break`, `continue`, labels, and `goto`. A single `for-of` binding receives the value; use `[index, value]` or `[key, value]` when both are needed.
+Conditions must be `boolean`; there is no truthy conversion.
 
 ```ts
-for (const [index, value] of values) {
-  if (index === 0) { continue; }
-  consume(value);
+if (ready) {
+  start();
+} else {
+  wait();
 }
 ```
 
-Map iteration order is unspecified, matching Go. Range sources are evaluated once.
+## Loops
+
+The language supports `while`, C-style `for`, and `for-of` range:
+
+```ts
+while (pending()) { poll(); }
+
+for (let i = 0; i < 3; i++) { visit(i); }
+
+for (const value of values) { consume(value); }
+for (const [index, value] of values) { consumeAt(index, value); }
+for (const [key, value] of lookup) { consumeEntry(key, value); }
+```
+
+The single-binding range form always receives the value. String range yields an `int` UTF-8 byte offset and an `int32` Unicode code point. Map order is unspecified. The range source evaluates once, and each range value is a copy.
+
+## Switch
+
+Value switches compare one subject against source-ordered cases. The subject evaluates once; case expressions stop evaluating after the first match.
+
+```ts
+switch (status) {
+  case Status.Pending { queue(); }
+  case Status.Running, Status.Complete { observe(); }
+  default { reject(); }
+}
+```
+
+Cases do not fall through implicitly. An explicit final `fallthrough;` enters the next clause without evaluating its case expressions. Type-binding switches are reserved for Go interface values and use `case const value as Type`.
+
+## Branches, labels, and defer
+
+`break` and `continue` may target labels. `goto` supports validated forward and backward transfer within one function. The checker rejects jumps into nested blocks, over declarations, or across lowered exception boundaries.
+
+`defer call();` preserves Go's deferred-call behavior. The call target and arguments follow Go-compatible evaluation rules.
+
+## Updates
+
+Compound assignment and `++`/`--` are statements, never expressions:
+
+```ts
+counter++;
+scores[key] += delta;
+```
+
+Targets execute once. Constants, methods, string indexes, and non-addressable temporary fields are rejected; map indexes remain writable.
+
+See [Operators](../reference/operators) for precedence and operand rules.

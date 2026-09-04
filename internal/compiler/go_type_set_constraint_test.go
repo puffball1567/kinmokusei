@@ -9,7 +9,7 @@ import (
 
 func TestGoTypeSetConstraintsMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "go_type_set_constraint.otm")
+	source := filepath.Join(root, "go_type_set_constraint.km")
 	if err := os.WriteFile(source, []byte(`
 import go cmp from "cmp";
 
@@ -158,7 +158,7 @@ func TestBehavior(t *testing.T) {
 
 func TestErasedGenericAliasConstraintDoesNotLeaveUnusedGoImport(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "alias_constraint.otm")
+	source := filepath.Join(root, "alias_constraint.km")
 	if err := os.WriteFile(source, []byte(`
 import go cmp from "cmp";
 alias Pair<T extends cmp.Ordered> = [2]T;

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"unicode/utf16"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/product"
-	"github.com/puffball1567/onsentamago/internal/project"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func framed(messages ...string) string {
@@ -53,7 +53,7 @@ func fileURI(path string) string {
 }
 
 func TestFileURIPathRoundTrip(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "温泉 space.otm")
+	path := filepath.Join(t.TempDir(), "温泉 space.km")
 	got, err := filePath(fileURI(path))
 	if err != nil || got != filepath.Clean(path) {
 		t.Fatalf("filePath(fileURI(%q)) = %q, %v", path, got, err)
@@ -96,7 +96,7 @@ func completionLabels(items []map[string]any) map[string]map[string]any {
 }
 
 func TestCompletionLexicalScopeAndPrefixMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "completion.otm")
+	path := filepath.Join(t.TempDir(), "completion.km")
 	text := `import go strings from "strings";
 function helper(): int { return 1; }
 const global: int = 2;
@@ -147,7 +147,7 @@ func TestCompletionNestedScopeBindingsMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "scope.otm")
+			path := filepath.Join(t.TempDir(), "scope.km")
 			lineText := strings.Split(test.text, "\n")[test.line]
 			character := strings.LastIndex(lineText, test.want)
 			items := completionLabels(completionItemsAt(t, path, test.text, test.line, character))
@@ -159,7 +159,7 @@ func TestCompletionNestedScopeBindingsMatrix(t *testing.T) {
 }
 
 func TestCompletionGoExportedMemberMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "go_completion.otm")
+	path := filepath.Join(t.TempDir(), "go_completion.km")
 	text := `import go words from "strings"; function clean(value: string): string { return words.TrimSpace(value); }`
 	memberStart := strings.Index(text, "TrimSpace")
 	items := completionLabels(completionItemsAt(t, path, text, 0, memberStart+len("Tr")))
@@ -274,7 +274,7 @@ func TestCompletionGoValueMemberMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "go_value_members.otm")
+			path := filepath.Join(t.TempDir(), "go_value_members.km")
 			position := strings.LastIndex(test.text, test.needle) + len(test.needle)
 			items := completionLabels(completionItemsAt(t, path, test.text, 0, position))
 			for _, want := range test.want {
@@ -302,7 +302,7 @@ func TestCompletionGoValueMemberMatrix(t *testing.T) {
 }
 
 func TestCompletionBuiltinExceptionMembers(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "exception_completion.otm")
+	path := filepath.Join(t.TempDir(), "exception_completion.km")
 	text := `function value(): string { try { throw new Exception("boom"); } catch (err: Exception) { return err.; } }`
 	dot := strings.Index(text, "err.") + len("err.")
 	items := completionLabels(completionItemsAt(t, path, text, 0, dot))
@@ -329,7 +329,7 @@ func TestCompletionBuiltinExceptionMembers(t *testing.T) {
 }
 
 func TestCompletionClassMembersVisibilityInheritanceAndStatic(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "class_completion.otm")
+	path := filepath.Join(t.TempDir(), "class_completion.km")
 	text := `class Base {
   constructor(public base: string, protected secret: string, private hidden: string) {}
   public function read(): string { return this.base; }
@@ -452,7 +452,7 @@ func TestCompletionSourceMemberReceiverMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "members.otm")
+			path := filepath.Join(t.TempDir(), "members.km")
 			position := strings.LastIndex(test.text, test.needle) + len(test.needle)
 			items := completionLabels(completionItemsAt(t, path, test.text, 0, position))
 			for _, want := range test.want {
@@ -470,7 +470,7 @@ func TestCompletionSourceMemberReceiverMatrix(t *testing.T) {
 }
 
 func TestCompletionStaticThisIsUnavailable(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "static_this.otm")
+	path := filepath.Join(t.TempDir(), "static_this.km")
 	text := `class Tools { public static function invalid(): int { return this.; } }`
 	position := strings.Index(text, "this.") + len("this.")
 	if items := completionItemsAt(t, path, text, 0, position); len(items) != 0 {
@@ -480,7 +480,7 @@ func TestCompletionStaticThisIsUnavailable(t *testing.T) {
 
 func TestCompletionRelativeImportedTypeMembersAndSelection(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "models.otm")
+	dependency := filepath.Join(directory, "models.km")
 	if err := os.WriteFile(dependency, []byte(`
 class Visible {
   constructor(public name: string) {}
@@ -490,7 +490,7 @@ class Hidden { public static function create(): Hidden { return new Hidden(); } 
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(directory, "main.otm")
+	path := filepath.Join(directory, "main.km")
 	text := `import { Visible } from "./models"; function use(value: Visible): string { return value.; } function hidden(): int { Hidden.; return 0; }`
 	valuePosition := strings.Index(text, "value.") + len("value.")
 	valueItems := completionLabels(completionItemsAt(t, path, text, 0, valuePosition))
@@ -506,7 +506,7 @@ class Hidden { public static function create(): Hidden { return new Hidden(); } 
 }
 
 func TestCompletionUnicodeAndShadowing(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "unicode.otm")
+	path := filepath.Join(t.TempDir(), "unicode.km")
 	text := "const item: string = \"global\";\nfunction value(item: int, 日本語: int): int { return 日本語 + item; }"
 	line := 1
 	lineText := strings.Split(text, "\n")[line]
@@ -525,7 +525,7 @@ func TestCompletionUnicodeAndShadowing(t *testing.T) {
 }
 
 func TestCompletionInvalidRequestPositionMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "invalid_position.otm")
+	path := filepath.Join(t.TempDir(), "invalid_position.km")
 	uri := fileURI(path)
 	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
 	unopened := fmt.Sprintf(`{"jsonrpc":"2.0","id":2,"method":"textDocument/completion","params":{"textDocument":{"uri":%q},"position":{"line":0,"character":0}}}`, uri)
@@ -582,7 +582,7 @@ go-version = "1.23"
 	if err := project.AddDependency(root, "example.com/completionapi", "v0.0.0", "./completionapi", true); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, "main.otm")
+	path := filepath.Join(root, "main.km")
 	text := `import go api from "example.com/completionapi"; function value(): int { return api.Visible(); }`
 	memberStart := strings.Index(text, "Visible")
 	items := completionLabels(completionItemsAt(t, path, text, 0, memberStart))
@@ -593,11 +593,11 @@ go-version = "1.23"
 
 func TestCompletionSelectedRelativeImport(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "dependency.otm")
+	dependency := filepath.Join(directory, "dependency.km")
 	if err := os.WriteFile(dependency, []byte(`function helper(value: int): int { return value; } function hidden(): int { return 0; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(directory, "main.otm")
+	path := filepath.Join(directory, "main.km")
 	text := `import { helper } from "./dependency"; function value(): int { return helper(1); }`
 	position := strings.LastIndex(text, "helper")
 	items := completionLabels(completionItemsAt(t, path, text, 0, position))
@@ -607,7 +607,7 @@ func TestCompletionSelectedRelativeImport(t *testing.T) {
 }
 
 func TestCompletionSuppressesInvalidContexts(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "contexts.otm")
+	path := filepath.Join(t.TempDir(), "contexts.km")
 	tests := []struct {
 		name      string
 		text      string
@@ -663,7 +663,7 @@ func TestFormatTypeRefMatrix(t *testing.T) {
 }
 
 func TestSliceBoundHoverDefinitionAndDiagnostics(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "slice.otm")
+	path := filepath.Join(t.TempDir(), "slice.km")
 	uri := fileURI(path)
 	sourceText := `function take(values: int[], high: int): int[] { return values[:high]; }`
 	character := strings.LastIndex(sourceText, "high") + 1
@@ -702,7 +702,7 @@ func TestSliceBoundHoverDefinitionAndDiagnostics(t *testing.T) {
 }
 
 func TestCollectionBuiltinDiagnosticsAndNavigation(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "collections.otm")
+	path := filepath.Join(t.TempDir(), "collections.km")
 	uri := fileURI(path)
 	valid := `function grow(length: int, capacity: int): int[] { return makeSlice[int](length, capacity); }`
 	invalid := `function bad(value: [2]int): void { append(value, 3); }`
@@ -745,7 +745,7 @@ func TestCollectionBuiltinDiagnosticsAndNavigation(t *testing.T) {
 }
 
 func TestSliceToArrayDiagnosticsAndNavigation(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "array_conversion.otm")
+	path := filepath.Join(t.TempDir(), "array_conversion.km")
 	uri := fileURI(path)
 	valid := `function convert(values: int[]): [2]int { return copyArray[[2]int](values); }`
 	invalid := `function bad(value: string): [2]int { return viewArray[[2]int](value); }`
@@ -798,7 +798,7 @@ go-version = "1.23"
 	if err := os.WriteFile(filepath.Join(root, product.ProjectFileName), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, "main.otm")
+	path := filepath.Join(root, "main.km")
 	uri := fileURI(path)
 	sourceText := `function value(): int { return 42; }`
 	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
@@ -824,11 +824,11 @@ go-version = "1.23"
 }
 
 func TestLifecycleSynchronizationAndDiagnosticMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "main.otm")
+	path := filepath.Join(t.TempDir(), "main.km")
 	uri := fileURI(path)
 	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`
 	initialized := `{"jsonrpc":"2.0","method":"initialized","params":{}}`
-	open := fmt.Sprintf(`{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":%q,"languageId":"ontama","version":1,"text":"function value(): int { return \"wrong\"; }"}}}`, uri)
+	open := fmt.Sprintf(`{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":%q,"languageId":"kinmokusei","version":1,"text":"function value(): int { return \"wrong\"; }"}}}`, uri)
 	change := fmt.Sprintf(`{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":%q,"version":2},"contentChanges":[{"text":"function value(): int { return 42; }"}]}}`, uri)
 	closeMessage := fmt.Sprintf(`{"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":%q}}}`, uri)
 	shutdown := `{"jsonrpc":"2.0","id":2,"method":"shutdown","params":null}`
@@ -867,7 +867,7 @@ func TestLifecycleSynchronizationAndDiagnosticMatrix(t *testing.T) {
 }
 
 func TestHoverDefinitionAndDocumentSymbolMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "navigation.otm")
+	path := filepath.Join(t.TempDir(), "navigation.km")
 	uri := fileURI(path)
 	sourceText := "function add(left: int, right: int): int { return left + right; }\n" +
 		"function main(): int { const value: int = add(1, 2); return value; }\n" +
@@ -916,7 +916,7 @@ func TestHoverDefinitionAndDocumentSymbolMatrix(t *testing.T) {
 }
 
 func TestBuiltinExceptionHoverAndDefinition(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "exception.otm")
+	path := filepath.Join(t.TempDir(), "exception.km")
 	uri := fileURI(path)
 	text := `function message(): string {
   try { throw new Exception("boom"); }
@@ -954,7 +954,7 @@ func TestBuiltinExceptionHoverAndDefinition(t *testing.T) {
 }
 
 func TestNativeStructDocumentSymbolShape(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "struct.otm")
+	path := filepath.Join(t.TempDir(), "struct.km")
 	uri := fileURI(path)
 	text := `struct Point { public x: int; private label: string; public function read(): int { return this.x; } }`
 	messages := serveMessages(t,
@@ -976,7 +976,7 @@ func TestNativeStructDocumentSymbolShape(t *testing.T) {
 }
 
 func TestExternalReceiverMethodDocumentSymbolShape(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "external_receiver.otm")
+	path := filepath.Join(t.TempDir(), "external_receiver.km")
 	uri := fileURI(path)
 	text := `struct Point { public x: int; }
 public function move(this: *Point, delta: int): void { this.x += delta; }`
@@ -996,11 +996,11 @@ public function move(this: *Point, delta: int): void { this.x += delta; }`
 
 func TestDefinitionAcrossRelativeImportUsesDependencyURI(t *testing.T) {
 	directory := t.TempDir()
-	dependencyPath := filepath.Join(directory, "dependency.otm")
+	dependencyPath := filepath.Join(directory, "dependency.km")
 	if err := os.WriteFile(dependencyPath, []byte(`function helper(value: int): int { return value; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	rootPath := filepath.Join(directory, "root.otm")
+	rootPath := filepath.Join(directory, "root.km")
 	rootURI := fileURI(rootPath)
 	rootText := `import { helper } from "./dependency"; function value(): int { return helper(42); }`
 	character := strings.LastIndex(rootText, "helper") + 1
@@ -1026,7 +1026,7 @@ func TestDefinitionAcrossRelativeImportUsesDependencyURI(t *testing.T) {
 }
 
 func TestHoverAndDefinitionForCollectionRangeBinding(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "range.otm")
+	path := filepath.Join(t.TempDir(), "range.km")
 	uri := fileURI(path)
 	sourceText := "function total(items: int[]): int {\n" +
 		"  let result = 0;\n" +
@@ -1061,7 +1061,7 @@ func TestHoverAndDefinitionForCollectionRangeBinding(t *testing.T) {
 }
 
 func TestHoverAndDefinitionForSelectReceiveBinding(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "select.otm")
+	path := filepath.Join(t.TempDir(), "select.km")
 	uri := fileURI(path)
 	sourceText := "function receive(channel: GoReceiveChannel<int>): int {\n" +
 		"  select {\n" +
@@ -1096,7 +1096,7 @@ func TestHoverAndDefinitionForSelectReceiveBinding(t *testing.T) {
 }
 
 func TestHoverAndDefinitionForTypeSwitchBinding(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "type_switch.otm")
+	path := filepath.Join(t.TempDir(), "type_switch.km")
 	uri := fileURI(path)
 	sourceText := "import go io from \"io\"; import go strings from \"strings\";\n" +
 		"function size(value: io.Reader): int {\n" +
@@ -1131,8 +1131,8 @@ func TestHoverAndDefinitionForTypeSwitchBinding(t *testing.T) {
 
 func TestMultipleOpenDocumentsKeepIndependentDiagnostics(t *testing.T) {
 	directory := t.TempDir()
-	firstURI := fileURI(filepath.Join(directory, "first.otm"))
-	secondURI := fileURI(filepath.Join(directory, "second.otm"))
+	firstURI := fileURI(filepath.Join(directory, "first.km"))
+	secondURI := fileURI(filepath.Join(directory, "second.km"))
 	initialize := `{"jsonrpc":"2.0","id":1,"method":"initialize"}`
 	openFirst := fmt.Sprintf(`{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":%q,"version":1,"text":"function first(): int { return \"wrong\"; }"}}}`, firstURI)
 	openSecond := fmt.Sprintf(`{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":%q,"version":1,"text":"function second(): int { return \"wrong\"; }"}}}`, secondURI)
@@ -1256,7 +1256,7 @@ func TestFramingAndURIErrorMatrix(t *testing.T) {
 			}
 		})
 	}
-	for _, uri := range []string{"https://example.com/main.otm", "file://remote/main.otm", "://bad"} {
+	for _, uri := range []string{"https://example.com/main.km", "file://remote/main.km", "://bad"} {
 		if _, err := filePath(uri); err == nil {
 			t.Errorf("filePath(%q) unexpectedly succeeded", uri)
 		}

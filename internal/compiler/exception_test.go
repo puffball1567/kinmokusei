@@ -9,7 +9,7 @@ import (
 
 func TestTypedExceptionsMatchIndependentGo(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "exception.otm")
+	source := filepath.Join(temp, "exception.km")
 	input := `
 import go errors from "errors";
 
@@ -212,7 +212,7 @@ function triggerRuntimePanic(): void {
 	crossSource := `package cross
 import "errors"
 type exception struct { err error }
-func (value exception) OnsenTamagoExceptionError() error { return value.err }
+func (value exception) KinmokuseiExceptionError() error { return value.err }
 func Throw() { panic(exception{err: errors.New("foreign")}) }
 func Panic() { panic("raw") }
 `
@@ -225,15 +225,15 @@ func Panic() { panic("raw") }
 	}
 	text := string(generated)
 	for _, want := range []string{
-		"type __ontamaThrown struct",
-		"type __ontamaException interface",
-		"panic(__ontamaThrown{err:",
-		"panic(__ontama_thrown_",
+		"type __kinmokuseiThrown struct",
+		"type __kinmokuseiException interface",
+		"panic(__kinmokuseiThrown{err:",
+		"panic(__kinmokusei_thrown_",
 		"recover()",
 		"recovered_",
-		".(__ontamaException)",
-		".OnsenTamagoExceptionError()",
-		"panic(__ontama_recovered_",
+		".(__kinmokuseiException)",
+		".KinmokuseiExceptionError()",
+		"panic(__kinmokusei_recovered_",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
@@ -243,9 +243,9 @@ func Panic() { panic("raw") }
 	referenceSource := `package reference
 import "errors"
 
-type exception interface { OnsenTamagoExceptionError() error }
+type exception interface { KinmokuseiExceptionError() error }
 type thrown struct { err error }
-func (value thrown) OnsenTamagoExceptionError() error { return value.err }
+func (value thrown) KinmokuseiExceptionError() error { return value.err }
 func throw(err error) { panic(thrown{err: err}) }
 func execute(body func(), catcher func(error), final func()) {
   if final != nil { defer final() }
@@ -259,7 +259,7 @@ func execute(body func(), catcher func(error), final func()) {
       value, ok := recovered.(exception)
       if !ok { panic(recovered) }
       caught = true
-      caughtError = value.OnsenTamagoExceptionError()
+      caughtError = value.KinmokuseiExceptionError()
     }()
     body()
   }()

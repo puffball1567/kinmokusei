@@ -1,4 +1,4 @@
-//go:build ontama_demo_contract
+//go:build kinmokusei_demo_contract
 
 package contract_test
 
@@ -13,10 +13,10 @@ import (
 	"sync"
 	"testing"
 
-	"example.com/onsentamago/react-web-frameworks-backend/contract/reference/fiberserver"
-	"example.com/onsentamago/react-web-frameworks-backend/contract/reference/ginserver"
-	generatedfiber "example.com/onsentamago/react-web-frameworks-backend/generatedfiber"
-	generatedgin "example.com/onsentamago/react-web-frameworks-backend/generatedgin"
+	"example.com/kinmokusei/react-web-frameworks-backend/contract/reference/fiberserver"
+	"example.com/kinmokusei/react-web-frameworks-backend/contract/reference/ginserver"
+	generatedfiber "example.com/kinmokusei/react-web-frameworks-backend/generatedfiber"
+	generatedgin "example.com/kinmokusei/react-web-frameworks-backend/generatedgin"
 	"github.com/gofiber/fiber/v3"
 )
 
@@ -79,8 +79,8 @@ func TestConcurrentCreatesAreRaceSafeAndLossless(t *testing.T) {
 func runSequence(t *testing.T, request requester, framework string) []observation {
 	t.Helper()
 	cases := []requestCase{
-		{"health", http.MethodGet, "/api/health", "", 200, fmt.Sprintf(`{"framework":%q,"language":"OnsenTamago","status":"ok"}`, framework)},
-		{"initial list", http.MethodGet, "/api/todos", "", 200, `{"items":[{"completed":true,"id":1,"title":"Read the OnsenTamago source"},{"completed":false,"id":2,"title":"Try both Go backends"}]}`},
+		{"health", http.MethodGet, "/api/health", "", 200, fmt.Sprintf(`{"framework":%q,"language":"Kinmokusei","status":"ok"}`, framework)},
+		{"initial list", http.MethodGet, "/api/todos", "", 200, `{"items":[{"completed":true,"id":1,"title":"Read the Kinmokusei source"},{"completed":false,"id":2,"title":"Try both Go backends"}]}`},
 		{"malformed JSON", http.MethodPost, "/api/todos", `{`, 400, `{"error":"request body must be JSON with a title"}`},
 		{"missing title", http.MethodPost, "/api/todos", `{}`, 400, `{"error":"title is required"}`},
 		{"blank title", http.MethodPost, "/api/todos", `{"title":"  "}`, 400, `{"error":"title is required"}`},
@@ -90,11 +90,11 @@ func runSequence(t *testing.T, request requester, framework string) []observatio
 		{"invalid ID", http.MethodPatch, "/api/todos/not-a-number/toggle", "", 400, `{"error":"todo id must be a positive integer"}`},
 		{"zero ID", http.MethodPatch, "/api/todos/0/toggle", "", 400, `{"error":"todo id must be a positive integer"}`},
 		{"missing todo", http.MethodPatch, "/api/todos/99/toggle", "", 404, `{"error":"todo not found"}`},
-		{"toggle", http.MethodPatch, "/api/todos/1/toggle", "", 200, `{"item":{"completed":false,"id":1,"title":"Read the OnsenTamago source"}}`},
+		{"toggle", http.MethodPatch, "/api/todos/1/toggle", "", 200, `{"item":{"completed":false,"id":1,"title":"Read the Kinmokusei source"}}`},
 		{"invalid delete ID", http.MethodDelete, "/api/todos/-1", "", 400, `{"error":"todo id must be a positive integer"}`},
 		{"delete", http.MethodDelete, "/api/todos/2", "", 204, ""},
 		{"delete missing", http.MethodDelete, "/api/todos/2", "", 404, `{"error":"todo not found"}`},
-		{"final list", http.MethodGet, "/api/todos", "", 200, fmt.Sprintf(`{"items":[{"completed":false,"id":1,"title":"Read the OnsenTamago source"},{"completed":false,"id":3,"title":%q},{"completed":false,"id":4,"title":"Ship 温泉"}]}`, strings.Repeat("温", 80))},
+		{"final list", http.MethodGet, "/api/todos", "", 200, fmt.Sprintf(`{"items":[{"completed":false,"id":1,"title":"Read the Kinmokusei source"},{"completed":false,"id":3,"title":%q},{"completed":false,"id":4,"title":"Ship 温泉"}]}`, strings.Repeat("温", 80))},
 	}
 	results := make([]observation, 0, len(cases))
 	for _, test := range cases {

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Kinmokusei</title>
+  <desc id="desc">A setting sun above a calm horizon.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop stop-color="#f7b18f"/>
+      <stop offset="1" stop-color="#d96b60"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="27" r="11" fill="url(#sky)"/>
+  <path d="M8 37c8-3 14-3 22 0s15 3 26 0" fill="none" stroke="#36586a" stroke-linecap="round" stroke-width="4"/>
+  <path d="M12 46c7-2.5 13-2.5 20 0s13 2.5 20 0M18 54c5-1.8 9-1.8 14 0s9 1.8 14 0" fill="none" stroke="#6da2aa" stroke-linecap="round" stroke-width="3"/>
+</svg>

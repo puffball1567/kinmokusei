@@ -32,21 +32,21 @@ targets=(
 
 for target in "${targets[@]}"; do
   read -r target_os target_arch archive_format <<<"${target}"
-  archive_base="ontama_${release_version}_${target_os}_${target_arch}"
+  archive_base="keika_${release_version}_${target_os}_${target_arch}"
   staging_root=$(mktemp -d)
   active_staging_root=${staging_root}
   staging_dir="${staging_root}/${archive_base}"
   mkdir -p "${staging_dir}"
 
-  executable_name=ontama
+  executable_name=keika
   if [[ "${target_os}" == windows ]]; then
-    executable_name=ontama.exe
+    executable_name=keika.exe
   fi
 
   CGO_ENABLED=0 GOOS="${target_os}" GOARCH="${target_arch}" \
     go build -trimpath -buildvcs=false \
-      -ldflags="-s -w -X github.com/puffball1567/onsentamago/internal/product.Version=${release_tag}" \
-      -o "${staging_dir}/${executable_name}" ./cmd/ontama
+      -ldflags="-s -w -X github.com/puffball1567/kinmokusei/internal/product.Version=${release_tag}" \
+      -o "${staging_dir}/${executable_name}" ./cmd/keika
 
   cp README.md LICENSE "${staging_dir}/"
 

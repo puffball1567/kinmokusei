@@ -2,14 +2,14 @@
 
 ## Why web backends first
 
-Web services exercise the language's intended strengths together: static DTOs, explicit errors, modules, existing Go libraries, goroutines, cancellation, deterministic binaries, and operational testing. OnsenTamago preserves direct access to Go's `net/http` rather than introducing a separate runtime.
+Web services exercise the language's intended strengths together: static DTOs, explicit errors, modules, existing Go libraries, goroutines, cancellation, deterministic binaries, and operational testing. Kinmokusei preserves direct access to Go's `net/http` rather than introducing a separate runtime.
 
 ## Layers
 
 ```text
 application code
       |
-implemented ontama/http kernel
+implemented kinmokusei/http kernel
       |
 direct import go boundary
       |
@@ -38,7 +38,7 @@ implemented. `App` delegates method patterns and path variables to Go 1.23's
 `http.ServeMux`; `Context` exposes the original writer/request plus path, query,
 header, request-context, and cookie access. Direct `net/http` and
 `encoding/json` interop already supports executable JSON APIs. The same
-embedded `ontama/http` source also provides a thin fetch adapter that keeps
+embedded `kinmokusei/http` source also provides a thin fetch adapter that keeps
 context and response limits explicit and composes with
 `Task<Result<Response>>` without introducing an Axios-style configuration
 layer.

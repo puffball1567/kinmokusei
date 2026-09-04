@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 type moduleGoImporter struct {

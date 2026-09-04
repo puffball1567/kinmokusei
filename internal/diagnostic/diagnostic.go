@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type Diagnostic struct {
