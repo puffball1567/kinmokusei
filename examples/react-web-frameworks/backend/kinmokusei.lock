@@ -1,6 +1,6 @@
 {
   "lockVersion": 3,
-  "manifestHash": "sha256:d0561c855dce8e6cd0cec8ef08105c8a5a9a094244efe274b884978750e2dcb6",
+  "manifestHash": "sha256:05c10b8691bf9dd78f6e40bb059aa30fe2c893c7ed753c1066db8d00a88f41c1",
   "goVersion": "1.27",
   "target": {
     "goos": "linux",
@@ -8,7 +8,7 @@
     "cgoEnabled": false,
     "tags": []
   },
-  "goModHash": "sha256:c59213d0efd49d18924a1d8e9671f6cb1848fd8f86e7576de09d95cf70dac0b5",
+  "goModHash": "sha256:17167fb2abc073661c8fa66664629a7efd75435895eb8c541bf000082a72bade",
   "goSumHash": "sha256:d7d32706f5e9b3d845fa07e71007e26d3f19fd035a276bc440562c42f8301bf4",
   "modules": [
     {
