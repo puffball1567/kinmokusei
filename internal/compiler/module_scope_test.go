@@ -17,43 +17,43 @@ func TestModuleScopeRejectsUnimportedAndTransitiveNames(t *testing.T) {
 		{
 			"unimported dependency declaration",
 			map[string]string{
-				"dependency.otm": `function visible(): int { return 1; } function hidden(): int { return 2; }`,
-				"entry.otm":      `import { visible } from "./dependency"; function value(): int { return hidden(); }`,
+				"dependency.km": `function visible(): int { return 1; } function hidden(): int { return 2; }`,
+				"entry.km":      `import { visible } from "./dependency"; function value(): int { return hidden(); }`,
 			},
-			"entry.otm", `undefined function "hidden"`,
+			"entry.km", `undefined function "hidden"`,
 		},
 		{
 			"transitive import",
 			map[string]string{
-				"base.otm":   `function base(): int { return 1; }`,
-				"middle.otm": `import { base } from "./base"; function middle(): int { return base(); }`,
-				"entry.otm":  `import { middle } from "./middle"; function value(): int { return base(); }`,
+				"base.km":   `function base(): int { return 1; }`,
+				"middle.km": `import { base } from "./base"; function middle(): int { return base(); }`,
+				"entry.km":  `import { middle } from "./middle"; function value(): int { return base(); }`,
 			},
-			"entry.otm", `undefined function "base"`,
+			"entry.km", `undefined function "base"`,
 		},
 		{
 			"root modules do not share names",
 			map[string]string{
-				"first.otm":  `function first(): int { return 1; }`,
-				"second.otm": `function second(): int { return first(); }`,
+				"first.km":  `function first(): int { return 1; }`,
+				"second.km": `function second(): int { return first(); }`,
 			},
-			"second.otm", `undefined function "first"`,
+			"second.km", `undefined function "first"`,
 		},
 		{
 			"unimported global value",
 			map[string]string{
-				"dependency.otm": `const secret: int = 1; function visible(): int { return secret; }`,
-				"entry.otm":      `import { visible } from "./dependency"; function value(): int { return secret; }`,
+				"dependency.km": `const secret: int = 1; function visible(): int { return secret; }`,
+				"entry.km":      `import { visible } from "./dependency"; function value(): int { return secret; }`,
 			},
-			"entry.otm", `undefined name "secret"`,
+			"entry.km", `undefined name "secret"`,
 		},
 		{
 			"unimported class type",
 			map[string]string{
-				"dependency.otm": `class Hidden {} function visible(): int { return 1; }`,
-				"entry.otm":      `import { visible } from "./dependency"; function value(): Hidden { return new Hidden(); }`,
+				"dependency.km": `class Hidden {} function visible(): int { return 1; }`,
+				"entry.km":      `import { visible } from "./dependency"; function value(): Hidden { return new Hidden(); }`,
 			},
-			"entry.otm", `unknown type "Hidden"`,
+			"entry.km", `unknown type "Hidden"`,
 		},
 	}
 	for _, test := range tests {
@@ -66,7 +66,7 @@ func TestModuleScopeRejectsUnimportedAndTransitiveNames(t *testing.T) {
 			}
 			paths := []string{filepath.Join(temp, test.entry)}
 			if test.name == "root modules do not share names" {
-				paths = []string{filepath.Join(temp, "first.otm"), filepath.Join(temp, "second.otm")}
+				paths = []string{filepath.Join(temp, "first.km"), filepath.Join(temp, "second.km")}
 			}
 			result, err := CheckFiles(paths)
 			if err != nil {
@@ -99,10 +99,10 @@ func TestModuleScopeRejectsBindingCollisions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			temp := t.TempDir()
-			if err := os.WriteFile(filepath.Join(temp, "dependency.otm"), []byte(`function value(): int { return 1; }`), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(temp, "dependency.km"), []byte(`function value(): int { return 1; }`), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			entry := filepath.Join(temp, "entry.otm")
+			entry := filepath.Join(temp, "entry.km")
 			if err := os.WriteFile(entry, []byte(test.entry), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -124,20 +124,20 @@ func TestModuleScopeRejectsBindingCollisions(t *testing.T) {
 func TestDuplicateDependencyNamesAreLinkedAndCompile(t *testing.T) {
 	temp := t.TempDir()
 	files := map[string]string{
-		"left.otm":  `class Hidden { public function value(): int { return 20; } } function left(): int { return new Hidden().value(); }`,
-		"right.otm": `class Hidden { public function value(): int { return 22; } } function right(): int { return new Hidden().value(); }`,
-		"entry.otm": `import { left } from "./left"; import { right } from "./right"; function answer(): int { return left() + right(); }`,
+		"left.km":  `class Hidden { public function value(): int { return 20; } } function left(): int { return new Hidden().value(); }`,
+		"right.km": `class Hidden { public function value(): int { return 22; } } function right(): int { return new Hidden().value(); }`,
+		"entry.km": `import { left } from "./left"; import { right } from "./right"; function answer(): int { return left() + right(); }`,
 	}
 	for name, source := range files {
 		if err := os.WriteFile(filepath.Join(temp, name), []byte(source), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.otm")}, "linked")
+	generated, diagnostics, err := EmitGo([]string{filepath.Join(temp, "entry.km")}, "linked")
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	if strings.Count(string(generated), "type _ontama_") < 2 {
+	if strings.Count(string(generated), "type _kinmokusei_") < 2 {
 		t.Fatalf("duplicate dependency names were not linked:\n%s", generated)
 	}
 	referenceSource := `package reference
@@ -168,16 +168,16 @@ func TestDependencyLinkNamesAreIndependentOfProjectLocation(t *testing.T) {
 			t.Fatal(err)
 		}
 		files := map[string]string{
-			"left.otm":  `function hidden(): int { return 1; } function left(): int { return hidden(); }`,
-			"right.otm": `function hidden(): int { return 2; } function right(): int { return hidden(); }`,
-			"entry.otm": `import { left } from "./left"; import { right } from "./right"; function value(): int { return left() + right(); }`,
+			"left.km":  `function hidden(): int { return 1; } function left(): int { return hidden(); }`,
+			"right.km": `function hidden(): int { return 2; } function right(): int { return hidden(); }`,
+			"entry.km": `import { left } from "./left"; import { right } from "./right"; function value(): int { return left() + right(); }`,
 		}
 		for name, source := range files {
 			if err := os.WriteFile(filepath.Join(root, name), []byte(source), 0o644); err != nil {
 				t.Fatal(err)
 			}
 		}
-		generated, diagnostics, err := EmitGo([]string{filepath.Join(root, "entry.otm")}, "stable")
+		generated, diagnostics, err := EmitGo([]string{filepath.Join(root, "entry.km")}, "stable")
 		if err != nil || len(diagnostics) != 0 {
 			t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 		}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestEnumNavigationRenameSymbolsAndCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "enum.otm")
+	path := filepath.Join(t.TempDir(), "enum.km")
 	uri := fileURI(path)
 	text := `enum Status: int16 { Pending, Running = 4, Complete, }
 function use(value: Status): Status {
@@ -77,7 +77,7 @@ function use(value: Status): Status {
 }
 
 func TestEnumReceiverCompletionAndSignature(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "enum_method.otm")
+	path := filepath.Join(t.TempDir(), "enum_method.km")
 	text := `enum Status: int8 { Pending, Running, Complete }
 public function active(this: Status): boolean { return this === Status.Running; }
 public function advance(this: *Status, steps: int8): Status { *this = Status(int8(*this) + steps); return *this; }

@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/parser"
-	"github.com/puffball1567/onsentamago/internal/product"
-	"github.com/puffball1567/onsentamago/internal/sema"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/sema"
 )
 
 func TestGenerateGolden(t *testing.T) {
@@ -17,7 +17,7 @@ function choose(flag: boolean, left: number, right: float): float64 {
   if (flag) { return left; } else { return right; }
 }
 `
-	tokens, lexDiagnostics := lexer.Lex("golden.otm", input)
+	tokens, lexDiagnostics := lexer.Lex("golden.km", input)
 	program, parseDiagnostics := parser.Parse(tokens)
 	if len(lexDiagnostics)+len(parseDiagnostics) != 0 {
 		t.Fatalf("frontend diagnostics: %v %v", lexDiagnostics, parseDiagnostics)
@@ -49,7 +49,7 @@ func choose(flag bool, left float64, right float64) float64 {
 
 func TestGenerateExplicitConversion(t *testing.T) {
 	input := `function convert(value: int): float { return float(value); }`
-	tokens, _ := lexer.Lex("conversion.otm", input)
+	tokens, _ := lexer.Lex("conversion.km", input)
 	program, _ := parser.Parse(tokens)
 	if diagnostics := sema.Check(program); len(diagnostics) != 0 {
 		t.Fatalf("type diagnostics: %v", diagnostics)
@@ -71,7 +71,7 @@ function package(type: int): int {
   return type + result;
 }
 `
-	tokens, _ := lexer.Lex("names.otm", input)
+	tokens, _ := lexer.Lex("names.km", input)
 	program, parseDiagnostics := parser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics: %v", parseDiagnostics)
@@ -101,7 +101,7 @@ function compute(): int {
   return apply(21, double);
 }
 `
-	tokens, _ := lexer.Lex("arrow.otm", input)
+	tokens, _ := lexer.Lex("arrow.km", input)
 	program, parseDiagnostics := parser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics: %v", parseDiagnostics)
@@ -132,7 +132,7 @@ function sum(limit: int): int {
   return total;
 }
 `
-	tokens, _ := lexer.Lex("loops.otm", input)
+	tokens, _ := lexer.Lex("loops.km", input)
 	program, parseDiagnostics := parser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics: %v", parseDiagnostics)
@@ -168,7 +168,7 @@ function compute(): int {
   return dto.count;
 }
 `
-	tokens, _ := lexer.Lex("class.otm", input)
+	tokens, _ := lexer.Lex("class.km", input)
 	program, parseDiagnostics := parser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics: %v", parseDiagnostics)
@@ -197,7 +197,7 @@ class PrefixFormatter implements Formatter {
 }
 function render(formatter: Formatter, value: string): string { return formatter.format(value); }
 `
-	tokens, _ := lexer.Lex("interface.otm", input)
+	tokens, _ := lexer.Lex("interface.km", input)
 	program, parseDiagnostics := parser.Parse(tokens)
 	if len(parseDiagnostics) != 0 {
 		t.Fatalf("parser diagnostics: %v", parseDiagnostics)

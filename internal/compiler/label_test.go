@@ -9,7 +9,7 @@ import (
 
 func TestGotoAndLabelsMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "labels.otm")
+	source := filepath.Join(root, "labels.km")
 	if err := os.WriteFile(source, []byte(`
 function StateMachine(limit: int): int {
   let total = 0;

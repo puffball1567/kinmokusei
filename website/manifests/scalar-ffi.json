@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "package": "fixture",
+  "header": "fixture.h",
+  "threadPolicy": "threadSafe",
+  "functions": [
+    {
+      "name": "Value",
+      "symbol": "fixture_value",
+      "parameters": [],
+      "result": "int32",
+      "convention": "direct"
+    }
+  ]
+}

@@ -23,15 +23,15 @@ function localVSCodeExecutable() {
 
 async function main() {
   const temporaryDirectory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'onsentamago-vscode-e2e-')
+    path.join(os.tmpdir(), 'kinmokusei-vscode-e2e-')
   );
   const serverPath = path.join(
     temporaryDirectory,
-    process.platform === 'win32' ? 'ontama.exe' : 'ontama'
+    process.platform === 'win32' ? 'keika.exe' : 'keika'
   );
 
   try {
-    const goCacheRoot = path.join(os.tmpdir(), 'onsentamago-vscode-e2e-go');
+    const goCacheRoot = path.join(os.tmpdir(), 'kinmokusei-vscode-e2e-go');
     const goEnvironment = {
       ...process.env,
       GOPATH: path.join(goCacheRoot, 'gopath'),
@@ -41,7 +41,7 @@ async function main() {
     fs.mkdirSync(goEnvironment.GOPATH, { recursive: true });
     fs.mkdirSync(goEnvironment.GOCACHE, { recursive: true });
     fs.mkdirSync(goEnvironment.GOTMPDIR, { recursive: true });
-    execFileSync('go', ['build', '-buildvcs=false', '-o', serverPath, './cmd/ontama'], {
+    execFileSync('go', ['build', '-buildvcs=false', '-o', serverPath, './cmd/keika'], {
       cwd: repositoryRoot,
       env: goEnvironment,
       stdio: 'inherit'
@@ -58,7 +58,7 @@ async function main() {
         '--extensions-dir=' + path.join(temporaryDirectory, 'extensions')
       ],
       extensionTestsEnv: {
-        ONTAMA_E2E_SERVER_PATH: serverPath
+        KINMOKUSEI_E2E_SERVER_PATH: serverPath
       }
     };
     const executable = localVSCodeExecutable();

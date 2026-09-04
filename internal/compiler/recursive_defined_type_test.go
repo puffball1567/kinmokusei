@@ -9,7 +9,7 @@ import (
 
 func TestRecursiveDefinedTypesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "recursive_defined.otm")
+	source := filepath.Join(temporary, "recursive_defined.km")
 	if err := os.WriteFile(source, []byte(`
 type Chain = distinct Chain[];
 type Tree = distinct Map<string, Tree>;
@@ -130,8 +130,8 @@ func TestRecursiveDefinedBehavior(t *testing.T) {
 
 func TestLinkedRecursiveDefinedTypeMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "chain.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "chain.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`
 type Chain = distinct Chain[];
 public function size(this: Chain): int { return len(this); }

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 )
 
 func TestParsesComparableTypeParameterConstraints(t *testing.T) {
@@ -35,7 +35,7 @@ type Lookup<T extends comparable> = distinct Map<T, string>;
 }
 
 func TestComparableTypeParameterConstraintSyntaxFailure(t *testing.T) {
-	tokens, lexDiagnostics := lexer.Lex("constraint_failure.otm", `function bad<T extends>(value: T): T { return value; }`)
+	tokens, lexDiagnostics := lexer.Lex("constraint_failure.km", `function bad<T extends>(value: T): T { return value; }`)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics = %v", lexDiagnostics)
 	}

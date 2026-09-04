@@ -8,7 +8,7 @@ import (
 
 func TestNullableStableMemberFlowCompilesAndMatchesGo(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "nullable_member.otm")
+	source := filepath.Join(temp, "nullable_member.km")
 	input := `
 class User { constructor(public name: string) {} }
 class Profile { constructor(public user: User | null) {} }

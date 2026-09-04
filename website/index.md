@@ -1,45 +1,43 @@
 ---
 layout: home
+title: Kinmokusei Documentation
+description: Write TypeScript-inspired source and compile it to readable, standalone Go.
 
 hero:
-  name: OnsenTamago
-  text: TypeScript-inspired syntax. Readable Go output.
-  tagline: Build Go backends and libraries with classes, null safety, explicit errors, structured tasks, direct Go packages, and checked C FFI.
+  name: Kinmokusei
+  text: Clear source. Readable Go.
+  tagline: A TypeScript-inspired source language for the Go ecosystem—designed for explicit behavior, direct package access, and generated code you can own.
+  image:
+    src: /hero-kinmokusei.svg
+    alt: A quiet sunset reflected across calm water
   actions:
     - theme: brand
       text: Get started
-      link: /guide/getting-started
+      link: /learn/quick-start
     - theme: alt
-      text: See the language
-      link: /guide/language-basics
+      text: Read the Manual
+      link: /book/
     - theme: alt
-      text: GitHub
-      link: https://github.com/puffball1567/onsentamago
+      text: View on GitHub
+      link: https://github.com/puffball1567/kinmokusei
 
 features:
-  - title: Ordinary Go at the boundary
-    details: Generated source is formatted, readable, standalone Go that can be reviewed, built, and published as a normal Go module.
-  - title: Productive language features
-    details: Classes, value structs, generics, Result, typed exceptions, null safety, tasks, inheritance, enums, and TypeScript-inspired syntax are checked before Go generation.
-  - title: The Go ecosystem stays available
-    details: Import standard-library and external Go modules directly, preserving named types, pointers, interfaces, methods, multiple results, generics, and channels.
-  - title: Compatibility is executable
-    details: Every registered Go-equivalent runtime contract is compared with an independently handwritten Go implementation.
+  - icon: "↗"
+    title: Go ecosystem access
+    details: Import standard-library and external Go modules directly while preserving named types, pointers, interfaces, methods, generics, channels, and errors.
+  - icon: "Aa"
+    title: Productive static syntax
+    details: Use classes, value structs, generics, Result, typed exceptions, null safety, and structured tasks—with source-level checks before generation.
+  - icon: "{ }"
+    title: Readable generated Go
+    details: Emitted source is deterministic, gofmt-formatted, standalone, and suitable for inspection or publication as an ordinary Go module.
+  - icon: "✓"
+    title: Executable compatibility
+    details: Every registered Go-equivalent runtime contract is compared against an independently handwritten Go implementation.
 ---
 
-## One source file, an ordinary executable
+<HomeShowcase />
 
-<<< ./snippets/hello.otm{ts}
-
-```sh
-ontama check hello.otm
-ontama run hello.otm
-```
-
-```text
-Hello from OnsenTamago
-```
-
-<div class="otm-contract">
-OnsenTamago is its own language. It borrows familiar TypeScript shapes, but it does not claim TypeScript source compatibility. Its compilation target and interoperability model are Go.
+<div class="km-contract">
+<strong>Kinmokusei Programming Language</strong> takes its name from the Japanese <span lang="ja">金木犀</span>. Say it approximately as <em>kin-moh-koo-say</em>. Kinmokusei borrows familiar TypeScript shapes, but it is neither TypeScript-compatible nor Go-source-compatible; <code>.km</code> source compiles to Go.
 </div>

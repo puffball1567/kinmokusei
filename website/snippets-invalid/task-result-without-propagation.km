@@ -1,0 +1,8 @@
+function load(): Result<int> {
+  return ok(1);
+}
+
+function invalid(): void {
+  const task = go load();
+  const value = await task;
+}

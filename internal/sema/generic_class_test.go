@@ -35,6 +35,54 @@ func TestGenericClassSemanticSuccessMatrix(t *testing.T) {
 			"class reference map key",
 			`class Box<T> { constructor(public value: T) {} } function lookup(values: Map<Box<int>, string>, key: Box<int>): string { return values[key]; }`,
 		},
+		{
+			"static inference and explicit arguments",
+			`class Box<T> { constructor(public value: T) {} public static function make(value: T): Box<T> { return new Box<T>(value); } } function use(): int { const inferred = Box.make(40); const angle = Box.make<int>(1); const bracket = Box.make[int](1); return inferred.value + angle.value + bracket.value; }`,
+		},
+		{
+			"constrained static method",
+			`class Key<T extends comparable> { constructor(public value: T) {} public static function make(value: T): Key<T> { return new Key<T>(value); } } function use(): string { return Key.make("key").value; }`,
+		},
+		{
+			"static result",
+			`class Box<T> { constructor(public value: T) {} public static function present(value: T): Result<Box<T>> { return ok(new Box<T>(value)); } } function use(): Result<int> { const box = Box.present(42)?; return ok(box.value); }`,
+		},
+		{
+			"zero argument static explicit type",
+			`class Box<T> { public static function empty(): Box<T> { return new Box<T>(); } } function use(): Box<int> { return Box.empty<int>(); }`,
+		},
+		{
+			"generic inheritance and super",
+			`class Base<T> { constructor(protected value: T) {} public function get(): T { return this.value; } } class Child<T> extends Base<T> { constructor(value: T) { super(value); } public function read(): T { return this.value; } } function use(): string { return new Child<string>("ok").get(); }`,
+		},
+		{
+			"concrete generic base",
+			`class Base<T> { constructor(public value: T) {} } class IntegerBox extends Base<int> { constructor(value: int) { super(value); } } function use(): int { return new IntegerBox(42).value; }`,
+		},
+		{
+			"remapped and multi level inheritance",
+			`class Base<T> { constructor(public value: T) {} public function get(): T { return this.value; } } class Middle<U, V> extends Base<V> { constructor(value: V) { super(value); } } class Leaf<X> extends Middle<int, X> { constructor(value: X) { super(value); } } function use(): string { return new Leaf<string>("leaf").get(); }`,
+		},
+		{
+			"generic inherited interface",
+			`interface Reader<T> { function read(): T; } class Base<T> implements Reader<T> { constructor(public value: T) {} public function read(): T { return this.value; } } class Child<U> extends Base<U> { constructor(value: U) { super(value); } } function use(reader: Reader<string>): string { return reader.read(); } function make(): string { return use(new Child<string>("ok")); }`,
+		},
+		{
+			"inherited comparable constraint",
+			`class Base<T extends comparable> { constructor(public value: T) {} } class Child<U extends comparable> extends Base<U> { constructor(value: U) { super(value); } } function use(): string { return new Child<string>("ok").value; }`,
+		},
+		{
+			"generic upcast and downcast",
+			`class Base<T> { constructor(public value: T) {} } class Child<U> extends Base<U> { constructor(value: U) { super(value); } } function up(value: Child<string>): Base<string> { return value; } function down(value: Base<string>): Child<string> | null { const [child, present] = value as? Child<string>; if (!present) { return null; } return child; }`,
+		},
+		{
+			"generic virtual override and super",
+			`class Base<T> { constructor(protected value: T) {} public virtual function read(): T { return this.value; } } class Child<U> extends Base<U> { constructor(value: U) { super(value); } public override function read(): U { return super.read(); } } function use(value: Base<string>): string { return value.read(); }`,
+		},
+		{
+			"concrete and remapped generic virtual override",
+			`class Base<T> { constructor(protected value: T) {} public virtual function read(): T { return this.value; } } class Concrete extends Base<string> { constructor(value: string) { super(value); } public override function read(): string { return "concrete"; } } class Remapped<A, B> extends Base<B> { constructor(value: B) { super(value); } public final override function read(): B { return this.value; } }`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if diagnostics := checkSource(t, test.source); len(diagnostics) != 0 {
@@ -52,10 +100,16 @@ func TestGenericClassSemanticFailureMatrix(t *testing.T) {
 		{"constructor mismatch", `class Box<T> { constructor(public value: T) {} } function use(): void { new Box<int>("wrong"); }`, "cannot use string as int"},
 		{"instantiation mismatch", `class Box<T> { constructor(public value: T) {} } function use(): Box<int> { return new Box<string>("wrong"); }`, "cannot use Box<string> as Box<int>"},
 		{"constraint mismatch", `class Key<T extends comparable> { constructor(public value: T) {} } function use(items: int[]): void { new Key<int[]>(items); }`, "does not satisfy T type parameter constraint"},
-		{"generic extends", `class Base {} class Child<T> extends Base {}`, "generic classes cannot currently use extends"},
-		{"generic base", `class Base<T> {} class Child extends Base<int> {}`, "generic class inheritance is not yet supported"},
-		{"static method", `class Box<T> { public static function make(value: T): Box<T> { return new Box<T>(); } }`, "generic class static methods are not yet supported"},
-		{"virtual method", `class Box<T> { constructor(private value: T) {} public virtual function read(): T { return this.value; } }`, "generic class virtual"},
+		{"missing base arguments", `class Base<T> {} class Child extends Base {}`, "generic class Base expects 1 type arguments, got 0"},
+		{"nongeneric base arguments", `class Base {} class Child extends Base<int> {}`, "class Base is not generic"},
+		{"base constraint mismatch", `class Base<T extends comparable> {} class Child extends Base<int[]> {}`, "does not satisfy T type parameter constraint"},
+		{"base type parameter constraint mismatch", `class Base<T extends comparable> {} class Child<U> extends Base<U> {}`, "does not satisfy T type parameter constraint"},
+		{"incompatible generic upcast", `class Base<T> {} class Child<T> extends Base<T> {} function use(value: Child<int>): Base<string> { return value; }`, "cannot use Child<int> as Base<string>"},
+		{"generic super mismatch", `class Base<T> { constructor(value: T) {} } class Child<U> extends Base<U> { constructor(value: U) { super(1); } }`, "cannot use integer literal as U"},
+		{"uninferred static argument", `class Box<T> { public static function empty(): Box<T> { return new Box<T>(); } } function use(): void { Box.empty(); }`, "cannot infer type argument T"},
+		{"static constraint mismatch", `class Key<T extends comparable> { public static function make(value: T): void {} } function use(values: int[]): void { Key.make(values); }`, "does not satisfy T type parameter constraint"},
+		{"inconsistent static inference", `class Pair<T> { public static function make(left: T, right: T): void {} } function use(): void { Pair.make(1, "two"); }`, "T was already inferred as int, not string"},
+		{"generic override mismatch after substitution", `class Base<T> { public virtual function read(value: T): T { return value; } } class Child<U> extends Base<U> { public override function read(value: int): U { return value; } }`, "incompatible signature"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			diagnostics := checkSource(t, test.source)

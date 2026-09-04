@@ -7,7 +7,7 @@ import (
 )
 
 func TestNativeGenericFunctionNavigationAndRename(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_navigation.otm")
+	path := filepath.Join(t.TempDir(), "generic_navigation.km")
 	uri := fileURI(path)
 	text := `function identity<T>(value: T): T { return value; }
 function use(value: string): string { return identity(value); }`
@@ -36,7 +36,7 @@ function use(value: string): string { return identity(value); }`
 }
 
 func TestNativeGenericFunctionSignatureAndCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "generic_signature.otm")
+	path := filepath.Join(t.TempDir(), "generic_signature.km")
 	text := `function second<T, U>(left: T, right: U): U { return right; }
 function use(value: string): string {
   const inferred = second(1, value);

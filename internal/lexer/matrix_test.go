@@ -5,7 +5,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/puffball1567/onsentamago/internal/token"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 func TestTokenMatrix(t *testing.T) {
@@ -108,7 +108,7 @@ func TestTokenMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tokens, diagnostics := Lex("matrix.otm", test.source)
+			tokens, diagnostics := Lex("matrix.km", test.source)
 			if len(diagnostics) != 0 {
 				t.Fatalf("diagnostics = %v", diagnostics)
 			}
@@ -139,7 +139,7 @@ func TestLexerBoundaryAndFailureMatrix(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tokens, diagnostics := Lex("failure.otm", test.source)
+			tokens, diagnostics := Lex("failure.km", test.source)
 			if len(tokens) == 0 || tokens[0].Kind != test.wantKind || tokens[len(tokens)-1].Kind != token.EOF {
 				t.Fatalf("tokens = %#v", tokens)
 			}
@@ -155,7 +155,7 @@ func TestLexerBoundaryAndFailureMatrix(t *testing.T) {
 }
 
 func TestAmbiguousOperatorBoundaryMatrix(t *testing.T) {
-	tokens, diagnostics := Lex("operators.otm", `&& & &^ ^ | || << <- <= < >> >= >`)
+	tokens, diagnostics := Lex("operators.km", `&& & &^ ^ | || << <- <= < >> >= >`)
 	if len(diagnostics) != 0 {
 		t.Fatalf("diagnostics = %v", diagnostics)
 	}
@@ -175,7 +175,7 @@ func TestAmbiguousOperatorBoundaryMatrix(t *testing.T) {
 }
 
 func TestUpdateOperatorBoundaryMatrix(t *testing.T) {
-	tokens, diagnostics := Lex("updates.otm", `+ += ++ - -= -- * *= / /= % %= & &= && &^ &^= | |= || ^ ^= < << <<= <- <= > >> >>= >=`)
+	tokens, diagnostics := Lex("updates.km", `+ += ++ - -= -- * *= / /= % %= & &= && &^ &^= | |= || ^ ^= < << <<= <- <= > >> >>= >=`)
 	if len(diagnostics) != 0 {
 		t.Fatalf("diagnostics = %v", diagnostics)
 	}
@@ -199,7 +199,7 @@ func TestUpdateOperatorBoundaryMatrix(t *testing.T) {
 }
 
 func TestTracksRuneColumnsAndByteOffsets(t *testing.T) {
-	tokens, diagnostics := Lex("positions.otm", "α\n  β")
+	tokens, diagnostics := Lex("positions.km", "α\n  β")
 	if len(diagnostics) != 0 {
 		t.Fatalf("diagnostics = %v", diagnostics)
 	}
@@ -215,12 +215,12 @@ func TestTracksRuneColumnsAndByteOffsets(t *testing.T) {
 
 func FuzzLexNeverPanics(f *testing.F) {
 	for _, seed := range []string{
-		"", "function main(): void {}", `export c("ontama_value") function value(): int32 { return 1; }`, "const λ = (x: int) => x + 1;", "const task: Task<Result<int>> = go load(); const value = await task?; detach go notify();", "try { throw err; } catch (caught: error) {} finally {}", "call(values...);", "copyArray[[3]int](values);", "viewArray[[3]int](values);", "select { case <-channel {} default {} }", "switch (value) { case const typed as Type {} case nil {} default {} }", "^value & mask | other &^ cleared << 2 >> 1", "value += 1; value &^= 3; value <<= 2; value++; value--;", "Outer<Middle<Inner<int>>>", "&& & &= &^ &^= ^ ^= | |= || << <<= <- <= < >> >>= >= >", "..", "\xff\x00", "/*", `"\q"`,
+		"", "function main(): void {}", `export c("kinmokusei_value") function value(): int32 { return 1; }`, "const λ = (x: int) => x + 1;", "const task: Task<Result<int>> = go load(); const value = await task?; detach go notify();", "try { throw err; } catch (caught: error) {} finally {}", "call(values...);", "copyArray[[3]int](values);", "viewArray[[3]int](values);", "select { case <-channel {} default {} }", "switch (value) { case const typed as Type {} case nil {} default {} }", "^value & mask | other &^ cleared << 2 >> 1", "value += 1; value &^= 3; value <<= 2; value++; value--;", "Outer<Middle<Inner<int>>>", "&& & &= &^ &^= ^ ^= | |= || << <<= <- <= < >> >>= >= >", "..", "\xff\x00", "/*", `"\q"`,
 	} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, input string) {
-		tokens, diagnostics := Lex("fuzz.otm", input)
+		tokens, diagnostics := Lex("fuzz.km", input)
 		if len(tokens) == 0 || tokens[len(tokens)-1].Kind != token.EOF {
 			t.Fatalf("lexer result does not end in EOF: %#v", tokens)
 		}

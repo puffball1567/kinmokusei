@@ -1,0 +1,3 @@
+function invalidSlice(): int[] {
+  return makeSlice[int](2, 1);
+}

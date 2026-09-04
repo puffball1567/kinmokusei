@@ -46,7 +46,7 @@ function mockEnvironment() {
         { uri: { scheme: 'file', fsPath: '/workspace' } }
       ],
       getConfiguration(section) {
-        assert.equal(section, 'onsentamago');
+        assert.equal(section, 'kinmokusei');
         return { get(name, fallback) {
           assert.equal(name, 'server.path');
           return configuredPath === undefined ? fallback : configuredPath;
@@ -80,7 +80,7 @@ function mockEnvironment() {
       configuredPath = value;
       configurationListener({
         affectsConfiguration(name) {
-          return name === 'onsentamago.server.path';
+          return name === 'kinmokusei.server.path';
         }
       });
     },
@@ -101,7 +101,7 @@ test('server path normalization matrix', () => {
   for (const [input, want] of [
     [undefined, DEFAULT_SERVER_PATH], [null, DEFAULT_SERVER_PATH],
     ['', DEFAULT_SERVER_PATH], ['  ', DEFAULT_SERVER_PATH],
-    [' ontama-dev ', 'ontama-dev'], ['/opt/ontama', '/opt/ontama']
+    [' keika-dev ', 'keika-dev'], ['/opt/keika', '/opt/keika']
   ]) {
     assert.equal(normalizeServerPath(input), want);
   }
@@ -112,9 +112,9 @@ test('server path normalization matrix', () => {
 });
 
 test('server options preserve the fixed stdio protocol contract', () => {
-  const options = serverOptions('/tools/ontama', '/workspace');
+  const options = serverOptions('/tools/keika', '/workspace');
   assert.deepEqual(options.run, {
-    command: '/tools/ontama',
+    command: '/tools/keika',
     args: ['lsp', '--stdio'],
     options: { cwd: '/workspace' }
   });
@@ -122,7 +122,7 @@ test('server options preserve the fixed stdio protocol contract', () => {
   assert.notStrictEqual(options.run, options.debug);
   assert.notStrictEqual(options.run.args, options.debug.args);
   assert.deepEqual(SERVER_ARGUMENTS, ['lsp', '--stdio']);
-  const withoutWorkspace = serverOptions('ontama');
+  const withoutWorkspace = serverOptions('keika');
   assert.equal(Object.hasOwn(withoutWorkspace.run, 'options'), false);
   assert.equal(withoutWorkspace.debug.options, undefined);
 });
@@ -147,7 +147,7 @@ test('activation starts exactly one file-only language client', async () => {
   assert.deepEqual(controller.state(), { activated: true, running: true });
   assert.equal(environment.instances.length, 1);
   assert.deepEqual(environment.instances[0].options.run, {
-    command: 'ontama',
+    command: 'keika',
     args: ['lsp', '--stdio'],
     options: { cwd: '/workspace' }
   });
@@ -155,8 +155,8 @@ test('activation starts exactly one file-only language client', async () => {
     { scheme: 'file', language: LANGUAGE_ID }
   ]);
   assert.equal(environment.instances[0].clientOptions.synchronize.fileEvents, environment.watcher);
-  assert.equal(environment.instances[0].clientOptions.outputChannelName, 'OnsenTamago');
-  assert.deepEqual(environment.events, ['watch:**/*.otm', 'start:0']);
+  assert.equal(environment.instances[0].clientOptions.outputChannelName, 'Kinmokusei');
+  assert.deepEqual(environment.events, ['watch:**/*.km', 'start:0']);
   assert.equal(environment.subscriptions.length, 3);
   assert.equal(await controller.activate(environment.context), true);
   assert.equal(environment.instances.length, 1);
@@ -169,10 +169,10 @@ test('manual and configuration restarts are serialized and use current configura
   await controller.activate(environment.context);
   await environment.restart();
   assert.deepEqual(environment.events.slice(-2), ['stop:0', 'start:1']);
-  environment.changePath(' /tools/ontama-next ');
+  environment.changePath(' /tools/keika-next ');
   await eventually(() => environment.instances.length === 3);
   assert.deepEqual(environment.events.slice(-2), ['stop:1', 'start:2']);
-  assert.equal(environment.instances[2].options.run.command, '/tools/ontama-next');
+  assert.equal(environment.instances[2].options.run.command, '/tools/keika-next');
 });
 
 test('startup failure is reported, disposed, and retryable', async () => {
@@ -182,11 +182,11 @@ test('startup failure is reported, disposed, and retryable', async () => {
   assert.equal(await controller.activate(environment.context), false);
   assert.deepEqual(controller.state(), { activated: true, running: false });
   assert.equal(environment.instances[0].disposed, true);
-  assert.match(environment.errors[0], /Unable to start.*ontama.*spawn failed/);
+  assert.match(environment.errors[0], /Unable to start.*keika.*spawn failed/);
   assert.equal(await controller.restart(), true);
   assert.deepEqual(controller.state(), { activated: true, running: true });
   assert.deepEqual(environment.events, [
-    'watch:**/*.otm', 'start:0', 'dispose:0', 'start:1'
+    'watch:**/*.km', 'start:0', 'dispose:0', 'start:1'
   ]);
 });
 
@@ -206,6 +206,6 @@ test('deactivation stops once and is idempotent', async () => {
   await controller.activate(environment.context);
   await controller.deactivate();
   await controller.deactivate();
-  assert.deepEqual(environment.events, ['watch:**/*.otm', 'start:0', 'stop:0']);
+  assert.deepEqual(environment.events, ['watch:**/*.km', 'start:0', 'stop:0']);
   assert.deepEqual(controller.state(), { activated: false, running: false });
 });

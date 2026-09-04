@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/lexer"
-	"github.com/puffball1567/onsentamago/internal/parser"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
+	"github.com/puffball1567/kinmokusei/internal/parser"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func TestResolvedDeclarationIdentityMatrix(t *testing.T) {
@@ -18,7 +18,7 @@ function compute(input: int): int {
   local += input;
   return helper(local);
 }`
-	tokens, lexDiagnostics := lexer.Lex("identity.otm", input)
+	tokens, lexDiagnostics := lexer.Lex("identity.km", input)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics: %v", lexDiagnostics)
 	}
@@ -49,7 +49,7 @@ function compute(input: int): int {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := test.identifier.ResolvedDeclaration.Start.Offset; got != test.wantStart || test.identifier.ResolvedDeclaration.Path != "identity.otm" {
+			if got := test.identifier.ResolvedDeclaration.Start.Offset; got != test.wantStart || test.identifier.ResolvedDeclaration.Path != "identity.km" {
 				t.Fatalf("resolved declaration = %#v, want offset %d", test.identifier.ResolvedDeclaration, test.wantStart)
 			}
 		})
@@ -67,7 +67,7 @@ function use(box: Box, reader: Reader): int {
   const copy: Box = new Box(box.value);
   return copy.read() + reader.read();
 }`
-	tokens, lexDiagnostics := lexer.Lex("type_identity.otm", input)
+	tokens, lexDiagnostics := lexer.Lex("type_identity.km", input)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics: %v", lexDiagnostics)
 	}
@@ -120,7 +120,7 @@ function use(): string {
   if (err != nil) { return ""; }
   return request.Method;
 }`
-	tokens, lexDiagnostics := lexer.Lex("go_binding_types.otm", input)
+	tokens, lexDiagnostics := lexer.Lex("go_binding_types.km", input)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics: %v", lexDiagnostics)
 	}
@@ -150,7 +150,7 @@ func checkSource(t *testing.T, input string) []string {
 
 func checkSourceWithPolicy(t *testing.T, input string, policy GoInteropPolicy) []string {
 	t.Helper()
-	tokens, lexDiagnostics := lexer.Lex("test.otm", input)
+	tokens, lexDiagnostics := lexer.Lex("test.km", input)
 	if len(lexDiagnostics) != 0 {
 		t.Fatalf("lexer diagnostics: %v", lexDiagnostics)
 	}

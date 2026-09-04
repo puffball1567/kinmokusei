@@ -9,7 +9,7 @@ import (
 
 func TestNativeGenericFunctionsMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "native_generics.otm")
+	source := filepath.Join(temporary, "native_generics.km")
 	input := `
 function identity<T>(value: T): T { return value; }
 function second<T, U>(left: T, right: U): U { return right; }
@@ -155,8 +155,8 @@ func TestNativeGenerics(t *testing.T) {
 
 func TestLinkedNativeGenericFunctionsMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "generic_helpers.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "generic_helpers.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`
 function identity<T>(value: T): T { return value; }
 function second<T, U>(left: T, right: U): U { return right; }
@@ -205,7 +205,7 @@ func TestLinkedNativeGenerics(t *testing.T) {
 
 func TestPublicNativeGenericFunctionsMatchFromExternalGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "public_generics.otm")
+	source := filepath.Join(temporary, "public_generics.km")
 	if err := os.WriteFile(source, []byte(`
 function Identity<T>(value: T): T { return value; }
 function Present<T>(value: T): Result<T> { return ok(value); }

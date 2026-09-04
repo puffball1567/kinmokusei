@@ -9,8 +9,8 @@ import (
 
 func TestSliceExpressionsAndNamedCollectionsCompileAndRun(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "slices.otm")
-	dependency := filepath.Join(temp, "bounds.otm")
+	source := filepath.Join(temp, "slices.km")
+	dependency := filepath.Join(temp, "bounds.km")
 	fixture := filepath.Join(temp, "fixture")
 	input := `
 import go net from "net";

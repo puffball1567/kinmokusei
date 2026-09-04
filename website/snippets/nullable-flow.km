@@ -1,0 +1,19 @@
+import go fmt from "fmt";
+
+class User { constructor(public name: string) {} }
+class Profile { constructor(public user: User | null) {} }
+
+function display(profile: Profile): string {
+  const snapshot = profile.user;
+  if (snapshot === null) { return "guest"; }
+  return snapshot.name;
+}
+
+function main(): void {
+  const profile = new Profile(null);
+  fmt.Println(display(profile));
+  profile.user = new User("hello");
+  fmt.Println(display(profile));
+  profile.user = null;
+  fmt.Println(display(profile));
+}

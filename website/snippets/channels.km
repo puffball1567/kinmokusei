@@ -1,0 +1,12 @@
+import go fmt from "fmt";
+
+function main(): void {
+  const channel = goChannel[int](2);
+  channel <- 21;
+  channel <- 42;
+  const [first, firstOpen] = <-channel;
+  const second = <-channel;
+  closeGoChannel(channel);
+  const [afterClose, stillOpen] = <-channel;
+  fmt.Println(first, firstOpen, second, afterClose, stillOpen);
+}

@@ -1,14 +1,55 @@
+---
+title: React with Gin and Fiber
+description: Run one React frontend against interchangeable Gin and Fiber backends written in Kinmokusei.
+---
+
 # React with Gin and Fiber
 
-The repository includes one React and TypeScript frontend with interchangeable Gin and Fiber backends written in OnsenTamago.
+The complete repository example pairs one React/TypeScript frontend with interchangeable Gin and Fiber backends written in Kinmokusei.
 
-Both backends:
+## What it demonstrates
 
-- import the real external Go framework package;
-- share an OnsenTamago todo store;
-- expose health, list, create, toggle, and delete operations;
-- compile to ordinary Go;
-- run against the same HTTP contract as independent handwritten Go servers;
-- are exercised through the Vite development proxy.
+- imports of real external Go framework modules;
+- a shared Kinmokusei todo store;
+- health, list, create, toggle, and delete HTTP operations;
+- locked external dependencies and ordinary generated Go;
+- the same HTTP contract exercised against independent handwritten Go servers;
+- a Vite development proxy and frontend component tests.
 
-Browse the [complete example](https://github.com/puffball1567/onsentamago/tree/main/examples/react-web-frameworks) to compare the `.otm` backend with its generated behavior and independent Go oracle.
+## Project tree
+
+```text
+examples/react-web-frameworks/
+├── README.md
+├── verify.sh
+├── backend/
+│   ├── kinmokusei.toml
+│   ├── kinmokusei.lock
+│   ├── store.km
+│   ├── gin/main.km
+│   └── fiber/main.km
+└── frontend/
+    ├── package.json
+    └── src/
+        ├── App.tsx
+        └── App.test.tsx
+```
+
+## Prerequisites
+
+- a supported Go toolchain;
+- Node.js for the React frontend;
+- compiler source checkout for the repository verification script;
+- an available local Go module cache for the already locked backend graph.
+
+## Verify
+
+From the example directory:
+
+```sh
+./verify.sh
+```
+
+The verification compiles/runs both Kinmokusei backends, tests their HTTP behavior, and exercises the frontend against the expected API contract. It does not use generated Go as its own expected-value implementation.
+
+Browse the [complete example source](https://github.com/puffball1567/kinmokusei/tree/main/examples/react-web-frameworks) for the exact run commands and current endpoint matrix.

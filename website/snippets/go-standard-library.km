@@ -1,0 +1,22 @@
+import go bytes from "bytes";
+import go fmt from "fmt";
+import go sort from "sort";
+import go strconv from "strconv";
+import go strings from "strings";
+
+function main(): void {
+  let buffer: bytes.Buffer = bytes.Buffer {};
+  const [written, writeErr] = buffer.WriteString(strings.ToUpper("hello"));
+  const [parsedNumber, parseErr] = strconv.Atoi("42");
+  const values = [3, 1, 2];
+  sort.Slice(values, (left: int, right: int): boolean => values[left] < values[right]);
+
+  fmt.Println(
+    written,
+    writeErr === nil,
+    buffer.String(),
+    parsedNumber,
+    parseErr === nil,
+    values,
+  );
+}

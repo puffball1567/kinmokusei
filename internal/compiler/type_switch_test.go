@@ -9,7 +9,7 @@ import (
 
 func TestGoInterfaceTypeSwitchCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "type_switch.otm")
+	source := filepath.Join(temp, "type_switch.km")
 	input := `
 import go io from "io";
 import go strings from "strings";

@@ -7,6 +7,20 @@ on:
     paths:
       - "website/**"
       - "scripts/check-docs.sh"
+      - "scripts/check-doc-links.mjs"
+      - "scripts/check-doc-content.mjs"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    branches:
+      - devel
+      - main
+      - "release/**"
+    paths:
+      - "website/**"
+      - "docs/**"
+      - "scripts/check-docs.sh"
+      - "scripts/check-doc-links.mjs"
+      - "scripts/check-doc-content.mjs"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -38,9 +52,14 @@ jobs:
       - run: npm ci --ignore-scripts
         working-directory: website
       - run: ./scripts/check-docs.sh
+      - run: npm run docs:check-links
+        working-directory: website
+      - run: npm run docs:check-content
+        working-directory: website
       - run: npm run docs:build
         working-directory: website
       - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           path: website/.vitepress/dist
 
@@ -51,6 +70,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

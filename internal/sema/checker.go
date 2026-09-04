@@ -14,9 +14,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/puffball1567/onsentamago/internal/ast"
-	"github.com/puffball1567/onsentamago/internal/diagnostic"
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type functionSymbol struct {
@@ -56,7 +56,7 @@ const (
 )
 
 // go/types rejects constant shifts above this implementation bound. Diagnose
-// the same restriction while the OnsenTamago source span is still available.
+// the same restriction while the Kinmokusei source span is still available.
 const maximumGoConstantShift = 1074
 
 type fieldSymbol struct {
@@ -92,14 +92,18 @@ type classSymbol struct {
 	typeParamScope      map[string]Type
 	declarationSpan     source.Span
 	base                string
+	baseType            Type
 	ancestors           []string
+	ancestorTypes       []Type
 	final               bool
+	goNamed             *gotypes.Named
 }
 
 type structSymbol struct {
 	fields          map[string]fieldSymbol
 	methods         map[string]methodSymbol
 	typeInfo        Type
+	goNamed         *gotypes.Named
 	typeParameters  []Type
 	typeParamScope  map[string]Type
 	declarationSpan source.Span
@@ -110,11 +114,13 @@ type interfaceSymbol struct {
 	typeParameters  []Type
 	typeParamScope  map[string]Type
 	declarationSpan source.Span
+	goNamed         *gotypes.Named
 }
 
 type nativeTypeSymbol struct {
 	declaration    *ast.TypeDecl
 	typeInfo       Type
+	underlying     Type
 	goNamed        *gotypes.Named
 	methods        map[string]methodSymbol
 	typeParameters []Type
@@ -198,6 +204,7 @@ type Checker struct {
 	validFallthrough           map[*ast.BranchStmt]bool
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
+	structGoTypesFinalized     bool
 }
 
 type GoInteropPolicy struct {
@@ -232,6 +239,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
 	c.predeclareNamedTypes(program)
+	c.declareNativeTypes(program)
+	c.declareStructs(program)
+	c.finalizeNativeStructGoTypes(program)
+	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
 	c.declareInterfaces(program)
 	c.declareClasses(program)
@@ -474,11 +485,11 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 	declared := map[string]source.Span{}
 	structMembers := map[string]map[string]source.Span{}
 	claim := func(name string, span source.Span) {
-		if c.usesTasks && (name == "__ontamaTask" || name == "__ontamaVoidTask" || name == "__ontamaResultTask" || name == "__ontamaVoidResultTask") {
+		if c.usesTasks && (name == "__kinmokuseiTask" || name == "__kinmokuseiVoidTask" || name == "__kinmokuseiResultTask" || name == "__kinmokuseiVoidResultTask") {
 			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the Task runtime", name))
 			return
 		}
-		if c.usesExceptions && (name == "__ontamaException" || name == "__ontamaThrown" || name == "__ontamaReturn" || name == "__ontamaReturnValue" || name == "__ontamaInitException" || name == "__ontamaExceptionFromError" || name == "NewException") {
+		if c.usesExceptions && (name == "__kinmokuseiException" || name == "__kinmokuseiThrown" || name == "__kinmokuseiReturn" || name == "__kinmokuseiReturnValue" || name == "__kinmokuseiInitException" || name == "__kinmokuseiExceptionFromError" || name == "NewException") {
 			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the exception runtime", name))
 			return
 		}
@@ -521,16 +532,16 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 			}
 			claim(declaration.Name, declaration.Span)
 			claim("New"+declaration.Name, declaration.Span)
-			claim("__ontamaInit"+declaration.Name, declaration.Span)
+			claim("__kinmokuseiInit"+declaration.Name, declaration.Span)
 			if declaration.Base != nil {
 				claimStructMember(declaration.Name, declaration.Base.Name, declaration.Base.Span)
 			}
 			if declaration.HierarchyRoot == declaration.Name {
-				claimStructMember(declaration.Name, "__ontamaRoot", declaration.Span)
+				claimStructMember(declaration.Name, "__kinmokuseiRoot", declaration.Span)
 			}
 			for _, owner := range declaration.VirtualOwners {
 				if owner == declaration.Name {
-					claimStructMember(declaration.Name, "__ontama"+owner+"Self", declaration.Span)
+					claimStructMember(declaration.Name, "__kinmokusei"+owner+"Self", declaration.Span)
 				}
 			}
 			for _, field := range declaration.Fields {
@@ -544,16 +555,20 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				}
 			}
 			for _, ancestor := range declaration.Ancestors {
-				claim("__ontamaUpcast"+declaration.Name+"To"+ancestor, declaration.Span)
-				claim("__ontamaDowncast"+ancestor+"To"+declaration.Name, declaration.Span)
-				claim("__ontamaMustDowncast"+ancestor+"To"+declaration.Name, declaration.Span)
+				claim("__kinmokuseiUpcast"+declaration.Name+"To"+ancestor, declaration.Span)
+				claim("__kinmokuseiDowncast"+ancestor+"To"+declaration.Name, declaration.Span)
+				claim("__kinmokuseiMustDowncast"+ancestor+"To"+declaration.Name, declaration.Span)
 				claim("Upcast"+declaration.Name+"To"+ancestor, declaration.Span)
 				claim("Downcast"+ancestor+"To"+declaration.Name, declaration.Span)
 				claim("MustDowncast"+ancestor+"To"+declaration.Name, declaration.Span)
 			}
+			if len(declaration.Ancestors) != 0 {
+				claim("__kinmokusei"+declaration.Name+"Projection", declaration.Span)
+				claimStructMember(declaration.Name, "__kinmokuseiAs"+declaration.Name, declaration.Span)
+			}
 			for _, method := range declaration.Methods {
 				if method.Virtual && !method.Override && !method.Static {
-					claim("__ontama"+declaration.Name+"Virtual", method.Span)
+					claim("__kinmokusei"+declaration.Name+"Virtual", method.Span)
 					break
 				}
 			}
@@ -563,7 +578,7 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 					continue
 				}
 				if method.Virtual || method.Override {
-					claimStructMember(declaration.Name, "__ontama"+method.VirtualOwner+method.GoName, method.Span)
+					claimStructMember(declaration.Name, "__kinmokusei"+method.VirtualOwner+method.GoName, method.Span)
 				}
 				if !method.Override {
 					claimStructMember(declaration.Name, method.GoName, method.Span)
@@ -647,16 +662,18 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 			class := declaration
 			if _, exists := c.classes[class.Name]; !exists {
 				typeParameters, typeParamScope := c.declareTypeParameters(class.TypeParameters, "generic class")
+				goNamed := newNativeGoNamed(class.Name, typeParameters, gotypes.NewStruct(nil, nil))
 				c.classes[class.Name] = &classSymbol{
-					declarationSpan: class.NameSpan, typeParameters: typeParameters, typeParamScope: typeParamScope,
+					declarationSpan: class.NameSpan, typeParameters: typeParameters, typeParamScope: typeParamScope, goNamed: goNamed,
 				}
 			}
 		case *ast.InterfaceDecl:
 			if _, exists := c.interfaces[declaration.Name]; !exists {
 				typeParameters, typeParamScope := c.declareTypeParameters(declaration.TypeParameters, "generic interface")
+				goNamed := newNativeGoNamed(declaration.Name, typeParameters, gotypes.NewInterfaceType(nil, nil).Complete())
 				c.interfaces[declaration.Name] = &interfaceSymbol{
 					methods: map[string]methodSymbol{}, typeParameters: typeParameters, typeParamScope: typeParamScope,
-					declarationSpan: declaration.NameSpan,
+					declarationSpan: declaration.NameSpan, goNamed: goNamed,
 				}
 			}
 		case *ast.StructDecl:
@@ -664,9 +681,10 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 				typeParameters, typeParamScope := c.declareTypeParameters(declaration.TypeParameters, "generic struct")
 				fields := map[string]Type{}
 				fieldNames := map[string]string{}
+				goNamed := newNativeGoNamed(declaration.Name, typeParameters, nil)
 				c.structs[declaration.Name] = &structSymbol{
 					fields: map[string]fieldSymbol{}, methods: map[string]methodSymbol{}, declarationSpan: declaration.NameSpan,
-					typeParameters: typeParameters, typeParamScope: typeParamScope,
+					typeParameters: typeParameters, typeParamScope: typeParamScope, goNamed: goNamed,
 					typeInfo: Type{Kind: Struct, Name: declaration.Name, Fields: fields, FieldNames: fieldNames, TypeParameters: typeParameters, Generic: len(typeParameters) != 0},
 				}
 			}
@@ -717,6 +735,21 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 			c.enums[declaration.Name] = &enumSymbol{declaration: declaration, members: members}
 		}
 	}
+}
+
+func newNativeGoNamed(name string, typeParameters []Type, underlying gotypes.Type) *gotypes.Named {
+	object := gotypes.NewTypeName(gotoken.NoPos, nil, name, nil)
+	named := gotypes.NewNamed(object, underlying, nil)
+	parameters := make([]*gotypes.TypeParam, 0, len(typeParameters))
+	for _, parameter := range typeParameters {
+		if goParameter, ok := parameter.GoType.(*gotypes.TypeParam); ok {
+			parameters = append(parameters, goParameter)
+		}
+	}
+	if len(parameters) == len(typeParameters) && len(parameters) != 0 {
+		named.SetTypeParams(parameters)
+	}
+	return named
 }
 
 func (c *Checker) declareNativeTypes(program *ast.Program) {
@@ -788,13 +821,22 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 	c.pushTypeParameterScope(symbol.typeParamScope)
 	underlying := c.resolveType(symbol.declaration.Underlying)
 	c.popTypeParameterScope()
-	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null
-	if underlying.Kind == TypeParameter {
-		c.report(symbol.declaration.Underlying.Span, "a generic defined type cannot use a type parameter directly as its underlying type; wrap it in a slice, array, map, pointer, or other concrete type")
-		invalidBoundary = true
+	symbol.underlying = underlying
+	if !symbol.declaration.Alias && underlying.Kind == Struct && underlying.GoType == nil && !c.structGoTypesFinalized {
+		symbol.state = 0
+		return symbol.typeInfo
 	}
-	if symbol.declaration.Alias && len(symbol.typeParameters) != 0 {
-		c.report(symbol.declaration.Span, "generic aliases are not supported by the minimum Go target; use a distinct generic defined type")
+	if !symbol.declaration.Alias && underlying.Kind == GoNamed && !c.structGoTypesFinalized {
+		if object := goTypeNameObject(underlying.GoType); object != nil {
+			if dependency := c.nativeTypes[object.Name()]; dependency != nil && dependency.state != 2 {
+				symbol.state = 0
+				return symbol.typeInfo
+			}
+		}
+	}
+	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null
+	if underlying.Kind == TypeParameter && !symbol.declaration.Alias {
+		c.report(symbol.declaration.Underlying.Span, "a generic defined type cannot use a type parameter directly as its underlying type; wrap it in a slice, array, map, pointer, or other concrete type")
 		invalidBoundary = true
 	}
 	if invalidBoundary {
@@ -862,7 +904,6 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	arguments := make([]Type, got)
-	goArguments := make([]gotypes.Type, got)
 	valid := true
 	for index := range ref.GenericArguments {
 		arguments[index] = c.resolveType(ref.GenericArguments[index])
@@ -876,6 +917,22 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 			valid = false
 			continue
 		}
+	}
+	if !valid {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if symbol.declaration.Alias {
+		if !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic alias "+ref.Name) {
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		bindings := make(map[string]Type, len(symbol.typeParameters))
+		for index, parameter := range symbol.typeParameters {
+			bindings[parameter.Name] = arguments[index]
+		}
+		return substituteNativeTypeParameters(base, bindings)
+	}
+	goArguments := make([]gotypes.Type, got)
+	for index, argument := range arguments {
 		goArgument, ok := goTypeOf(argument)
 		if !ok {
 			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot yet be used as a generic defined type argument", argument.String()))
@@ -988,7 +1045,6 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 			name = decl.Name
 		case *ast.StructDecl:
 			name = decl.Name
-			c.declareStruct(decl)
 		case *ast.TypeDecl:
 			name = decl.Name
 		case *ast.EnumDecl:
@@ -1030,12 +1086,29 @@ func (c *Checker) declareTypeParameters(parameters []ast.TypeParameter, context 
 func (c *Checker) declareDefinedTypeParameters(declaration *ast.TypeDecl) ([]Type, map[string]Type) {
 	comparable := map[string]bool{}
 	collectComparableTypeParameters(declaration.Underlying, comparable)
-	return c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic defined type", comparable)
+	if !declaration.Alias {
+		return c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic defined type", comparable)
+	}
+	// Generic aliases are expanded at every use site for Go 1.23 and their
+	// declarations do not reach generated Go. Loading a Go constraint must not
+	// retain an otherwise unused import solely for the erased declaration.
+	usage := map[*ast.ImportDecl]bool{}
+	for _, byAlias := range c.goPackages {
+		for _, imported := range byAlias {
+			usage[imported.declaration] = imported.declaration.Used
+		}
+	}
+	parameters, scope := c.declareTypeParametersWithComparable(declaration.TypeParameters, "generic alias", comparable)
+	for imported, used := range usage {
+		imported.Used = used
+	}
+	return parameters, scope
 }
 
 func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParameter, context string, comparable map[string]bool) ([]Type, map[string]Type) {
 	anyConstraint := gotypes.NewInterfaceType(nil, nil)
 	anyConstraint.Complete()
+	comparableConstraint := gotypes.Universe.Lookup("comparable").Type()
 	result := make([]Type, 0, len(parameters))
 	scope := make(map[string]Type, len(parameters))
 	for _, parameter := range parameters {
@@ -1055,20 +1128,22 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 			c.report(parameter.Span, fmt.Sprintf("duplicate %s type parameter %q", context, parameter.Name))
 			continue
 		}
+		constraint := gotypes.Type(anyConstraint)
 		if parameter.Constraint != nil {
-			constraint := parameter.Constraint
-			if constraint.Qualifier != "" || constraint.Name != "comparable" || constraint.Nullable || constraint.IsArray() || constraint.IsPointer() || constraint.IsFunction() || constraint.IsObject() || constraint.IsGoStruct() || len(constraint.GenericArguments) != 0 {
-				c.report(constraint.Span, "native type parameter constraint must be comparable")
+			resolved, ok := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+			if !ok {
 				continue
 			}
-			if comparable == nil {
-				comparable = map[string]bool{}
-			}
-			comparable[parameter.Name] = true
+			constraint = resolved
 		}
-		constraint := gotypes.Type(anyConstraint)
 		if comparable[parameter.Name] {
-			constraint = gotypes.Universe.Lookup("comparable").Type()
+			if parameter.Constraint == nil {
+				constraint = comparableConstraint
+			} else if constraint != comparableConstraint {
+				intersection := gotypes.NewInterfaceType(nil, []gotypes.Type{constraint, comparableConstraint})
+				intersection.Complete()
+				constraint = intersection
+			}
 		}
 		object := gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil)
 		goParameter := gotypes.NewTypeParam(object, constraint)
@@ -1077,6 +1152,26 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 		result = append(result, typeInfo)
 	}
 	return result, scope
+}
+
+func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef) (gotypes.Type, bool) {
+	if ref.Qualifier == "" && ref.Name == "comparable" && !ref.Nullable && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
+		return gotypes.Universe.Lookup("comparable").Type(), true
+	}
+	if ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
+		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
+		return nil, false
+	}
+	resolved := c.resolveType(ref)
+	if resolved.Kind == Invalid {
+		return nil, false
+	}
+	constraint, ok := goTypeOf(resolved)
+	if !ok || underlyingGoInterface(constraint) == nil {
+		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
+		return nil, false
+	}
+	return constraint, true
 }
 
 func nativeTypeArgumentSatisfies(parameter, argument Type) bool {
@@ -1089,11 +1184,11 @@ func nativeTypeArgumentSatisfies(parameter, argument Type) bool {
 		return true
 	}
 	argument = defaultLiteralType(argument)
-	if constraint.IsComparable() {
-		return argument.IsComparable()
-	}
 	goArgument, ok := goTypeOf(argument)
-	return ok && gotypes.Satisfies(goArgument, constraint)
+	if ok {
+		return gotypes.Satisfies(goArgument, constraint)
+	}
+	return goParameter.Constraint() == gotypes.Universe.Lookup("comparable").Type() && argument.IsComparable()
 }
 
 func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs []ast.TypeRef, fallback source.Span, owner string) bool {
@@ -1213,22 +1308,9 @@ func (c *Checker) declareClasses(program *ast.Program) {
 		state[decl.Name] = 1
 		if decl.Base != nil {
 			base := decl.Base
-			if len(decl.TypeParameters) != 0 {
-				c.report(base.Span, "generic classes cannot currently use extends; use composition or a generic interface")
-			} else if len(base.GenericArguments) != 0 {
-				if baseDecl := declarations[base.Name]; baseDecl != nil && len(baseDecl.TypeParameters) != 0 {
-					c.report(base.Span, fmt.Sprintf("generic base class %s cannot currently be extended; generic class inheritance is not yet supported", base.Name))
-				} else {
-					c.report(base.Span, "extends expects an unqualified class name")
-				}
-			} else if base.Nullable || base.Qualifier != "" || base.Name == "" || base.IsArray() || base.IsPointer() || base.IsFunction() || base.IsObject() {
+			if base.Nullable || base.Qualifier != "" || base.Name == "" || base.IsArray() || base.IsPointer() || base.IsFunction() || base.IsObject() {
 				c.report(base.Span, "extends expects an unqualified class name")
 			} else if baseDecl := declarations[base.Name]; baseDecl != nil {
-				if len(baseDecl.TypeParameters) != 0 {
-					c.report(base.Span, fmt.Sprintf("generic base class %s requires type arguments, but generic class inheritance is not yet supported", base.Name))
-					state[decl.Name] = 2
-					return
-				}
 				declare(baseDecl)
 				if baseDecl.Final {
 					c.report(base.Span, fmt.Sprintf("cannot extend final class %s", base.Name))
@@ -1263,12 +1345,8 @@ func (c *Checker) declareClasses(program *ast.Program) {
 		for _, ancestor := range symbol.ancestors {
 			if ancestorDeclaration := declarations[ancestor]; ancestorDeclaration != nil {
 				ancestorDeclaration.HierarchyRoot = root
-				ancestorDeclaration.Descendants = append(ancestorDeclaration.Descendants, name)
 			}
 		}
-	}
-	for _, declaration := range declarations {
-		sort.Strings(declaration.Descendants)
 	}
 }
 
@@ -1309,25 +1387,41 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 	if decl.Base != nil {
 		base := c.classes[decl.Base.Name]
 		if base != nil && base.fields != nil && decl.Base.Name != decl.Name {
+			baseType := c.resolveNativeClassType(*decl.Base, base)
+			baseBindings := nativeClassBindings(base, baseType)
 			symbol.base = decl.Base.Name
+			symbol.baseType = baseType
 			symbol.ancestors = append([]string{decl.Base.Name}, base.ancestors...)
+			symbol.ancestorTypes = append(symbol.ancestorTypes, baseType)
+			for _, ancestorType := range base.ancestorTypes {
+				symbol.ancestorTypes = append(symbol.ancestorTypes, substituteNativeTypeParameters(ancestorType, baseBindings))
+			}
 			decl.Ancestors = append(decl.Ancestors, symbol.ancestors...)
+			for _, ancestorType := range symbol.ancestorTypes {
+				decl.AncestorTypes = append(decl.AncestorTypes, typeRefFromType(ancestorType, decl.Base.Span))
+			}
 			decl.Base.ResolvedDeclaration = base.declarationSpan
 			for name, field := range base.fields {
+				field.typeInfo = substituteNativeTypeParameters(field.typeInfo, baseBindings)
 				symbol.fields[name] = field
 			}
 			for name, method := range base.methods {
+				if !method.static {
+					method.typeInfo = substituteNativeTypeParameters(method.typeInfo, baseBindings)
+				}
 				symbol.methods[name] = method
 			}
 			for name := range base.implements {
 				symbol.implements[name] = true
 			}
-			symbol.implementedTypes = append(symbol.implementedTypes, base.implementedTypes...)
+			for _, implemented := range base.implementedTypes {
+				symbol.implementedTypes = append(symbol.implementedTypes, substituteNativeTypeParameters(implemented, baseBindings))
+			}
 			symbol.goImplements = append(symbol.goImplements, base.goImplements...)
 		}
 	}
 	declareField := func(name string, typeRef ast.TypeRef, visibility ast.Visibility, span, declarationSpan source.Span, setGoName func(string)) {
-		if name == "__ontamaRoot" {
+		if name == "__kinmokuseiRoot" {
 			c.report(span, fmt.Sprintf("field %q is reserved for class identity", name))
 			return
 		}
@@ -1339,9 +1433,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.report(span, fmt.Sprintf("field %q conflicts with the embedded base class", name))
 			return
 		}
-		reservedVirtualField := name == "__ontama"+decl.Name+"Self"
+		reservedVirtualField := name == "__kinmokusei"+decl.Name+"Self"
 		for _, inheritedMethod := range symbol.methods {
-			if inheritedMethod.virtualOwner != "" && name == "__ontama"+inheritedMethod.virtualOwner+"Self" {
+			if inheritedMethod.virtualOwner != "" && name == "__kinmokusei"+inheritedMethod.virtualOwner+"Self" {
 				reservedVirtualField = true
 			}
 		}
@@ -1398,12 +1492,6 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if method.Static && (method.Virtual || method.Override) {
 			c.report(method.Span, "static methods cannot be virtual or override")
 		}
-		if len(symbol.typeParameters) != 0 && method.Static {
-			c.report(method.Span, "generic class static methods are not yet supported; use a top-level generic function")
-		}
-		if len(symbol.typeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
-			c.report(method.Span, "generic class virtual, override, and final methods are not yet supported")
-		}
 		if method.Virtual && method.Override {
 			c.report(method.Span, "override already remains virtual; remove the virtual modifier")
 		}
@@ -1414,6 +1502,10 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.report(method.Span, "virtual methods must be public or protected")
 		}
 		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
+		if method.Static && len(symbol.typeParameters) != 0 {
+			methodType.TypeParameters = append([]Type(nil), symbol.typeParameters...)
+			methodType.Generic = true
+		}
 		virtualOwner := ""
 		if replaces && inherited.declaringClass == decl.Name {
 			c.report(method.Span, fmt.Sprintf("duplicate method %q", method.Name))
@@ -1566,6 +1658,218 @@ func (c *Checker) declareStruct(decl *ast.StructDecl) {
 	}
 }
 
+func (c *Checker) declareStructs(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		if structure, ok := declaration.(*ast.StructDecl); ok {
+			c.declareStruct(structure)
+		}
+	}
+}
+
+func (c *Checker) finalizeNativeStructGoTypes(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		decl, ok := declaration.(*ast.StructDecl)
+		if !ok {
+			continue
+		}
+		symbol := c.structs[decl.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			continue
+		}
+		fields := make([]*gotypes.Var, 0, len(decl.Fields))
+		tags := make([]string, 0, len(decl.Fields))
+		valid := true
+		seen := map[string]bool{}
+		for _, field := range decl.Fields {
+			if seen[field.Name] {
+				valid = false
+				continue
+			}
+			seen[field.Name] = true
+			stored, exists := symbol.fields[field.Name]
+			if !exists {
+				valid = false
+				continue
+			}
+			fieldType, ok := c.goTypeForNativeStorage(stored.typeInfo)
+			if !ok {
+				valid = false
+				continue
+			}
+			fields = append(fields, gotypes.NewField(gotoken.NoPos, nil, stored.goName, fieldType, false))
+			tag := ""
+			if field.Visibility == ast.Public {
+				tag = `json:"` + field.Name + `"`
+			}
+			tags = append(tags, tag)
+		}
+		if !valid {
+			continue
+		}
+		symbol.goNamed.SetUnderlying(gotypes.NewStruct(fields, tags))
+		symbol.typeInfo.GoType = symbol.goNamed
+	}
+}
+
+func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
+	switch value.Kind {
+	case Struct:
+		symbol := c.structs[value.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			return nil, false
+		}
+		return c.instantiateNativeStorageType(symbol.goNamed, value.TypeArguments)
+	case Class:
+		symbol := c.classes[value.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			return nil, false
+		}
+		instantiated, ok := c.instantiateNativeStorageType(symbol.goNamed, value.TypeArguments)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewPointer(instantiated), true
+	case Interface:
+		symbol := c.interfaces[value.Name]
+		if symbol == nil || symbol.goNamed == nil {
+			return nil, false
+		}
+		return c.instantiateNativeStorageType(symbol.goNamed, value.TypeArguments)
+	case Nullable:
+		if value.Element == nil {
+			return nil, false
+		}
+		return c.goTypeForNativeStorage(*value.Element)
+	case GoPointer:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewPointer(element), true
+	case Array:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewSlice(element), true
+	case FixedArray:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		return gotypes.NewArray(element, value.Length), true
+	case Map:
+		if value.Key == nil || value.Element == nil {
+			return nil, false
+		}
+		key, keyOK := c.goTypeForNativeStorage(*value.Key)
+		element, elementOK := c.goTypeForNativeStorage(*value.Element)
+		if !keyOK || !elementOK {
+			return nil, false
+		}
+		return gotypes.NewMap(key, element), true
+	case Object:
+		names := make([]string, 0, len(value.Fields))
+		for name := range value.Fields {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		fields := make([]*gotypes.Var, len(names))
+		tags := make([]string, len(names))
+		for index, name := range names {
+			fieldType, ok := c.goTypeForNativeStorage(value.Fields[name])
+			if !ok {
+				return nil, false
+			}
+			goName := value.FieldNames[name]
+			if goName == "" {
+				goName = name
+			}
+			fields[index] = gotypes.NewField(gotoken.NoPos, nil, goName, fieldType, false)
+			tags[index] = `json:"` + name + `"`
+		}
+		return gotypes.NewStruct(fields, tags), true
+	case Function:
+		parameters := make([]*gotypes.Var, len(value.Parameters))
+		for index, parameter := range value.Parameters {
+			parameterType, ok := c.goTypeForNativeStorage(parameter)
+			if !ok {
+				return nil, false
+			}
+			if value.Variadic && index == len(value.Parameters)-1 {
+				parameterType = gotypes.NewSlice(parameterType)
+			}
+			parameters[index] = gotypes.NewVar(gotoken.NoPos, nil, "", parameterType)
+		}
+		if value.Result == nil {
+			return nil, false
+		}
+		var results []*gotypes.Var
+		switch value.Result.Kind {
+		case Void:
+		case MultiValue:
+			results = make([]*gotypes.Var, len(value.Result.Results))
+			for index, result := range value.Result.Results {
+				resultType, ok := c.goTypeForNativeStorage(result)
+				if !ok {
+					return nil, false
+				}
+				results[index] = gotypes.NewVar(gotoken.NoPos, nil, "", resultType)
+			}
+		default:
+			resultType, ok := c.goTypeForNativeStorage(*value.Result)
+			if !ok {
+				return nil, false
+			}
+			results = []*gotypes.Var{gotypes.NewVar(gotoken.NoPos, nil, "", resultType)}
+		}
+		return gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(parameters...), gotypes.NewTuple(results...), value.Variadic), true
+	case GoChannel:
+		if value.Element == nil {
+			return nil, false
+		}
+		element, ok := c.goTypeForNativeStorage(*value.Element)
+		if !ok {
+			return nil, false
+		}
+		direction := gotypes.SendRecv
+		switch value.Name {
+		case "GoSendChannel":
+			direction = gotypes.SendOnly
+		case "GoReceiveChannel":
+			direction = gotypes.RecvOnly
+		}
+		return gotypes.NewChan(direction, element), true
+	default:
+		return goTypeOf(value)
+	}
+}
+
+func (c *Checker) instantiateNativeStorageType(named *gotypes.Named, arguments []Type) (gotypes.Type, bool) {
+	if len(arguments) == 0 {
+		return named, true
+	}
+	goArguments := make([]gotypes.Type, len(arguments))
+	for index, argument := range arguments {
+		resolved, ok := c.goTypeForNativeStorage(argument)
+		if !ok {
+			return nil, false
+		}
+		goArguments[index] = resolved
+	}
+	instantiated, err := gotypes.Instantiate(nil, named, goArguments, true)
+	return instantiated, err == nil
+}
+
 func (c *Checker) declareStructMethod(symbol *structSymbol, method *ast.MethodDecl) {
 	if _, exists := symbol.fields[method.Name]; exists {
 		c.report(method.Span, fmt.Sprintf("struct member %q conflicts with a field", method.Name))
@@ -1710,6 +2014,18 @@ func (c *Checker) declareNativeTypeMethod(symbol *nativeTypeSymbol, method *ast.
 	if symbol == nil || c.resolveNativeType(symbol).Kind == Invalid {
 		return
 	}
+	method.GoName = memberGoName(method.Name, method.Visibility)
+	methodUnderlying := c.nativeDefinedUnderlying(symbol, symbol.typeInfo)
+	if methodUnderlying.Kind == Struct {
+		if structure := c.structs[methodUnderlying.Name]; structure != nil {
+			for fieldName, field := range structure.fields {
+				if field.goName == method.GoName {
+					c.report(method.Span, fmt.Sprintf("defined type method %q conflicts with underlying struct field %q", method.Name, fieldName))
+					return
+				}
+			}
+		}
+	}
 	if _, exists := symbol.methods[method.Name]; exists {
 		c.report(method.Span, fmt.Sprintf("duplicate defined type method %q", method.Name))
 		return
@@ -1726,7 +2042,6 @@ func (c *Checker) declareNativeTypeMethod(symbol *nativeTypeSymbol, method *ast.
 	}
 	result := c.resolveType(method.ReturnType)
 	c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
-	method.GoName = memberGoName(method.Name, method.Visibility)
 	methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
 	symbol.methods[method.Name] = methodSymbol{
 		typeInfo: methodType, visibility: method.Visibility, pointerReceiver: method.PointerReceiver,
@@ -3713,7 +4028,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		if channel.Dir() == gotypes.RecvOnly {
 			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("cannot send to receive-only channel %s", channelType.String()))
 		}
-		element, err := ontamaTypeFromGo(channel.Elem())
+		element, err := kinmokuseiTypeFromGo(channel.Elem())
 		if err != nil {
 			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel element type is not supported: %v", err))
 			c.checkExpression(stmt.Value)
@@ -4523,7 +4838,7 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 	case *ast.NewExpr:
 		return c.checkNew(expr)
 	case *ast.ClassUpcastExpr:
-		return Type{Kind: Class, Name: expr.TargetClass}
+		return c.resolveType(expr.TargetType)
 	}
 	return Type{Kind: Invalid, Name: "<invalid>"}
 }
@@ -4547,8 +4862,10 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 			c.report(expr.Span, fmt.Sprintf("%s already has class type %s; no downcast is needed", value.String(), asserted.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if !c.classExtends(asserted.Name, source.Name) {
-			if c.classExtends(source.Name, asserted.Name) {
+		ancestor, downcast := c.classAncestorType(asserted, source.Name)
+		if !downcast || !exactType(source, ancestor) {
+			upcastAncestor, upcast := c.classAncestorType(source, asserted.Name)
+			if upcast && exactType(asserted, upcastAncestor) {
 				c.report(expr.Span, fmt.Sprintf("%s to %s is an upcast; use ordinary assignment or argument passing", source.String(), asserted.String()))
 			} else {
 				c.report(expr.Span, fmt.Sprintf("classes %s and %s are not in the same inheritance chain", source.String(), asserted.String()))
@@ -4597,7 +4914,7 @@ func (c *Checker) checkTaskStart(expr *ast.TaskStartExpr) Type {
 		return result
 	}
 	if result.Kind == MultiValue {
-		c.report(expr.Call.Span, "go expression cannot start a raw multiple-result Go call; wrap it in a Result-returning OnsenTamago function")
+		c.report(expr.Call.Span, "go expression cannot start a raw multiple-result Go call; wrap it in a Result-returning Kinmokusei function")
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	expr.ResultTask = result.Kind == Result
@@ -4661,10 +4978,29 @@ func (c *Checker) checkExpressionExpectedSlot(slot *ast.Expression, expected Typ
 	if actualClass.Kind == Nullable && actualClass.Element != nil {
 		actualClass = *actualClass.Element
 	}
-	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name && c.classExtends(actualClass.Name, targetClass.Name) {
-		*slot = &ast.ClassUpcastExpr{Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name, Span: (*slot).GetSpan()}
+	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name {
+		if ancestor, ok := c.classAncestorType(actualClass, targetClass.Name); ok && exactType(targetClass, ancestor) {
+			*slot = &ast.ClassUpcastExpr{
+				Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name,
+				SourceType: typeRefFromType(actualClass, (*slot).GetSpan()), TargetType: typeRefFromType(targetClass, (*slot).GetSpan()), Span: (*slot).GetSpan(),
+			}
+		}
 	}
 	return actual
+}
+
+func (c *Checker) classAncestorType(value Type, baseName string) (Type, bool) {
+	class := c.classes[value.Name]
+	if class == nil {
+		return Type{}, false
+	}
+	bindings := nativeClassBindings(class, value)
+	for index, ancestor := range class.ancestors {
+		if ancestor == baseName && index < len(class.ancestorTypes) {
+			return substituteNativeTypeParameters(class.ancestorTypes[index], bindings), true
+		}
+	}
+	return Type{}, false
 }
 
 func (c *Checker) classExtends(className, baseName string) bool {
@@ -4853,7 +5189,7 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 			c.report(expr.Span, fmt.Sprintf("operator * requires a pointer operand, got %s", operand.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		result, err := ontamaTypeFromGo(pointer.Elem())
+		result, err := kinmokuseiTypeFromGo(pointer.Elem())
 		if err != nil {
 			c.report(expr.Span, err.Error())
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -4900,7 +5236,7 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 		c.report(expr.Span, fmt.Sprintf("cannot receive from send-only channel %s", operand.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	element, err := ontamaTypeFromGo(channel.Elem())
+	element, err := kinmokuseiTypeFromGo(channel.Elem())
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("channel element type is not supported: %v", err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -4941,14 +5277,25 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 		}
 		return result
 	}
-	if result.Kind == Struct {
-		symbol := c.structs[result.Name]
+	literalStructure := result
+	if result.Kind == GoNamed && result.GoQualifier == "" {
+		if object := goTypeNameObject(result.GoType); object != nil {
+			if named := c.nativeTypes[object.Name()]; named != nil && !named.declaration.Alias {
+				underlying := c.nativeDefinedUnderlying(named, result)
+				if underlying.Kind == Struct {
+					literalStructure = underlying
+				}
+			}
+		}
+	}
+	if literalStructure.Kind == Struct {
+		symbol := c.structs[literalStructure.Name]
 		if symbol == nil {
-			c.report(expr.Type.Span, fmt.Sprintf("unknown struct type %s", result.String()))
+			c.report(expr.Type.Span, fmt.Sprintf("unknown struct type %s", literalStructure.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		expr.ResolvedFieldNames = make([]string, len(expr.Fields))
-		bindings := nativeStructBindings(symbol, result)
+		bindings := nativeStructBindings(symbol, literalStructure)
 		seen := map[string]bool{}
 		for index, field := range expr.Fields {
 			if seen[field.Name] {
@@ -4957,7 +5304,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 			seen[field.Name] = true
 			selected, exists := symbol.fields[field.Name]
 			if !exists {
-				c.report(field.Span, fmt.Sprintf("struct %s has no field %q", result.Name, field.Name))
+				c.report(field.Span, fmt.Sprintf("struct %s has no field %q", literalStructure.Name, field.Name))
 				c.checkExpression(field.Value)
 				continue
 			}
@@ -4969,7 +5316,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 		}
 		for name := range symbol.fields {
 			if !seen[name] {
-				c.report(expr.Span, fmt.Sprintf("struct literal %s is missing field %q", result.Name, name))
+				c.report(expr.Span, fmt.Sprintf("struct literal %s is missing field %q", literalStructure.Name, name))
 			}
 		}
 		return result
@@ -5011,7 +5358,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 			c.checkExpression(field.Value)
 			continue
 		}
-		expected, err := ontamaTypeFromGo(selected.Type())
+		expected, err := kinmokuseiTypeFromGo(selected.Type())
 		if err != nil {
 			c.report(field.Span, fmt.Sprintf("Go struct field %s.%s is not supported: %v", result.String(), field.Name, err))
 			c.checkExpression(field.Value)
@@ -5162,9 +5509,24 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 	if nativeObject.Kind == GoNamed && nativeObject.GoQualifier == "" {
 		if namedObject := goTypeNameObject(nativeObject.GoType); namedObject != nil {
 			if symbol := c.nativeTypes[namedObject.Name()]; symbol != nil && !symbol.declaration.Alias {
+				underlying := c.nativeDefinedUnderlying(symbol, nativeObject)
+				if underlying.Kind == Struct {
+					if structure := c.structs[underlying.Name]; structure != nil {
+						if field, exists := structure.fields[expr.Name]; exists {
+							expr.ResolvedName = field.goName
+							expr.ResolvedDeclaration = field.declarationSpan
+							expr.Addressable = nativePointer || c.isAddressableExpression(expr.Object)
+							return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, underlying))
+						}
+					}
+				}
 				method, exists := symbol.methods[expr.Name]
 				if !exists {
-					c.report(expr.Span, fmt.Sprintf("defined type %s has no method %q", nativeObject.String(), expr.Name))
+					if underlying.Kind == Struct {
+						c.report(expr.Span, fmt.Sprintf("defined type %s has no field or method %q", nativeObject.String(), expr.Name))
+					} else {
+						c.report(expr.Span, fmt.Sprintf("defined type %s has no method %q", nativeObject.String(), expr.Name))
+					}
 					return Type{Kind: Invalid, Name: "<invalid>"}
 				}
 				if method.pointerReceiver && !nativePointer && !c.isAddressableExpression(expr.Object) {
@@ -5230,7 +5592,7 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	expr.ResolvedName = method.goName
 	expr.VirtualOwner = method.virtualOwner
 	expr.ResolvedDeclaration = method.declarationSpan
-	return method.typeInfo
+	return substituteNativeTypeParameters(method.typeInfo, nativeClassBindings(base, class.baseType))
 }
 
 func (c *Checker) flowInvalidation(expression ast.Expression) (source.Span, string) {
@@ -5635,7 +5997,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 }
 
 func (c *Checker) collectionElementType(goType gotypes.Type, owner Type, span source.Span) Type {
-	element, err := ontamaTypeFromGo(goType)
+	element, err := kinmokuseiTypeFromGo(goType)
 	if err != nil {
 		c.report(span, fmt.Sprintf("collection element type is not supported: %v", err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -5698,7 +6060,7 @@ func (c *Checker) checkBinary(expr *ast.BinaryExpr) Type {
 func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Type {
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%":
-		if expr.Operator == "+" && left.IsString() && right.IsString() && sameType(left, right) {
+		if expr.Operator == "+" && left.IsAddable() && right.IsAddable() && sameType(left, right) && (!left.IsNumeric() || !right.IsNumeric()) {
 			return left
 		}
 		if !left.IsNumeric() || !right.IsNumeric() {
@@ -5858,7 +6220,17 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				name.ResolvedDeclaration = named.declaration.NameSpan
 				expr.Conversion = true
 				targetRef := ast.TypeRef{Name: name.Name, NameSpan: name.Span, GenericArguments: expr.TypeArguments, Span: expr.Span}
+				if named.declaration.Alias && len(named.typeParameters) != 0 && len(expr.TypeArguments) == len(named.typeParameters) {
+					expanded := instantiateGenericAliasTypeRef(targetRef, named.declaration)
+					expr.ConversionType = &expanded
+				}
 				return c.checkNativeTypeConversion(expr, c.resolveNativeDefinedType(targetRef, named))
+			}
+			if structure, exists := c.structs[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
+				name.ResolvedDeclaration = structure.declarationSpan
+				expr.Conversion = true
+				targetRef := ast.TypeRef{Name: name.Name, NameSpan: name.Span, GenericArguments: expr.TypeArguments, Span: expr.Span}
+				return c.checkNativeTypeConversion(expr, c.resolveNativeStructType(targetRef, structure))
 			}
 		}
 		if target, isConversion := LookupType(name.Name); isConversion && target.Kind != Void {
@@ -5914,7 +6286,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		return c.checkGoConversion(expr, callable)
 	}
 	if callable.Kind == GoNamed && callable.GoType != nil {
-		if converted, err := ontamaTypeFromGo(callable.GoType); err == nil && converted.Kind == Function {
+		if converted, err := kinmokuseiTypeFromGo(callable.GoType); err == nil && converted.Kind == Function {
 			callable = converted
 		}
 	}
@@ -6021,7 +6393,12 @@ func (c *Checker) checkSuperConstructorCall(expr *ast.CallExpr) Type {
 	if base == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	c.checkConstructorArguments(expr.Arguments, expr.Expanded, base.constructor, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
+	bindings := nativeClassBindings(base, class.baseType)
+	parameters := make([]Type, len(base.constructor))
+	for index, parameter := range base.constructor {
+		parameters[index] = substituteNativeTypeParameters(parameter, bindings)
+	}
+	c.checkConstructorArguments(expr.Arguments, expr.Expanded, parameters, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
 	expr.SuperConstructor = true
 	expr.SuperBase = class.base
 	return builtins["void"]
@@ -7276,7 +7653,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("cannot apply explicit Go type arguments to %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	converted, err := ontamaFunctionFromGo(instantiatedSignature)
+	converted, err := kinmokuseiFunctionFromGo(instantiatedSignature)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("instantiated Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -7303,7 +7680,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("cannot infer Go type arguments for %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	converted, err := ontamaFunctionFromGo(instantiated)
+	converted, err := kinmokuseiFunctionFromGo(instantiated)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("inferred Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -7313,8 +7690,8 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 }
 
 func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explicitTypeArguments []gotypes.Type, expanded bool) (*gotypes.Signature, error) {
-	packageInfo := gotypes.NewPackage("ontama.synthetic/generic", "generic")
-	functionName := "__ontama_generic_function"
+	packageInfo := gotypes.NewPackage("kinmokusei.synthetic/generic", "generic")
+	functionName := "__kinmokusei_generic_function"
 	functionIdentifier := goast.NewIdent(functionName)
 	if existing := packageInfo.Scope().Insert(gotypes.NewFunc(0, packageInfo, functionName, signature)); existing != nil {
 		return nil, fmt.Errorf("cannot create inference scope")
@@ -7331,7 +7708,7 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 			if !ok {
 				return nil, fmt.Errorf("argument %d has non-Go-representable type %s", i+1, actual.String())
 			}
-			name := fmt.Sprintf("__ontama_argument_%d", i)
+			name := fmt.Sprintf("__kinmokusei_argument_%d", i)
 			if existing := packageInfo.Scope().Insert(gotypes.NewVar(0, packageInfo, name, goType)); existing != nil {
 				return nil, fmt.Errorf("cannot create inference argument %d", i+1)
 			}
@@ -7343,7 +7720,7 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 	if len(explicitTypeArguments) != 0 {
 		typeExpressions := make([]goast.Expr, len(explicitTypeArguments))
 		for i, argumentType := range explicitTypeArguments {
-			name := fmt.Sprintf("__ontama_type_argument_%d", i)
+			name := fmt.Sprintf("__kinmokusei_type_argument_%d", i)
 			if existing := packageInfo.Scope().Insert(gotypes.NewTypeName(0, packageInfo, name, argumentType)); existing != nil {
 				return nil, fmt.Errorf("cannot create explicit type argument %d", i+1)
 			}
@@ -7379,7 +7756,7 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 }
 
 func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {
-	converted, err := ontamaTypeFromGo(target.GoType)
+	converted, err := kinmokuseiTypeFromGo(target.GoType)
 	if err != nil {
 		c.report(expr.Callee.GetSpan(), fmt.Sprintf("Go type %s cannot be used in a conversion: %v", target.String(), err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -7668,7 +8045,7 @@ func (c *Checker) checkPropagateExpression(expr *ast.PropagateExpr) Type {
 	c.prepareGoTypeForEmission(&resultElement, expr.Span)
 	expr.ValueType = typeRefFromType(value, expr.Span)
 	expr.ResultType = typeRefFromType(resultElement, expr.Span)
-	expr.ErrorName = fmt.Sprintf("__ontama_result_error_%d", expr.Span.Start.Offset)
+	expr.ErrorName = fmt.Sprintf("__kinmokusei_result_error_%d", expr.Span.Start.Offset)
 	return value
 }
 
@@ -7975,7 +8352,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.GenericArguments[0].Span, "Task cannot be used as a Go channel element")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		elementGoType, ok := goTypeOf(element)
+		elementGoType, ok := c.goTypeForNativeStorage(element)
 		if !ok {
 			c.report(ref.GenericArguments[0].Span, fmt.Sprintf("type %s cannot be used as a Go channel element", element.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -8038,7 +8415,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			}
 			goType = instantiated
 		}
-		result, err := ontamaTypeFromGo(goType)
+		result, err := kinmokuseiTypeFromGo(goType)
 		if err != nil {
 			c.report(ref.Span, fmt.Sprintf("Go type %s.%s is not supported: %v", ref.Qualifier, ref.Name, err))
 			return Type{Kind: Invalid, Name: "<invalid>"}
@@ -8159,6 +8536,11 @@ func (c *Checker) resolveNativeStructType(ref ast.TypeRef, symbol *structSymbol)
 	result.TypeParameters = nil
 	result.TypeArguments = arguments
 	result.Generic = false
+	if symbol.typeInfo.GoType != nil {
+		if instantiated, ok := c.instantiateNativeStorageType(symbol.goNamed, arguments); ok {
+			result.GoType = instantiated
+		}
+	}
 	return result
 }
 
@@ -8182,6 +8564,31 @@ func nativeDefinedTypeBindings(symbol *nativeTypeSymbol, instantiated Type) map[
 		bindings[parameter.Name] = instantiated.TypeArguments[index]
 	}
 	return bindings
+}
+
+func (c *Checker) nativeDefinedUnderlying(symbol *nativeTypeSymbol, instantiated Type) Type {
+	return c.nativeDefinedUnderlyingSeen(symbol, instantiated, map[string]bool{})
+}
+
+func (c *Checker) nativeDefinedUnderlyingSeen(symbol *nativeTypeSymbol, instantiated Type, visiting map[string]bool) Type {
+	if symbol == nil || visiting[symbol.declaration.Name] {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	visiting[symbol.declaration.Name] = true
+	defer delete(visiting, symbol.declaration.Name)
+	underlying := substituteNativeTypeParameters(symbol.underlying, nativeDefinedTypeBindings(symbol, instantiated))
+	if underlying.Kind != GoNamed || underlying.GoQualifier != "" {
+		return underlying
+	}
+	object := goTypeNameObject(underlying.GoType)
+	if object == nil {
+		return underlying
+	}
+	dependency := c.nativeTypes[object.Name()]
+	if dependency == nil || dependency.declaration.Alias {
+		return underlying
+	}
+	return c.nativeDefinedUnderlyingSeen(dependency, underlying, visiting)
 }
 
 func (c *Checker) resolveNativeInterfaceType(ref ast.TypeRef, symbol *interfaceSymbol) Type {
@@ -8261,7 +8668,7 @@ func staticMethodGoName(className, methodName string, visibility ast.Visibility)
 	if visibility == ast.Public {
 		return generatedIdentifier(className + methodName)
 	}
-	return generatedIdentifier("__ontamaStatic" + className + methodName)
+	return generatedIdentifier("__kinmokuseiStatic" + className + methodName)
 }
 
 func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
@@ -8302,6 +8709,18 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		for i := range ref.ObjectFields {
 			visitType(&ref.ObjectFields[i].Type)
 		}
+		if ref.Qualifier == "" {
+			if named, ok := c.nativeTypes[ref.Name]; ok && named.typeInfo.Kind != Invalid && named.declaration.Alias && len(named.typeParameters) != 0 && len(ref.GenericArguments) == len(named.typeParameters) {
+				expanded := instantiateGenericAliasTypeRef(*ref, named.declaration)
+				visitType(&expanded)
+				ref.LoweredType = &expanded
+			}
+		}
+	}
+	visitTypeParameters := func(parameters []ast.TypeParameter) {
+		for index := range parameters {
+			visitType(parameters[index].Constraint)
+		}
 	}
 	var visitExpression func(ast.Expression)
 	var visitStatement func(ast.Statement)
@@ -8333,6 +8752,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, argument := range expression.Arguments {
 				visitExpression(argument)
 			}
+			visitType(expression.ConversionType)
 		case *ast.ArrowExpr:
 			for i := range expression.Parameters {
 				visitType(&expression.Parameters[i].Type)
@@ -8496,6 +8916,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			for i := range declaration.Parameters {
 				visitType(&declaration.Parameters[i].Type)
 			}
@@ -8507,6 +8928,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			visitType(&declaration.ReceiverType)
 			for i := range declaration.Parameters {
 				visitType(&declaration.Parameters[i].Type)
@@ -8519,6 +8941,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			if declaration.Base != nil {
 				visitType(declaration.Base)
 			}
@@ -8547,6 +8970,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			for i := range declaration.Methods {
 				method := &declaration.Methods[i]
 				for j := range method.Parameters {
@@ -8560,6 +8984,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			for i := range declaration.Fields {
 				visitType(&declaration.Fields[i].Type)
 			}
@@ -8576,6 +9001,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for _, parameter := range declaration.TypeParameters {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
+			visitTypeParameters(declaration.TypeParameters)
 			visitType(&declaration.Underlying)
 			activeTypeParameters = nil
 		case *ast.EnumDecl:
@@ -8585,6 +9011,51 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 		}
 	}
+}
+
+func instantiateGenericAliasTypeRef(ref ast.TypeRef, declaration *ast.TypeDecl) ast.TypeRef {
+	bindings := make(map[string]ast.TypeRef, len(declaration.TypeParameters))
+	for index, parameter := range declaration.TypeParameters {
+		if index < len(ref.GenericArguments) {
+			bindings[parameter.Name] = ref.GenericArguments[index]
+		}
+	}
+	return substituteNativeTypeRefParameters(declaration.Underlying, bindings)
+}
+
+func substituteNativeTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRef) ast.TypeRef {
+	if ref.Qualifier == "" && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
+		if replacement, ok := bindings[ref.Name]; ok {
+			return replacement
+		}
+	}
+	result := ref
+	result.LoweredType = nil
+	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
+	for index := range result.GenericArguments {
+		result.GenericArguments[index] = substituteNativeTypeRefParameters(result.GenericArguments[index], bindings)
+	}
+	if ref.Element != nil {
+		element := substituteNativeTypeRefParameters(*ref.Element, bindings)
+		result.Element = &element
+	}
+	if ref.Pointee != nil {
+		pointee := substituteNativeTypeRefParameters(*ref.Pointee, bindings)
+		result.Pointee = &pointee
+	}
+	result.Parameters = append([]ast.TypeRef(nil), ref.Parameters...)
+	for index := range result.Parameters {
+		result.Parameters[index] = substituteNativeTypeRefParameters(result.Parameters[index], bindings)
+	}
+	if ref.Return != nil {
+		returnType := substituteNativeTypeRefParameters(*ref.Return, bindings)
+		result.Return = &returnType
+	}
+	result.ObjectFields = append([]ast.ObjectTypeField(nil), ref.ObjectFields...)
+	for index := range result.ObjectFields {
+		result.ObjectFields[index].Type = substituteNativeTypeRefParameters(result.ObjectFields[index].Type, bindings)
+	}
+	return result
 }
 
 func typeRefFromType(t Type, span source.Span) ast.TypeRef {
@@ -8790,8 +9261,10 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 		return false
 	}
-	if target.Kind == Class && value.Kind == Class && c.classExtends(value.Name, target.Name) {
-		return true
+	if target.Kind == Class && value.Kind == Class {
+		if ancestor, ok := c.classAncestorType(value, target.Name); ok {
+			return exactType(target, ancestor)
+		}
 	}
 	if value.Kind == Struct {
 		if contract := underlyingGoInterface(target.GoType); contract != nil && contract.NumMethods() == 0 {
@@ -8799,6 +9272,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 	}
 	if value.Kind == Class && underlyingGoInterface(target.GoType) != nil {
+		if underlyingGoInterface(target.GoType).NumMethods() == 0 {
+			return true
+		}
 		class := c.classes[value.Name]
 		if class == nil {
 			return false
@@ -8926,7 +9402,7 @@ func declarationNameSpan(name string, span source.Span) source.Span {
 }
 
 func isBuiltinValueName(name string) bool {
-	return name == "goChannel" || name == "closeGoChannel" || strings.HasPrefix(name, "__ontama_")
+	return name == "goChannel" || name == "closeGoChannel" || strings.HasPrefix(name, "__kinmokusei_")
 }
 
 func isBuiltinTypeName(name string) bool {
@@ -9072,12 +9548,12 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 	var err error
 	switch object := object.(type) {
 	case *gotypes.Const:
-		result, err = ontamaTypeFromGo(object.Type())
+		result, err = kinmokuseiTypeFromGo(object.Type())
 		expression.Constant = true
 	case *gotypes.Func:
-		result, err = ontamaFunctionFromGo(object.Type().(*gotypes.Signature))
+		result, err = kinmokuseiFunctionFromGo(object.Type().(*gotypes.Signature))
 	case *gotypes.Var:
-		result, err = ontamaTypeFromGo(object.Type())
+		result, err = kinmokuseiTypeFromGo(object.Type())
 		expression.Addressable = true
 	case *gotypes.TypeName:
 		result = Type{Kind: GoTypeName, Name: imported.declaration.Alias + "." + object.Name(), GoType: object.Type()}
@@ -9126,12 +9602,12 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 	var err error
 	switch object := object.(type) {
 	case *gotypes.Var:
-		result, err = ontamaTypeFromGo(object.Type())
+		result, err = kinmokuseiTypeFromGo(object.Type())
 		expression.Addressable = addressable || indirect || goTypeIsPointer(receiver.GoType)
 		expression.GoField = true
 		expression.GoFieldViaPointer = goFieldEmbeddedViaPointer(receiver.GoType, index)
 	case *gotypes.Func:
-		result, err = ontamaFunctionFromGo(object.Type().(*gotypes.Signature))
+		result, err = kinmokuseiFunctionFromGo(object.Type().(*gotypes.Signature))
 	default:
 		err = fmt.Errorf("member kind %T is not supported", object)
 	}
@@ -9283,11 +9759,11 @@ func goObjectKind(object gotypes.Object) string {
 	}
 }
 
-func ontamaFunctionFromGo(signature *gotypes.Signature) (Type, error) {
-	return ontamaFunctionFromGoSeen(signature, map[gotypes.Type]bool{})
+func kinmokuseiFunctionFromGo(signature *gotypes.Signature) (Type, error) {
+	return kinmokuseiFunctionFromGoSeen(signature, map[gotypes.Type]bool{})
 }
 
-func ontamaFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes.Type]bool) (Type, error) {
+func kinmokuseiFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes.Type]bool) (Type, error) {
 	if signature.TypeParams() != nil && signature.TypeParams().Len() != 0 {
 		return Type{Kind: Function, Name: "generic function", Generic: true, GoType: signature, Result: &Type{Kind: Invalid, Name: "<generic result>"}}, nil
 	}
@@ -9301,7 +9777,7 @@ func ontamaFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes
 			}
 			parameterType = slice.Elem()
 		}
-		converted, err := ontamaTypeFromGoSeen(parameterType, visiting)
+		converted, err := kinmokuseiTypeFromGoSeen(parameterType, visiting)
 		if err != nil {
 			return Type{}, fmt.Errorf("parameter %d: %w", i+1, err)
 		}
@@ -9312,7 +9788,7 @@ func ontamaFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes
 	case 0:
 		result = builtins["void"]
 	case 1:
-		converted, err := ontamaTypeFromGoSeen(signature.Results().At(0).Type(), visiting)
+		converted, err := kinmokuseiTypeFromGoSeen(signature.Results().At(0).Type(), visiting)
 		if err != nil {
 			return Type{}, fmt.Errorf("result: %w", err)
 		}
@@ -9320,7 +9796,7 @@ func ontamaFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes
 	default:
 		results := make([]Type, signature.Results().Len())
 		for i := range results {
-			converted, err := ontamaTypeFromGoSeen(signature.Results().At(i).Type(), visiting)
+			converted, err := kinmokuseiTypeFromGoSeen(signature.Results().At(i).Type(), visiting)
 			if err != nil {
 				return Type{}, fmt.Errorf("result %d: %w", i+1, err)
 			}
@@ -9331,11 +9807,11 @@ func ontamaFunctionFromGoSeen(signature *gotypes.Signature, visiting map[gotypes
 	return Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: signature.Variadic(), Result: &result, GoType: signature}, nil
 }
 
-func ontamaTypeFromGo(goType gotypes.Type) (Type, error) {
-	return ontamaTypeFromGoSeen(goType, map[gotypes.Type]bool{})
+func kinmokuseiTypeFromGo(goType gotypes.Type) (Type, error) {
+	return kinmokuseiTypeFromGoSeen(goType, map[gotypes.Type]bool{})
 }
 
-func ontamaTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (Type, error) {
+func kinmokuseiTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (Type, error) {
 	if parameter, ok := goType.(*gotypes.TypeParam); ok {
 		return Type{Kind: TypeParameter, Name: parameter.Obj().Name(), GoType: parameter}, nil
 	}
@@ -9384,12 +9860,12 @@ func ontamaTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (
 			return Type{}, fmt.Errorf("Go type %s is not supported", goType.String())
 		}
 	case *gotypes.Named:
-		arguments, err := ontamaTypeArgumentsFromGoSeen(goType.TypeParams(), goType.TypeArgs(), visiting)
+		arguments, err := kinmokuseiTypeArgumentsFromGoSeen(goType.TypeParams(), goType.TypeArgs(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		if signature, ok := goType.Underlying().(*gotypes.Signature); ok {
-			converted, err := ontamaFunctionFromGoSeen(signature, visiting)
+			converted, err := kinmokuseiFunctionFromGoSeen(signature, visiting)
 			if err != nil {
 				return Type{}, err
 			}
@@ -9400,13 +9876,13 @@ func ontamaTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (
 		}
 		return Type{Kind: GoNamed, Name: goTypeDisplayName(goType), GoType: goType, TypeArguments: arguments}, nil
 	case *gotypes.Alias:
-		arguments, err := ontamaTypeArgumentsFromGoSeen(goType.TypeParams(), goType.TypeArgs(), visiting)
+		arguments, err := kinmokuseiTypeArgumentsFromGoSeen(goType.TypeParams(), goType.TypeArgs(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		unalias := gotypes.Unalias(goType)
 		if signature, ok := unalias.Underlying().(*gotypes.Signature); ok {
-			converted, err := ontamaFunctionFromGoSeen(signature, visiting)
+			converted, err := kinmokuseiFunctionFromGoSeen(signature, visiting)
 			if err != nil {
 				return Type{}, err
 			}
@@ -9417,42 +9893,42 @@ func ontamaTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (
 		}
 		return Type{Kind: GoNamed, Name: goTypeDisplayName(goType), GoType: goType, TypeArguments: arguments}, nil
 	case *gotypes.Signature:
-		converted, err := ontamaFunctionFromGoSeen(goType, visiting)
+		converted, err := kinmokuseiFunctionFromGoSeen(goType, visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		converted.GoType = goType
 		return converted, nil
 	case *gotypes.Pointer:
-		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
+		element, err := kinmokuseiTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: GoPointer, Name: "*" + element.String(), Element: &element, GoType: goType}, nil
 	case *gotypes.Slice:
-		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
+		element, err := kinmokuseiTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: Array, Name: "array", Element: &element}, nil
 	case *gotypes.Array:
-		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
+		element, err := kinmokuseiTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: FixedArray, Name: "fixed array", Element: &element, Length: goType.Len(), GoType: goType}, nil
 	case *gotypes.Map:
-		key, err := ontamaTypeFromGoSeen(goType.Key(), visiting)
+		key, err := kinmokuseiTypeFromGoSeen(goType.Key(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
-		value, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
+		value, err := kinmokuseiTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
 		return Type{Kind: Map, Name: "Map", Key: &key, Element: &value}, nil
 	case *gotypes.Chan:
-		element, err := ontamaTypeFromGoSeen(goType.Elem(), visiting)
+		element, err := kinmokuseiTypeFromGoSeen(goType.Elem(), visiting)
 		if err != nil {
 			return Type{}, err
 		}
@@ -9461,7 +9937,7 @@ func ontamaTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (
 		fields := make([]GoStructField, goType.NumFields())
 		for index := 0; index < goType.NumFields(); index++ {
 			field := goType.Field(index)
-			converted, err := ontamaTypeFromGoSeen(field.Type(), visiting)
+			converted, err := kinmokuseiTypeFromGoSeen(field.Type(), visiting)
 			if err != nil {
 				return Type{}, fmt.Errorf("field %s: %w", field.Name(), err)
 			}
@@ -9545,11 +10021,11 @@ func goTypeListContainsUnsafe(types *gotypes.TypeList, seen map[gotypes.Type]boo
 	return false
 }
 
-func ontamaTypeArgumentsFromGo(parameters *gotypes.TypeParamList, arguments *gotypes.TypeList) ([]Type, error) {
-	return ontamaTypeArgumentsFromGoSeen(parameters, arguments, map[gotypes.Type]bool{})
+func kinmokuseiTypeArgumentsFromGo(parameters *gotypes.TypeParamList, arguments *gotypes.TypeList) ([]Type, error) {
+	return kinmokuseiTypeArgumentsFromGoSeen(parameters, arguments, map[gotypes.Type]bool{})
 }
 
-func ontamaTypeArgumentsFromGoSeen(parameters *gotypes.TypeParamList, arguments *gotypes.TypeList, visiting map[gotypes.Type]bool) ([]Type, error) {
+func kinmokuseiTypeArgumentsFromGoSeen(parameters *gotypes.TypeParamList, arguments *gotypes.TypeList, visiting map[gotypes.Type]bool) ([]Type, error) {
 	parameterCount := 0
 	if parameters != nil {
 		parameterCount = parameters.Len()
@@ -9563,7 +10039,7 @@ func ontamaTypeArgumentsFromGoSeen(parameters *gotypes.TypeParamList, arguments 
 	}
 	converted := make([]Type, argumentCount)
 	for i := range converted {
-		argument, err := ontamaTypeFromGoSeen(arguments.At(i), visiting)
+		argument, err := kinmokuseiTypeFromGoSeen(arguments.At(i), visiting)
 		if err != nil {
 			return nil, fmt.Errorf("type argument %d: %w", i+1, err)
 		}

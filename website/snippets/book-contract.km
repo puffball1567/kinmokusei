@@ -1,0 +1,36 @@
+import go fmt from "fmt";
+
+type UserID = distinct string;
+enum Mode { Ready, Complete }
+
+struct Pair<T> {
+  public left: T;
+  public right: T;
+}
+
+interface Named { function name(): string; }
+
+class User implements Named {
+  constructor(public id: UserID, private display: string) {}
+  public function name(): string { return this.display; }
+}
+
+function identity<T>(value: T): T { return value; }
+
+function render(user: User | null, mode: Mode): string {
+  if (user === null) { return "guest"; }
+  const decorate = (value: string): string => "[" + value + "]";
+  const pair = Pair<int> { left: 1, right: 2 };
+  let total = pair.left + pair.right;
+  for (const value of [3]) { total += value; }
+  switch (mode) {
+    case Mode.Ready { return decorate(identity(user.name())) + ":" + fmt.Sprint(total); }
+    default { return "complete"; }
+  }
+}
+
+function main(): void {
+  const user = new User(UserID("42"), "Aki");
+  fmt.Println(render(user, Mode.Ready));
+  fmt.Println(render(null, Mode.Complete));
+}

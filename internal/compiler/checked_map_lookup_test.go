@@ -9,7 +9,7 @@ import (
 
 func TestCheckedMapLookupMatchesIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "checked_map_lookup.otm")
+	source := filepath.Join(root, "checked_map_lookup.km")
 	if err := os.WriteFile(source, []byte(`
 import go http from "net/http";
 type Scores = distinct Map<string, int>;

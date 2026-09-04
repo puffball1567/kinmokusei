@@ -2,9 +2,9 @@
 
 ## Principles
 
-OnsenTamago is a TypeScript-inspired statically typed language designed for predictable Go generation. It is not an attempt to reproduce TypeScript semantics in Go.
+Kinmokusei is a TypeScript-inspired statically typed language designed for predictable Go generation. It is not an attempt to reproduce TypeScript semantics in Go.
 
-TypeScript inspiration means familiar type annotations, classes, interfaces, arrow functions, and object literals. It does not imply syntax or runtime compatibility. OnsenTamago may add explicit integers, Go interop types, result handling, concurrency constructs, and other features suited to generated Go.
+TypeScript inspiration means familiar type annotations, classes, interfaces, arrow functions, and object literals. It does not imply syntax or runtime compatibility. Kinmokusei may add explicit integers, Go interop types, result handling, concurrency constructs, and other features suited to generated Go.
 
 Priorities are:
 
@@ -26,7 +26,7 @@ Priorities are:
 ## Example direction
 
 ```ts
-import { App, Context } from "ontama/http";
+import { App, Context } from "kinmokusei/http";
 import { UserService } from "./user-service";
 
 class UserController {
@@ -49,7 +49,7 @@ The core `Result`, postfix `?`, and nil-backed nullable constructs in this examp
 
 ### Built-in types
 
-| OnsenTamago | Go | Notes |
+| Kinmokusei | Go | Notes |
 |---|---|---|
 | `boolean` | `bool` | No truthy conversion |
 | `string` | `string` | UTF-8 bytes |
@@ -96,15 +96,16 @@ let client: http.Client = http.Client{ Timeout: timeout };
 let pointer: *http.Client = &client;
 ```
 
-Pointers, interfaces, multiple results, variadics, generics, channels, aliases, anonymous structs, and all Go basic types remain Go types at the direct interop boundary. They do not silently become future OnsenTamago null/result/task wrappers.
+Pointers, interfaces, multiple results, variadics, generics, channels, aliases, anonymous structs, and all Go basic types remain Go types at the direct interop boundary. They do not silently become future Kinmokusei null/result/task wrappers.
 
 ### Native defined types and aliases
 
-OnsenTamago distinguishes a new nominal type from a transparent alternate name:
+Kinmokusei distinguishes a new nominal type from a transparent alternate name:
 
 ```ts
 type UserID = distinct string;
 alias UserIDText = string;
+alias OptionalValues<T> = T[];
 type Values<T> = distinct T[];
 type Lookup<K, V> = distinct Map<K, V>;
 
@@ -121,12 +122,42 @@ As in Go, a representable untyped constant may be assigned directly to a
 defined numeric type. Operators preserve the defined result type and require
 compatible operands.
 
-`alias Name = T` emits Go `type Name = T` and is transparent for assignment,
-calls, and returns. Aliases may refer forward or name a class reference. Defined
-types and aliases work in parameters, results, maps, slices, fixed arrays,
-generic calls, `Result` payloads, relative imports, and external generated-Go
-APIs. A defined slice or map retains Go's reference-bearing storage behavior;
-a defined fixed array retains value-copy behavior.
+`alias Name = T` is transparent for assignment, calls, and returns. A
+non-generic alias emits Go `type Name = T`. A generic alias such as
+`alias Values<T> = T[]` is expanded to its instantiated underlying type at every
+generated-Go boundary. This preserves the Go 1.23 minimum without depending on
+Go's later generic-alias declaration support. The public Go signature for
+`Values<int>` is therefore `[]int`, while Kinmokusei tooling continues to show
+the source alias. Generic aliases support direct identity aliases, composites,
+nested aliases, functions, classes, structs, interfaces, explicit conversions,
+relative imports, and inferred or explicit `comparable` constraints. Aliases may
+refer forward or name a class reference. Defined types and aliases work in
+parameters, results, maps, slices, fixed arrays, generic calls, `Result`
+payloads, relative imports, and external generated-Go APIs. A defined slice or
+map retains Go's reference-bearing storage behavior; a defined fixed array
+retains value-copy behavior.
+
+A native struct may also be the underlying type, including a generic
+instantiation:
+
+```ts
+struct Point {
+  public x: int;
+  public y: int;
+}
+
+type Offset = distinct Point;
+
+struct Box<T> { public value: T; }
+type NamedBox<T> = distinct Box<T>;
+```
+
+The new type keeps the struct's fields and JSON field names, but has its own
+nominal identity and method set. Conversion in either direction is explicit:
+`Offset(point)` and `Point(offset)`. A distinct-struct value can also be built
+with `Offset { x: 1, y: 2 }`. Methods declared on `Point` are not inherited;
+declare value or pointer receiver methods on `Offset` when its API needs them.
+This matches the behavior and generated API of Go `type Offset Point`.
 
 Defined types may declare unconstrained parameters and must be explicitly
 instantiated wherever they are used. The generated definition uses ordinary Go
@@ -154,13 +185,35 @@ struct Keyed<T extends comparable> {
 
 This emits the corresponding Go `T comparable` parameter. Both explicit and
 inferred calls are checked before Go generation; slices, maps, and functions do
-not satisfy the constraint. Native constraint type sets beyond `comparable`
-remain future work rather than being approximated as `any`.
+not satisfy the constraint.
 
-Generic aliases are currently rejected rather than being emitted with only
-partial semantic support. A direct parameter underlying type such as
-`type Identity<T> = distinct T` is also rejected by Go; wrap the parameter in a
-concrete composite type instead.
+An exported Go interface constraint can be used with the same syntax:
+
+```ts
+import go cmp from "cmp";
+
+function minimum<T extends cmp.Ordered>(left: T, right: T): T {
+  if (left < right) { return left; }
+  return right;
+}
+```
+
+This also accepts constraints declared by installed Go modules. Kinmokusei
+reads the complete Go type set: a type argument must satisfy it, and an
+operator is accepted only when every type in the set supports that operator.
+For example, `cmp.Ordered` permits ordering and `+`, but not subtraction because
+its set also contains strings; an external integer-only constraint permits
+arithmetic, remainder, bitwise operations, and shifts. Go's `~T` terms include
+Kinmokusei nominal defined types with the matching underlying type. A
+non-interface type, nullable type, collection, pointer, function, or object is
+rejected as a constraint. Generic aliases retain their source constraint for
+checking while erasing the declaration and any constraint-only import from Go
+1.23 output. Source-declared type-set syntax remains future work.
+
+A direct parameter underlying type such as `type Identity<T> = distinct T` is
+rejected because Go cannot declare that distinct type. The transparent form
+`alias Identity<T> = T` is supported because it is erased to `T`; wrap the
+parameter in a concrete composite type when nominal identity is required.
 
 Distinct defined types may declare Go-compatible value and pointer receiver
 methods with the same external receiver syntax as native structs:
@@ -219,10 +272,10 @@ alias rules.
 
 `type`, `alias`, and `distinct` are contextual declaration words rather than
 globally reserved identifiers. The implementation deliberately rejects
-`Result`/`Task`/`void` boundaries, distinct definitions over native
-classes/structs/interfaces, and generic aliases. Use a transparent non-generic
-alias or a native `struct` where those current boundaries apply; unsupported
-cases produce source diagnostics instead of approximate Go.
+`Result`/`Task`/`void` declaration boundaries and distinct definitions over
+native classes/interfaces. Use a transparent alias
+where those current boundaries apply; unsupported cases produce source
+diagnostics instead of approximate Go.
 
 ### Native integer enums
 
@@ -264,7 +317,7 @@ Use `Status(value)` or `int(status)` when an intentional conversion is needed;
 representable untyped integer literals retain Go-compatible assignment rules.
 Enums may be compared and ordered, used as map keys, passed through generics,
 returned in `Result` values, switched over, and imported from relative modules.
-Members remain qualified in OnsenTamago source, avoiding collisions between
+Members remain qualified in Kinmokusei source, avoiding collisions between
 different enums.
 
 Enums may also declare Go-compatible value and pointer receiver methods using
@@ -285,7 +338,7 @@ public function advance(this: *Status): Status {
 Generated Go uses a named integer type and typed constants. For example,
 `Status.Pending` becomes `StatusPending Status = 0`. This keeps the generated
 package readable and lets ordinary Go consumers use the enum without the
-OnsenTamago compiler. `enum` is contextual, so it remains usable as an ordinary
+Kinmokusei compiler. `enum` is contextual, so it remains usable as an ordinary
 identifier outside declaration position.
 
 ### Structural object types
@@ -298,7 +351,7 @@ function response(message: string): { message: string, count: int } {
 }
 ```
 
-Field names and types define identity; declaration order does not. Generated anonymous Go structs use deterministic field ordering, public field names, and JSON tags preserving the OnsenTamago names. Expected object literals diagnose missing, extra, duplicate, and mistyped fields individually.
+Field names and types define identity; declaration order does not. Generated anonymous Go structs use deterministic field ordering, public field names, and JSON tags preserving the Kinmokusei names. Expected object literals diagnose missing, extra, duplicate, and mistyped fields individually.
 
 ### Nominal value structs
 
@@ -362,7 +415,7 @@ public function add(this: *Counter, delta: int): *Counter {
 }
 ```
 
-The first parameter must be named `this`; its declared type determines value versus pointer behavior. It is a receiver declaration, not a callable argument, so callers pass only the remaining parameters. The external form does not use the contextual `pointer function` modifier. Visibility defaults to `private`; `public` and `private` may be written before `function`. Nested and external declarations enter one method set, and duplicate names are rejected across both forms. An external receiver must be a native struct declared in the same OnsenTamago module; imported and Go types cannot be retroactively extended.
+The first parameter must be named `this`; its declared type determines value versus pointer behavior. It is a receiver declaration, not a callable argument, so callers pass only the remaining parameters. The external form does not use the contextual `pointer function` modifier. Visibility defaults to `private`; `public` and `private` may be written before `function`. Nested and external declarations enter one method set, and duplicate names are rejected across both forms. An external receiver must be a native struct declared in the same Kinmokusei module; imported and Go types cannot be retroactively extended.
 
 Two structs with identical fields remain different types. Equality and map-key use require every field to be Go-comparable. Direct or fixed-array recursive containment is rejected; pointer, slice, or map indirection makes recursive shapes finite. Struct fields, nested/external methods, nested structs, fixed arrays of structs, relative-module imports, pointer mutation, empty Go-interface arguments such as formatting calls, source navigation, rename, and document symbols are implemented.
 
@@ -395,6 +448,9 @@ copying, shallow slice/map/reference sharing, comparability, map-key eligibility
 and recursive pointer indirection remain exactly the corresponding Go generic
 struct behavior. Class references and native defined types may be arguments.
 Generic structs work across relative imports and as exported generated-Go APIs.
+Public struct fields carry JSON tags preserving their Kinmokusei names, so
+generic structs can be passed directly to `encoding/json` without changing the
+wire keys to exported Go capitalization. Non-public fields remain unexported.
 
 Method-local type parameters remain unsupported because Go does not permit
 them. Nested generic struct methods use the enclosing struct parameters.
@@ -607,7 +663,7 @@ loop. `goto label` supports forward and backward transfers. Jumps into nested
 blocks, over local declarations, or across lowered `try`/`catch`/`finally`
 boundaries are rejected before lowering and generated Go validation remains a
 second check. Duplicate, undefined, unused, non-enclosing, and wrong-kind
-labels are diagnosed at their OnsenTamago source locations. Nullable flow facts
+labels are diagnosed at their Kinmokusei source locations. Nullable flow facts
 are conservatively cleared at arbitrary transfers.
 
 ```ts
@@ -646,10 +702,10 @@ function double(text: string): Result<int> {
 `Result<T>` lowers to `(T, error)` and `Result<void>` lowers to one `error`.
 `ok(value)` returns the success value and a nil error; `ok()` is the
 `Result<void>` form. `fail(error)` returns the value type's zero value and the
-error. Returning another OnsenTamago result with the identical type forwards it
+error. Returning another Kinmokusei result with the identical type forwards it
 directly.
 
-Postfix `?` accepts an OnsenTamago `Result<T>`, a direct Go `(T, error)` operation, or
+Postfix `?` accepts a Kinmokusei `Result<T>`, a direct Go `(T, error)` operation, or
 a single Go `error`. It evaluates the operation once and immediately returns a
 non-nil error from the enclosing Result function. A non-void result must be the
 initializer of one variable; a void result may be an expression statement.
@@ -723,7 +779,7 @@ without changing its concrete type. It remains available through nested blocks
 and nested exception statements in that catch, but not through a nested
 function or arrow-function boundary.
 
-`finally` runs after normal completion, a caught or re-thrown OnsenTamago
+`finally` runs after normal completion, a caught or re-thrown Kinmokusei
 exception, a `return` from `try` or `catch`, and an ordinary Go/runtime panic. A
 `return` in `finally` replaces an earlier return or exception, matching the
 usual structured-exception rule. Branches targeting a loop or switch outside
@@ -731,7 +787,7 @@ the exception boundary remain rejected; loops and arrow functions wholly
 contained in the block retain their local control flow.
 
 Catch handles only values carrying the structural
-`OnsenTamagoExceptionError() error` marker. Bounds panics, ordinary explicit Go
+`KinmokuseiExceptionError() error` marker. Bounds panics, ordinary explicit Go
 panics, and FFI panics continue unwinding after `finally`. Generated `throw`
 values carry this marker, so independently generated packages can interoperate
 without importing a compiler runtime. A Go type opts into catch behavior only
@@ -777,7 +833,7 @@ A public static method such as `Meter.create` is exposed to Go consumers as the
 idiomatic `MeterCreate`; its parameters and results, including `Result<T>` as
 `(T, error)`, remain unchanged. Private and protected static methods lower to
 unexported implementation functions, so publishing generated Go does not widen
-OnsenTamago visibility. All generated package-level names participate in the
+Kinmokusei visibility. All generated package-level names participate in the
 same collision diagnostics before code generation.
 
 ```ts
@@ -817,8 +873,50 @@ while different instantiations such as `Box<int>` and `Box<string>` remain
 different static types. `T extends comparable` is available when the class
 needs that constraint. Generated constructors and methods form ordinary public
 generic Go APIs, and generic classes work across relative imports. Generic
-class inheritance, `virtual`/`override`/`final`, and static methods are rejected
-for now; use composition or an implemented generic interface at that boundary.
+class static methods use the class parameters as function type parameters.
+Calls may infer them from arguments or supply them explicitly, and the
+generated public API is an ordinary generic Go function. Generic class
+inheritance substitutes the selected base arguments through inherited state,
+constructors, methods, and interface contracts. A base may use the child type
+parameters directly, remap them, or fix some arguments concretely, and the
+substitution continues through multi-level hierarchies:
+
+```ts
+class Base<T> {
+  constructor(protected value: T) {}
+  public function get(): T { return this.value; }
+}
+
+class Middle<A, B> extends Base<B> {
+  constructor(value: B) { super(value); }
+}
+
+class Leaf<X> extends Middle<int, X> {
+  constructor(value: X) { super(value); }
+}
+
+const value: string = new Leaf<string>("onsen").get();
+```
+
+Generic inheritance, `virtual`/`override`/`final`, construction-phase-safe
+dispatch, implicit upcasts, checked/forced downcasts, and the corresponding
+public generic Go APIs are supported. Dispatch lowers to a typed generic Go
+interface for each virtual owner, preserving substituted parameters, results,
+`super` selection, method values, and ordinary external Go calls. Downcasts use
+typed projection interfaces, so an intermediate generic target can safely
+recover its embedded view from a deeper generic descendant. Every projected
+type argument must match; an incompatible instantiation returns `false` for
+`as?` and panics for `as!`.
+
+Public class fields, including constructor fields and inherited generic state,
+carry JSON tags preserving their source names. Private and protected fields and
+the generated identity/dispatch state are not serialized. Decode into an
+instance created by its constructor; JSON updates the public field view while
+the dynamic root, virtual targets, and private invariants remain intact.
+Automatic `encoding/json` allocation does not run constructors and therefore is
+not the default class-decoding path. A class can take control of allocation-time
+initialization or its wire format by defining
+`public function unmarshalJSON(data: byte[]): error`.
 
 Native interfaces may declare unconstrained type parameters and must be fully
 instantiated wherever they are used. Type parameters may appear recursively in
@@ -855,7 +953,9 @@ references implicitly upcast through nil-preserving generated helpers, so nil
 behavior and repeated-upcast identity remain stable. A base reference uses
 `as? Derived` for a checked `(Derived, boolean)` downcast and `as! Derived` for
 a panic-on-failure downcast. Both preserve derived identity, accept deeper
-descendants when targeting an intermediate class, and evaluate the source once.
+descendants when targeting an intermediate class, and evaluate the source
+once. Generic conversions preserve the exact instantiated ancestor and target
+types.
 `protected` members are limited to their declaring class and descendants.
 `final class` prevents further inheritance, while `final override` closes an
 existing virtual method slot. Ordinary nonvirtual methods are already closed
@@ -866,7 +966,7 @@ The generated Go package exposes `UpcastDerivedToBase`,
 `DowncastBaseToDerived`, and `MustDowncastBaseToDerived` functions for every
 declared ancestor relationship. Exported virtual method names are dispatch
 entry points, so calls and method values obtained through a base pointer retain
-OnsenTamago virtual semantics even in an importing Go package. `super` uses a
+Kinmokusei virtual semantics even in an importing Go package. `super` uses a
 separate unexported direct-implementation slot.
 
 ## Go interface assertions and type switches
@@ -933,14 +1033,14 @@ function add(left: int32, right: int32): int32 {
 }
 
 const sub = (left: int32, right: int32): int32 => left - right;
-export c("ontama_add", "ontama_sub") {add, sub};
+export c("kinmokusei_add", "kinmokusei_sub") {add, sub};
 ```
 
 The symbol and target lists pair by position and must have equal lengths.
 Targets may be top-level functions or top-level `const` arrows whose return
 types are explicit. Both lists accept multiline formatting and trailing
 commas. The single-function inline form
-`export c("ontama_add") function add(...): int32 { ... }` remains valid.
+`export c("kinmokusei_add") function add(...): int32 { ... }` remains valid.
 
 The outgoing boundary accepts `boolean`, fixed-width scalar parameters (`byte`/`uint8`, `int8`, `int16`, `int32`, `int64`, `uint16`, `uint32`, `uint64`, `float32`, and float aliases), fixed-width native integer enums, and those results plus `void`. Enum parameters and results use their ultimate fixed-width integer representation in the C header and ABI manifest while remaining the named enum inside generated Go. Unknown representable values pass through without implicit validation. Booleans use a stable `uint8_t` transport: zero is false, any nonzero input is true, and outputs are normalized to zero or one. Machine-width `int`/`uint` and enums based on them, strings, collections, objects, classes, interfaces, pointers, and `error` are rejected.
 
@@ -1065,7 +1165,7 @@ The target transfer rules are:
   write. A future explicit call-in-place contract may preserve facts for
   non-escaping synchronous callbacks, but ordinary unknown calls must not be
   guessed safe when they can reach mutable storage.
-- Direct OnsenTamago class fields may be promoted because they have no custom
+- Direct Kinmokusei class fields may be promoted because they have no custom
   getter or override hook, but all possibly aliased field writes and unknown
   effect boundaries conservatively invalidate them. Future properties or
   overridable accessors require a stronger stability contract; otherwise code

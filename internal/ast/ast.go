@@ -1,6 +1,6 @@
 package ast
 
-import "github.com/puffball1567/onsentamago/internal/source"
+import "github.com/puffball1567/kinmokusei/internal/source"
 
 type Node interface{ GetSpan() source.Span }
 
@@ -61,8 +61,12 @@ type TypeRef struct {
 	Interface            bool
 	TypeParameter        bool
 	NativeNamed          bool
-	Go                   bool
-	Nullable             bool
+	// LoweredType is populated for generic aliases. The source alias remains
+	// available to language tooling while Go code generation uses its expanded
+	// underlying type, keeping generated modules compatible with Go 1.23.
+	LoweredType *TypeRef
+	Go          bool
+	Nullable    bool
 	// Variadic marks a function type whose final Parameters entry is the
 	// source-level slice type of a rest parameter.
 	Variadic bool
@@ -215,7 +219,7 @@ type ClassDecl struct {
 	Methods        []*MethodDecl
 	VirtualOwners  []string
 	Ancestors      []string
-	Descendants    []string
+	AncestorTypes  []TypeRef
 	HierarchyRoot  string
 	Span           source.Span
 }
@@ -702,7 +706,7 @@ type GoTypeAssertionExpr struct {
 func (*GoTypeAssertionExpr) expression()            {}
 func (e *GoTypeAssertionExpr) GetSpan() source.Span { return e.Span }
 
-// PropagateExpr explicitly unwraps an OnsenTamago Result or a Go (T, error)
+// PropagateExpr explicitly unwraps an Kinmokusei Result or a Go (T, error)
 // operation and returns the error from the enclosing Result function.
 type PropagateExpr struct {
 	Value      Expression
@@ -743,6 +747,7 @@ type CallExpr struct {
 	Arguments        []Expression
 	Expanded         bool
 	Conversion       bool
+	ConversionType   *TypeRef
 	Builtin          BuiltinCallKind
 	Signature        *CallableSignature
 	SuperConstructor bool
@@ -906,6 +911,8 @@ type ClassUpcastExpr struct {
 	Value       Expression
 	SourceClass string
 	TargetClass string
+	SourceType  TypeRef
+	TargetType  TypeRef
 	Span        source.Span
 }
 

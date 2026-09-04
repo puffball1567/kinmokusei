@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/product"
-	"github.com/puffball1567/onsentamago/internal/project"
+	"github.com/puffball1567/kinmokusei/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 func TestImportFailureMatrix(t *testing.T) {
@@ -19,9 +19,9 @@ func TestImportFailureMatrix(t *testing.T) {
 	}{
 		{"missing module", "", `import { value } from "./missing";`, "cannot load imported module"},
 		{"package import", "", `import { value } from "external/package";`, "package imports are not supported"},
-		{"unknown standard package", "", `import { value } from "ontama/missing";`, `standard package "ontama/missing" is not available`},
-		{"noncanonical standard package", "", `import { value } from "ontama/../http";`, `standard package "ontama/../http" is not available`},
-		{"missing standard package declaration", "", `import { missing } from "ontama/http";`, `module "ontama/http" does not declare "missing"`},
+		{"unknown standard package", "", `import { value } from "kinmokusei/missing";`, `standard package "kinmokusei/missing" is not available`},
+		{"noncanonical standard package", "", `import { value } from "kinmokusei/../http";`, `standard package "kinmokusei/../http" is not available`},
+		{"missing standard package declaration", "", `import { missing } from "kinmokusei/http";`, `module "kinmokusei/http" does not declare "missing"`},
 		{"missing exported name", `function present(): int { return 1; }`, `import { absent } from "./dependency";`, "does not declare"},
 		{"duplicate imported name", `function present(): int { return 1; }`, `import { present, present } from "./dependency";`, "duplicate imported name"},
 	}
@@ -29,11 +29,11 @@ func TestImportFailureMatrix(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			temp := t.TempDir()
 			if test.dependency != "" {
-				if err := os.WriteFile(filepath.Join(temp, "dependency.otm"), []byte(test.dependency), 0o644); err != nil {
+				if err := os.WriteFile(filepath.Join(temp, "dependency.km"), []byte(test.dependency), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
-			entry := filepath.Join(temp, "entry.otm")
+			entry := filepath.Join(temp, "entry.km")
 			if err := os.WriteFile(entry, []byte(test.entry), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -54,13 +54,13 @@ func TestImportFailureMatrix(t *testing.T) {
 
 func TestImportSuccessAndOrderingMatrix(t *testing.T) {
 	temp := t.TempDir()
-	base := filepath.Join(temp, "base.otm")
-	middle := filepath.Join(temp, "middle.otm")
-	entry := filepath.Join(temp, "entry.otm")
+	base := filepath.Join(temp, "base.km")
+	middle := filepath.Join(temp, "middle.km")
+	entry := filepath.Join(temp, "entry.km")
 	if err := os.WriteFile(base, []byte(`interface Reader { function read(): int; } function base(): int { return 1; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(middle, []byte(`import { Reader, base } from "./base.otm"; class Value implements Reader { public function read(): int { return base(); } }`), 0o644); err != nil {
+	if err := os.WriteFile(middle, []byte(`import { Reader, base } from "./base.km"; class Value implements Reader { public function read(): int { return base(); } }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(entry, []byte(`import { Value } from "./middle"; function entry(): int { return new Value().read(); }`), 0o644); err != nil {
@@ -101,7 +101,7 @@ go-version = "1.23"
 	if _, err := project.LockDependencies(temp, true); err != nil {
 		t.Fatal(err)
 	}
-	source := filepath.Join(sourceDirectory, "main.otm")
+	source := filepath.Join(sourceDirectory, "main.km")
 	if err := os.WriteFile(source, []byte(`function main(): void {}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestWriteGeneratedModuleRejectsEmptySources(t *testing.T) {
 
 func TestGeneratedBehaviorMatrix(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "behavior.otm")
+	source := filepath.Join(temp, "behavior.km")
 	input := `
 const fixed: int = 7;
 let changing = 2;

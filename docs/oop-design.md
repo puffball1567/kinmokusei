@@ -2,7 +2,7 @@
 
 ## Goal
 
-OnsenTamago provides familiar classes and interfaces while keeping their Go lowering explicit and predictable. OOP syntax is a static authoring model, not a JavaScript prototype system.
+Kinmokusei provides familiar classes and interfaces while keeping their Go lowering explicit and predictable. OOP syntax is a static authoring model, not a JavaScript prototype system.
 
 ## Implemented OOP foundation
 
@@ -32,11 +32,11 @@ class Counter {
 - `protected` is accessible in the declaring class and its descendants, but not
   from free functions or unrelated classes. This lexical descendant rule also
   applies to constructor fields and static methods. Protected members lower to
-  unexported Go names and cannot satisfy a public OnsenTamago or Go interface.
+  unexported Go names and cannot satisfy a public Kinmokusei or Go interface.
 
 ### Interfaces and polymorphism
 
-Interfaces define method contracts. A class conforms only through explicit `implements`; accidental structural implementation is not accepted as an OnsenTamago declaration.
+Interfaces define method contracts. A class conforms only through explicit `implements`; accidental structural implementation is not accepted as a Kinmokusei declaration.
 
 ```ts
 interface Reader {
@@ -123,7 +123,10 @@ failure. A downcast may only move from a base class to one of its descendants;
 same-type assertions, upcasts, unrelated hierarchies, and non-class targets are
 compile errors. The operand is evaluated once, and successful round trips
 preserve the original derived identity. Downcasting to an intermediate class
-also succeeds when the dynamic object belongs to a deeper descendant.
+also succeeds when the dynamic object belongs to a deeper descendant. Generic
+hierarchies apply the same rule through typed projections: every ancestor and
+target type argument must match, including remapped or concretely fixed base
+arguments.
 
 Protected virtual methods may be overridden with protected visibility. An
 override must preserve the inherited visibility exactly, keeping the generated
@@ -153,12 +156,18 @@ guide = hierarchy.MustDowncastAnimalToGuideDog(animal)
 Public virtual methods are dispatch wrappers, while uniquely named unexported
 methods hold the implementation selected by `super`. Consequently, calling
 `animal.Speak()` from another Go package still reaches the most-derived
-OnsenTamago override. Bound Go method values behave the same way. A nil receiver
+Kinmokusei override. Bound Go method values behave the same way. A nil receiver
 or a Go-created zero-value base object falls back to the base implementation;
 constructed objects dispatch through their initialized dynamic target. Public
 conversion names participate in generated-name collision checking.
 
-JSON layout policy remains to be completed.
+Public class state uses JSON tags that preserve Kinmokusei field names.
+Private and protected fields, identity roots, and virtual-dispatch slots remain
+unexported and are not serialized. Decode into an instance created by its
+constructor so its private invariants, hierarchy identity, and virtual-dispatch
+slots remain intact. Automatic `encoding/json` allocation does not run a class
+constructor. A user-defined `unmarshalJSON(data: byte[]): error` method may
+define allocation-time initialization when a type needs that behavior.
 
 ## Abstract classes and properties
 

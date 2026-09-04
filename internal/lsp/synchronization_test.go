@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/puffball1567/onsentamago/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func intPointer(value int) *int { return &value }
@@ -118,7 +118,7 @@ func TestIncrementalContentChangeFailureIsTransactional(t *testing.T) {
 }
 
 func TestDidChangeVersionAndRollbackMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "version.otm")
+	path := filepath.Join(t.TempDir(), "version.km")
 	uri := fileURI(path)
 	initial := `function value(): int { return 1; }`
 	var output bytes.Buffer

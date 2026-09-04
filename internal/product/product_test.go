@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-func TestProvisionalIdentityDerivations(t *testing.T) {
+func TestIdentityDerivations(t *testing.T) {
 	tests := []struct {
 		name string
 		got  string
 		want string
 	}{
-		{"project file", ProjectFileName, CommandName + ".toml"},
-		{"lock file", LockFileName, CommandName + ".lock"},
-		{"state directory", StateDirectoryName, "." + CommandName},
-		{"generated module", GeneratedModulePath, CommandName + ".generated"},
+		{"project file", ProjectFileName, LanguageID + ".toml"},
+		{"lock file", LockFileName, LanguageID + ".lock"},
+		{"state directory", StateDirectoryName, "." + LanguageID},
+		{"generated module", GeneratedModulePath, LanguageID + ".generated"},
 		{"default executable", DefaultExecutable, CommandName + ".out"},
 	}
 	for _, test := range tests {
@@ -27,7 +27,10 @@ func TestProvisionalIdentityDerivations(t *testing.T) {
 	}
 }
 
-func TestProvisionalIdentityIsSafeForPathsAndModules(t *testing.T) {
+func TestIdentityIsSafeForPathsAndModules(t *testing.T) {
+	if FullName != "Kinmokusei Programming Language" || DisplayName != "Kinmokusei" || LanguageID != "kinmokusei" || CommandName != "keika" || SourceExtension != ".km" {
+		t.Fatalf("unexpected public identity: full=%q display=%q language=%q command=%q extension=%q", FullName, DisplayName, LanguageID, CommandName, SourceExtension)
+	}
 	if CommandName == "" || CommandName != strings.ToLower(CommandName) {
 		t.Fatalf("CommandName must be non-empty lowercase: %q", CommandName)
 	}
@@ -36,6 +39,16 @@ func TestProvisionalIdentityIsSafeForPathsAndModules(t *testing.T) {
 	}
 	if !strings.HasPrefix(SourceExtension, ".") || len(SourceExtension) == 1 {
 		t.Fatalf("SourceExtension must include a non-empty dot suffix: %q", SourceExtension)
+	}
+	for _, extension := range []string{SourceExtension, ".otm"} {
+		if !IsSourceExtension(extension) {
+			t.Errorf("IsSourceExtension(%q) = false", extension)
+		}
+	}
+	for _, extension := range []string{"", ".yn", ".go", ".KM"} {
+		if IsSourceExtension(extension) {
+			t.Errorf("IsSourceExtension(%q) = true", extension)
+		}
 	}
 	want := filepath.Join("project", StateDirectoryName, "gen")
 	if got := GeneratedDirectory("project"); got != want {
@@ -49,10 +62,10 @@ func TestProvisionalIdentityIsSafeForPathsAndModules(t *testing.T) {
 
 func TestExplicitVersionTakesPriority(t *testing.T) {
 	previous := Version
-	Version = "v0.1.0"
+	Version = "v0.2.0"
 	t.Cleanup(func() { Version = previous })
-	if got := VersionString(); got != "v0.1.0" {
-		t.Fatalf("VersionString() = %q, want v0.1.0", got)
+	if got := VersionString(); got != "v0.2.0" {
+		t.Fatalf("VersionString() = %q, want v0.2.0", got)
 	}
 }
 
@@ -63,9 +76,9 @@ func TestResolvedVersionSources(t *testing.T) {
 		module   string
 		want     string
 	}{
-		{"release build", "v0.1.0", "v0.0.9", "v0.1.0"},
-		{"Go module install", "devel", "v0.1.0", "v0.1.0"},
-		{"empty explicit module install", "", "v0.1.0", "v0.1.0"},
+		{"release build", "v0.2.0", "v0.1.0", "v0.2.0"},
+		{"Go module install", "devel", "v0.2.0", "v0.2.0"},
+		{"empty explicit module install", "", "v0.2.0", "v0.2.0"},
 		{"source build", "devel", "(devel)", "devel"},
 		{"missing build information", "", "", "devel"},
 	}

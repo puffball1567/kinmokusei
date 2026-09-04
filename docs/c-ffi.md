@@ -4,11 +4,11 @@
 
 The C ABI is a deliberate stable boundary for two directions:
 
-1. **Outgoing export**: expose selected OnsenTamago functions to C, Nim, Rust, and other C ABI consumers.
+1. **Outgoing export**: expose selected Kinmokusei functions to C, Nim, Rust, and other C ABI consumers.
 2. **Incoming FFI**: call C/Nim libraries through generated ownership-aware, type-safe wrappers.
 
 Incoming bindings are also a distribution feature: a binding project should
-be able to present an idiomatic OnsenTamago API while keeping cgo, raw pointers,
+be able to present an idiomatic Kinmokusei API while keeping cgo, raw pointers,
 platform link flags, ownership, and release rules private. This makes a real C
 library binding a primary preview/demo target rather than treating FFI only as
 compiler plumbing.
@@ -24,19 +24,19 @@ function add(left: int32, right: int32): int32 {
 
 const sub = (left: int32, right: int32): int32 => left - right;
 
-export c("ontama_add", "ontama_sub") {add, sub};
+export c("kinmokusei_add", "kinmokusei_sub") {add, sub};
 ```
 
-Symbols and source names are paired by position: `"ontama_add"` exports
-`add`, and `"ontama_sub"` exports `sub`. Their counts must match. The source
+Symbols and source names are paired by position: `"kinmokusei_add"` exports
+`add`, and `"kinmokusei_sub"` exports `sub`. Their counts must match. The source
 target must be a top-level function or a top-level `const` arrow with an
 explicit result type. Lists may be split across lines and may use trailing
 commas:
 
 ```ts
 export c(
-  "ontama_add",
-  "ontama_sub",
+  "kinmokusei_add",
+  "kinmokusei_sub",
 ) {
   add,
   sub,
@@ -46,7 +46,7 @@ export c(
 The original single-function inline spelling remains supported:
 
 ```ts
-export c("ontama_add") function add(left: int32, right: int32): int32 {
+export c("kinmokusei_add") function add(left: int32, right: int32): int32 {
   return left + right;
 }
 ```
@@ -63,14 +63,14 @@ The compiler generates:
 Generated C functions return an `int32_t` status. Non-void values are written through a final out parameter. Status values are:
 
 - `0`: success.
-- `1`: contained panic in OnsenTamago/Go code.
+- `1`: contained panic in Kinmokusei/Go code.
 - `2`: invalid boundary argument such as a null out pointer.
 
 Panics never cross the C boundary. An out value is unspecified on failure.
 
 ## Stable initial types
 
-| OnsenTamago | C |
+| Kinmokusei | C |
 |---|---|
 | `boolean` | `uint8_t` (`0` is false, nonzero input is true, output is normalized to `0` or `1`) |
 | `byte` | `uint8_t` |
@@ -94,12 +94,12 @@ converts the C integer to the named enum before calling user code and converts
 the named result back to the same fixed-width transport. The header and ABI
 manifest intentionally expose the transport integer rather than a
 compiler-specific C enum layout. C callers must use the numeric values defined
-by the OnsenTamago enum; unknown representable values are transported without
+by the Kinmokusei enum; unknown representable values are transported without
 implicit validation, matching Go named-integer behavior.
 
 Rejected from the initial stable boundary:
 
-- Machine-width C `long`, Go/OnsenTamago `int`/`uint`, Nim `int`, and native
+- Machine-width C `long`, Go/Kinmokusei `int`/`uint`, Nim `int`, and native
   enums whose ultimate underlying type is machine-width `int` or `uint`.
 - Runtime-managed strings, slices, maps, interfaces, channels, classes, and errors.
 - Nim `string`, `seq`, and `ref object` runtime layouts.
@@ -123,10 +123,10 @@ Rejected from the initial stable boundary:
 
 ## Implemented incoming schema 1
 
-`ontama ffi generate --manifest <binding.json> -o <private-package>`
+`keika ffi generate --manifest <binding.json> -o <private-package>`
 validates a schema-versioned manifest and emits `generated_ffi.go`, an isolated
 cgo package intended to be consumed through ordinary Go interop and wrapped by
-an idiomatic OnsenTamago module. Schema 1 supports:
+an idiomatic Kinmokusei module. Schema 1 supports:
 
 - Fixed-width signed and unsigned integers, `float32`, `float64`, C `bool`,
   and explicitly checked 32-bit C `int`/`unsigned int`.
@@ -353,7 +353,7 @@ replace them. This makes the ownership boundary explicit instead of inferring
 whether an ordinary borrowed string or slice might escape a call.
 
 The generated package is the low-level private boundary. Public binding APIs
-remain ordinary OnsenTamago code, so application code does not see `C.*`, raw
+remain ordinary Kinmokusei code, so application code does not see `C.*`, raw
 pointers, or release symbols.
 
 ## Proposed source declarations

@@ -1,0 +1,5 @@
+function sum(...values: int[]): int { return len(values); }
+
+function invalid(values: string[]): int {
+  return sum(values...);
+}

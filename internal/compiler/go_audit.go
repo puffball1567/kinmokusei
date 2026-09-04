@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/sema"
+	"github.com/puffball1567/kinmokusei/internal/sema"
 )
 
 type GoInteropAuditCount struct {
@@ -95,7 +95,7 @@ func AuditGoInteropPackages(paths []string, goImporter gotypes.Importer) GoInter
 
 // StandardGoPackagePaths returns importable public packages reported by the
 // active Go toolchain. Commands, internal implementation packages, and vendored
-// copies are excluded because OnsenTamago users cannot import them as public API.
+// copies are excluded because Kinmokusei users cannot import them as public API.
 func StandardGoPackagePaths() ([]string, error) {
 	command := exec.Command("go", "list", "-e", "-f", "{{.ImportPath}}", "std")
 	var stdout, stderr bytes.Buffer

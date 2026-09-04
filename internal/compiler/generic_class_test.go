@@ -9,7 +9,7 @@ import (
 
 func TestGenericClassesMatchIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	source := filepath.Join(temporary, "generic_class.otm")
+	source := filepath.Join(temporary, "generic_class.km")
 	if err := os.WriteFile(source, []byte(`
 interface Reader<T> { function read(): T; }
 
@@ -167,22 +167,22 @@ func TestGenericClassBehavior(t *testing.T) {
 
 func TestLinkedGenericClassMatchesIndependentGo(t *testing.T) {
 	temporary := t.TempDir()
-	dependency := filepath.Join(temporary, "box.otm")
-	entry := filepath.Join(temporary, "entry.otm")
+	dependency := filepath.Join(temporary, "box.km")
+	entry := filepath.Join(temporary, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`
 interface Reader<T> { function read(): T; }
 class Box<T> implements Reader<T> {
   constructor(public value: T) {}
   public function read(): T { return this.value; }
+  public static function make(value: T): Box<T> { return new Box<T>(value); }
 }
-function makeBox<T>(value: T): Box<T> { return new Box<T>(value); }
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(entry, []byte(`
-import { Box, Reader, makeBox } from "./box";
+import { Box, Reader } from "./box";
 function linked(value: string): string {
-  const box: Box<string> = makeBox(value);
+  const box: Box<string> = Box.make(value);
   const reader: Reader<string> = box;
   return reader.read();
 }
@@ -198,8 +198,8 @@ type Reader[T any] interface { Read() T }
 type Box[T any] struct { Value T }
 func NewBox[T any](value T) *Box[T] { return &Box[T]{Value: value} }
 func (box *Box[T]) Read() T { return box.Value }
-func makeBox[T any](value T) *Box[T] { return NewBox(value) }
-func Linked(value string) string { var reader Reader[string] = makeBox(value); return reader.Read() }
+func BoxMake[T any](value T) *Box[T] { return NewBox(value) }
+func Linked(value string) string { var reader Reader[string] = BoxMake(value); return reader.Read() }
 `
 	testSource := `package genericclasslinked
 import (

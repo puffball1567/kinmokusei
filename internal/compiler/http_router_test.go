@@ -9,9 +9,9 @@ import (
 
 func TestHTTPRouterMatchesIndependentGoAndIsPubliclyConsumable(t *testing.T) {
 	directory := t.TempDir()
-	source := filepath.Join(directory, "router.otm")
+	source := filepath.Join(directory, "router.km")
 	input := `
-import { App, Context } from "ontama/http";
+import { App, Context } from "kinmokusei/http";
 import go fmt from "fmt";
 import go http from "net/http";
 
@@ -59,13 +59,13 @@ function NewRouter(): http.Handler {
 		"type App struct", "var _ http.Handler = &App{}", "func NewApp() *App",
 		"func (this *App) Handle", "func (this *App) Get", "func (this *App) Delete",
 		"func (this *App) Handler() http.Handler", "func (this *App) ServeHTTP",
-		"func __ontamaStaticApproutePattern", "func NewRouter() http.Handler",
+		"func __kinmokuseiStaticApproutePattern", "func NewRouter() http.Handler",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated HTTP router does not contain %q:\n%s", expected, generated)
 		}
 	}
-	for _, forbidden := range []string{"func AppRoutePattern", "func App_routePattern", directory, source, "github.com/puffball1567/onsentamago"} {
+	for _, forbidden := range []string{"func AppRoutePattern", "func App_routePattern", directory, source, "github.com/puffball1567/kinmokusei"} {
 		if strings.Contains(string(generated), forbidden) {
 			t.Errorf("publishable generated router contains %q:\n%s", forbidden, generated)
 		}

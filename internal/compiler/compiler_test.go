@@ -29,7 +29,7 @@ func TestGoPackageFunctionSignatureMatrix(t *testing.T) {
 			wantResult: "string", wantVariadic: true, wantAvailable: true,
 		},
 		{
-			name: "OnsenTamago collection spelling", path: "bytes", export: "Clone",
+			name: "Kinmokusei collection spelling", path: "bytes", export: "Clone",
 			wantNames: []string{"b"}, wantTypes: []string{"byte[]"},
 			wantResult: "byte[]", wantAvailable: true,
 		},
@@ -131,8 +131,8 @@ func TestGoTypeMethodSignatureFollowsSelectorRules(t *testing.T) {
 
 func TestEmitGoMultipleFilesAndCompile(t *testing.T) {
 	temp := t.TempDir()
-	first := filepath.Join(temp, "first.otm")
-	second := filepath.Join(temp, "second.otm")
+	first := filepath.Join(temp, "first.km")
+	second := filepath.Join(temp, "second.km")
 	if err := os.WriteFile(first, []byte(`function add(left: int, right: int): int { return left + right; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -180,10 +180,29 @@ func TestMultipleFiles(t *testing.T) {
 	runGeneratedGoDifferentialTest(t, temp, "generated.test", generated, referenceSource, testSource)
 }
 
+func TestExtensionlessRelativeImportSupportsLegacyMigrationSources(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "main.otm")
+	dependency := filepath.Join(root, "value.otm")
+	if err := os.WriteFile(entry, []byte(`import { value } from "./value"; function answer(): int { return value(); }`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dependency, []byte(`function value(): int { return 42; }`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := CheckFiles([]string{entry})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Diagnostics) != 0 {
+		t.Fatalf("legacy relative import diagnostics: %v", result.Diagnostics)
+	}
+}
+
 func TestCheckFilesReportsImportCycle(t *testing.T) {
 	temp := t.TempDir()
-	first := filepath.Join(temp, "first.otm")
-	second := filepath.Join(temp, "second.otm")
+	first := filepath.Join(temp, "first.km")
+	second := filepath.Join(temp, "second.km")
 	if err := os.WriteFile(first, []byte(`import { second } from "./second"; function first(): int { return second(); }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -201,8 +220,8 @@ func TestCheckFilesReportsImportCycle(t *testing.T) {
 
 func TestCheckFilesValidatesImportedNames(t *testing.T) {
 	temp := t.TempDir()
-	dependency := filepath.Join(temp, "dependency.otm")
-	entry := filepath.Join(temp, "entry.otm")
+	dependency := filepath.Join(temp, "dependency.km")
+	entry := filepath.Join(temp, "entry.km")
 	if err := os.WriteFile(dependency, []byte(`function available(): int { return 42; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +239,7 @@ func TestCheckFilesValidatesImportedNames(t *testing.T) {
 
 func TestCheckFilesReportsSourcePath(t *testing.T) {
 	temp := t.TempDir()
-	path := filepath.Join(temp, "broken.otm")
+	path := filepath.Join(temp, "broken.km")
 	if err := os.WriteFile(path, []byte(`function bad(): int { return false; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -238,8 +257,8 @@ func TestCheckFilesReportsSourcePath(t *testing.T) {
 
 func TestCheckFilesWithOverlayUsesUnsavedRootAndImportedDocuments(t *testing.T) {
 	temp := t.TempDir()
-	entry := filepath.Join(temp, "entry.otm")
-	dependency := filepath.Join(temp, "dependency.otm")
+	entry := filepath.Join(temp, "entry.km")
+	dependency := filepath.Join(temp, "dependency.km")
 	overlay := map[string]string{
 		entry:      `import { value } from "./dependency"; function answer(): int { return value(); }`,
 		dependency: `function value(): int { return 42; }`,
@@ -261,7 +280,7 @@ func TestCheckFilesWithOverlayUsesUnsavedRootAndImportedDocuments(t *testing.T) 
 
 func TestGeneratedClassAndCollectionProgramCompiles(t *testing.T) {
 	temp := t.TempDir()
-	source := filepath.Join(temp, "main.otm")
+	source := filepath.Join(temp, "main.km")
 	input := `
 class Counter {
   constructor(private value: int) {}
@@ -336,9 +355,9 @@ func TestClassAndCollectionBehavior(t *testing.T) {
 
 func TestInterfacePolymorphismAcrossImportsCompilesAndRuns(t *testing.T) {
 	temp := t.TempDir()
-	contract := filepath.Join(temp, "contract.otm")
-	implementation := filepath.Join(temp, "implementation.otm")
-	entry := filepath.Join(temp, "entry.otm")
+	contract := filepath.Join(temp, "contract.km")
+	implementation := filepath.Join(temp, "implementation.km")
+	entry := filepath.Join(temp, "entry.km")
 	if err := os.WriteFile(contract, []byte(`interface Formatter { function format(value: string): string; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}

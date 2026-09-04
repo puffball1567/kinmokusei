@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/puffball1567/onsentamago/internal/product"
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 const LockVersion = 3
@@ -164,7 +164,7 @@ func WriteLock(root string, lock Lock) error {
 
 func writeAtomic(path string, contents []byte, mode os.FileMode) error {
 	directory := filepath.Dir(path)
-	temporary, err := os.CreateTemp(directory, ".ontama-write-")
+	temporary, err := os.CreateTemp(directory, ".kinmokusei-write-")
 	if err != nil {
 		return err
 	}

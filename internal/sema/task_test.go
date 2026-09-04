@@ -82,7 +82,7 @@ func TestRejectsInvalidTaskUses(t *testing.T) {
 		{"conversion", `function bad(): void { const task = go int(1); detach task; }`, "type conversions are not calls"},
 		{"builtin", `function bad(): int { const task = go len([1]); return await task; }`, "does not support compiler built-ins"},
 		{"closure capture", `function value(): int { return 1; } function bad(): int { const task = go value(); const wait = (): int => await task; return await task; }`, "cannot be captured by a closure"},
-		{"runtime name collision", `struct __ontamaTask {} function value(): int { return 1; } function bad(): int { const task = go value(); return await task; }`, "reserved by the Task runtime"},
+		{"runtime name collision", `struct __kinmokuseiTask {} function value(): int { return 1; } function bad(): int { const task = go value(); return await task; }`, "reserved by the Task runtime"},
 		{"task type collision", `struct Task {}`, "conflicts with a built-in type"},
 	}
 	for _, test := range tests {

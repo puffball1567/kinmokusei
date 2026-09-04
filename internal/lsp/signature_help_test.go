@@ -33,7 +33,7 @@ func signatureResult(t *testing.T, message map[string]any) (string, float64, []a
 }
 
 func TestSignatureHelpOnsenFunctionAndActiveParameter(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "function.otm")
+	path := filepath.Join(t.TempDir(), "function.km")
 	text := `function combine(left: int, right: string): boolean { return left > 0 && right !== ""; }
 function main(): boolean { return combine(1, "value"); }`
 	at := positionOf(text, `"value"`, 0)
@@ -72,7 +72,7 @@ func TestSignatureHelpNativeVariadicDeclarations(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), test.name+".otm")
+			path := filepath.Join(t.TempDir(), test.name+".km")
 			label, active, _ := signatureResult(t, signatureHelpAt(t, path, test.text, positionOf(test.text, test.needle, 0)))
 			if label != test.wantLabel || active != test.wantActive {
 				t.Fatalf("signature = %q active=%v, want %q active=%v", label, active, test.wantLabel, test.wantActive)
@@ -82,7 +82,7 @@ func TestSignatureHelpNativeVariadicDeclarations(t *testing.T) {
 }
 
 func TestSignatureHelpInsideValueSwitch(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "switch.otm")
+	path := filepath.Join(t.TempDir(), "switch.km")
 	text := `function combine(left: int, right: int): int { return left + right; }
 function classify(value: int): int { switch (combine(value, 1)) { case combine(value, 2) { return 1; } default { return 0; } } }`
 	label, active, _ := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "2)", 0)))
@@ -92,7 +92,7 @@ function classify(value: int): int { switch (combine(value, 1)) { case combine(v
 }
 
 func TestSignatureHelpInsidePropagationExpression(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "result.otm")
+	path := filepath.Join(t.TempDir(), "result.km")
 	text := `function parse(text: string, radix: int): Result<int> { return ok(radix); }
 function use(): Result<int> { const value = parse("21", 10)?; return ok(value); }`
 	label, active, _ := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "10", 0)))
@@ -102,7 +102,7 @@ function use(): Result<int> { const value = parse("21", 10)?; return ok(value); 
 }
 
 func TestSignatureHelpResultConstructors(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "constructors.otm")
+	path := filepath.Join(t.TempDir(), "constructors.km")
 	text := `function value(): Result<int> { return ok(42); }`
 	label, active, parameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "42", 0)))
 	if label != "ok(value: int): Result<int>" || active != 0 || len(parameters) != 1 {
@@ -111,7 +111,7 @@ func TestSignatureHelpResultConstructors(t *testing.T) {
 }
 
 func TestSignatureHelpNestedDelimiterAndStringCommaMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "nested.otm")
+	path := filepath.Join(t.TempDir(), "nested.km")
 	text := `function inner(first: int, second: int): int { return first + second; }
 function outer(value: int, text: string, items: int[]): int { return value + len(text) + len(items); }
 function main(): int { return outer(inner(1, 2), "a,b", [1, 2]); }`
@@ -166,7 +166,7 @@ func TestSignatureHelpFunctionValuesAndClassMethod(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "callable.otm")
+			path := filepath.Join(t.TempDir(), "callable.km")
 			label, active, _ := signatureResult(t, signatureHelpAt(t, path, test.text, positionOf(test.text, test.needle, 0)))
 			if label != test.wantLabel || active != test.wantActive {
 				t.Fatalf("signature = %q active=%v", label, active)
@@ -204,7 +204,7 @@ function make(): Empty { return new Empty(); }`,
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "constructor.otm")
+			path := filepath.Join(t.TempDir(), "constructor.km")
 			at := test.at
 			if at == (position{}) {
 				if strings.Contains(test.text, `"x"`) {
@@ -242,7 +242,7 @@ func TestSignatureHelpBuiltinExceptionConstructor(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "exception.otm")
+			path := filepath.Join(t.TempDir(), "exception.km")
 			at := test.at
 			if at == (position{}) {
 				if strings.HasSuffix(test.text, "(") {
@@ -282,7 +282,7 @@ func TestSignatureHelpGoFunctionsGenericAndVariadic(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "go_call.otm")
+			path := filepath.Join(t.TempDir(), "go_call.km")
 			label, active, _ := signatureResult(t, signatureHelpAt(t, path, test.text, positionOf(test.text, test.needle, 0)))
 			for _, part := range test.wantParts {
 				if !strings.Contains(label, part) {
@@ -337,7 +337,7 @@ func TestSignatureHelpGoValueMethodCompleteAndIncomplete(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "go_method.otm")
+			path := filepath.Join(t.TempDir(), "go_method.km")
 			at := test.at
 			if at == (position{}) {
 				if strings.HasSuffix(test.text, "(") {
@@ -355,7 +355,7 @@ func TestSignatureHelpGoValueMethodCompleteAndIncomplete(t *testing.T) {
 }
 
 func TestSignatureHelpRejectsGoFieldAsMethod(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "go_field.otm")
+	path := filepath.Join(t.TempDir(), "go_field.km")
 	text := `import go web from "net/http"; function invalid(request: *web.Request): string { return request.Method(`
 	at := position{Character: utf16Length(text)}
 	message := signatureHelpAt(t, path, text, at)
@@ -404,7 +404,7 @@ function size(): int { return len(1, "decimal"); }`,
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "builtin.otm")
+			path := filepath.Join(t.TempDir(), "builtin.km")
 			var at position
 			if test.needle == "" {
 				lines := strings.Split(test.text, "\n")
@@ -428,7 +428,7 @@ func TestSignatureHelpIncompleteOnsenAndGoCalls(t *testing.T) {
 		active     float64
 	}{
 		{
-			"OnsenTamago", `function add(left: int, right: int): int { return left + right; }
+			"Kinmokusei", `function add(left: int, right: int): int { return left + right; }
 function main(): int { return add(1, `,
 			"add(left: int, right: int): int", 1,
 		},
@@ -445,7 +445,7 @@ function clone(value: byte[]): byte[] { return bytes.Clone(`,
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "incomplete.otm")
+			path := filepath.Join(t.TempDir(), "incomplete.km")
 			lines := strings.Split(test.text, "\n")
 			at := position{Line: len(lines) - 1, Character: utf16Length(lines[len(lines)-1])}
 			label, active, _ := signatureResult(t, signatureHelpAt(t, path, test.text, at))
@@ -458,8 +458,8 @@ function clone(value: byte[]): byte[] { return bytes.Clone(`,
 
 func TestSignatureHelpAcrossUnsavedRelativeImport(t *testing.T) {
 	directory := t.TempDir()
-	dependency := filepath.Join(directory, "dependency.otm")
-	entry := filepath.Join(directory, "main.otm")
+	dependency := filepath.Join(directory, "dependency.km")
+	entry := filepath.Join(directory, "main.km")
 	dependencyText := `function helper(value: int, label: string): int { return value + len(label); }`
 	entryText := `import { helper } from "./dependency"; function main(): int { return helper(1, "x"); }`
 	if err := os.WriteFile(dependency, []byte(`function stale(): int { return 0; }`), 0o644); err != nil {
@@ -478,7 +478,7 @@ func TestSignatureHelpAcrossUnsavedRelativeImport(t *testing.T) {
 }
 
 func TestSignatureHelpInvalidContextMatrix(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "invalid.otm")
+	path := filepath.Join(t.TempDir(), "invalid.km")
 	uri := fileURI(path)
 	text := `function helper(value: int): int { return value; }
 function main(): int { const value = helper(1); return value; } // helper(`
@@ -518,7 +518,7 @@ func TestCallContextActiveParameterMatrix(t *testing.T) {
 		{"new Value(1, ", 1, "Value"},
 	}
 	for _, test := range tests {
-		context, ok := callContextAt("context.otm", test.text, len(test.text))
+		context, ok := callContextAt("context.km", test.text, len(test.text))
 		if !ok || context.ActiveParameter != test.active || context.Name != test.name {
 			t.Errorf("callContextAt(%q) = %#v, %v", test.text, context, ok)
 		}
@@ -551,7 +551,7 @@ func FuzzCallContextAtNeverPanics(f *testing.F) {
 			t.Skip()
 		}
 		offset := int(rawOffset % uint32(len(text)+1))
-		context, ok := callContextAt("fuzz.otm", text, offset)
+		context, ok := callContextAt("fuzz.km", text, offset)
 		if !ok {
 			return
 		}

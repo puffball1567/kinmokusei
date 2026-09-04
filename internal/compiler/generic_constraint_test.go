@@ -9,7 +9,7 @@ import (
 
 func TestComparableTypeParameterConstraintsMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
-	source := filepath.Join(root, "generic_constraint.otm")
+	source := filepath.Join(root, "generic_constraint.km")
 	if err := os.WriteFile(source, []byte(`
 function Equal<T extends comparable>(left: T, right: T): boolean { return left === right; }
 function Contains<T extends comparable>(values: Map<T, string>, key: T): boolean {
