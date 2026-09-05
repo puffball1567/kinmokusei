@@ -31,7 +31,8 @@ Repository Rulesets require pull requests and the stable compatibility gate on
 both protected branches. The `main` Ruleset also requires the approved-source
 gate, rejects deletion and non-fast-forward updates, and permits merge commits
 only. Ordinary release pull requests reuse CI only when the exact `devel` head
-has a successful Compatibility push run.
+has a successful Compatibility push run and the pull request merge tree is
+identical to that verified head.
 
 ## Quality requirements
 
