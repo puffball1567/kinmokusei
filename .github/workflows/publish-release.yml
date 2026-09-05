@@ -1,4 +1,4 @@
-name: Promote release
+name: Publish release
 
 on:
   workflow_dispatch:
@@ -13,12 +13,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: release-promotion
+  group: release-publication
   cancel-in-progress: false
 
 jobs:
-  promote:
-    name: Promote devel to main
+  publish:
+    name: Tag main and publish artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -32,8 +32,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "$GITHUB_REF" != "refs/heads/devel" ]; then
-            echo "::error::Run Promote release from the devel branch."
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run Publish release from the main branch."
             exit 1
           fi
 
@@ -42,72 +42,37 @@ jobs:
             exit 1
           fi
 
-      - name: Verify the promoted commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          git fetch --force origin \
-            "+refs/heads/main:refs/remotes/origin/main" \
-            "+refs/heads/devel:refs/remotes/origin/devel" \
-            "+refs/tags/*:refs/tags/*"
-
-          devel_sha=$(git rev-parse origin/devel)
-          if [ "$devel_sha" != "$GITHUB_SHA" ]; then
-            echo "::error::devel advanced after this workflow was dispatched. Run it again from the current devel head."
-            exit 1
-          fi
-
-          if ! git merge-base --is-ancestor origin/main origin/devel; then
-            echo "::error::main is not an ancestor of devel; a fast-forward release is not possible."
-            exit 1
-          fi
-
-          compatibility_run=$(gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/compatibility.yml/runs?branch=devel&event=push&status=success&per_page=100" \
-            --jq ".workflow_runs | map(select(.head_sha == \"${GITHUB_SHA}\")) | first | .id // empty")
-          if [ -z "$compatibility_run" ]; then
-            echo "::error::The current devel commit has no successful Compatibility push run."
-            exit 1
-          fi
-
-      - name: Fast-forward main and create the tag
+      - name: Tag the exact main head
         env:
           RELEASE_TAG: ${{ inputs.version }}
         run: |
           set -euo pipefail
 
-          devel_sha=$(git rev-parse origin/devel)
+          git fetch --force origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/tags/*:refs/tags/*"
+
           main_sha=$(git rev-parse origin/main)
-          tag_exists=false
+          if [ "$main_sha" != "$GITHUB_SHA" ]; then
+            echo "::error::main advanced after this workflow was dispatched. Run it again from the current main head."
+            exit 1
+          fi
 
           if git show-ref --verify --quiet "refs/tags/${RELEASE_TAG}"; then
-            tag_exists=true
             tag_sha=$(git rev-list -n 1 "refs/tags/${RELEASE_TAG}")
-            if [ "$tag_sha" != "$devel_sha" ]; then
+            if [ "$tag_sha" != "$main_sha" ]; then
               echo "::error::${RELEASE_TAG} already points to a different commit."
               exit 1
             fi
+            echo "${RELEASE_TAG} already points to main at ${main_sha}."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag -a "$RELEASE_TAG" "$devel_sha" -m "Kinmokusei ${RELEASE_TAG}"
-          fi
-
-          if [ "$main_sha" != "$devel_sha" ] && [ "$tag_exists" = false ]; then
-            git push --atomic origin \
-              "${devel_sha}:refs/heads/main" \
-              "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          elif [ "$main_sha" != "$devel_sha" ]; then
-            git push origin "${devel_sha}:refs/heads/main"
-          elif [ "$tag_exists" = false ]; then
+            git tag -a "$RELEASE_TAG" "$main_sha" -m "Kinmokusei ${RELEASE_TAG}"
             git push origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          else
-            echo "main and ${RELEASE_TAG} already point to ${devel_sha}."
           fi
 
-      - name: Start artifact publication and documentation deployment
+      - name: Start artifact publication
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.version }}
@@ -129,11 +94,8 @@ jobs:
             echo "Release publication already exists or is running for ${RELEASE_TAG}."
           fi
 
-          gh workflow run docs.yml --ref main
-
           {
             echo "## Kinmokusei ${RELEASE_TAG}"
             echo
-            echo "Promoted devel at \`${GITHUB_SHA}\` to main and created \`${RELEASE_TAG}\`."
-            echo "Release artifacts and GitHub Pages were dispatched independently."
+            echo "Tagged main at \`${GITHUB_SHA}\` and started artifact publication."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -13,22 +13,25 @@ explicit compatibility with the Go ecosystem. Before contributing, read the
   directly on `main`.
 - Keep `devel` green under the required compatibility check.
 - Prepare a release on `release/vX.Y.Z`, then merge that branch into `devel`.
-- After the compatibility push run succeeds on the resulting `devel` commit,
-  run the **Promote release** workflow from `devel` with the intended version
-  tag. It verifies the successful gate, fast-forwards `main`, creates the tag,
-  and starts artifact publication and documentation deployment.
-- Do not update `main` or create release tags manually during an ordinary
-  release. The promotion workflow keeps the branch and tag on the same verified
-  commit without requiring a duplicate `devel` to `main` pull request.
-- Use `hotfix/*` only for an urgent correction based on `main`. Merge the fix
-  into `devel` through the ordinary review gate, then publish it with the same
-  promotion workflow as a patch release.
+- After the compatibility push run succeeds on the exact resulting `devel`
+  commit, open a pull request from `devel` to `main`. This release pull request
+  verifies and reuses that successful run instead of repeating the full suite.
+- Merge release pull requests with a merge commit. After the merge, run the
+  **Publish release** workflow from `main` with the intended version tag. It
+  tags the exact `main` head and starts artifact publication without changing
+  either protected branch.
+- Use `hotfix/*` only for an urgent correction based on `main`. A hotfix pull
+  request to `main` always runs the full compatibility suite. After publishing
+  the patch release, open a synchronization pull request from `main` to
+  `devel`; that pull request also runs the full suite.
+- Pull requests to `main` are accepted only from this repository's `devel` or
+  `hotfix/*` branches. Direct pushes to `main` are not permitted.
 
-Repository Rulesets require pull requests, review resolution, and the stable
-compatibility gate on `devel`. The `main` Ruleset rejects deletion,
-non-fast-forward updates, and commits without a successful compatibility gate.
-The promotion workflow additionally requires the exact current `devel` head,
-so ordinary releases never need a second pull request to `main`.
+Repository Rulesets require pull requests and the stable compatibility gate on
+both protected branches. The `main` Ruleset also requires the approved-source
+gate, rejects deletion and non-fast-forward updates, and permits merge commits
+only. Ordinary release pull requests reuse CI only when the exact `devel` head
+has a successful Compatibility push run.
 
 ## Quality requirements
 
