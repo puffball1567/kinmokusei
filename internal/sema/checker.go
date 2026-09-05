@@ -199,9 +199,11 @@ type Checker struct {
 	exceptionDepth             int
 	catchTargets               []int
 	taskOperandDepth           int
+	directCallCallee           ast.Expression
 	typeParameterScopes        []map[string]Type
 	functionTypeParameters     map[*ast.FunctionDecl]map[string]Type
 	receiverTypeParameters     map[*ast.MethodDecl]map[string]Type
+	methodTypeParameters       map[*ast.MethodDecl]map[string]Type
 	validFallthrough           map[*ast.BranchStmt]bool
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
@@ -235,6 +237,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
+		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
 		validFallthrough:       map[*ast.BranchStmt]bool{},
 	}
 	c.installExceptionBuiltin()
@@ -581,6 +584,10 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 					claim(staticMethodGoName(declaration.Name, method.GoName, method.Visibility), method.Span)
 					continue
 				}
+				if len(method.TypeParameters) != 0 {
+					claim(staticMethodGoName(declaration.Name, method.GoName, method.Visibility), method.Span)
+					continue
+				}
 				if method.Virtual || method.Override {
 					claimStructMember(declaration.Name, "__kinmokusei"+method.VirtualOwner+method.GoName, method.Span)
 				}
@@ -597,7 +604,11 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				claimStructMember(declaration.Name, field.GoName, field.Span)
 			}
 			for _, method := range declaration.Methods {
-				claimStructMember(declaration.Name, method.GoName, method.Span)
+				if len(method.TypeParameters) != 0 {
+					claim(staticMethodGoName(declaration.Name, method.GoName, method.Visibility), method.Span)
+				} else {
+					claimStructMember(declaration.Name, method.GoName, method.Span)
+				}
 			}
 		case *ast.TypeDecl:
 			if gotoken.Lookup(declaration.Name).IsKeyword() {
@@ -1585,7 +1596,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			}
 			for name, method := range base.methods {
 				if !method.static {
-					method.typeInfo = substituteNativeTypeParameters(method.typeInfo, baseBindings)
+					method.typeInfo = substituteNativeMethodOwnerTypeParameters(method.typeInfo, baseBindings)
 				}
 				symbol.methods[name] = method
 			}
@@ -1653,6 +1664,14 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 	}
 	for _, method := range decl.Methods {
 		c.validateLabels(method.Body)
+		for _, parameter := range method.TypeParameters {
+			if _, exists := symbol.typeParamScope[parameter.Name]; exists {
+				c.report(parameter.Span, fmt.Sprintf("generic class method type parameter %q conflicts with a class type parameter", parameter.Name))
+			}
+		}
+		methodTypeParameters, methodScope := c.declareTypeParameters(method.TypeParameters, "generic class method")
+		c.methodTypeParameters[method] = methodScope
+		c.pushTypeParameterScope(methodScope)
 		parameters := make([]Type, len(method.Parameters))
 		for i, parameter := range method.Parameters {
 			resolved := c.resolveType(parameter.Type)
@@ -1661,6 +1680,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			parameters[i] = c.callableParameterType(parameter, resolved)
 		}
 		result := c.resolveType(method.ReturnType)
+		c.popTypeParameterScope()
 		c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
 		method.GoName = memberGoName(method.Name, method.Visibility)
 		inherited, replaces := symbol.methods[method.Name]
@@ -1669,6 +1689,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		}
 		if method.Static && (method.Virtual || method.Override) {
 			c.report(method.Span, "static methods cannot be virtual or override")
+		}
+		if len(method.TypeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
+			c.report(method.Span, "generic methods cannot be virtual, override, or final because Go method sets cannot represent method type parameters")
 		}
 		if method.Virtual && method.Override {
 			c.report(method.Span, "override already remains virtual; remove the virtual modifier")
@@ -1680,8 +1703,13 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.report(method.Span, "virtual methods must be public or protected")
 		}
 		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
+		if len(methodTypeParameters) != 0 {
+			methodType.TypeParameters = append(methodType.TypeParameters, methodTypeParameters...)
+		}
 		if method.Static && len(symbol.typeParameters) != 0 {
-			methodType.TypeParameters = append([]Type(nil), symbol.typeParameters...)
+			methodType.TypeParameters = append(methodType.TypeParameters, symbol.typeParameters...)
+		}
+		if len(methodType.TypeParameters) != 0 {
 			methodType.Generic = true
 		}
 		virtualOwner := ""
@@ -2057,6 +2085,19 @@ func (c *Checker) declareStructMethod(symbol *structSymbol, method *ast.MethodDe
 		c.report(method.Span, fmt.Sprintf("duplicate struct method %q", method.Name))
 		return
 	}
+	var methodTypeParameters []Type
+	if !method.External {
+		for _, parameter := range method.TypeParameters {
+			if _, exists := symbol.typeParamScope[parameter.Name]; exists {
+				c.report(parameter.Span, fmt.Sprintf("generic struct method type parameter %q conflicts with a struct type parameter", parameter.Name))
+			}
+		}
+		var methodScope map[string]Type
+		methodTypeParameters, methodScope = c.declareTypeParameters(method.TypeParameters, "generic struct method")
+		c.methodTypeParameters[method] = methodScope
+		c.pushTypeParameterScope(methodScope)
+		defer c.popTypeParameterScope()
+	}
 	parameters := make([]Type, len(method.Parameters))
 	for i, parameter := range method.Parameters {
 		resolved := c.resolveType(parameter.Type)
@@ -2070,8 +2111,13 @@ func (c *Checker) declareStructMethod(symbol *structSymbol, method *ast.MethodDe
 	result := c.resolveType(method.ReturnType)
 	c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
 	method.GoName = memberGoName(method.Name, method.Visibility)
+	methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
+	if len(methodTypeParameters) != 0 {
+		methodType.TypeParameters = methodTypeParameters
+		methodType.Generic = true
+	}
 	symbol.methods[method.Name] = methodSymbol{
-		typeInfo:   Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result},
+		typeInfo:   methodType,
 		visibility: method.Visibility, pointerReceiver: method.PointerReceiver,
 		goName: method.GoName, declarationSpan: method.NameSpan,
 	}
@@ -2392,6 +2438,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 	c.inConstructor = false
 	c.checkClassFieldInitialization(decl)
 	for _, method := range decl.Methods {
+		c.pushTypeParameterScope(c.methodTypeParameters[method])
 		previousMemberFlow := c.memberFlow
 		c.memberFlow = map[memberFlowKey]memberFlowState{}
 		c.pushScope()
@@ -2424,6 +2471,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.catchTargets = previousCatchTargets
 		c.popScope()
 		c.memberFlow = previousMemberFlow
+		c.popTypeParameterScope()
 	}
 	c.currentClass = previousClass
 }
@@ -2469,7 +2517,9 @@ func (c *Checker) checkStruct(decl *ast.StructDecl) {
 		defer c.popTypeParameterScope()
 	}
 	for _, method := range decl.Methods {
+		c.pushTypeParameterScope(c.methodTypeParameters[method])
 		c.checkStructMethod(method, "this", decl.Name)
+		c.popTypeParameterScope()
 	}
 }
 
@@ -5584,6 +5634,9 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 				owner = identifier.Name
 			}
 			expr.ResolvedName = staticMethodGoName(owner, method.goName, method.visibility)
+			if method.typeInfo.Generic && c.directCallCallee != expr {
+				c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
+			}
 			return method.typeInfo
 		}
 	}
@@ -5644,7 +5697,20 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			expr.ResolvedDeclaration = method.declarationSpan
 			expr.VirtualDispatch = method.virtual
 			expr.VirtualOwner = method.virtualOwner
-			return substituteNativeTypeParameters(method.typeInfo, nativeClassBindings(class, object))
+			if len(method.typeInfo.TypeParameters) != 0 {
+				expr.GenericMethod = true
+				expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)
+				if method.declaringClass != object.Name {
+					expr.GenericReceiverUpcast = "__kinmokuseiUpcast" + object.Name + "To" + method.declaringClass
+					for _, argument := range object.TypeArguments {
+						expr.GenericReceiverTypeArguments = append(expr.GenericReceiverTypeArguments, typeRefFromType(argument, expr.Object.GetSpan()))
+					}
+				}
+				if c.directCallCallee != expr {
+					c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
+				}
+			}
+			return substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeClassBindings(class, object))
 		}
 		c.report(expr.Span, fmt.Sprintf("class %s has no member %q", object.Name, expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -5673,7 +5739,15 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			}
 			expr.ResolvedName = method.goName
 			expr.ResolvedDeclaration = method.declarationSpan
-			return substituteNativeTypeParameters(method.typeInfo, nativeStructBindings(structure, structObject))
+			if len(method.typeInfo.TypeParameters) != 0 {
+				expr.GenericMethod = true
+				expr.ResolvedName = staticMethodGoName(structObject.Name, method.goName, method.visibility)
+				expr.GenericReceiverAddress = method.pointerReceiver && !structPointer
+				if c.directCallCallee != expr {
+					c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
+				}
+			}
+			return substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeStructBindings(structure, structObject))
 		}
 		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", structObject.Name, expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -5770,7 +5844,21 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	expr.ResolvedName = method.goName
 	expr.VirtualOwner = method.virtualOwner
 	expr.ResolvedDeclaration = method.declarationSpan
-	return substituteNativeTypeParameters(method.typeInfo, nativeClassBindings(base, class.baseType))
+	if len(method.typeInfo.TypeParameters) != 0 {
+		expr.GenericMethod = true
+		expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)
+		expr.GenericReceiverSuperBase = class.base
+		if method.declaringClass != class.base {
+			expr.GenericReceiverUpcast = "__kinmokuseiUpcast" + class.base + "To" + method.declaringClass
+			for _, argument := range class.baseType.TypeArguments {
+				expr.GenericReceiverTypeArguments = append(expr.GenericReceiverTypeArguments, typeRefFromType(argument, expr.Span))
+			}
+		}
+		if c.directCallCallee != expr {
+			c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
+		}
+	}
+	return substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeClassBindings(base, class.baseType))
 }
 
 func (c *Checker) flowInvalidation(expression ast.Expression) (source.Span, string) {
@@ -6450,7 +6538,10 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			c.report(name.Span, fmt.Sprintf("undefined function %q", name.Name))
 		}
 	} else {
+		previousCallee := c.directCallCallee
+		c.directCallCallee = expr.Callee
 		callable = c.checkExpression(expr.Callee)
+		c.directCallCallee = previousCallee
 		callableName = "expression"
 	}
 	if callable.Kind == Invalid {
@@ -7681,6 +7772,20 @@ func substituteNativeTypeParameters(value Type, bindings map[string]Type) Type {
 		return value
 	}
 	return substituteNativeTypeParametersSeen(value, bindings, map[string]bool{})
+}
+
+// substituteNativeMethodOwnerTypeParameters instantiates the generic owner of
+// a method while retaining type parameters declared by the method itself.
+// Go cannot encode those parameters in a method set, but Kinmokusei lowers the
+// callable to a top-level helper after semantic checking.
+func substituteNativeMethodOwnerTypeParameters(value Type, bindings map[string]Type) Type {
+	methodParameters := append([]Type(nil), value.TypeParameters...)
+	result := substituteNativeTypeParameters(value, bindings)
+	if len(methodParameters) != 0 {
+		result.TypeParameters = methodParameters
+		result.Generic = true
+	}
+	return result
 }
 
 func substituteNativeTypeParametersSeen(value Type, bindings map[string]Type, visiting map[string]bool) Type {
@@ -9140,11 +9245,21 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitStatement(declaration.Constructor.Body)
 			}
 			for _, method := range declaration.Methods {
+				classTypeParameters := activeTypeParameters
+				activeTypeParameters = make(map[string]source.Span, len(classTypeParameters)+len(method.TypeParameters))
+				for name, span := range classTypeParameters {
+					activeTypeParameters[name] = span
+				}
+				for _, parameter := range method.TypeParameters {
+					activeTypeParameters[parameter.Name] = parameter.NameSpan
+				}
+				visitTypeParameters(method.TypeParameters)
 				for i := range method.Parameters {
 					visitType(&method.Parameters[i].Type)
 				}
 				visitType(&method.ReturnType)
 				visitStatement(method.Body)
+				activeTypeParameters = classTypeParameters
 			}
 			activeTypeParameters = nil
 		case *ast.InterfaceDecl:
@@ -9174,11 +9289,21 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitType(&declaration.Fields[i].Type)
 			}
 			for _, method := range declaration.Methods {
+				structTypeParameters := activeTypeParameters
+				activeTypeParameters = make(map[string]source.Span, len(structTypeParameters)+len(method.TypeParameters))
+				for name, span := range structTypeParameters {
+					activeTypeParameters[name] = span
+				}
+				for _, parameter := range method.TypeParameters {
+					activeTypeParameters[parameter.Name] = parameter.NameSpan
+				}
+				visitTypeParameters(method.TypeParameters)
 				for i := range method.Parameters {
 					visitType(&method.Parameters[i].Type)
 				}
 				visitType(&method.ReturnType)
 				visitStatement(method.Body)
+				activeTypeParameters = structTypeParameters
 			}
 			activeTypeParameters = nil
 		case *ast.TypeDecl:

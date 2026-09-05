@@ -258,6 +258,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			addParameters(declaration.Parameters, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
 		case *ast.MethodDecl:
+			for _, parameter := range declaration.TypeParameters {
+				add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+			}
 			add(completionItem{Label: declaration.ReceiverName, Kind: 6, Detail: formatTypeRef(declaration.ReceiverType), SortText: "0_" + declaration.ReceiverName})
 			addParameters(declaration.Parameters, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
@@ -267,6 +270,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			}
 			for _, method := range declaration.Methods {
 				if spanContains(method.Span, path, offset) {
+					for _, parameter := range method.TypeParameters {
+						add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+					}
 					if !method.Static {
 						add(completionItem{Label: "this", Kind: 6, Detail: declaration.Name, SortText: "0_this"})
 					}
@@ -286,6 +292,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			}
 			for _, method := range declaration.Methods {
 				if spanContains(method.Span, path, offset) {
+					for _, parameter := range method.TypeParameters {
+						add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+					}
 					detail := declaration.Name
 					if method.PointerReceiver {
 						detail = "*" + detail

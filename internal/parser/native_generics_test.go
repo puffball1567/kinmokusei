@@ -76,8 +76,6 @@ func TestNativeGenericFunctionSyntaxFailureMatrix(t *testing.T) {
 		{"empty parameters", `function identity<>(value: int): int { return value; }`, "type parameter list cannot be empty"},
 		{"trailing comma", `function identity<T,>(value: T): T { return value; }`, "type parameter name after ','"},
 		{"missing close", `function identity<T(value: T): T { return value; }`, "expected '>'"},
-		{"class method", `class Box { public function identity<T>(value: T): T { return value; } }`, "generic class methods are not supported"},
-		{"struct method", `struct Box { public function identity<T>(value: T): T { return value; } }`, "generic struct methods are not supported"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -94,6 +92,32 @@ func TestNativeGenericFunctionSyntaxFailureMatrix(t *testing.T) {
 				t.Fatalf("diagnostics = %v, want %q", messages, test.want)
 			}
 		})
+	}
+}
+
+func TestParsesNativeGenericClassAndStructMethods(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+class Box<T> {
+  public function pair<U>(value: U): {left: T, right: U} {
+    return {left: this.value(), right: value};
+  }
+  private function value(): T { return nil; }
+}
+struct Holder<T> {
+  public value: T;
+  public function replace<U>(value: U): U { return value; }
+}
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	classMethod := program.Declarations[0].(*ast.ClassDecl).Methods[0]
+	if len(classMethod.TypeParameters) != 1 || classMethod.TypeParameters[0].Name != "U" {
+		t.Fatalf("class method type parameters = %#v", classMethod.TypeParameters)
+	}
+	structMethod := program.Declarations[1].(*ast.StructDecl).Methods[0]
+	if len(structMethod.TypeParameters) != 1 || structMethod.TypeParameters[0].Name != "U" {
+		t.Fatalf("struct method type parameters = %#v", structMethod.TypeParameters)
 	}
 }
 

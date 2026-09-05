@@ -99,6 +99,7 @@ var implementedGoCompatibilityContracts = []string{
 	"stable JSON field names for native structs and classes, generic encoding, inherited public state, private-state exclusion, decoding into constructed class references with preserved virtual dispatch and hierarchy identity, malformed input, and external Go APIs",
 	"distinct definitions over native structs with explicit bidirectional conversion, field access, literals, generic instantiation, value and pointer receiver methods, method values, JSON encoding, and external Go APIs",
 	"source-declared exact and underlying type-set constraints across functions, structs, classes, defined types, operators, narrow overflow, strings, and generated Go APIs",
+	"generic class and struct methods with inferred, explicit, partial, and constrained type arguments, value and pointer receivers, static and inherited calls, super forwarding, mutation, and generated Go APIs",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
@@ -196,6 +197,8 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"definedstruct.test":                  {implementedGoCompatibilityContracts[81]},
 	"sourcetypeset.test":                  {implementedGoCompatibilityContracts[82]},
 	"sourcetypeset-linked.test":           {implementedGoCompatibilityContracts[82]},
+	"genericmethod.test":                  {implementedGoCompatibilityContracts[83]},
+	"genericmethod-linked.test":           {implementedGoCompatibilityContracts[83]},
 }
 
 func TestImplementedGoCompatibilityCoverageIsComplete(t *testing.T) {

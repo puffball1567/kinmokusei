@@ -594,10 +594,6 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		case p.match(token.Function):
 			function := p.parseFunction(p.previous())
 			if function != nil {
-				if len(function.TypeParameters) != 0 {
-					p.report(token.Token{Span: function.NameSpan}, "generic class methods are not supported; declare a top-level generic function")
-					continue
-				}
 				class.Methods = append(class.Methods, &ast.MethodDecl{
 					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
 					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Span: function.Span,
@@ -665,10 +661,6 @@ func (p *Parser) parseStruct(start token.Token) *ast.StructDecl {
 		if p.match(token.Function) {
 			function := p.parseFunction(p.previous())
 			if function != nil {
-				if len(function.TypeParameters) != 0 {
-					p.report(token.Token{Span: function.NameSpan}, "generic struct methods are not supported; declare a top-level generic function")
-					continue
-				}
 				declaration.Methods = append(declaration.Methods, &ast.MethodDecl{
 					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
 					Body: function.Body, Visibility: visibility, PointerReceiver: pointerReceiver, Span: function.Span,

@@ -476,9 +476,32 @@ Public struct fields carry JSON tags preserving their Kinmokusei names, so
 generic structs can be passed directly to `encoding/json` without changing the
 wire keys to exported Go capitalization. Non-public fields remain unexported.
 
-Method-local type parameters remain unsupported because Go does not permit
-them. Nested generic struct methods use the enclosing struct parameters.
-External methods bind the receiver parameters explicitly, for example
+Nested class and struct methods may declare their own type parameters:
+
+```ts
+struct Box<T> {
+  public value: T;
+
+  public function choose<U>(value: U): U { return value; }
+  public pointer function update<U extends Integer>(value: T, marker: U): U {
+    this.value = value;
+    return marker;
+  }
+}
+```
+
+Calls support inference and angle- or bracket-shaped explicit/partial type
+arguments. Because Go does not permit a method to declare type parameters, a
+generic instance method lowers to a typed top-level helper whose first argument
+is the receiver. Public methods produce public helpers such as
+`BoxChoose[U, T](*Box[T], U) U`; ordinary Kinmokusei calls retain
+`box.choose(value)`. This lowering preserves value versus pointer receiver
+behavior, single receiver evaluation, constraints, inheritance, and `super`.
+Generic methods cannot be `virtual`, `override`, or `final`, and an
+uninstantiated generic method cannot be captured as a method value because Go
+has no corresponding value. Interface methods likewise remain non-generic.
+
+External methods bind generic receiver parameters explicitly, for example
 `function get<U>(this: Box<U>): U`; those parameters belong to the receiver and
 do not make the method independently generic.
 

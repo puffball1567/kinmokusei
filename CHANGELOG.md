@@ -9,6 +9,9 @@ generated APIs between minor versions.
 - Add source-declared exact and underlying type-set constraints with
   `constraint Name = T | ~U`, including relative imports, editor support,
   compile-time misuse diagnostics, and handwritten-Go differential coverage.
+- Add generic class and struct methods with inference, explicit or partial type
+  arguments, constraints, value/pointer receiver behavior, inheritance and
+  `super`, editor support, and public generated-Go helper functions.
 
 ## [0.2.0] - 2026-09-04
 

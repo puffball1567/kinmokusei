@@ -872,7 +872,14 @@ type MemberExpr struct {
 	SuperBase           string
 	VirtualDispatch     bool
 	VirtualOwner        string
-	Span                source.Span
+	// GenericMethod marks an instance method that must lower to a top-level Go
+	// helper because Go methods cannot declare their own type parameters.
+	GenericMethod                bool
+	GenericReceiverAddress       bool
+	GenericReceiverSuperBase     string
+	GenericReceiverUpcast        string
+	GenericReceiverTypeArguments []TypeRef
+	Span                         source.Span
 }
 
 func (*MemberExpr) expression()            {}

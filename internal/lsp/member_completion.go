@@ -494,7 +494,7 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
 			}
 			result := substituteTypeRefParameters(method.ReturnType, bindings)
-			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
+			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + methodDetail(method, parameters, result), SortText: "0_" + method.Name})
 		}
 	case *ast.StructDecl:
 		if static {
@@ -514,7 +514,7 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 					parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
 				}
 				result := substituteTypeRefParameters(method.ReturnType, bindings)
-				add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
+				add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + methodDetail(method, parameters, result), SortText: "0_" + method.Name})
 			}
 		}
 		for _, candidate := range program.Declarations {

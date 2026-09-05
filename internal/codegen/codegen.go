@@ -216,6 +216,14 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 			if method.PointerReceiver {
 				receiver = &goast.StarExpr{X: receiver}
 			}
+			if len(method.TypeParameters) != 0 {
+				generated, err := generateGenericMethodHelper(decl.Name, decl.TypeParameters, method, "this", receiver)
+				if err != nil {
+					return nil, err
+				}
+				declarations = append(declarations, generated)
+				continue
+			}
 			generated, err := generateNativeStructMethod(method, "this", receiver)
 			if err != nil {
 				return nil, err
@@ -412,6 +420,33 @@ func generateNativeStructMethod(method *kinmokuseiAST.MethodDecl, receiverName s
 	return &goast.FuncDecl{
 		Recv: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent(goName(receiverName))}, Type: receiver}}},
 		Name: goast.NewIdent(goName(name)), Type: methodType, Body: body,
+	}, nil
+}
+
+func generateGenericMethodHelper(owner string, ownerTypeParameters []kinmokuseiAST.TypeParameter, method *kinmokuseiAST.MethodDecl, receiverName string, receiver goast.Expr) (*goast.FuncDecl, error) {
+	parameters := []*goast.Field{{Names: []*goast.Ident{goast.NewIdent(goName(receiverName))}, Type: receiver}}
+	for _, parameter := range method.Parameters {
+		parameters = append(parameters, goParameterField(parameter))
+	}
+	functionType := &goast.FuncType{Params: &goast.FieldList{List: parameters}, Results: functionResults(method.ReturnType), TypeParams: &goast.FieldList{}}
+	for _, parameter := range method.TypeParameters {
+		functionType.TypeParams.List = append(functionType.TypeParams.List, goTypeParameterField(parameter, false))
+	}
+	for _, parameter := range ownerTypeParameters {
+		functionType.TypeParams.List = append(functionType.TypeParams.List, goTypeParameterField(parameter, false))
+	}
+	body, err := generateBlock(method.Body)
+	if err != nil {
+		return nil, err
+	}
+	name := method.GoName
+	if name == "" {
+		name = memberName(method.Name, method.Visibility)
+	}
+	return &goast.FuncDecl{
+		Name: goast.NewIdent(staticMethodName(owner, name, method.Visibility)),
+		Type: functionType,
+		Body: body,
 	}, nil
 }
 
@@ -703,11 +738,24 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		if name == "" {
 			name = memberName(method.Name, method.Visibility)
 		}
+		if len(method.TypeParameters) != 0 && !method.Static {
+			generated, err := generateGenericMethodHelper(class.Name, class.TypeParameters, method, "this", classPointer)
+			if err != nil {
+				return nil, err
+			}
+			declarations = append(declarations, generated)
+			continue
+		}
 		generated := &goast.FuncDecl{Name: goast.NewIdent(goName(name)), Type: methodType, Body: body}
 		if method.Static {
 			generated.Name = goast.NewIdent(staticMethodName(class.Name, name, method.Visibility))
-			if len(typeParameterFields) != 0 {
-				generated.Type.TypeParams = &goast.FieldList{List: typeParameterFields}
+			var staticTypeParameters []*goast.Field
+			for _, parameter := range method.TypeParameters {
+				staticTypeParameters = append(staticTypeParameters, goTypeParameterField(parameter, false))
+			}
+			staticTypeParameters = append(staticTypeParameters, typeParameterFields...)
+			if len(staticTypeParameters) != 0 {
+				generated.Type.TypeParams = &goast.FieldList{List: staticTypeParameters}
 			}
 		} else {
 			generated.Recv = &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}
@@ -799,7 +847,9 @@ func virtualSelfName(className string) string      { return "__kinmokusei" + cla
 func virtualSlotName(owner, method string) string  { return "__kinmokusei" + owner + method }
 func initializerName(className string) string      { return "__kinmokuseiInit" + className }
 func upcastName(source, target string) string      { return "__kinmokuseiUpcast" + source + "To" + target }
-func downcastName(source, target string) string    { return "__kinmokuseiDowncast" + source + "To" + target }
+func downcastName(source, target string) string {
+	return "__kinmokuseiDowncast" + source + "To" + target
+}
 func mustDowncastName(source, target string) string {
 	return "__kinmokuseiMustDowncast" + source + "To" + target
 }
@@ -1920,8 +1970,29 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			return call, nil
 		}
 		var callee goast.Expr
+		var genericReceiver goast.Expr
 		if expr.ConversionType != nil {
 			callee = goType(*expr.ConversionType)
+		} else if member, ok := expr.Callee.(*kinmokuseiAST.MemberExpr); ok && member.GenericMethod {
+			callee = goast.NewIdent(goName(member.ResolvedName))
+			if member.GenericReceiverSuperBase != "" {
+				genericReceiver = &goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(member.GenericReceiverSuperBase)}}
+			} else {
+				var err error
+				genericReceiver, err = generateExpression(member.Object)
+				if err != nil {
+					return nil, err
+				}
+				if member.GenericReceiverAddress {
+					genericReceiver = &goast.UnaryExpr{Op: token.AND, X: genericReceiver}
+				}
+			}
+			if member.GenericReceiverUpcast != "" {
+				genericReceiver = &goast.CallExpr{
+					Fun:  indexedGoType(goast.NewIdent(member.GenericReceiverUpcast), member.GenericReceiverTypeArguments),
+					Args: []goast.Expr{genericReceiver},
+				}
+			}
 		} else {
 			var err error
 			callee, err = generateExpression(expr.Callee)
@@ -1931,6 +2002,8 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			if name, ok := callee.(*goast.Ident); ok {
 				name.Name = goTypeName(name.Name)
 			}
+		}
+		if expr.ConversionType == nil {
 			if len(expr.TypeArguments) == 1 {
 				callee = &goast.IndexExpr{X: callee, Index: goType(expr.TypeArguments[0])}
 			} else if len(expr.TypeArguments) > 1 {
@@ -1941,7 +2014,10 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				callee = &goast.IndexListExpr{X: callee, Indices: indices}
 			}
 		}
-		args := make([]goast.Expr, 0, len(expr.Arguments))
+		args := make([]goast.Expr, 0, len(expr.Arguments)+1)
+		if genericReceiver != nil {
+			args = append(args, genericReceiver)
+		}
 		for _, arg := range expr.Arguments {
 			generated, err := generateExpression(arg)
 			if err != nil {

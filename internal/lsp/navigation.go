@@ -253,7 +253,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.MethodDecl:
-			info := declarationInfo{Name: declaration.Name, Detail: functionDetail(declaration.Name, declaration.Parameters, declaration.ReturnType), Kind: 6, Span: declaration.Span, Selection: declaration.NameSpan}
+			info := declarationInfo{Name: declaration.Name, Detail: methodDetail(declaration, declaration.Parameters, declaration.ReturnType), Kind: 6, Span: declaration.Span, Selection: declaration.NameSpan}
 			for _, parameter := range declaration.TypeParameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
@@ -276,7 +276,10 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				child := declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				for _, parameter := range method.TypeParameters {
+					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+				}
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -294,7 +297,10 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				child := declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				for _, parameter := range method.TypeParameters {
+					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+				}
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -493,6 +499,14 @@ func functionDeclarationDetail(function *ast.FunctionDecl) string {
 		name += formatTypeParameters(function.TypeParameters)
 	}
 	return functionDetail(name, function.Parameters, function.ReturnType)
+}
+
+func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast.TypeRef) string {
+	name := method.Name
+	if !method.External && len(method.TypeParameters) != 0 {
+		name += formatTypeParameters(method.TypeParameters)
+	}
+	return functionDetail(name, parameters, result)
 }
 
 func formatTypeParameters(parameters []ast.TypeParameter) string {
