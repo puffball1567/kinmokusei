@@ -20,14 +20,15 @@ explicit compatibility with the Go ecosystem. Before contributing, read the
 - Do not update `main` or create release tags manually during an ordinary
   release. The promotion workflow keeps the branch and tag on the same verified
   commit without requiring a duplicate `devel` to `main` pull request.
-- Use `hotfix/*` only for an urgent correction based on `main`, then return the
-  same correction to `devel`.
+- Use `hotfix/*` only for an urgent correction based on `main`. Merge the fix
+  into `devel` through the ordinary review gate, then publish it with the same
+  promotion workflow as a patch release.
 
 Repository Rulesets require pull requests, review resolution, and the stable
-compatibility gate on `devel`. The `main` Ruleset permits the promotion workflow
-to bypass its pull-request gate while ordinary updates remain protected. Pull
-requests to `main` remain available only for exceptional `devel` or `hotfix/*`
-integration.
+compatibility gate on `devel`. The `main` Ruleset rejects deletion,
+non-fast-forward updates, and commits without a successful compatibility gate.
+The promotion workflow additionally requires the exact current `devel` head,
+so ordinary releases never need a second pull request to `main`.
 
 ## Quality requirements
 
