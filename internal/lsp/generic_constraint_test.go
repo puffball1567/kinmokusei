@@ -55,3 +55,39 @@ function use(): int { return minimum(2, 1); }`
 		t.Fatalf("external Go constraint prepareRename = %#v, want null", messages[5])
 	}
 }
+
+func TestSourceTypeSetConstraintNavigationAndRename(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "source_constraint.km")
+	uri := fileURI(path)
+	text := `constraint Integer = ~int | ~int8;
+function doubled<T extends Integer>(value: T): T { return value + value; }`
+	messages := serveMessages(t,
+		openDocument(uri, text),
+		requestAt("textDocument/hover", 2, uri, positionOf(text, "Integer", 1), ""),
+		requestAt("textDocument/definition", 3, uri, positionOf(text, "Integer", 1), ""),
+		requestAt("textDocument/references", 4, uri, positionOf(text, "Integer", 0), `"context":{"includeDeclaration":true}`),
+		requestAt("textDocument/rename", 5, uri, positionOf(text, "Integer", 1), `"newName":"Whole"`),
+	)
+	hover := messages[2]["result"].(map[string]any)["contents"].(map[string]any)["value"].(string)
+	if !strings.Contains(hover, "constraint Integer = ~int | ~int8") {
+		t.Fatalf("constraint hover = %q", hover)
+	}
+	definition := messages[3]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(0) || definition["character"] != float64(11) {
+		t.Fatalf("constraint definition = %#v", definition)
+	}
+	if got := len(messages[4]["result"].([]any)); got != 2 {
+		t.Fatalf("constraint references = %d, want declaration and use", got)
+	}
+	changes := messages[5]["result"].(map[string]any)["changes"].(map[string]any)
+	if got := len(changes[uri].([]any)); got != 2 {
+		t.Fatalf("constraint rename edits = %d, want 2", got)
+	}
+	items := completionLabels(completionItemsAt(t, path, text, 0, 0))
+	if detail := items["constraint"]["detail"]; detail != "keyword" {
+		t.Fatalf("constraint keyword completion detail = %v", detail)
+	}
+	if detail := items["Integer"]["detail"]; detail != "constraint Integer = ~int | ~int8" {
+		t.Fatalf("constraint declaration completion detail = %v", detail)
+	}
+}

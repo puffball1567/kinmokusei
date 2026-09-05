@@ -254,6 +254,26 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 		}
 		return []goast.Decl{typeDeclaration, &goast.GenDecl{Tok: token.CONST, Specs: constants}}, nil
 	case *kinmokuseiAST.InterfaceDecl:
+		if decl.Constraint {
+			var union goast.Expr
+			for _, term := range decl.Terms {
+				termType := goType(term.Type)
+				if term.Underlying {
+					termType = &goast.UnaryExpr{Op: token.TILDE, X: termType}
+				}
+				if union == nil {
+					union = termType
+				} else {
+					union = &goast.BinaryExpr{X: union, Op: token.OR, Y: termType}
+				}
+			}
+			methods := []*goast.Field{}
+			if union != nil {
+				methods = append(methods, &goast.Field{Type: union})
+			}
+			typeSpec := &goast.TypeSpec{Name: goast.NewIdent(decl.Name), Type: &goast.InterfaceType{Methods: &goast.FieldList{List: methods}}}
+			return []goast.Decl{&goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{typeSpec}}}, nil
+		}
 		methods := make([]*goast.Field, 0, len(decl.Methods))
 		for _, method := range decl.Methods {
 			parameters := make([]*goast.Field, 0, len(method.Parameters))

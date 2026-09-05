@@ -47,7 +47,7 @@
           }
         },
         {
-          "match": "\\b(class|struct|interface|enum|type|alias)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
+          "match": "\\b(class|struct|interface|enum|type|alias|constraint)\\s+([\\p{L}_][\\p{L}\\p{N}_]*)",
           "captures": {
             "1": {"name": "storage.type.kinmokusei"},
             "2": {"name": "entity.name.type.kinmokusei"}
@@ -63,7 +63,7 @@
         },
         {
           "name": "keyword.declaration.kinmokusei",
-          "match": "\\b(function|const|let|class|struct|enum|type|alias|distinct|constructor|interface|import|from|export)\\b"
+          "match": "\\b(function|const|let|class|struct|enum|type|alias|constraint|distinct|constructor|interface|import|from|export)\\b"
         },
         {"name": "storage.modifier.kinmokusei", "match": "\\b(public|private|protected|static|implements|extends|virtual|override|final)\\b"},
         {"name": "storage.modifier.kinmokusei", "match": "\\bpointer(?=\\s+function\\b)"},
@@ -105,7 +105,7 @@
       "patterns": [
         {
           "name": "keyword.operator.kinmokusei",
-          "match": "===|!==|==|!=|=>|<-|\\+\\+|--|<<=|>>=|&\\^=|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|&&|\\|\\||<<|>>|&\\^|<=|>=|[=+\\-*\\/%!<>&|^?]"
+          "match": "===|!==|==|!=|=>|<-|\\+\\+|--|<<=|>>=|&\\^=|\\+=|-=|\\*=|/=|%=|&=|\\|=|\\^=|&&|\\|\\||<<|>>|&\\^|<=|>=|[=+\\-*\\/%!<>&|^?~]"
         }
       ]
     }

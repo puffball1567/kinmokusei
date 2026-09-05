@@ -290,7 +290,17 @@ type InterfaceDecl struct {
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
 	Methods        []InterfaceMethod
-	Span           source.Span
+	// Constraint distinguishes compile-time-only type-set interfaces from
+	// ordinary value interfaces. Terms lower directly to a Go interface union.
+	Constraint bool
+	Terms      []TypeSetTerm
+	Span       source.Span
+}
+
+type TypeSetTerm struct {
+	Type       TypeRef
+	Underlying bool
+	Span       source.Span
 }
 
 func (*InterfaceDecl) declaration()           {}

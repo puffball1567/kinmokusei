@@ -6,6 +6,10 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Add source-declared exact and underlying type-set constraints with
+  `constraint Name = T | ~U`, including relative imports, editor support,
+  compile-time misuse diagnostics, and handwritten-Go differential coverage.
+
 ## [0.2.0] - 2026-09-04
 
 - Rename the language from **OnsenTamago** to **Kinmokusei** (金木犀, romanized

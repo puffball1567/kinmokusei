@@ -115,6 +115,7 @@ type interfaceSymbol struct {
 	typeParamScope  map[string]Type
 	declarationSpan source.Span
 	goNamed         *gotypes.Named
+	constraint      bool
 }
 
 type nativeTypeSymbol struct {
@@ -238,7 +239,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	}
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
+	c.predeclareInterfaceNames(program)
 	c.predeclareNamedTypes(program)
+	c.declareNativeConstraints(program)
+	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareNativeTypes(program)
 	c.declareStructs(program)
 	c.finalizeNativeStructGoTypes(program)
@@ -737,6 +741,109 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 	}
 }
 
+func (c *Checker) predeclareInterfaceNames(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		decl, ok := declaration.(*ast.InterfaceDecl)
+		if !ok || !decl.Constraint {
+			continue
+		}
+		if _, exists := c.interfaces[decl.Name]; exists {
+			continue
+		}
+		object := gotypes.NewTypeName(gotoken.NoPos, nil, decl.Name, nil)
+		c.interfaces[decl.Name] = &interfaceSymbol{
+			methods: map[string]methodSymbol{}, declarationSpan: decl.NameSpan,
+			goNamed: gotypes.NewNamed(object, nil, nil), constraint: true,
+		}
+	}
+}
+
+func (c *Checker) declareNativeConstraints(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		decl, ok := declaration.(*ast.InterfaceDecl)
+		if !ok || !decl.Constraint {
+			continue
+		}
+		symbol := c.interfaces[decl.Name]
+		if symbol == nil || symbol.goNamed == nil || symbol.goNamed.Underlying() != nil {
+			continue
+		}
+		terms := make([]*gotypes.Term, 0, len(decl.Terms))
+		valid := true
+		if len(decl.Terms) > 100 {
+			c.report(decl.Span, "constraint declarations cannot contain more than 100 terms because the Go toolchain cannot compile larger unions")
+			valid = false
+		}
+		for _, term := range decl.Terms {
+			resolved := c.resolveType(term.Type)
+			if resolved.Kind == Invalid {
+				valid = false
+				continue
+			}
+			goType, ok := goTypeOf(resolved)
+			if !ok {
+				goType, ok = c.goTypeForNativeStorage(resolved)
+			}
+			if !ok || goType == nil {
+				c.report(term.Span, fmt.Sprintf("constraint term %s cannot be represented as a Go type", formatTypeRefForDiagnostic(term.Type)))
+				valid = false
+				continue
+			}
+			goType = gotypes.Unalias(goType)
+			if underlyingGoInterface(goType) != nil {
+				c.report(term.Span, fmt.Sprintf("constraint term %s must be a concrete type, not an interface", formatTypeRefForDiagnostic(term.Type)))
+				valid = false
+				continue
+			}
+			if term.Underlying && !gotypes.Identical(goType, goType.Underlying()) {
+				c.report(term.Span, fmt.Sprintf("underlying constraint term ~%s must name its own underlying type", formatTypeRefForDiagnostic(term.Type)))
+				valid = false
+				continue
+			}
+			candidate := gotypes.NewTerm(term.Underlying, goType)
+			for _, existing := range terms {
+				if typeSetTermsOverlap(existing, candidate) {
+					c.report(term.Span, fmt.Sprintf("constraint term %s overlaps an earlier term", formatTypeSetTermForDiagnostic(term)))
+					valid = false
+					break
+				}
+			}
+			terms = append(terms, candidate)
+		}
+		constraint := gotypes.NewInterfaceType(nil, nil)
+		if valid && len(terms) != 0 {
+			constraint = gotypes.NewInterfaceType(nil, []gotypes.Type{gotypes.NewUnion(terms)})
+		}
+		constraint.Complete()
+		symbol.goNamed.SetUnderlying(constraint)
+	}
+}
+
+func typeSetTermsOverlap(left, right *gotypes.Term) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	leftType, rightType := left.Type(), right.Type()
+	if left.Tilde() && right.Tilde() {
+		return gotypes.Identical(leftType, rightType)
+	}
+	if left.Tilde() {
+		return gotypes.Identical(leftType, rightType.Underlying())
+	}
+	if right.Tilde() {
+		return gotypes.Identical(rightType, leftType.Underlying())
+	}
+	return gotypes.Identical(leftType, rightType)
+}
+
+func formatTypeSetTermForDiagnostic(term ast.TypeSetTerm) string {
+	prefix := ""
+	if term.Underlying {
+		prefix = "~"
+	}
+	return prefix + formatTypeRefForDiagnostic(term.Type)
+}
+
 func newNativeGoNamed(name string, typeParameters []Type, underlying gotypes.Type) *gotypes.Named {
 	object := gotypes.NewTypeName(gotoken.NoPos, nil, name, nil)
 	named := gotypes.NewNamed(object, underlying, nil)
@@ -962,7 +1069,7 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 func (c *Checker) declareInterfaces(program *ast.Program) {
 	for _, declaration := range program.Declarations {
 		decl, ok := declaration.(*ast.InterfaceDecl)
-		if !ok {
+		if !ok || decl.Constraint {
 			continue
 		}
 		symbol := c.interfaces[decl.Name]
@@ -1130,14 +1237,21 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 		}
 		constraint := gotypes.Type(anyConstraint)
 		if parameter.Constraint != nil {
-			resolved, ok := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
-			if !ok {
-				continue
+			if c.nativeTypeParameterConstraintIsDeferred(*parameter.Constraint) {
+				constraint = nil
+			} else {
+				resolved, ok := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+				if !ok {
+					continue
+				}
+				constraint = resolved
 			}
-			constraint = resolved
 		}
 		if comparable[parameter.Name] {
-			if parameter.Constraint == nil {
+			if constraint == nil {
+				// The intersection is installed after source constraints have been
+				// completed. A nil bound is valid while only forming named types.
+			} else if parameter.Constraint == nil {
 				constraint = comparableConstraint
 			} else if constraint != comparableConstraint {
 				intersection := gotypes.NewInterfaceType(nil, []gotypes.Type{constraint, comparableConstraint})
@@ -1154,6 +1268,65 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 	return result, scope
 }
 
+func (c *Checker) nativeTypeParameterConstraintIsDeferred(ref ast.TypeRef) bool {
+	if ref.Qualifier != "" || ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() || len(ref.GenericArguments) != 0 {
+		return false
+	}
+	symbol := c.interfaces[ref.Name]
+	return symbol != nil && c.isTopLevelAllowed(ref.Span, ref.Name) && symbol.constraint && symbol.goNamed != nil && symbol.goNamed.Underlying() == nil
+}
+
+func (c *Checker) finalizeDeferredTypeParameterConstraints(program *ast.Program) {
+	comparableConstraint := gotypes.Universe.Lookup("comparable").Type()
+	complete := func(parameters []ast.TypeParameter, types []Type, inferredComparable map[string]bool) {
+		byName := make(map[string]Type, len(types))
+		for _, parameterType := range types {
+			byName[parameterType.Name] = parameterType
+		}
+		for _, parameter := range parameters {
+			if parameter.Constraint == nil {
+				continue
+			}
+			goParameter, ok := byName[parameter.Name].GoType.(*gotypes.TypeParam)
+			if !ok || goParameter.Constraint() != nil {
+				continue
+			}
+			constraint, valid := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+			if !valid {
+				constraint = gotypes.NewInterfaceType(nil, nil).Complete()
+			}
+			if inferredComparable[parameter.Name] && constraint != comparableConstraint {
+				intersection := gotypes.NewInterfaceType(nil, []gotypes.Type{constraint, comparableConstraint})
+				intersection.Complete()
+				constraint = intersection
+			}
+			goParameter.SetConstraint(constraint)
+		}
+	}
+	for _, declaration := range program.Declarations {
+		switch declaration := declaration.(type) {
+		case *ast.ClassDecl:
+			if symbol := c.classes[declaration.Name]; symbol != nil {
+				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+			}
+		case *ast.StructDecl:
+			if symbol := c.structs[declaration.Name]; symbol != nil {
+				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+			}
+		case *ast.InterfaceDecl:
+			if symbol := c.interfaces[declaration.Name]; symbol != nil {
+				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+			}
+		case *ast.TypeDecl:
+			if symbol := c.nativeTypes[declaration.Name]; symbol != nil {
+				comparable := map[string]bool{}
+				collectComparableTypeParameters(declaration.Underlying, comparable)
+				complete(declaration.TypeParameters, symbol.typeParameters, comparable)
+			}
+		}
+	}
+}
+
 func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef) (gotypes.Type, bool) {
 	if ref.Qualifier == "" && ref.Name == "comparable" && !ref.Nullable && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
 		return gotypes.Universe.Lookup("comparable").Type(), true
@@ -1161,6 +1334,11 @@ func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef) (gotypes
 	if ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
 		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
 		return nil, false
+	}
+	if ref.Qualifier == "" && len(ref.GenericArguments) == 0 {
+		if symbol := c.interfaces[ref.Name]; symbol != nil && c.isTopLevelAllowed(ref.Span, ref.Name) && symbol.constraint && symbol.goNamed != nil && symbol.goNamed.Underlying() != nil {
+			return symbol.goNamed, true
+		}
 	}
 	resolved := c.resolveType(ref)
 	if resolved.Kind == Invalid {
@@ -8592,6 +8770,10 @@ func (c *Checker) nativeDefinedUnderlyingSeen(symbol *nativeTypeSymbol, instanti
 }
 
 func (c *Checker) resolveNativeInterfaceType(ref ast.TypeRef, symbol *interfaceSymbol) Type {
+	if symbol.constraint {
+		c.report(ref.Span, fmt.Sprintf("constraint %s can only be used after 'extends' in a type parameter", ref.Name))
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	want := len(symbol.typeParameters)
 	got := len(ref.GenericArguments)
 	if want == 0 {
@@ -8971,6 +9153,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
 			visitTypeParameters(declaration.TypeParameters)
+			for i := range declaration.Terms {
+				visitType(&declaration.Terms[i].Type)
+			}
 			for i := range declaration.Methods {
 				method := &declaration.Methods[i]
 				for j := range method.Parameters {

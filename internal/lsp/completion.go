@@ -173,7 +173,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			candidates[item.Label] = item
 		}
 	}
-	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
+	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
 	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
@@ -226,11 +226,12 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 		case *ast.EnumDecl:
 			add(completionItem{Label: declaration.Name, Kind: 13, Detail: "enum " + declaration.Name + ": " + formatTypeRef(declaration.Underlying), SortText: "1_" + declaration.Name})
 		case *ast.InterfaceDecl:
-			detail := "interface " + declaration.Name
-			if len(declaration.TypeParameters) != 0 {
-				detail += formatTypeParameters(declaration.TypeParameters)
+			detail := formatInterfaceOrConstraint(declaration)
+			kind := 8
+			if declaration.Constraint {
+				kind = 7
 			}
-			add(completionItem{Label: declaration.Name, Kind: 8, Detail: detail, SortText: "1_" + declaration.Name})
+			add(completionItem{Label: declaration.Name, Kind: kind, Detail: detail, SortText: "1_" + declaration.Name})
 		case *ast.VariableDecl:
 			add(variableCompletion(declaration.Name, declaration.Type, declaration.Constant))
 		}

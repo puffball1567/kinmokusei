@@ -222,6 +222,9 @@ func (l *Lexer) next() token.Token {
 			return l.makeToken(token.XorAssign, start)
 		}
 		return l.makeToken(token.Caret, start)
+	case '~':
+		l.advance()
+		return l.makeToken(token.Tilde, start)
 	case '?':
 		l.advance()
 		return l.makeToken(token.Question, start)

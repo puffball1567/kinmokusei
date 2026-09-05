@@ -208,7 +208,31 @@ Kinmokusei nominal defined types with the matching underlying type. A
 non-interface type, nullable type, collection, pointer, function, or object is
 rejected as a constraint. Generic aliases retain their source constraint for
 checking while erasing the declaration and any constraint-only import from Go
-1.23 output. Source-declared type-set syntax remains future work.
+1.23 output.
+
+Kinmokusei source can declare a compile-time-only type set directly:
+
+```ts
+constraint Integer = ~int | ~int8 | ~int16 | ~int32 | ~int64 |
+                     ~uint | ~byte | ~uint16 | ~uint32 | ~uint64;
+constraint ExactText = string;
+
+type Score = distinct int;
+
+function add<T extends Integer>(left: T, right: T): T {
+  return left + right;
+}
+```
+
+An exact term such as `string` accepts only that type. An underlying term such
+as `~int` also accepts nominal Kinmokusei or Go types whose underlying type is
+`int`, so `Score` satisfies `Integer`. Terms lower to the corresponding Go
+constraint interface and may be used by generic functions, classes, structs,
+interfaces, and defined types, including across relative imports. Overlapping
+terms, `~` applied to a named type, and interface terms are rejected before Go
+generation; a single declaration follows the Go toolchain limit of at most 100
+union terms. A declared constraint is not a runtime value type and cannot be
+used for fields, parameters, variables, or `implements`.
 
 A direct parameter underlying type such as `type Identity<T> = distinct T` is
 rejected because Go cannot declare that distinct type. The transparent form

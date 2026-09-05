@@ -253,6 +253,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		for _, parameter := range declaration.TypeParameters {
 			delete(functionVisible, parameter.Name)
 		}
+		linkTypeParameters(declaration.TypeParameters, functionVisible)
 		locals := parameterNames(declaration.Parameters)
 		for i := range declaration.Parameters {
 			linkType(&declaration.Parameters[i].Type, functionVisible)
@@ -265,6 +266,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		for _, parameter := range declaration.TypeParameters {
 			delete(methodVisible, parameter.Name)
 		}
+		linkTypeParameters(declaration.TypeParameters, methodVisible)
 		locals := parameterNames(declaration.Parameters)
 		locals[declaration.ReceiverName] = true
 		linkType(&declaration.ReceiverType, methodVisible)
@@ -279,6 +281,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		for _, parameter := range declaration.TypeParameters {
 			delete(classVisible, parameter.Name)
 		}
+		linkTypeParameters(declaration.TypeParameters, classVisible)
 		if declaration.Base != nil {
 			linkType(declaration.Base, classVisible)
 		}
@@ -301,6 +304,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 			for _, parameter := range method.TypeParameters {
 				delete(methodVisible, parameter.Name)
 			}
+			linkTypeParameters(method.TypeParameters, methodVisible)
 			locals := parameterNames(method.Parameters)
 			if !method.Static {
 				locals["this"] = true
@@ -318,6 +322,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		for _, parameter := range declaration.TypeParameters {
 			delete(structVisible, parameter.Name)
 		}
+		linkTypeParameters(declaration.TypeParameters, structVisible)
 		for i := range declaration.Fields {
 			linkType(&declaration.Fields[i].Type, structVisible)
 		}
@@ -326,6 +331,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 			for _, parameter := range method.TypeParameters {
 				delete(methodVisible, parameter.Name)
 			}
+			linkTypeParameters(method.TypeParameters, methodVisible)
 			locals := parameterNames(method.Parameters)
 			locals["this"] = true
 			for i := range method.Parameters {
@@ -341,6 +347,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		for _, parameter := range declaration.TypeParameters {
 			delete(typeVisible, parameter.Name)
 		}
+		linkTypeParameters(declaration.TypeParameters, typeVisible)
 		linkType(&declaration.Underlying, typeVisible)
 		declaration.Name = declarations[original]
 	case *ast.EnumDecl:
@@ -356,6 +363,10 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		for _, parameter := range declaration.TypeParameters {
 			delete(interfaceVisible, parameter.Name)
 		}
+		linkTypeParameters(declaration.TypeParameters, interfaceVisible)
+		for index := range declaration.Terms {
+			linkType(&declaration.Terms[index].Type, interfaceVisible)
+		}
 		for i := range declaration.Methods {
 			for j := range declaration.Methods[i].Parameters {
 				linkType(&declaration.Methods[i].Parameters[j].Type, interfaceVisible)
@@ -363,6 +374,14 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 			linkType(&declaration.Methods[i].ReturnType, interfaceVisible)
 		}
 		declaration.Name = declarations[original]
+	}
+}
+
+func linkTypeParameters(parameters []ast.TypeParameter, visible moduleNames) {
+	for index := range parameters {
+		if parameters[index].Constraint != nil {
+			linkType(parameters[index].Constraint, visible)
+		}
 	}
 }
 

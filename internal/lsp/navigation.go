@@ -327,11 +327,12 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			result = append(result, info)
 		case *ast.InterfaceDecl:
-			detail := "interface " + declaration.Name
-			if len(declaration.TypeParameters) != 0 {
-				detail += formatTypeParameters(declaration.TypeParameters)
+			detail := formatInterfaceOrConstraint(declaration)
+			kind := 11
+			if declaration.Constraint {
+				kind = 5
 			}
-			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: 11, Span: declaration.Span, Selection: declaration.NameSpan}
+			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: kind, Span: declaration.Span, Selection: declaration.NameSpan}
 			for _, parameter := range declaration.TypeParameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
@@ -503,6 +504,25 @@ func formatTypeParameters(parameters []ast.TypeParameter) string {
 		}
 	}
 	return "<" + strings.Join(items, ", ") + ">"
+}
+
+func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
+	if !declaration.Constraint {
+		detail := "interface " + declaration.Name
+		if len(declaration.TypeParameters) != 0 {
+			detail += formatTypeParameters(declaration.TypeParameters)
+		}
+		return detail
+	}
+	terms := make([]string, len(declaration.Terms))
+	for index, term := range declaration.Terms {
+		prefix := ""
+		if term.Underlying {
+			prefix = "~"
+		}
+		terms[index] = prefix + formatTypeRef(term.Type)
+	}
+	return "constraint " + declaration.Name + " = " + strings.Join(terms, " | ")
 }
 
 func formatTypeRef(ref ast.TypeRef) string {

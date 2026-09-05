@@ -172,6 +172,8 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		return p.parseTypeDeclaration(p.advance(), true)
 	case p.at(token.Identifier) && p.peek().Lexeme == "enum":
 		return p.parseEnum(p.advance())
+	case p.at(token.Identifier) && p.peek().Lexeme == "constraint":
+		return p.parseConstraint(p.advance())
 	case p.match(token.Interface):
 		if decl := p.parseInterface(p.previous()); decl != nil {
 			return decl
@@ -202,6 +204,48 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		p.synchronizeDeclaration()
 		return nil
 	}
+}
+
+func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
+	name, ok := p.expect(token.Identifier, "expected constraint name")
+	if !ok {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	if _, ok = p.expect(token.Assign, "expected '=' after constraint name"); !ok {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, Constraint: true}
+	for {
+		startTerm := p.peek()
+		underlying := p.match(token.Tilde)
+		term, valid := p.parseTypeInternal(false)
+		if !valid {
+			p.synchronizeDeclaration()
+			return nil
+		}
+		termSpan := term.Span
+		if underlying {
+			termSpan = startTerm.Span.Merge(term.Span)
+		}
+		declaration.Terms = append(declaration.Terms, ast.TypeSetTerm{Type: term, Underlying: underlying, Span: termSpan})
+		if !p.match(token.Pipe) {
+			break
+		}
+		if p.at(token.Semicolon) || p.at(token.EOF) {
+			p.report(p.peek(), "expected constraint term after '|'")
+			p.synchronizeDeclaration()
+			return nil
+		}
+	}
+	end, valid := p.expect(token.Semicolon, "expected ';' after constraint declaration")
+	if !valid {
+		p.synchronizeDeclaration()
+		end = p.previous()
+	}
+	declaration.Span = start.Span.Merge(end.Span)
+	return declaration
 }
 
 func (p *Parser) parseEnum(start token.Token) *ast.EnumDecl {

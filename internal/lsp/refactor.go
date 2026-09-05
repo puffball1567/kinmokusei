@@ -673,6 +673,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 				declare(parameter.NameSpan)
 			}
 			walkTypeParameters(declaration.TypeParameters)
+			for index := range declaration.Terms {
+				walkType(&declaration.Terms[index].Type)
+			}
 			for index := range declaration.Methods {
 				method := &declaration.Methods[index]
 				declare(method.NameSpan)

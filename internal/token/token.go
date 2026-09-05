@@ -113,6 +113,7 @@ const (
 	ShiftLeft     Kind = "<<"
 	ShiftRight    Kind = ">>"
 	AndNot        Kind = "&^"
+	Tilde         Kind = "~"
 	Question      Kind = "?"
 )
 
