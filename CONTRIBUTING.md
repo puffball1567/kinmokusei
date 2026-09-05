@@ -13,16 +13,26 @@ explicit compatibility with the Go ecosystem. Before contributing, read the
   directly on `main`.
 - Keep `devel` green under the required compatibility check.
 - Prepare a release on `release/vX.Y.Z`, then merge that branch into `devel`.
-- Open the release pull request from `devel` to `main` after all release checks
-  pass. Merge this pull request with a merge commit so `devel` remains an
-  ancestor of `main`; do not squash or rebase it.
-- Create a version tag from `main` only after the release pull request merges.
-- Use `hotfix/*` only for an urgent correction based on `main`, then return the
-  same correction to `devel`.
+- After the compatibility push run succeeds on the exact resulting `devel`
+  commit, open a pull request from `devel` to `main`. This release pull request
+  verifies and reuses that successful run instead of repeating the full suite.
+- Merge release pull requests with a merge commit. After the merge, run the
+  **Publish release** workflow from `main` with the intended version tag. It
+  tags the exact `main` head and starts artifact publication without changing
+  either protected branch.
+- Use `hotfix/*` only for an urgent correction based on `main`. A hotfix pull
+  request to `main` always runs the full compatibility suite. After publishing
+  the patch release, open a synchronization pull request from `main` to
+  `devel`; that pull request also runs the full suite.
+- Pull requests to `main` are accepted only from this repository's `devel` or
+  `hotfix/*` branches. Direct pushes to `main` are not permitted.
 
-Repository Rulesets require pull requests, review resolution, and the stable
-compatibility gate for both protected branches. Pull requests to `main` are
-accepted only from this repository's `devel` or `hotfix/*` branches.
+Repository Rulesets require pull requests and the stable compatibility gate on
+both protected branches. The `main` Ruleset also requires the approved-source
+gate, rejects deletion and non-fast-forward updates, and permits merge commits
+only. Ordinary release pull requests reuse CI only when the exact `devel` head
+has a successful Compatibility push run and the pull request merge tree is
+identical to that verified head.
 
 ## Quality requirements
 

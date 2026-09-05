@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,6 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Verify the release ref
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Run this workflow from a version tag such as v0.3.0."
+            exit 1
+          fi
       - uses: actions/setup-go@v6
         with:
           go-version: 1.27.x
@@ -22,47 +31,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            editors/vscode/package-lock.json
-            website/package-lock.json
-      - name: Verify the compiler
-        run: |
-          ./scripts/coverage.sh
-          go test -race -timeout 45m ./...
-          go vet ./...
-      - name: Build the compiler used by application checks
-        run: |
-          mkdir -p "${RUNNER_TEMP}/keika-bin"
-          go build -trimpath -o "${RUNNER_TEMP}/keika-bin/keika" ./cmd/keika
-          echo "${RUNNER_TEMP}/keika-bin" >> "$GITHUB_PATH"
-      - name: Verify the public language guide
-        run: |
-          npm --prefix website ci --ignore-scripts
-          ./scripts/check-docs.sh
-          npm --prefix website run docs:build
-      - name: Download the locked backend modules
-        working-directory: examples/react-web-frameworks/backend/.kinmokusei/deps
-        run: go mod download all
-      - name: Compare Gin and Fiber with independent Go implementations
-        working-directory: examples/react-web-frameworks/backend
-        run: ./verify.sh
-      - name: Verify the React application
-        working-directory: examples/react-web-frameworks/frontend
-        run: |
-          npm ci
-          npm run test:coverage
-          npm run build
-      - name: Exercise React, Vite, Gin, and Fiber together
-        working-directory: examples/react-web-frameworks
-        run: ./verify.sh
+          cache-dependency-path: editors/vscode/package-lock.json
       - name: Build CLI archives
         run: ./scripts/package-release.sh "${GITHUB_REF_NAME}"
       - name: Build the Visual Studio Code extension
         working-directory: editors/vscode
         run: |
           npm ci
-          npm test
-          xvfb-run -a npm run test:e2e
           npm run package:vsix
           cp "dist/kinmokusei-${GITHUB_REF_NAME#v}.vsix" ../../dist/
       - name: Verify release artifacts

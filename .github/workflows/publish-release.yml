@@ -1,0 +1,101 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag to publish, for example v0.3.0
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: release-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Tag main and publish artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate the release request
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Run Publish release from the main branch."
+            exit 1
+          fi
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Version must be a tag such as v0.3.0."
+            exit 1
+          fi
+
+      - name: Tag the exact main head
+        env:
+          RELEASE_TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          git fetch --force origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/tags/*:refs/tags/*"
+
+          main_sha=$(git rev-parse origin/main)
+          if [ "$main_sha" != "$GITHUB_SHA" ]; then
+            echo "::error::main advanced after this workflow was dispatched. Run it again from the current main head."
+            exit 1
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/${RELEASE_TAG}"; then
+            tag_sha=$(git rev-list -n 1 "refs/tags/${RELEASE_TAG}")
+            if [ "$tag_sha" != "$main_sha" ]; then
+              echo "::error::${RELEASE_TAG} already points to a different commit."
+              exit 1
+            fi
+            echo "${RELEASE_TAG} already points to main at ${main_sha}."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$RELEASE_TAG" "$main_sha" -m "Kinmokusei ${RELEASE_TAG}"
+            git push origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          fi
+
+      - name: Start artifact publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          release_exists=false
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            release_exists=true
+          fi
+
+          active_release_run=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?per_page=100" \
+            --jq ".workflow_runs | map(select(.head_sha == \"${GITHUB_SHA}\" and .head_branch == \"${RELEASE_TAG}\" and (.status == \"queued\" or .status == \"in_progress\" or .conclusion == \"success\"))) | first | .id // empty")
+
+          if [ "$release_exists" = false ] && [ -z "$active_release_run" ]; then
+            gh workflow run release.yml --ref "$RELEASE_TAG"
+          else
+            echo "Release publication already exists or is running for ${RELEASE_TAG}."
+          fi
+
+          {
+            echo "## Kinmokusei ${RELEASE_TAG}"
+            echo
+            echo "Tagged main at \`${GITHUB_SHA}\` and started artifact publication."
+          } >> "$GITHUB_STEP_SUMMARY"
