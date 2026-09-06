@@ -117,6 +117,20 @@ class GuardedRangeHolder {
   public function name(): string { return this.user.name; }
   public function count(): int { return len(this.visits); }
 }
+class RequiredRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[]) {
+    this.visits = [];
+    if (len(values) === 0) { throw new Exception("empty"); }
+    for (const value of values) {
+      this.user = new User("required");
+      this.visits = append(this.visits, value);
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
 function negatedName(): string { return new NegatedHolder().name(); }
 function negatedCount(): int { return new NegatedHolder().count(); }
 function numericName(): string { return new NumericHolder().name(); }
@@ -132,6 +146,14 @@ function madeSliceRangeName(): string { return new MadeSliceRangeHolder().name()
 function madeSliceRangeCount(): int { return new MadeSliceRangeHolder().count(); }
 function guardedRangeName(values: int[]): string { return new GuardedRangeHolder(values).name(); }
 function guardedRangeCount(values: int[]): int { return new GuardedRangeHolder(values).count(); }
+function requiredRangeName(values: int[]): string {
+  try { return new RequiredRangeHolder(values).name(); }
+  catch (err: Exception) { return "error:" + err.message; }
+}
+function requiredRangeCount(values: int[]): int {
+  try { return new RequiredRangeHolder(values).count(); }
+  catch (err: Exception) { return -1; }
+}
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -190,6 +212,12 @@ func GuardedRange(values []int) (string, int) {
   }
   return name, count
 }
+func RequiredRange(values []int) (string, int) {
+  if len(values) == 0 { return "error:empty", -1 }
+  name, count := "", 0
+  for range values { name = "required"; count++ }
+  return name, count
+}
 `
 	testSource := `package constructorconstants
 import (
@@ -220,6 +248,9 @@ func TestConstructorConstants(t *testing.T) {
     wantName, wantCount = reference.GuardedRange(values)
     if got := guardedRangeName(values); got != wantName { t.Errorf("guardedRangeName(%v) = %q, equivalent Go = %q", values, got, wantName) }
     if got := guardedRangeCount(values); got != wantCount { t.Errorf("guardedRangeCount(%v) = %d, equivalent Go = %d", values, got, wantCount) }
+    wantName, wantCount = reference.RequiredRange(values)
+    if got := requiredRangeName(values); got != wantName { t.Errorf("requiredRangeName(%v) = %q, equivalent Go = %q", values, got, wantName) }
+    if got := requiredRangeCount(values); got != wantCount { t.Errorf("requiredRangeCount(%v) = %d, equivalent Go = %d", values, got, wantCount) }
   }
 }
 `

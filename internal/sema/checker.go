@@ -2692,20 +2692,31 @@ func constructorInitializationBlockWithRangeProof(block *ast.BlockStmt, initial 
 	var breaks []map[string]bool
 	var continues []map[string]bool
 	var fallthroughs []map[string]bool
-	for index, statement := range block.Statements {
+	pendingNonEmpty := nonEmpty
+	for _, statement := range block.Statements {
 		if state == nil {
 			break
 		}
 		flow := constructorInitializationStatement(statement, state, required)
-		if index == 0 && nonEmpty.Path != "" {
-			flow = constructorInitializationStatementWithRangeProof(statement, state, required, nonEmpty)
+		if pendingNonEmpty.Path != "" {
+			flow = constructorInitializationStatementWithRangeProof(statement, state, required, pendingNonEmpty)
 		}
+		pendingNonEmpty = constructorFollowingRangeProof(statement)
 		breaks = append(breaks, flow.breaks...)
 		continues = append(continues, flow.continues...)
 		fallthroughs = append(fallthroughs, flow.fallthroughs...)
 		state = flow.continuing
 	}
 	return constructorInitializationFlow{continuing: state, breaks: breaks, continues: continues, fallthroughs: fallthroughs}
+}
+
+func constructorFollowingRangeProof(statement ast.Statement) source.Span {
+	guard, ok := statement.(*ast.IfStmt)
+	if !ok || guard.Else != nil || !statementDefinitelyStopsBlock(guard.Then) {
+		return source.Span{}
+	}
+	_, whenFalse := constructorNonEmptyRangeGuard(guard.Condition)
+	return whenFalse
 }
 
 func constructorInitializationStatementWithRangeProof(statement ast.Statement, initial map[string]bool, required map[string]source.Span, nonEmpty source.Span) constructorInitializationFlow {

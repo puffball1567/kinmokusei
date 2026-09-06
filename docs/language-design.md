@@ -1110,9 +1110,12 @@ through local, `for`-initializer, same-file global, and explicitly imported
 proofs. A direct guarded branch such as `if (len(values) > 0) { for (... of
 values) { ... } }` proves the first range nonempty; the empty branch must still
 initialize the field or terminate. Reversed comparisons, equality/inequality,
-and negation use the same nonnegative-length reasoning. A mismatched source, an
-intervening statement, or a channel range is deliberately not accepted as a
-proof. Broader relational cardinality flow remains future work.
+and negation use the same nonnegative-length reasoning. A terminating guard
+such as `if (len(values) === 0) { throw new Exception("empty"); }` also proves
+the immediately following matching range nonempty. A mismatched source, a
+nonterminal guard, an intervening statement, or a channel range is deliberately
+not accepted as a proof. Broader relational cardinality flow remains future
+work.
 
 ## Nullable references
 

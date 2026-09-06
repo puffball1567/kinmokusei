@@ -373,6 +373,20 @@ class ThrowingEmptyLengthBranchInitialized {
     }
   }
 }
+class EmptyGuardClauseInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) === 0) { throw new Exception("empty"); }
+    for (const value of values) { this.user = new User("nonempty"); }
+  }
+}
+class NegatedEmptyGuardClauseInitialized {
+  private user: User;
+  constructor(values: string) {
+    if (!(len(values) > 0)) { throw new Exception("empty"); }
+    for (const rune of values) { this.user = new User("nonempty"); }
+  }
+}
 `)
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
@@ -417,6 +431,10 @@ func TestRejectsIncompleteNonNullFieldInitialization(t *testing.T) {
 		{"intervening collection assignment", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { values = []; for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
 		{"channel length is not a range proof", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
 		{"shadowed len is not a proof", `function len(values: int[]): int { return 1; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"nonterminal empty guard", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) === 0) {} for (const value of values) { this.user = new User(); } } }`, `every constructor path`},
+		{"guard clause for different range", `class User {} class Holder { private user: User; constructor(values: int[], other: int[]) { if (len(values) === 0) { throw new Exception("empty"); } for (const value of other) { this.user = new User(); } } }`, `every constructor path`},
+		{"intervening statement after guard clause", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) === 0) { throw new Exception("empty"); } const count = len(values); for (const value of values) { this.user = new User(); } } }`, `every constructor path`},
+		{"channel guard clause is not a range proof", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { if (len(values) === 0) { throw new Exception("empty"); } for (const value of values) { this.user = new User(); } } }`, `every constructor path`},
 		{"shadowed false constant", `const enabled = true; class User {} class Holder { private user: User; constructor() { const enabled = false; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"bound empty string", `class User {} class Holder { private user: User; constructor() { const left = ""; const text = left + ""; for (const rune of text) { this.user = new User(); } } }`, `every constructor path`},
 		{"value switch missing default", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { this.user = new User(); } } } }`, `every constructor path`},

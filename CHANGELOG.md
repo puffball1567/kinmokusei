@@ -15,7 +15,9 @@ generated APIs between minor versions.
   editor support, and public generated-Go helper functions.
 - Accept constructor field initialization through directly length-guarded
   nonempty collection ranges while preserving conservative rejection for empty
-  paths, mismatched collections, intervening statements, and channels.
+  paths, mismatched collections, intervening statements, and channels. A
+  terminating empty guard clause may prove the immediately following range
+  nonempty.
 
 ## [0.2.0] - 2026-09-04
 
