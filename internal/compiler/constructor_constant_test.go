@@ -131,6 +131,37 @@ class RequiredRangeHolder {
   public function name(): string { return this.user.name; }
   public function count(): int { return len(this.visits); }
 }
+class CompoundRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[], enabled: boolean) {
+    this.visits = [];
+    if (enabled && len(values) > 0) {
+      for (const value of values) {
+        this.user = new User("enabled");
+        this.visits = append(this.visits, value);
+      }
+    } else {
+      this.user = new User("fallback");
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
+class AvailableRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[], blocked: boolean) {
+    this.visits = [];
+    if (blocked || len(values) === 0) { throw new Exception("unavailable"); }
+    for (const value of values) {
+      this.user = new User("available");
+      this.visits = append(this.visits, value);
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
 function negatedName(): string { return new NegatedHolder().name(); }
 function negatedCount(): int { return new NegatedHolder().count(); }
 function numericName(): string { return new NumericHolder().name(); }
@@ -152,6 +183,16 @@ function requiredRangeName(values: int[]): string {
 }
 function requiredRangeCount(values: int[]): int {
   try { return new RequiredRangeHolder(values).count(); }
+  catch (err: Exception) { return -1; }
+}
+function compoundRangeName(values: int[], enabled: boolean): string { return new CompoundRangeHolder(values, enabled).name(); }
+function compoundRangeCount(values: int[], enabled: boolean): int { return new CompoundRangeHolder(values, enabled).count(); }
+function availableRangeName(values: int[], blocked: boolean): string {
+  try { return new AvailableRangeHolder(values, blocked).name(); }
+  catch (err: Exception) { return "error:" + err.message; }
+}
+function availableRangeCount(values: int[], blocked: boolean): int {
+  try { return new AvailableRangeHolder(values, blocked).count(); }
   catch (err: Exception) { return -1; }
 }
 `
@@ -218,6 +259,19 @@ func RequiredRange(values []int) (string, int) {
   for range values { name = "required"; count++ }
   return name, count
 }
+func CompoundRange(values []int, enabled bool) (string, int) {
+  name, count := "fallback", 0
+  if enabled && len(values) > 0 {
+    for range values { name = "enabled"; count++ }
+  }
+  return name, count
+}
+func AvailableRange(values []int, blocked bool) (string, int) {
+  if blocked || len(values) == 0 { return "error:unavailable", -1 }
+  name, count := "", 0
+  for range values { name = "available"; count++ }
+  return name, count
+}
 `
 	testSource := `package constructorconstants
 import (
@@ -251,6 +305,14 @@ func TestConstructorConstants(t *testing.T) {
     wantName, wantCount = reference.RequiredRange(values)
     if got := requiredRangeName(values); got != wantName { t.Errorf("requiredRangeName(%v) = %q, equivalent Go = %q", values, got, wantName) }
     if got := requiredRangeCount(values); got != wantCount { t.Errorf("requiredRangeCount(%v) = %d, equivalent Go = %d", values, got, wantCount) }
+    for _, enabled := range []bool{false, true} {
+      wantName, wantCount = reference.CompoundRange(values, enabled)
+      if got := compoundRangeName(values, enabled); got != wantName { t.Errorf("compoundRangeName(%v, %v) = %q, equivalent Go = %q", values, enabled, got, wantName) }
+      if got := compoundRangeCount(values, enabled); got != wantCount { t.Errorf("compoundRangeCount(%v, %v) = %d, equivalent Go = %d", values, enabled, got, wantCount) }
+      wantName, wantCount = reference.AvailableRange(values, enabled)
+      if got := availableRangeName(values, enabled); got != wantName { t.Errorf("availableRangeName(%v, %v) = %q, equivalent Go = %q", values, enabled, got, wantName) }
+      if got := availableRangeCount(values, enabled); got != wantCount { t.Errorf("availableRangeCount(%v, %v) = %d, equivalent Go = %d", values, enabled, got, wantCount) }
+    }
   }
 }
 `

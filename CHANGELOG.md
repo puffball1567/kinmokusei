@@ -17,7 +17,8 @@ generated APIs between minor versions.
   nonempty collection ranges while preserving conservative rejection for empty
   paths, mismatched collections, intervening statements, and channels. A
   terminating empty guard clause may prove the immediately following range
-  nonempty.
+  nonempty. Side-effect-free `&&`, `||`, and negated compound guards combine
+  proofs for one or more collections without accepting ambiguous branches.
 
 ## [0.2.0] - 2026-09-04
 

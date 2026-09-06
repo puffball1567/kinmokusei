@@ -2677,14 +2677,14 @@ type constructorInitializationFlow struct {
 }
 
 func constructorInitializationBlock(block *ast.BlockStmt, initial map[string]bool, required map[string]source.Span) constructorInitializationFlow {
-	return constructorInitializationBlockWithRangeProof(block, initial, required, source.Span{})
+	return constructorInitializationBlockWithRangeProof(block, initial, required, nil)
 }
 
 // constructorInitializationBlockWithRangeProof carries a condition-derived
 // non-empty proof only into the first statement of the guarded block. This is
 // deliberately narrow: an intervening statement could reassign the collection
 // or mutate a map before the range expression is evaluated.
-func constructorInitializationBlockWithRangeProof(block *ast.BlockStmt, initial map[string]bool, required map[string]source.Span, nonEmpty source.Span) constructorInitializationFlow {
+func constructorInitializationBlockWithRangeProof(block *ast.BlockStmt, initial map[string]bool, required map[string]source.Span, nonEmpty constructorRangeProofs) constructorInitializationFlow {
 	state := cloneFieldInitialization(initial)
 	if block == nil {
 		return constructorInitializationFlow{continuing: state}
@@ -2698,7 +2698,7 @@ func constructorInitializationBlockWithRangeProof(block *ast.BlockStmt, initial 
 			break
 		}
 		flow := constructorInitializationStatement(statement, state, required)
-		if pendingNonEmpty.Path != "" {
+		if len(pendingNonEmpty) != 0 {
 			flow = constructorInitializationStatementWithRangeProof(statement, state, required, pendingNonEmpty)
 		}
 		pendingNonEmpty = constructorFollowingRangeProof(statement)
@@ -2710,23 +2710,23 @@ func constructorInitializationBlockWithRangeProof(block *ast.BlockStmt, initial 
 	return constructorInitializationFlow{continuing: state, breaks: breaks, continues: continues, fallthroughs: fallthroughs}
 }
 
-func constructorFollowingRangeProof(statement ast.Statement) source.Span {
+func constructorFollowingRangeProof(statement ast.Statement) constructorRangeProofs {
 	guard, ok := statement.(*ast.IfStmt)
 	if !ok || guard.Else != nil || !statementDefinitelyStopsBlock(guard.Then) {
-		return source.Span{}
+		return nil
 	}
 	_, whenFalse := constructorNonEmptyRangeGuard(guard.Condition)
 	return whenFalse
 }
 
-func constructorInitializationStatementWithRangeProof(statement ast.Statement, initial map[string]bool, required map[string]source.Span, nonEmpty source.Span) constructorInitializationFlow {
+func constructorInitializationStatementWithRangeProof(statement ast.Statement, initial map[string]bool, required map[string]source.Span, nonEmpty constructorRangeProofs) constructorInitializationFlow {
 	switch statement := statement.(type) {
 	case *ast.LabeledStmt:
 		return constructorInitializationStatementWithRangeProof(statement.Statement, initial, required, nonEmpty)
 	case *ast.BlockStmt:
 		return constructorInitializationBlockWithRangeProof(statement, initial, required, nonEmpty)
 	case *ast.ForRangeStmt:
-		if statement.Kind == ast.CollectionRange && constructorRangeSourceDeclaration(statement.Source) == nonEmpty {
+		if statement.Kind == ast.CollectionRange && nonEmpty.contains(constructorRangeSourceDeclaration(statement.Source)) {
 			return constructorInitializationLoop(statement.Body, initial, required, true, true)
 		}
 	}
@@ -2872,31 +2872,103 @@ func constructorInitializationStatement(statement ast.Statement, initial map[str
 	}
 }
 
-func constructorNonEmptyRangeGuard(expression ast.Expression) (source.Span, source.Span) {
+type constructorRangeProofs map[source.Span]struct{}
+
+func (proofs constructorRangeProofs) contains(declaration source.Span) bool {
+	_, ok := proofs[declaration]
+	return ok
+}
+
+func constructorRangeProof(declaration source.Span) constructorRangeProofs {
+	if declaration.Path == "" {
+		return nil
+	}
+	return constructorRangeProofs{declaration: {}}
+}
+
+func unionConstructorRangeProofs(left, right constructorRangeProofs) constructorRangeProofs {
+	if len(left) == 0 && len(right) == 0 {
+		return nil
+	}
+	combined := make(constructorRangeProofs, len(left)+len(right))
+	for declaration := range left {
+		combined[declaration] = struct{}{}
+	}
+	for declaration := range right {
+		combined[declaration] = struct{}{}
+	}
+	return combined
+}
+
+func intersectConstructorRangeProofs(left, right constructorRangeProofs) constructorRangeProofs {
+	if len(left) == 0 || len(right) == 0 {
+		return nil
+	}
+	common := make(constructorRangeProofs)
+	for declaration := range left {
+		if right.contains(declaration) {
+			common[declaration] = struct{}{}
+		}
+	}
+	if len(common) == 0 {
+		return nil
+	}
+	return common
+}
+
+func constructorNonEmptyRangeGuard(expression ast.Expression) (constructorRangeProofs, constructorRangeProofs) {
 	if unary, ok := expression.(*ast.UnaryExpr); ok && unary.Operator == "!" {
 		whenTrue, whenFalse := constructorNonEmptyRangeGuard(unary.Operand)
 		return whenFalse, whenTrue
 	}
 	binary, ok := expression.(*ast.BinaryExpr)
 	if !ok {
-		return source.Span{}, source.Span{}
+		return nil, nil
+	}
+	if binary.Operator == "&&" || binary.Operator == "||" {
+		// Carry proofs through compound guards only when neither side can mutate
+		// a collection between its length check and the guarded range.
+		if !constructorRangeGuardStable(binary.Left) || !constructorRangeGuardStable(binary.Right) {
+			return nil, nil
+		}
+		leftTrue, leftFalse := constructorNonEmptyRangeGuard(binary.Left)
+		rightTrue, rightFalse := constructorNonEmptyRangeGuard(binary.Right)
+		if binary.Operator == "&&" {
+			return unionConstructorRangeProofs(leftTrue, rightTrue), intersectConstructorRangeProofs(leftFalse, rightFalse)
+		}
+		return intersectConstructorRangeProofs(leftTrue, rightTrue), unionConstructorRangeProofs(leftFalse, rightFalse)
 	}
 	declaration, constant, operator, ok := constructorLengthComparison(binary.Left, binary.Right, binary.Operator)
 	if !ok {
 		declaration, constant, operator, ok = constructorLengthComparison(binary.Right, binary.Left, reverseComparisonOperator(binary.Operator))
 	}
 	if !ok {
-		return source.Span{}, source.Span{}
+		return nil, nil
 	}
 	trueNonEmpty, falseNonEmpty := lengthComparisonProvesNonEmpty(operator, constant)
-	var whenTrue, whenFalse source.Span
+	var whenTrue, whenFalse constructorRangeProofs
 	if trueNonEmpty {
-		whenTrue = declaration
+		whenTrue = constructorRangeProof(declaration)
 	}
 	if falseNonEmpty {
-		whenFalse = declaration
+		whenFalse = constructorRangeProof(declaration)
 	}
 	return whenTrue, whenFalse
+}
+
+func constructorRangeGuardStable(expression ast.Expression) bool {
+	switch expression := expression.(type) {
+	case *ast.IdentifierExpr, *ast.LiteralExpr:
+		return true
+	case *ast.UnaryExpr:
+		return constructorRangeGuardStable(expression.Operand)
+	case *ast.BinaryExpr:
+		return constructorRangeGuardStable(expression.Left) && constructorRangeGuardStable(expression.Right)
+	case *ast.CallExpr:
+		return expression.Builtin == ast.LenCall && len(expression.Arguments) == 1 && constructorRangeSourceDeclaration(expression.Arguments[0]).Path != ""
+	default:
+		return false
+	}
 }
 
 func constructorLengthComparison(left, right ast.Expression, operator string) (source.Span, *big.Int, string, bool) {

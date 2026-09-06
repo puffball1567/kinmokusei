@@ -267,9 +267,12 @@ boolean, integer, string, and cardinality proofs by declaration identity;
 mutable or dynamic bindings do not. Direct `len(collection)` guards additionally
 prove the first matching collection range nonempty on the appropriate branch;
 terminating empty guard clauses carry that proof to the immediately following
-range. Empty paths, different collections, nonterminal guards, intervening
-statements, and channel ranges remain conservative. Broader relational
-cardinality flow and package distribution remain.
+range. Side-effect-free boolean combinations preserve only facts valid on every
+path, including simultaneous facts for multiple collections. Empty paths,
+ambiguous alternatives, effectful compound guards, different collections,
+nonterminal guards, intervening statements, and channel ranges remain
+conservative. Broader relational cardinality flow and package distribution
+remain.
 
 The nullable-flow matrix now covers non-null/null direct assignments,
 re-narrowing, early exits, exhaustive/non-exhaustive structured joins,

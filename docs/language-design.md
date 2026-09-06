@@ -1112,10 +1112,13 @@ values) { ... } }` proves the first range nonempty; the empty branch must still
 initialize the field or terminate. Reversed comparisons, equality/inequality,
 and negation use the same nonnegative-length reasoning. A terminating guard
 such as `if (len(values) === 0) { throw new Exception("empty"); }` also proves
-the immediately following matching range nonempty. A mismatched source, a
-nonterminal guard, an intervening statement, or a channel range is deliberately
-not accepted as a proof. Broader relational cardinality flow remains future
-work.
+the immediately following matching range nonempty. Side-effect-free `&&` and
+`||` conditions combine true- and false-branch facts: conjunction requires both
+operands on its true path, disjunction requires both operands on its false path,
+and facts shared by every alternative path are retained. This can prove more
+than one collection nonempty. A mismatched source, effectful compound guard,
+nonterminal guard, intervening statement, or channel range is deliberately not
+accepted as a proof. Broader relational cardinality flow remains future work.
 
 ## Nullable references
 
