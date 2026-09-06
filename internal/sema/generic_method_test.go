@@ -35,6 +35,10 @@ func TestGenericMethodSemanticSuccessMatrix(t *testing.T) {
 			"variadic and Result propagation",
 			`import go errors from "errors"; class Box { public function first<T>(...values: T[]): Result<T> { if (len(values) === 0) { return fail(errors.New("empty")); } return ok(values[0]); } } function use(box: Box, values: string[]): Result<string> { const explicit = box.first<string>(values...)?; return box.first(explicit); }`,
 		},
+		{
+			"expression receivers",
+			`class Box { public function echo<T>(value: T): T { return value; } } function makeBox(): Box { return new Box(); } function use(boxes: Box[]): string { const direct = new Box().echo<string>("direct"); const returned = makeBox().echo(direct); return boxes[0].echo<string>(returned); }`,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if diagnostics := checkSource(t, test.source); len(diagnostics) != 0 {

@@ -15,7 +15,8 @@ class Box<T> {
     return value;
   }
 }
-function use(box: Box<string>): int { return box.echo<int>(1); }`
+function use(box: Box<string>): int { return box.echo<int>(1); }
+function direct(): int { return new Box<string>().echo<int>(2); }`
 	messages := serveMessages(t,
 		openDocument(uri, text),
 		requestAt("textDocument/hover", 2, uri, positionOf(text, "echo<int>", 0), ""),
@@ -41,6 +42,10 @@ function use(box: Box<string>): int { return box.echo<int>(1); }`
 	label, active, parameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "1);", 0)))
 	if label != "box.echo(value: int): int" || active != 0 || len(parameters) != 1 {
 		t.Fatalf("generic method signature = %q active=%v parameters=%#v", label, active, parameters)
+	}
+	directLabel, directActive, directParameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "2);", 0)))
+	if directLabel != "echo(value: int): int" || directActive != 0 || len(directParameters) != 1 {
+		t.Fatalf("expression-receiver generic method signature = %q active=%v parameters=%#v", directLabel, directActive, directParameters)
 	}
 	items := completionLabels(completionItemsAt(t, path, text, 3, 4))
 	if items["T"] == nil || items["U"] == nil {

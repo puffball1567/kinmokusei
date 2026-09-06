@@ -29,6 +29,10 @@ function use(box: Box<string>, holder: Holder<string>): string {
   holder.update<int8>(pair.right, int8(3));
   return holder.echo(pair.right);
 }
+
+function direct(value: string): string {
+  return new Box<string>(value).keep<int>(1);
+}
 `))
 	for _, expected := range []string{
 		"func BoxKeep[U any, T any](this *Box[T], marker U) T",
@@ -39,6 +43,7 @@ function use(box: Box<string>, holder: Holder<string>): string {
 		"var pair = BoxPair[int](2, kept)",
 		"HolderUpdate[int8](&holder, pair.Right, int8(3))",
 		"return HolderEcho(holder, pair.Right)",
+		"return BoxKeep[int](NewBox[string](value), 1)",
 	} {
 		if !strings.Contains(generated, expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)

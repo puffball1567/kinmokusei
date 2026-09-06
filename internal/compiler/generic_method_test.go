@@ -47,6 +47,12 @@ class Utility {
   }
 }
 
+let utilityCreations: int = 0;
+function makeUtility(): Utility {
+  utilityCreations++;
+  return new Utility();
+}
+
 function ClassChoose(value: string): string {
   const box = new Box<string>(value);
   return box.choose(value) + box.keep<int>(1);
@@ -65,8 +71,14 @@ function CounterAfter(value: int, delta: int, marker: int8): int {
   return counter.project(counter.value) + int(returned);
 }
 function FirstString(fallback: string, values: string[]): Result<string> {
-  const utility = new Utility();
-  return utility.first<string>(fallback, values...);
+  return new Utility().first<string>(fallback, values...);
+}
+function FactoryFirstString(fallback: string, values: string[]): Result<string> {
+  utilityCreations = 0;
+  return makeUtility().first<string>(fallback, values...);
+}
+function UtilityCreationCount(): int {
+  return utilityCreations;
 }
 `
 	if err := os.WriteFile(source, []byte(kinmokuseiSource), 0o644); err != nil {
@@ -102,11 +114,15 @@ type Counter[T Integer] struct { value T }
 func counterUpdate[T Integer, U Integer](counter *Counter[T], delta T, marker U) U { counter.value += delta; return marker }
 func counterProject[T Integer, U any](counter Counter[T], value U) U { return value }
 func first[T any](fallback T, values ...T) (T, error) { if len(values) == 0 { return fallback, nil }; return values[0], nil }
+var utilityCreations int
+func makeUtility() struct{} { utilityCreations++; return struct{}{} }
 func ClassChoose(value string) string { box := &Box[string]{value}; return boxChoose(box, value) + boxKeep(box, 1) }
 func StaticPair(left int, right string) string { return boxPair(left, right).right }
 func InheritedEcho(value string) string { child := &Child[int]{Base[int]{3}}; return childRelay(child, baseEcho(&child.Base, value)) }
 func CounterAfter(value, delta int, marker int8) int { counter := Counter[int]{value}; returned := counterUpdate(&counter, delta, marker); return counterProject(counter, counter.value) + int(returned) }
 func FirstString(fallback string, values []string) (string, error) { return first(fallback, values...) }
+func FactoryFirstString(fallback string, values []string) (string, error) { utilityCreations = 0; _ = makeUtility(); return first(fallback, values...) }
+func UtilityCreationCount() int { return utilityCreations }
 `
 	testSource := `package genericmethod_test
 import (
@@ -128,6 +144,10 @@ func TestBehavior(t *testing.T) {
 	  got, gotErr := generated.FirstString(value, values)
 	  want, wantErr := reference.FirstString(value, values)
 	  if got != want || (gotErr == nil) != (wantErr == nil) { t.Errorf("FirstString(%q, %v) = (%q, %v), Go = (%q, %v)", value, values, got, gotErr, want, wantErr) }
+	  got, gotErr = generated.FactoryFirstString(value, values)
+	  want, wantErr = reference.FactoryFirstString(value, values)
+	  if got != want || (gotErr == nil) != (wantErr == nil) { t.Errorf("FactoryFirstString(%q, %v) = (%q, %v), Go = (%q, %v)", value, values, got, gotErr, want, wantErr) }
+	  if gotCount, wantCount := generated.UtilityCreationCount(), reference.UtilityCreationCount(); gotCount != wantCount || gotCount != 1 { t.Errorf("factory receiver count = %d, Go = %d, want 1", gotCount, wantCount) }
 	}
   }
   for _, item := range []struct{ value, delta int; marker int8 }{{0, 0, 0}, {7, -2, 3}, {-9, 20, -5}, {100, -100, 127}} {

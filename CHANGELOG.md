@@ -11,7 +11,8 @@ generated APIs between minor versions.
   compile-time misuse diagnostics, and handwritten-Go differential coverage.
 - Add generic class and struct methods with inference, explicit or partial type
   arguments, constraints, value/pointer receiver behavior, inheritance and
-  `super`, editor support, and public generated-Go helper functions.
+  `super`, arbitrary expression receivers such as `new Box().method<T>()`,
+  editor support, and public generated-Go helper functions.
 
 ## [0.2.0] - 2026-09-04
 

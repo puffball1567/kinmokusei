@@ -2165,6 +2165,8 @@ func (p *Parser) parseCall() ast.Expression {
 				}
 				typeRef, valid := qualifiedTypeExpression(expr)
 				if !valid {
+					p.current = start
+					p.diagnostics = p.diagnostics[:diagnosticCount]
 					return expr
 				}
 				typeRef.GenericArguments = typeArguments
@@ -2246,21 +2248,13 @@ func (p *Parser) parseSubscript(object ast.Expression) ast.Expression {
 	return &ast.SliceExpr{Object: object, Low: low, High: high, Max: max, Full: full, Span: object.GetSpan().Merge(end.Span)}
 }
 
-func isQualifiedMemberExpression(expr ast.Expression) bool {
-	member, ok := expr.(*ast.MemberExpr)
-	if !ok {
+func isExplicitTypeArgumentCallee(expr ast.Expression) bool {
+	switch expr.(type) {
+	case *ast.IdentifierExpr, *ast.MemberExpr:
+		return true
+	default:
 		return false
 	}
-	_, ok = member.Object.(*ast.IdentifierExpr)
-	return ok
-}
-
-func isExplicitTypeArgumentCallee(expr ast.Expression) bool {
-	if isQualifiedMemberExpression(expr) {
-		return true
-	}
-	_, ok := expr.(*ast.IdentifierExpr)
-	return ok
 }
 
 // tryParseCallTypeArguments recognizes package.Function[T, U](...) and the

@@ -491,10 +491,11 @@ struct Box<T> {
 ```
 
 Calls support inference and angle- or bracket-shaped explicit/partial type
-arguments. Because Go does not permit a method to declare type parameters, a
-generic instance method lowers to a typed top-level helper whose first argument
-is the receiver. Public methods produce public helpers such as
-`BoxChoose[U, T](*Box[T], U) U`; ordinary Kinmokusei calls retain
+arguments on named, constructed, returned, chained, or indexed receivers, such
+as `new Box<string>("value").choose<int>(1)`. Because Go does not permit a
+method to declare type parameters, a generic instance method lowers to a typed
+top-level helper whose first argument is the receiver. Public methods produce
+public helpers such as `BoxChoose[U, T](*Box[T], U) U`; ordinary Kinmokusei calls retain
 `box.choose(value)`. This lowering preserves value versus pointer receiver
 behavior, single receiver evaluation, constraints, inheritance, and `super`.
 Generic methods cannot be `virtual`, `override`, or `final`, and an

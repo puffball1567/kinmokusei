@@ -121,6 +121,53 @@ struct Holder<T> {
 	}
 }
 
+func TestParsesExplicitGenericCallsOnExpressionReceivers(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+class Box {
+  public function echo<T>(value: T): T { return value; }
+}
+function makeBox(): Box { return new Box(); }
+function direct(): string { return new Box().echo<string>("direct"); }
+function returned(): int { return makeBox().echo<int>(1); }
+function indexed(boxes: Box[]): int8 { return boxes[0].echo[int8](int8(2)); }
+function compared(boxes: Box[], limit: int): boolean { return boxes[0].echo(1) < limit; }
+function ordinaryIndex(values: {items: int[]}[]): int { return values[0].items[1]; }
+function ambiguousComparison(): boolean { return makeBox().echo < int > {value: 1}; }
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	for index, name := range []string{"direct", "returned", "indexed"} {
+		function := program.Declarations[index+2].(*ast.FunctionDecl)
+		returned := function.Body.Statements[0].(*ast.ReturnStmt)
+		call, ok := returned.Value.(*ast.CallExpr)
+		if !ok || len(call.TypeArguments) != 1 {
+			t.Fatalf("%s return = %#v, want explicitly typed call", name, returned.Value)
+		}
+		if _, ok = call.Callee.(*ast.MemberExpr); !ok {
+			t.Fatalf("%s callee = %#v, want member expression", name, call.Callee)
+		}
+	}
+	compared := program.Declarations[5].(*ast.FunctionDecl).Body.Statements[0].(*ast.ReturnStmt).Value
+	if binary, ok := compared.(*ast.BinaryExpr); !ok || binary.Operator != "<" {
+		t.Fatalf("comparison = %#v, want '<' binary expression", compared)
+	}
+	ordinaryIndex := program.Declarations[6].(*ast.FunctionDecl).Body.Statements[0].(*ast.ReturnStmt).Value
+	if indexed, ok := ordinaryIndex.(*ast.IndexExpr); !ok {
+		t.Fatalf("ordinary nested member index = %#v, want index expression", ordinaryIndex)
+	} else if member, memberOK := indexed.Object.(*ast.MemberExpr); !memberOK {
+		t.Fatalf("ordinary nested member index object = %#v, want member expression", indexed.Object)
+	} else if _, receiverOK := member.Object.(*ast.IndexExpr); !receiverOK {
+		t.Fatalf("ordinary nested member receiver = %#v, want index expression", member.Object)
+	}
+	ambiguous := program.Declarations[7].(*ast.FunctionDecl).Body.Statements[0].(*ast.ReturnStmt).Value
+	if greater, ok := ambiguous.(*ast.BinaryExpr); !ok || greater.Operator != ">" {
+		t.Fatalf("ambiguous comparison = %#v, want outer '>' binary expression", ambiguous)
+	} else if less, lessOK := greater.Left.(*ast.BinaryExpr); !lessOK || less.Operator != "<" {
+		t.Fatalf("ambiguous comparison left = %#v, want inner '<' binary expression", greater.Left)
+	}
+}
+
 func TestParsesExternalGenericReceiverMethod(t *testing.T) {
 	program, diagnosticCount := parseSource(t, `struct Box<T> { public value: T; } public function get<U>(this: Box<U>): U { return this.value; }`)
 	if diagnosticCount != 0 {
