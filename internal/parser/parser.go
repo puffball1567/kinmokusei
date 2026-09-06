@@ -1634,6 +1634,7 @@ func (p *Parser) tryParseForRange(start token.Token) (ast.Statement, bool) {
 	}
 	source := p.parseExpression()
 	if source == nil {
+		p.synchronizeStatement()
 		return nil, true
 	}
 	if _, ok := p.expect(token.RightParen, "expected ')' after range expression"); !ok {
@@ -1756,6 +1757,7 @@ func (p *Parser) parseSwitch(start token.Token) ast.Statement {
 	}
 	value := p.parseExpression()
 	if value == nil {
+		p.synchronizeStatement()
 		return nil
 	}
 	if _, ok := p.expect(token.RightParen, "expected ')' after switch value"); !ok {

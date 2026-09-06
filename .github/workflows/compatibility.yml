@@ -107,6 +107,10 @@ jobs:
           - os: ubuntu-latest
             go-version: 1.23.x
           - os: ubuntu-latest
+            go-version: 1.24.x
+          - os: ubuntu-latest
+            go-version: 1.25.x
+          - os: ubuntu-latest
             go-version: 1.26.x
           - os: ubuntu-latest
             go-version: 1.27.x
@@ -137,6 +141,8 @@ jobs:
       matrix:
         go-version:
           - 1.23.x
+          - 1.24.x
+          - 1.25.x
           - 1.26.x
           - 1.27.x
     steps:
@@ -173,6 +179,90 @@ jobs:
           go-version: 1.27.x
           cache: true
       - run: go test -race -timeout 45m ./...
+
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    if: ${{ needs.classify.outputs.mode == 'full' }}
+    needs: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: ./internal/lexer
+            target: FuzzLexNeverPanics
+          - package: ./internal/parser
+            target: FuzzParseNeverPanics
+          - package: ./internal/lsp
+            target: FuzzApplyContentChangesNeverPanics
+          - package: ./internal/lsp
+            target: FuzzRelatedDeclarationsNeverPanics
+          - package: ./internal/lsp
+            target: FuzzCallContextAtNeverPanics
+          - package: ./internal/compiler
+            target: FuzzCompilePipelineNeverPanics
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+      - run: go test -run=^$ -fuzz=${{ matrix.target }} -fuzztime=15s -parallel=1 ${{ matrix.package }}
+
+  c_ffi:
+    name: Required C ABI and FFI execution
+    if: ${{ needs.classify.outputs.mode == 'full' }}
+    needs: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CGO_ENABLED: "1"
+      KINMOKUSEI_REQUIRE_C_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+      - name: Verify the C compiler is executable
+        run: cc --version
+      - name: Run every executable C ABI and incoming FFI test
+        run: go test -timeout 30m -count=1 -run '^(TestCABISharedLibraryCompileAndCCallerMatrix|TestIncomingCFFI.*)$' ./internal/compiler
+
+  benchmarks:
+    name: Compiler and codegen benchmarks
+    if: ${{ needs.classify.outputs.mode == 'full' }}
+    needs: classify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+      - name: Measure compile time and allocations
+        run: go test -run=^$ -bench='^BenchmarkKinmokusei(Check|Codegen)$' -benchmem -benchtime=200ms -count=3 ./internal/compiler | tee "${RUNNER_TEMP}/benchmarks.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiler-benchmarks
+          path: ${{ runner.temp }}/benchmarks.txt
+
+  goroutine_leaks:
+    name: Goroutine leak detection
+    if: ${{ needs.classify.outputs.mode == 'full' }}
+    needs: classify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 1.27.x
+          cache: true
+      - name: Exercise repeated LSP lifecycle shutdown
+        run: go test -count=1 -run '^TestServerLifecycleDoesNotLeakGoroutines$' ./internal/lsp
+      - name: Exercise generated and independent task runtimes
+        run: go test -count=1 -run '^TestStructuredTasksMatchIndependentGo$' ./internal/compiler
 
   editor:
     name: Visual Studio Code client
@@ -272,6 +362,10 @@ jobs:
       - go
       - release-toolchain
       - race
+      - fuzz
+      - c_ffi
+      - benchmarks
+      - goroutine_leaks
       - editor
       - documentation
       - full-stack-example
@@ -285,6 +379,10 @@ jobs:
           GO_RESULT: ${{ needs.go.result }}
           TOOLCHAIN_RESULT: ${{ needs.release-toolchain.result }}
           RACE_RESULT: ${{ needs.race.result }}
+          FUZZ_RESULT: ${{ needs.fuzz.result }}
+          C_FFI_RESULT: ${{ needs.c_ffi.result }}
+          BENCHMARK_RESULT: ${{ needs.benchmarks.result }}
+          GOROUTINE_LEAK_RESULT: ${{ needs.goroutine_leaks.result }}
           EDITOR_RESULT: ${{ needs.editor.result }}
           DOCUMENTATION_RESULT: ${{ needs.documentation.result }}
           FULL_STACK_RESULT: ${{ needs.full-stack-example.result }}
@@ -296,13 +394,13 @@ jobs:
           case "$MODE" in
             reuse)
               test "$REUSED_DEVEL_RESULT" = success
-              for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$EDITOR_RESULT" "$DOCUMENTATION_RESULT" "$FULL_STACK_RESULT"; do
+              for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$FUZZ_RESULT" "$C_FFI_RESULT" "$BENCHMARK_RESULT" "$GOROUTINE_LEAK_RESULT" "$EDITOR_RESULT" "$DOCUMENTATION_RESULT" "$FULL_STACK_RESULT"; do
                 test "$result" = skipped
               done
               ;;
             full)
               test "$REUSED_DEVEL_RESULT" = skipped
-              for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$EDITOR_RESULT" "$DOCUMENTATION_RESULT" "$FULL_STACK_RESULT"; do
+              for result in "$GO_RESULT" "$TOOLCHAIN_RESULT" "$RACE_RESULT" "$FUZZ_RESULT" "$C_FFI_RESULT" "$BENCHMARK_RESULT" "$GOROUTINE_LEAK_RESULT" "$EDITOR_RESULT" "$DOCUMENTATION_RESULT" "$FULL_STACK_RESULT"; do
                 test "$result" = success
               done
               ;;

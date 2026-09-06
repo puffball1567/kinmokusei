@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/lexer"
 )
 
@@ -160,6 +163,32 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 			program, diagnostics := Parse(tokens)
 			if program == nil || len(diagnostics) == 0 {
 				t.Fatalf("program = %#v, expected parser diagnostics", program)
+			}
+			seen := map[string]bool{}
+			for index, item := range diagnostics {
+				if item.Message == "" || item.Span.Path != "invalid.km" {
+					t.Fatalf("diagnostic %d has incomplete identity: %#v", index, item)
+				}
+				if item.Span.Start.Offset < 0 || item.Span.Start.Offset > item.Span.End.Offset || item.Span.End.Offset > len(test.source) {
+					t.Fatalf("diagnostic %d has invalid span for %d-byte source: %#v", index, len(test.source), item)
+				}
+				identity := fmt.Sprintf("%d:%d:%s", item.Span.Start.Offset, item.Span.End.Offset, item.Message)
+				if seen[identity] {
+					t.Fatalf("duplicate parser diagnostic %q: %v", identity, diagnostics)
+				}
+				seen[identity] = true
+			}
+			if strings.Contains(test.source, "function recovered") {
+				recovered := false
+				for _, declaration := range program.Declarations {
+					function, ok := declaration.(*ast.FunctionDecl)
+					if ok && function.Name == "recovered" {
+						recovered = true
+					}
+				}
+				if !recovered {
+					t.Fatalf("parser did not recover the trailing function: diagnostics=%v program=%#v", diagnostics, program)
+				}
 			}
 		})
 	}

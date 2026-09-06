@@ -64,7 +64,7 @@ func runGeneratedGoDifferentialTestConfigured(
 			t.Fatalf("independent Go reference must not import generated module %q", modulePath)
 		}
 	}
-	testFile, err := parser.ParseFile(token.NewFileSet(), "generated_test.go", testSource, parser.ImportsOnly)
+	testFile, err := parser.ParseFile(token.NewFileSet(), "generated_test.go", testSource, 0)
 	if err != nil {
 		t.Fatalf("parse generated/reference comparison test: %v", err)
 	}
@@ -81,6 +81,9 @@ func runGeneratedGoDifferentialTestConfigured(
 	}
 	if !importsReference {
 		t.Fatalf("generated/reference comparison test must import independent reference package %q", referenceImport)
+	}
+	if err := validateDifferentialAssertions(testFile, modulePath); err != nil {
+		t.Fatalf("generated/reference comparison test has an insufficient assertion contract: %v", err)
 	}
 
 	referenceDirectory := filepath.Join(root, "reference")
