@@ -1118,7 +1118,14 @@ operands on its true path, disjunction requires both operands on its false path,
 and facts shared by every alternative path are retained. This can prove more
 than one collection nonempty. A mismatched source, effectful compound guard,
 nonterminal guard, intervening statement, or channel range is deliberately not
-accepted as a proof. Broader relational cardinality flow remains future work.
+accepted as a proof. A `switch (len(collection))` supplies the same first-range
+proof to a case only when every listed constant is positive. If an explicit
+case covers zero, its default branch is also known to be positive because
+lengths cannot be negative. Fallthrough into either branch discards the proof,
+since it bypasses that branch's case condition. An effectful case expression
+also discards every switch proof because it could mutate the collection after
+the switch subject was evaluated. Broader relational cardinality flow remains
+future work.
 
 ## Nullable references
 

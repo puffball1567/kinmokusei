@@ -309,7 +309,10 @@ Completed foundations include:
     semantic pass resolves local, `for`-initializer, same-file global, and
     explicitly imported immutable `const` chains while declaration scopes and
     module visibility are available, then records the guaranteed-entry fact on
-    the loop AST for constructor flow.
+    the loop AST for constructor flow. Direct length guards and
+    `switch (len(collection))` cases supply branch-local nonempty proofs to an
+    immediately following matching collection range without trusting
+    fallthrough or effectful paths.
 21. Non-escaping `Task<T>` bindings with exactly-once `await` or `detach`,
     path-sensitive branch/loop joins, eager callee/argument evaluation, ordinary
     and `Result` task shapes, and panic transport across the task boundary.

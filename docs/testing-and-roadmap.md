@@ -271,8 +271,11 @@ range. Side-effect-free boolean combinations preserve only facts valid on every
 path, including simultaneous facts for multiple collections. Empty paths,
 ambiguous alternatives, effectful compound guards, different collections,
 nonterminal guards, intervening statements, and channel ranges remain
-conservative. Broader relational cardinality flow and package distribution
-remain.
+conservative. Length switches prove grouped positive cases and the default
+after an explicit zero case; mixed zero/positive cases and fallthrough bypasses
+remain conservative. Effectful case expressions invalidate all cardinality
+proofs for that switch. Broader relational cardinality flow and package
+distribution remain.
 
 The nullable-flow matrix now covers non-null/null direct assignments,
 re-narrowing, early exits, exhaustive/non-exhaustive structured joins,

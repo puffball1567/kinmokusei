@@ -19,6 +19,9 @@ generated APIs between minor versions.
   terminating empty guard clause may prove the immediately following range
   nonempty. Side-effect-free `&&`, `||`, and negated compound guards combine
   proofs for one or more collections without accepting ambiguous branches.
+  `switch (len(collection))` also proves grouped positive cases and a default
+  branch that follows an explicit zero case, while fallthrough remains
+  conservative and effectful case expressions invalidate the proof.
 - Correct the Visual Studio Code grammar's source suffix to `.km` and add
   compatibility CI for Go 1.24 and 1.25. CI now performs bounded fuzz
   exploration, mandatory C ABI/FFI execution, goroutine-leak checks, compiler

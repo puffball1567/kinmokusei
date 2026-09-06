@@ -2772,15 +2772,20 @@ func constructorInitializationStatement(statement ast.Statement, initial map[str
 		states := make([]map[string]bool, 0, len(statement.Cases)+1)
 		var continues []map[string]bool
 		var incomingFallthrough map[string]bool
+		caseNonEmpty := constructorNonEmptyRangeSwitch(statement)
 		hasDefault := false
 		for index := range statement.Cases {
 			clause := &statement.Cases[index]
 			hasDefault = hasDefault || clause.Default
 			caseInitial := initial
+			nonEmpty := caseNonEmpty[index]
 			if incomingFallthrough != nil {
 				caseInitial = intersectFieldInitialization(initial, incomingFallthrough)
+				// A fallthrough enters this body without satisfying its case
+				// expressions, so its length fact does not apply.
+				nonEmpty = nil
 			}
-			flow := constructorInitializationBlock(clause.Body, caseInitial, required)
+			flow := constructorInitializationBlockWithRangeProof(clause.Body, caseInitial, required, nonEmpty)
 			states = append(states, flow.breaks...)
 			if clause.FallsThrough {
 				incomingFallthrough = intersectFieldInitializationStates(flow.fallthroughs)
@@ -2954,6 +2959,57 @@ func constructorNonEmptyRangeGuard(expression ast.Expression) (constructorRangeP
 		whenFalse = constructorRangeProof(declaration)
 	}
 	return whenTrue, whenFalse
+}
+
+// constructorNonEmptyRangeSwitch proves branch-local facts for a value switch
+// whose subject is len(collection). A case is non-empty only when every value
+// in that clause is a known positive integer. The default is non-empty when a
+// case explicitly covers zero, because len cannot be negative. As with guarded
+// branches, the fact is consumed by the first statement of the selected body.
+func constructorNonEmptyRangeSwitch(statement *ast.ValueSwitchStmt) []constructorRangeProofs {
+	proofs := make([]constructorRangeProofs, len(statement.Cases))
+	call, ok := statement.Value.(*ast.CallExpr)
+	if !ok || call.Builtin != ast.LenCall || len(call.Arguments) != 1 {
+		return proofs
+	}
+	declaration := constructorRangeSourceDeclaration(call.Arguments[0])
+	if declaration.Path == "" {
+		return proofs
+	}
+
+	zeroCovered := false
+	stableCases := true
+	for index := range statement.Cases {
+		clause := &statement.Cases[index]
+		if clause.Default || len(clause.Values) == 0 {
+			continue
+		}
+		allPositive := true
+		for _, value := range clause.Values {
+			stableCases = stableCases && constructorRangeGuardStable(value)
+			constant, known := integerConstantValue(value)
+			if !known || constant.Sign() <= 0 {
+				allPositive = false
+			}
+			if known && constant.Sign() == 0 {
+				zeroCovered = true
+			}
+		}
+		if allPositive {
+			proofs[index] = constructorRangeProof(declaration)
+		}
+	}
+	if !stableCases {
+		return make([]constructorRangeProofs, len(statement.Cases))
+	}
+	if zeroCovered {
+		for index := range statement.Cases {
+			if statement.Cases[index].Default {
+				proofs[index] = constructorRangeProof(declaration)
+			}
+		}
+	}
+	return proofs
 }
 
 func constructorRangeGuardStable(expression ast.Expression) bool {

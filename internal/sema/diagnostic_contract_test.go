@@ -18,6 +18,7 @@ func TestSemanticDiagnosticContracts(t *testing.T) {
 		{"undefined name", `function value(): int { return missing; }`, `undefined name "missing"`, 1, 32},
 		{"return type mismatch", `function value(): int { return "x"; }`, "cannot use string as int", 1, 32},
 		{"uninitialized constructor field", `class User {} class Holder { private user: User; constructor() {} }`, `non-null field "user" of type User must be initialized on every constructor path; assign this.user or declare it as User | null`, 1, 38},
+		{"mixed zero length switch cannot prove range entry", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0, 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `non-null field "user" of type User must be initialized on every constructor path; assign this.user or declare it as User | null`, 1, 38},
 		{"nullable member access", "class User { public name: string; }\nfunction read(user: User | null): string {\n  return user.name;\n}", "nullable value User | null must be checked against null before member access", 3, 10},
 	}
 	for _, test := range tests {

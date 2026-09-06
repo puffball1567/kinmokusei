@@ -23,6 +23,7 @@ var pipelineFuzzSeeds = []string{
 	`import go strings from "strings"; function upper(value: string): string { return strings.ToUpper(value); }`,
 	`function broken<T extends>(value: T): T { return value; }`,
 	`class Incomplete { private value: string; constructor(flag: boolean) { if (flag) { this.value = "set"; } } }`,
+	`class Switched { private value: string; constructor(values: int[]) { switch (len(values)) { case 0 { this.value = "empty"; } default { for (const item of values) { this.value = "set"; } } } } }`,
 	`for (((`,
 	"\xff\x00",
 }

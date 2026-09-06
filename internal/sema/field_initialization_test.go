@@ -434,6 +434,39 @@ class RedundantOrGuardInitialized {
     }
   }
 }
+class LengthSwitchDefaultInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    switch (len(values)) {
+      case 0 { this.user = new User("empty"); }
+      default {
+        for (const value of values) { this.user = new User("nonempty"); }
+      }
+    }
+  }
+}
+class LengthSwitchPositiveCasesInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    switch (len(values)) {
+      case 1, 1 + 1 {
+        for (const value of values) { this.user = new User("short"); }
+      }
+      default { this.user = new User("other"); }
+    }
+  }
+}
+class StringLengthSwitchInitialized {
+  private user: User;
+  constructor(value: string) {
+    switch (len(value)) {
+      default {
+        for (const rune of value) { this.user = new User("text"); }
+      }
+      case 1 - 1 { this.user = new User("empty"); }
+    }
+  }
+}
 `)
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
@@ -490,6 +523,16 @@ func TestRejectsIncompleteNonNullFieldInitialization(t *testing.T) {
 		{"bound empty string", `class User {} class Holder { private user: User; constructor() { const left = ""; const text = left + ""; for (const rune of text) { this.user = new User(); } } }`, `every constructor path`},
 		{"value switch missing default", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { this.user = new User(); } } } }`, `every constructor path`},
 		{"value switch one case misses field", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0, 1 { this.user = new User(); } default {} } } }`, `every constructor path`},
+		{"length switch default without zero case", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 2 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch mixed zero case", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0, 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `every constructor path`},
+		{"length switch different range", `class User {} class Holder { private user: User; constructor(values: int[], other: int[]) { switch (len(values)) { case 0 { this.user = new User(); } default { for (const value of other) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch expression source is not tracked", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(append(values))) { case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch intervening statement", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0 { this.user = new User(); } default { const count = len(values); for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch channel range", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { switch (len(values)) { case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"shadowed len switch", `function len(values: int[]): int { return 1; } class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"effectful length switch case", `function empty(values: int[]): int { clear(values); return -1; } class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case empty(values) { this.user = new User(); } case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"effectful case before positive length case", `function empty(values: int[]): int { clear(values); return -1; } class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case empty(values) { this.user = new User(); } case 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `every constructor path`},
+		{"length switch fallthrough bypasses positive case", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0 { fallthrough; } case 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `every constructor path`},
 		{"break before assignment", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { break; this.user = new User(); } default { this.user = new User(); } } } }`, `every constructor path`},
 		{"conditional break before assignment", `class User {} class Holder { private user: User; constructor(mode: int, stop: boolean) { switch (mode) { case 0 { if (stop) { break; } this.user = new User(); } default { this.user = new User(); } } } }`, `every constructor path`},
 		{"nested switch missing inner default", `class User {} class Holder { private user: User; constructor(mode: int, inner: int) { switch (mode) { case 0 { switch (inner) { case 1 { this.user = new User(); } } } default { this.user = new User(); } } } }`, `every constructor path`},
