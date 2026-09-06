@@ -2677,6 +2677,14 @@ type constructorInitializationFlow struct {
 }
 
 func constructorInitializationBlock(block *ast.BlockStmt, initial map[string]bool, required map[string]source.Span) constructorInitializationFlow {
+	return constructorInitializationBlockWithRangeProof(block, initial, required, source.Span{})
+}
+
+// constructorInitializationBlockWithRangeProof carries a condition-derived
+// non-empty proof only into the first statement of the guarded block. This is
+// deliberately narrow: an intervening statement could reassign the collection
+// or mutate a map before the range expression is evaluated.
+func constructorInitializationBlockWithRangeProof(block *ast.BlockStmt, initial map[string]bool, required map[string]source.Span, nonEmpty source.Span) constructorInitializationFlow {
 	state := cloneFieldInitialization(initial)
 	if block == nil {
 		return constructorInitializationFlow{continuing: state}
@@ -2684,17 +2692,34 @@ func constructorInitializationBlock(block *ast.BlockStmt, initial map[string]boo
 	var breaks []map[string]bool
 	var continues []map[string]bool
 	var fallthroughs []map[string]bool
-	for _, statement := range block.Statements {
+	for index, statement := range block.Statements {
 		if state == nil {
 			break
 		}
 		flow := constructorInitializationStatement(statement, state, required)
+		if index == 0 && nonEmpty.Path != "" {
+			flow = constructorInitializationStatementWithRangeProof(statement, state, required, nonEmpty)
+		}
 		breaks = append(breaks, flow.breaks...)
 		continues = append(continues, flow.continues...)
 		fallthroughs = append(fallthroughs, flow.fallthroughs...)
 		state = flow.continuing
 	}
 	return constructorInitializationFlow{continuing: state, breaks: breaks, continues: continues, fallthroughs: fallthroughs}
+}
+
+func constructorInitializationStatementWithRangeProof(statement ast.Statement, initial map[string]bool, required map[string]source.Span, nonEmpty source.Span) constructorInitializationFlow {
+	switch statement := statement.(type) {
+	case *ast.LabeledStmt:
+		return constructorInitializationStatementWithRangeProof(statement.Statement, initial, required, nonEmpty)
+	case *ast.BlockStmt:
+		return constructorInitializationBlockWithRangeProof(statement, initial, required, nonEmpty)
+	case *ast.ForRangeStmt:
+		if statement.Kind == ast.CollectionRange && constructorRangeSourceDeclaration(statement.Source) == nonEmpty {
+			return constructorInitializationLoop(statement.Body, initial, required, true, true)
+		}
+	}
+	return constructorInitializationStatement(statement, initial, required)
 }
 
 func constructorInitializationStatement(statement ast.Statement, initial map[string]bool, required map[string]source.Span) constructorInitializationFlow {
@@ -2720,10 +2745,11 @@ func constructorInitializationStatement(statement ast.Statement, initial map[str
 	case *ast.BlockStmt:
 		return constructorInitializationBlock(statement, initial, required)
 	case *ast.IfStmt:
-		thenFlow := constructorInitializationBlock(statement.Then, initial, required)
+		thenNonEmpty, elseNonEmpty := constructorNonEmptyRangeGuard(statement.Condition)
+		thenFlow := constructorInitializationBlockWithRangeProof(statement.Then, initial, required, thenNonEmpty)
 		elseFlow := constructorInitializationFlow{continuing: cloneFieldInitialization(initial)}
 		if statement.Else != nil {
-			elseFlow = constructorInitializationStatement(statement.Else, initial, required)
+			elseFlow = constructorInitializationStatementWithRangeProof(statement.Else, initial, required, elseNonEmpty)
 		}
 		return constructorInitializationFlow{
 			continuing:   intersectCompletingFieldInitialization(thenFlow.continuing, elseFlow.continuing),
@@ -2832,6 +2858,94 @@ func constructorInitializationStatement(statement ast.Statement, initial map[str
 		// Loops and other statements do not establish initialization. In
 		// particular, a loop body may execute zero times.
 		return constructorInitializationFlow{continuing: cloneFieldInitialization(initial)}
+	}
+}
+
+func constructorNonEmptyRangeGuard(expression ast.Expression) (source.Span, source.Span) {
+	if unary, ok := expression.(*ast.UnaryExpr); ok && unary.Operator == "!" {
+		whenTrue, whenFalse := constructorNonEmptyRangeGuard(unary.Operand)
+		return whenFalse, whenTrue
+	}
+	binary, ok := expression.(*ast.BinaryExpr)
+	if !ok {
+		return source.Span{}, source.Span{}
+	}
+	declaration, constant, operator, ok := constructorLengthComparison(binary.Left, binary.Right, binary.Operator)
+	if !ok {
+		declaration, constant, operator, ok = constructorLengthComparison(binary.Right, binary.Left, reverseComparisonOperator(binary.Operator))
+	}
+	if !ok {
+		return source.Span{}, source.Span{}
+	}
+	trueNonEmpty, falseNonEmpty := lengthComparisonProvesNonEmpty(operator, constant)
+	var whenTrue, whenFalse source.Span
+	if trueNonEmpty {
+		whenTrue = declaration
+	}
+	if falseNonEmpty {
+		whenFalse = declaration
+	}
+	return whenTrue, whenFalse
+}
+
+func constructorLengthComparison(left, right ast.Expression, operator string) (source.Span, *big.Int, string, bool) {
+	call, ok := left.(*ast.CallExpr)
+	if !ok || call.Builtin != ast.LenCall || len(call.Arguments) != 1 {
+		return source.Span{}, nil, "", false
+	}
+	declaration := constructorRangeSourceDeclaration(call.Arguments[0])
+	if declaration.Path == "" {
+		return source.Span{}, nil, "", false
+	}
+	constant, known := integerConstantValue(right)
+	if !known {
+		return source.Span{}, nil, "", false
+	}
+	return declaration, constant, operator, true
+}
+
+func constructorRangeSourceDeclaration(expression ast.Expression) source.Span {
+	identifier, ok := expression.(*ast.IdentifierExpr)
+	if !ok {
+		return source.Span{}
+	}
+	return identifier.ResolvedDeclaration
+}
+
+func reverseComparisonOperator(operator string) string {
+	switch operator {
+	case "<":
+		return ">"
+	case "<=":
+		return ">="
+	case ">":
+		return "<"
+	case ">=":
+		return "<="
+	default:
+		return operator
+	}
+}
+
+func lengthComparisonProvesNonEmpty(operator string, constant *big.Int) (bool, bool) {
+	zero := big.NewInt(0)
+	positive := constant.Sign() > 0
+	nonNegative := constant.Sign() >= 0
+	switch operator {
+	case ">":
+		return nonNegative, false
+	case ">=":
+		return positive, false
+	case "<":
+		return false, positive
+	case "<=":
+		return false, nonNegative
+	case "==", "===":
+		return positive, constant.Cmp(zero) == 0
+	case "!=", "!==":
+		return constant.Cmp(zero) == 0, positive
+	default:
+		return false, false
 	}
 }
 

@@ -13,6 +13,9 @@ generated APIs between minor versions.
   arguments, constraints, value/pointer receiver behavior, inheritance and
   `super`, arbitrary expression receivers such as `new Box().method<T>()`,
   editor support, and public generated-Go helper functions.
+- Accept constructor field initialization through directly length-guarded
+  nonempty collection ranges while preserving conservative rejection for empty
+  paths, mismatched collections, intervening statements, and channels.
 
 ## [0.2.0] - 2026-09-04
 

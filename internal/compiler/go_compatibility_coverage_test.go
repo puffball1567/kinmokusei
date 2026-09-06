@@ -59,7 +59,7 @@ var implementedGoCompatibilityContracts = []string{
 	"HTTP/JSON application routing, encoding, status, Unicode, errors, and concurrent requests",
 	"stable nullable class-member narrowing, assignments, nested paths, methods, aliases, joins, and loops",
 	"unsigned fixed-width integers, conversions, arithmetic, bitwise operations, shifts, updates, ordering, overflow, and panic",
-	"constructor definite initialization from boolean/integer/string constant expressions and append/makeSlice cardinality proofs",
+	"constructor definite initialization from boolean/integer/string constant expressions, append/makeSlice cardinality, and direct length-guarded range proofs",
 	"constructor definite initialization through local, for-initializer, and global immutable constant bindings",
 	"constructor definite initialization through explicitly imported immutable constant bindings",
 	"nominal native structs, value copying, explicit pointer aliasing, shallow reference copying, comparability, recursive indirection, literal evaluation order, and empty-Go-interface use",

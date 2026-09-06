@@ -264,7 +264,10 @@ expressions, positive-length fixed arrays and pointers, provably nonempty
 also implemented for direct class-field paths. Local, `for`-initializer,
 same-file global, and explicitly imported `const` chains propagate these
 boolean, integer, string, and cardinality proofs by declaration identity;
-mutable or dynamic bindings do not. Broader cardinality proofs and package
+mutable or dynamic bindings do not. Direct `len(collection)` guards additionally
+prove the first matching collection range nonempty on the appropriate branch;
+empty paths, different collections, intervening statements, and channel ranges
+remain conservative. Broader relational cardinality flow and package
 distribution remain.
 
 The nullable-flow matrix now covers non-null/null direct assignments,

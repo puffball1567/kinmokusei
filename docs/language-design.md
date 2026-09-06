@@ -1107,7 +1107,12 @@ implemented. Stable member facts and direct boolean/integer/string plus
 `append`/`makeSlice` constructor proofs are implemented. Those proofs propagate
 through local, `for`-initializer, same-file global, and explicitly imported
 `const` chains; mutable/dynamic bindings are deliberately not treated as
-proofs. Broader cardinality proofs remain future work.
+proofs. A direct guarded branch such as `if (len(values) > 0) { for (... of
+values) { ... } }` proves the first range nonempty; the empty branch must still
+initialize the field or terminate. Reversed comparisons, equality/inequality,
+and negation use the same nonnegative-length reasoning. A mismatched source, an
+intervening statement, or a channel range is deliberately not accepted as a
+proof. Broader relational cardinality flow remains future work.
 
 ## Nullable references
 

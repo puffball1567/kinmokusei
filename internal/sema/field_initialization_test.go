@@ -1,9 +1,36 @@
 package sema
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 )
+
+func TestLengthComparisonProvesNonEmptyMatrix(t *testing.T) {
+	for _, test := range []struct {
+		operator            string
+		constant            int64
+		wantTrue, wantFalse bool
+	}{
+		{">", 0, true, false},
+		{">", -1, false, false},
+		{">=", 1, true, false},
+		{">=", 0, false, false},
+		{"<", 1, false, true},
+		{"<", 0, false, false},
+		{"<=", 0, false, true},
+		{"<=", -1, false, false},
+		{"==", 1, true, false},
+		{"===", 0, false, true},
+		{"!=", 0, true, false},
+		{"!==", 1, false, true},
+	} {
+		gotTrue, gotFalse := lengthComparisonProvesNonEmpty(test.operator, big.NewInt(test.constant))
+		if gotTrue != test.wantTrue || gotFalse != test.wantFalse {
+			t.Errorf("len %s %d proof = (%v, %v), want (%v, %v)", test.operator, test.constant, gotTrue, gotFalse, test.wantTrue, test.wantFalse)
+		}
+	}
+}
 
 func TestChecksDefiniteNonNullFieldInitialization(t *testing.T) {
 	diagnostics := checkSource(t, `
@@ -296,6 +323,56 @@ class GlobalConstantsInitialized {
     for (const rune of globalConstructorText) { this.items = [int(rune)]; }
   }
 }
+class GuardedSliceRangeInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) > 0) {
+      for (const value of values) { this.user = new User("nonempty-slice"); }
+    } else {
+      this.user = new User("empty-slice");
+    }
+  }
+}
+class ReversedLengthGuardInitialized {
+  private user: User;
+  constructor(values: string) {
+    if (0 < len(values)) {
+      for (const rune of values) { this.user = new User("nonempty-string"); }
+    } else {
+      this.user = new User("empty-string");
+    }
+  }
+}
+class ZeroLengthElseInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) === 0) {
+      this.user = new User("empty");
+    } else {
+      for (const value of values) { this.user = new User("nonempty"); }
+    }
+  }
+}
+class NegatedLengthGuardInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (!(len(values) <= 0)) {
+      for (const value of values) { this.user = new User("nonempty"); }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+}
+class ThrowingEmptyLengthBranchInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) !== 0) {
+      for (const value of values) { this.user = new User("nonempty"); }
+    } else {
+      throw new Exception("values must not be empty");
+    }
+  }
+}
 `)
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
@@ -334,6 +411,12 @@ func TestRejectsIncompleteNonNullFieldInitialization(t *testing.T) {
 		{"let boolean is not a proof", `class User {} class Holder { private user: User; constructor() { let enabled = true; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"const from parameter is dynamic", `class User {} class Holder { private user: User; constructor(flag: boolean) { const enabled = flag; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"const dynamic slice is not a proof", `class User {} class Holder { private user: User; constructor(values: int[]) { const snapshot = values; for (const value of snapshot) { this.user = new User(); } } }`, `every constructor path`},
+		{"length guard without empty path", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } } }`, `every constructor path`},
+		{"length guard for different range", `class User {} class Holder { private user: User; constructor(values: int[], other: int[]) { if (len(values) > 0) { for (const value of other) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"non-strict zero length guard", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) >= 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"intervening collection assignment", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { values = []; for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"channel length is not a range proof", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"shadowed len is not a proof", `function len(values: int[]): int { return 1; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
 		{"shadowed false constant", `const enabled = true; class User {} class Holder { private user: User; constructor() { const enabled = false; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"bound empty string", `class User {} class Holder { private user: User; constructor() { const left = ""; const text = left + ""; for (const rune of text) { this.user = new User(); } } }`, `every constructor path`},
 		{"value switch missing default", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { this.user = new User(); } } } }`, `every constructor path`},

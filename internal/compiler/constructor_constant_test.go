@@ -100,6 +100,23 @@ class MadeSliceRangeHolder {
   public function name(): string { return this.user.name; }
   public function count(): int { return len(this.visits); }
 }
+class GuardedRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[]) {
+    this.visits = [];
+    if (len(values) > 0) {
+      for (const value of values) {
+        this.user = new User("nonempty");
+        this.visits = append(this.visits, value);
+      }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
 function negatedName(): string { return new NegatedHolder().name(); }
 function negatedCount(): int { return new NegatedHolder().count(); }
 function numericName(): string { return new NumericHolder().name(); }
@@ -113,6 +130,8 @@ function spreadRangeName(): string { return new SpreadRangeHolder().name(); }
 function spreadRangeCount(): int { return new SpreadRangeHolder().count(); }
 function madeSliceRangeName(): string { return new MadeSliceRangeHolder().name(); }
 function madeSliceRangeCount(): int { return new MadeSliceRangeHolder().count(); }
+function guardedRangeName(values: int[]): string { return new GuardedRangeHolder(values).name(); }
+function guardedRangeCount(values: int[]): int { return new GuardedRangeHolder(values).count(); }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -162,6 +181,15 @@ func MadeSliceRange() (string, int) {
   for range make([]int, 1+1) { name = "make-slice"; count++ }
   return name, count
 }
+func GuardedRange(values []int) (string, int) {
+  name, count := "", 0
+  if len(values) > 0 {
+    for range values { name = "nonempty"; count++ }
+  } else {
+    name = "empty"
+  }
+  return name, count
+}
 `
 	testSource := `package constructorconstants
 import (
@@ -188,6 +216,11 @@ func TestConstructorConstants(t *testing.T) {
   wantName, wantCount = reference.MadeSliceRange()
   if got := madeSliceRangeName(); got != wantName { t.Fatalf("madeSliceRangeName = %q, equivalent Go = %q", got, wantName) }
   if got := madeSliceRangeCount(); got != wantCount { t.Fatalf("madeSliceRangeCount = %d, equivalent Go = %d", got, wantCount) }
+  for _, values := range [][]int{nil, {}, {0}, {1, 2, 3}, {-4, 0, 9, 12}} {
+    wantName, wantCount = reference.GuardedRange(values)
+    if got := guardedRangeName(values); got != wantName { t.Errorf("guardedRangeName(%v) = %q, equivalent Go = %q", values, got, wantName) }
+    if got := guardedRangeCount(values); got != wantCount { t.Errorf("guardedRangeCount(%v) = %d, equivalent Go = %d", values, got, wantCount) }
+  }
 }
 `
 	runGeneratedGoDifferentialTest(t, temp, "constructor-constants.test", generated, referenceSource, testSource)
