@@ -21,7 +21,9 @@ generated APIs between minor versions.
   proofs for one or more collections without accepting ambiguous branches.
   `switch (len(collection))` also proves grouped positive cases and a default
   branch that follows an explicit zero case, while fallthrough remains
-  conservative and effectful case expressions invalidate the proof.
+  conservative and effectful case expressions invalidate the proof. An outer
+  length fact now also reaches both sides of an immediately nested,
+  side-effect-free condition.
 - Correct the Visual Studio Code grammar's source suffix to `.km` and add
   compatibility CI for Go 1.24 and 1.25. CI now performs bounded fuzz
   exploration, mandatory C ABI/FFI execution, goroutine-leak checks, compiler

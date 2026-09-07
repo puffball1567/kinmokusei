@@ -312,7 +312,8 @@ Completed foundations include:
     the loop AST for constructor flow. Direct length guards and
     `switch (len(collection))` cases supply branch-local nonempty proofs to an
     immediately following matching collection range without trusting
-    fallthrough or effectful paths.
+    fallthrough or effectful paths. A side-effect-free nested condition may
+    carry and combine those proofs for its immediate branch bodies.
 21. Non-escaping `Task<T>` bindings with exactly-once `await` or `detach`,
     path-sensitive branch/loop joins, eager callee/argument evaluation, ordinary
     and `Result` task shapes, and panic transport across the task boundary.

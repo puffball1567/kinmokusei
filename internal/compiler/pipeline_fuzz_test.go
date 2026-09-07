@@ -24,6 +24,7 @@ var pipelineFuzzSeeds = []string{
 	`function broken<T extends>(value: T): T { return value; }`,
 	`class Incomplete { private value: string; constructor(flag: boolean) { if (flag) { this.value = "set"; } } }`,
 	`class Switched { private value: string; constructor(values: int[]) { switch (len(values)) { case 0 { this.value = "empty"; } default { for (const item of values) { this.value = "set"; } } } } }`,
+	`class NestedGuard { private value: string; constructor(values: int[], enabled: boolean) { if (len(values) > 0) { if (enabled) { for (const item of values) { this.value = "set"; } } else { for (const item of values) { this.value = "disabled"; } } } else { this.value = "empty"; } } }`,
 	`for (((`,
 	"\xff\x00",
 }

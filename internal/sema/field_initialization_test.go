@@ -467,6 +467,34 @@ class StringLengthSwitchInitialized {
     }
   }
 }
+class NestedLengthGuardInitialized {
+  private user: User;
+  constructor(values: int[], enabled: boolean) {
+    if (len(values) > 0) {
+      if (enabled) {
+        for (const value of values) { this.user = new User("enabled"); }
+      } else {
+        for (const value of values) { this.user = new User("disabled"); }
+      }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+}
+class NestedMultipleLengthGuardsInitialized {
+  private user: User;
+  constructor(left: int[], right: int[]) {
+    if (len(left) > 0) {
+      if (len(right) > 0) {
+        for (const value of right) { this.user = new User("right"); }
+      } else {
+        for (const value of left) { this.user = new User("left"); }
+      }
+    } else {
+      this.user = new User("empty-left");
+    }
+  }
+}
 `)
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
@@ -519,6 +547,9 @@ func TestRejectsIncompleteNonNullFieldInitialization(t *testing.T) {
 		{"conjunction false path may still be empty", `class User {} class Holder { private user: User; constructor(values: int[], enabled: boolean) { if (len(values) === 0 && enabled) { this.user = new User(); } else { for (const value of values) { this.user = new User(); } } } }`, `every constructor path`},
 		{"different collection disjunction", `class User {} class Holder { private user: User; constructor(left: int[], right: int[]) { if (len(left) > 0 || len(right) > 0) { for (const value of left) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
 		{"effectful compound guard", `function clearAndKeep(values: int[]): boolean { clear(values); return true; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0 && clearAndKeep(values)) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"effectful nested guard", `function clearAndKeep(values: int[]): boolean { clear(values); return true; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { if (clearAndKeep(values)) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"nested guard intervening statement", `class User {} class Holder { private user: User; constructor(values: int[], enabled: boolean) { if (len(values) > 0) { if (enabled) { const count = len(values); for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"nested guard different collection", `class User {} class Holder { private user: User; constructor(values: int[], other: int[], enabled: boolean) { if (len(values) > 0) { if (enabled) { for (const value of other) { this.user = new User(); } } else { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
 		{"shadowed false constant", `const enabled = true; class User {} class Holder { private user: User; constructor() { const enabled = false; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"bound empty string", `class User {} class Holder { private user: User; constructor() { const left = ""; const text = left + ""; for (const rune of text) { this.user = new User(); } } }`, `every constructor path`},
 		{"value switch missing default", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { this.user = new User(); } } } }`, `every constructor path`},

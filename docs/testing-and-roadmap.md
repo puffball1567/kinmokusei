@@ -268,10 +268,12 @@ mutable or dynamic bindings do not. Direct `len(collection)` guards additionally
 prove the first matching collection range nonempty on the appropriate branch;
 terminating empty guard clauses carry that proof to the immediately following
 range. Side-effect-free boolean combinations preserve only facts valid on every
-path, including simultaneous facts for multiple collections. Empty paths,
-ambiguous alternatives, effectful compound guards, different collections,
-nonterminal guards, intervening statements, and channel ranges remain
-conservative. Length switches prove grouped positive cases and the default
+path, including simultaneous facts for multiple collections. An immediately
+nested side-effect-free condition carries outer facts into both branches and
+combines them with its own length facts. Empty paths, ambiguous alternatives,
+effectful compound or nested guards, different collections, nonterminal guards,
+intervening statements, and channel ranges remain conservative. Length switches
+prove grouped positive cases and the default
 after an explicit zero case; mixed zero/positive cases and fallthrough bypasses
 remain conservative. Effectful case expressions invalidate all cardinality
 proofs for that switch. Broader relational cardinality flow and package

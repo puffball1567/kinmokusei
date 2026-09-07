@@ -2725,6 +2725,24 @@ func constructorInitializationStatementWithRangeProof(statement ast.Statement, i
 		return constructorInitializationStatementWithRangeProof(statement.Statement, initial, required, nonEmpty)
 	case *ast.BlockStmt:
 		return constructorInitializationBlockWithRangeProof(statement, initial, required, nonEmpty)
+	case *ast.IfStmt:
+		// A side-effect-free nested condition cannot invalidate an outer
+		// collection-length fact. Carry it into both branches and combine any
+		// additional length facts established by the nested condition itself.
+		if constructorRangeGuardStable(statement.Condition) {
+			thenAdditional, elseAdditional := constructorNonEmptyRangeGuard(statement.Condition)
+			thenFlow := constructorInitializationBlockWithRangeProof(statement.Then, initial, required, unionConstructorRangeProofs(nonEmpty, thenAdditional))
+			elseFlow := constructorInitializationFlow{continuing: cloneFieldInitialization(initial)}
+			if statement.Else != nil {
+				elseFlow = constructorInitializationStatementWithRangeProof(statement.Else, initial, required, unionConstructorRangeProofs(nonEmpty, elseAdditional))
+			}
+			return constructorInitializationFlow{
+				continuing:   intersectCompletingFieldInitialization(thenFlow.continuing, elseFlow.continuing),
+				breaks:       append(thenFlow.breaks, elseFlow.breaks...),
+				continues:    append(thenFlow.continues, elseFlow.continues...),
+				fallthroughs: append(thenFlow.fallthroughs, elseFlow.fallthroughs...),
+			}
+		}
 	case *ast.ForRangeStmt:
 		if statement.Kind == ast.CollectionRange && nonEmpty.contains(constructorRangeSourceDeclaration(statement.Source)) {
 			return constructorInitializationLoop(statement.Body, initial, required, true, true)

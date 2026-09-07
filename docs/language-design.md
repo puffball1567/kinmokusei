@@ -1116,7 +1116,10 @@ the immediately following matching range nonempty. Side-effect-free `&&` and
 `||` conditions combine true- and false-branch facts: conjunction requires both
 operands on its true path, disjunction requires both operands on its false path,
 and facts shared by every alternative path are retained. This can prove more
-than one collection nonempty. A mismatched source, effectful compound guard,
+than one collection nonempty. The proof also reaches both sides of an
+immediately nested condition when evaluating that condition cannot mutate the
+collection; length facts established by the nested condition are combined with
+the outer facts. A mismatched source, effectful compound or nested guard,
 nonterminal guard, intervening statement, or channel range is deliberately not
 accepted as a proof. A `switch (len(collection))` supplies the same first-range
 proof to a case only when every listed constant is positive. If an explicit
