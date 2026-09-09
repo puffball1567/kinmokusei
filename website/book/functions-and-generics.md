@@ -121,6 +121,10 @@ pair<int>(1, "one");
 
 Every uninferred parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
 
+A value-returning body must end in a terminating statement, as required by Go.
+Remove unreachable statements after a final return. A switch or select that
+can exit through `break` does not by itself prove that a value is returned.
+
 ## Constraints
 
 ```ts
@@ -130,7 +134,22 @@ function choose<T extends comparable>(value: T, fallback: T): T {
 }
 ```
 
-`comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. Broader user-written constraint type sets are not implemented.
+`comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. A source declaration such as `constraint Numeric = ~int | ~float64` names a union of permitted types. Constraint references can be reused in other unions; overlapping terms and cycles are rejected.
+
+Generic constraints can describe collection element relationships:
+
+```ts
+constraint Slice<E> = ~E[];
+function size<S extends Slice<E>, E>(values: S): int {
+  let count = 0;
+  for (const _ of values) { count++; }
+  return count;
+}
+```
+
+Bounds may refer to later parameters. Calls infer dependent parameters from typed arguments and constraints before defaulting untyped numeric constants. Mixed untyped numeric arguments select a common numeric kind, while every actual constant must remain representable in the inferred type. `T(value)` explicitly converts to an in-scope type parameter when its bound permits the conversion.
+
+Constraints cannot be stored as runtime values. Source-written intersections and ordinary runtime-interface terms in source constraint unions remain unsupported.
 
 ## Generic named types
 
@@ -143,9 +162,9 @@ struct Page<T> {
 const page: Page<string> = Page<string> { items: ["one", "two"] };
 ```
 
-Classes, structs, interfaces, and defined types may have type parameters. Named type positions require full explicit instantiation. Methods use the enclosing parameters; method-local type parameters are not supported.
+Classes, structs, interfaces, and defined types may have type parameters. Named type positions require full explicit instantiation. Methods may use the enclosing parameters and introduce separate method-local parameters. Those methods lower to standalone Go helpers; they are excluded from virtual dispatch and Go interface method sets.
 
-Generic class inheritance and virtual/static generic class members remain unsupported in v0.2.
+Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Abstract declarations, property accessors, and static fields are not implemented.
 
 ## Multiple Go results
 

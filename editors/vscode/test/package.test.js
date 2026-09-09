@@ -22,7 +22,7 @@ const validEntries = [
 ];
 
 test('package contract has a stable artifact name and production contents', () => {
-  assert.equal(artifactName, 'kinmokusei-0.2.0.vsix');
+  assert.equal(artifactName, `kinmokusei-${manifest.version}.vsix`);
   assert.doesNotThrow(() => verifyEntries(validEntries));
 });
 

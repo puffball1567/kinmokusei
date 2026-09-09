@@ -25,7 +25,7 @@ class User {
 }
 ```
 
-Classes support public, protected, and private members; static members; interfaces; single `extends`; `virtual`; explicit `override`; `final`; and `super`.
+Classes support public, protected, and private members; static methods; interfaces; single `extends`; `virtual`; explicit `override`; `final`; and `super`. Typed instance fields may have initializers evaluated separately for each construction. Static fields, abstract declarations, and property accessors remain unimplemented.
 
 ## JSON
 

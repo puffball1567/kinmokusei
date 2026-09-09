@@ -67,6 +67,14 @@ class User {
 
 Construct with `new User(...)`. Constructor parameters may declare fields directly using visibility. Every non-null class field must be initialized on every completing path.
 
+Typed instance fields can declare defaults, such as `private items: int[] = []`.
+Each construction evaluates its own initializers, after base construction and
+before constructor-field parameter assignments and the constructor body.
+Initializers use module scope and class type parameters, but cannot use `this`,
+`super`, or constructor-local parameters. An explicit constructor is optional
+when the base does not require arguments. Struct defaults and static fields
+are not supported.
+
 Class assignment preserves identity:
 
 ```ts
@@ -115,6 +123,14 @@ class Welcome implements Greeter {
 Implementation is explicit. The compiler checks the public instance method set, including parameter/result types and variadic status. Static/private methods do not satisfy interface methods.
 
 Imported Go interfaces can also appear after `implements` when the generated method set connects exactly.
+
+An interface can inherit multiple source interfaces with
+`interface Store<T> extends Reader<T>, Writer<T> {}`. Diamond inheritance
+preserves compatible shared contracts; cycles and conflicting signatures are
+diagnostics. Exported Go runtime interfaces can also be bases. Inherited Go
+methods retain their exported Go names and signature requirements, including
+variadic and Result-shaped methods. Anonymous runtime interfaces imported from
+Go retain their method sets; source anonymous interface literals are not added.
 
 ## Single inheritance
 

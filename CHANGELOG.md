@@ -6,6 +6,8 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-09
+
 - Prevent invalid interface members from stalling parser recovery. Require a
   terminating final statement for value-returning functions, matching Go;
   switch/select breaks no longer count as guaranteed returns. Trailing
@@ -156,6 +158,7 @@ generated APIs between minor versions.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/puffball1567/kinmokusei/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/puffball1567/kinmokusei/releases/tag/v0.1.0
