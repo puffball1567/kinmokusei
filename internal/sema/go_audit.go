@@ -111,7 +111,21 @@ func unsupportedGoInteropTypeReason(goType gotypes.Type, path string, seen map[g
 		}
 		return ""
 	case *gotypes.Interface:
-		return path + " uses an anonymous Go interface type"
+		typed.Complete()
+		if !typed.IsMethodSet() {
+			return path + " uses a Go constraint interface outside a type parameter"
+		}
+		for i := 0; i < typed.NumMethods(); i++ {
+			method := typed.Method(i)
+			// Re-emitting a private method in another package changes its identity.
+			if !method.Exported() {
+				return path + " uses an anonymous Go interface with unexported method " + method.Name()
+			}
+			if reason := unsupportedGoInteropTypeReason(method.Type(), path+" method "+method.Name(), seen); reason != "" {
+				return reason
+			}
+		}
+		return ""
 	case *gotypes.Tuple:
 		return path + " uses a Go tuple outside a function result"
 	case *gotypes.Union:

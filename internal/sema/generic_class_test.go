@@ -108,7 +108,7 @@ func TestGenericClassSemanticFailureMatrix(t *testing.T) {
 		{"generic super mismatch", `class Base<T> { constructor(value: T) {} } class Child<U> extends Base<U> { constructor(value: U) { super(1); } }`, "cannot use integer literal as U"},
 		{"uninferred static argument", `class Box<T> { public static function empty(): Box<T> { return new Box<T>(); } } function use(): void { Box.empty(); }`, "cannot infer type argument T"},
 		{"static constraint mismatch", `class Key<T extends comparable> { public static function make(value: T): void {} } function use(values: int[]): void { Key.make(values); }`, "does not satisfy T type parameter constraint"},
-		{"inconsistent static inference", `class Pair<T> { public static function make(left: T, right: T): void {} } function use(): void { Pair.make(1, "two"); }`, "T was already inferred as int, not string"},
+		{"inconsistent static inference", `class Pair<T> { public static function make(left: T, right: T): void {} } function use(): void { Pair.make(1, "two"); }`, "cannot use integer literal as string"},
 		{"generic override mismatch after substitution", `class Base<T> { public virtual function read(value: T): T { return value; } } class Child<U> extends Base<U> { public override function read(value: int): U { return value; } }`, "incompatible signature"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

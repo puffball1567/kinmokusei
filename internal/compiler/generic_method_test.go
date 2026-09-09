@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericMethodsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	source := filepath.Join(root, "generic_method.km")
 	kinmokuseiSource := `
@@ -159,6 +160,7 @@ func TestBehavior(t *testing.T) {
 }
 
 func TestImportedGenericMethodsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	dependency := filepath.Join(root, "box.km")
 	entry := filepath.Join(root, "entry.km")

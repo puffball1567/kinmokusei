@@ -53,7 +53,7 @@ func TestGenericMethodSemanticFailureMatrix(t *testing.T) {
 		{"class parameter collision", `class Box<T> { public function echo<T>(value: T): T { return value; } }`, `conflicts with a class type parameter`},
 		{"struct parameter collision", `struct Box<T> { public function echo<T>(value: T): T { return value; } }`, `conflicts with a struct type parameter`},
 		{"constraint mismatch", `constraint Integer = ~int; class Math { public function echo<T extends Integer>(value: T): T { return value; } } function use(math: Math): string { return math.echo("bad"); }`, `does not satisfy T type parameter constraint`},
-		{"inconsistent inference", `class Pair { public function choose<T>(left: T, right: T): T { return left; } } function use(pair: Pair): int { return pair.choose(1, "bad"); }`, `T was already inferred as int, not string`},
+		{"inconsistent inference", `class Pair { public function choose<T>(left: T, right: T): T { return left; } } function use(pair: Pair): int { return pair.choose(1, "bad"); }`, `cannot use integer literal as string`},
 		{"too many arguments", `class Box { public function echo<T>(value: T): T { return value; } } function use(box: Box): int { return box.echo<int, string>(1); }`, `has 1 type parameters, got 2 explicit type arguments`},
 		{"virtual", `class Box { public virtual function echo<T>(value: T): T { return value; } }`, `generic methods cannot be virtual`},
 		{"instance method value", `class Box { public function echo<T>(value: T): T { return value; } } function use(box: Box): void { const callback = box.echo; }`, `generic methods must be called directly`},

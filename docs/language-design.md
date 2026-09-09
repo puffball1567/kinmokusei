@@ -76,6 +76,28 @@ The core `Result`, postfix `?`, and nil-backed nullable constructs in this examp
 
 Numeric types never implicitly widen or cross signedness. Use an explicit conversion. `uint8` is identical to `byte`, matching Go's alias. Integer literals are untyped in context and default to `int` when inferred without another expected type.
 
+Numeric literals follow [Go's literal syntax](https://go.dev/ref/spec#Integer_literals):
+binary `0b101`, octal `0o17` (also legacy `017`), hexadecimal `0xFF`, digit
+separators `1_000`, decimal floats `.5` / `1e-3`, hexadecimal floats `0x1.fp2`,
+and imaginary literals `2i` / `1e-3i`. A leading-zero imaginary literal such as
+`0123i` means decimal `123i`, while integer `0123` is octal. Fixed array lengths
+and integer constant checks use the same base rules as emitted Go.
+Floating-point and imaginary literals are untyped constants; inferred storage
+defaults to `float64` and `complex128`. Constant expressions retain precision
+until converted or assigned to a concrete type, where representability is
+checked. Typed numeric variables still require explicit conversions.
+
+Indices, slice bounds, and collection/channel sizes accept untyped constants
+with an integer value, including `2.0` and `2+0i`. Explicitly typed floating or
+complex constants and variables are not integer indices. Constant negative,
+oversized, or out-of-bounds indices and invalid size/bound ordering are rejected.
+Target-dependent `int` width remains subject to generated Go validation.
+Direct references to floating/complex Go-emittable constants retain their
+constant precision and representability checks. Source `const` means an
+immutable binding, not necessarily a Go compile-time constant: an alias such as
+`const copy = original` currently lowers to a variable and cannot supply an
+untyped floating constant to an integer-only context.
+
 Explicit conversions use Go convertibility rules for representable source and
 target types. In particular, `string(bytes)`, `string(runes)`, and conversions
 from named Go slices whose underlying type is `[]byte` or `[]rune` preserve Go
@@ -84,6 +106,17 @@ does; it is not decimal formatting. Fixed arrays do not convert directly to
 strings.
 
 ### Go interop types
+
+Complex numbers use `complex64` (two float32 components) or `complex128` (two
+float64 components). Construct them with `complex(realPart, imaginaryPart)` and
+read components with `real(value)` / `imag(value)`. Typed construction arguments
+must have the same floating-point type; untyped numeric constants follow Go's
+constant rules. Complex arithmetic, equality, width conversions, and map keys
+are supported, while ordering, remainder, and bitwise operations are rejected.
+Real-valued variables are not implicitly convertible to complex numbers: use
+`complex(value, 0)`. Constant precision and rounding follow Go. Go's restrictions
+on the complex built-ins with type-parameter arguments also apply.
+Imaginary literals can be combined directly, for example `1.5 + 2i`.
 
 An imported Go named type remains qualified and preserves its Go identity:
 
@@ -97,6 +130,18 @@ let pointer: *http.Client = &client;
 ```
 
 Pointers, interfaces, multiple results, variadics, generics, channels, aliases, anonymous structs, and all Go basic types remain Go types at the direct interop boundary. They do not silently become future Kinmokusei null/result/task wrappers.
+
+Imported anonymous runtime interfaces such as Go `interface { Read() int }`
+retain their complete exported method sets. Inferred locals can call or bind
+their methods, pass them to compatible Go APIs, and consume multiple results.
+They may also occur inside collection and callback types. For an explicitly
+typed source callback, an imported Go alias to the same anonymous interface can
+provide the annotation; source anonymous-interface literal syntax is not added.
+Source classes still use explicit interface implementation contracts.
+Anonymous interfaces with private methods are rejected because re-emitting those
+methods in another Go package would change their identity. Type-set constraints
+are not runtime interface values, and methods containing `unsafe.Pointer` remain
+subject to the Go interop unsafe policy.
 
 ### Native defined types and aliases
 
@@ -210,6 +255,35 @@ rejected as a constraint. Generic aliases retain their source constraint for
 checking while erasing the declaration and any constraint-only import from Go
 1.23 output.
 
+Bounds can reference other parameters in the same declaration, including
+parameters written later. For an imported `constraints.Slice<E>` whose Go
+definition is `type Slice[E any] interface { ~[]E }`:
+
+```ts
+function elements<S extends constraints.Slice<E>, E>(values: S): E[] {
+  let result: E[] = [];
+  for (const value of values) { result = append(result, value); }
+  return result;
+}
+```
+
+Calling `elements` with an `int[]` or a defined slice with underlying `[]int`
+infers both `S` and `E`. Constraint inference can also propagate through several
+parameters, such as `SS` constrained to slices of `S` and `S` constrained to
+slices of `E`. Explicit and partial type arguments are supported; all supplied
+and inferred arguments are substituted into the bounds together before
+satisfaction is checked. Dependencies that require `comparable` are checked
+after their bounds have been installed, including recursive applications such
+as `T extends constraints.Equal<T>` when the imported constraint permits them.
+A bare bound `T extends U` is not an interface constraint and is rejected.
+
+The same bound scope applies to classes, structs, interfaces, defined types,
+and aliases. Generic methods may reference their owner's parameters; each
+concrete owner gets separately substituted method bounds. This is compile-time
+checking and inference, not runtime type inspection or an allocation scheme.
+Parameterized type-set constraints can be declared in source as well as
+imported from Go, using the declaration syntax below.
+
 Kinmokusei source can declare a compile-time-only type set directly:
 
 ```ts
@@ -229,10 +303,56 @@ as `~int` also accepts nominal Kinmokusei or Go types whose underlying type is
 `int`, so `Score` satisfies `Integer`. Terms lower to the corresponding Go
 constraint interface and may be used by generic functions, classes, structs,
 interfaces, and defined types, including across relative imports. Overlapping
-terms, `~` applied to a named type, and interface terms are rejected before Go
+terms, `~` applied to a named type, and ordinary interface terms are rejected before Go
 generation; a single declaration follows the Go toolchain limit of at most 100
 union terms. A declared constraint is not a runtime value type and cannot be
 used for fields, parameters, variables, or `implements`.
+
+Constraint declarations can have checked type parameters of their own:
+
+Whitespace is optional between a closing generic `>` and assignment `=`:
+`constraint Slice<E>=~E[]` and `let value: Box<Box<int>>=...` are valid.
+The parser splits `>=` and `>>=` only when consuming type closers; comparison
+and shift operators retain their usual meaning in expressions.
+
+```ts
+constraint Slice<E> = ~E[];
+constraint Lookup<K extends comparable, V> = ~Map<K, V>;
+constraint Rows<S extends Slice<E>, E> = ~S[];
+
+function elements<S extends Slice<E>, E>(values: S): E[] {
+  let result: E[] = [];
+  for (const value of values) { result = append(result, value); }
+  return result;
+}
+```
+
+`Slice<E>` emits a Go `interface { ~[]E }` with the corresponding type
+parameters. The declaration remains compile-time-only: it does not introduce
+a runtime wrapper, boxing, or ownership policy. Its source type-set terms and
+parameter identities are the semantic contract for future KIR lowering; a Go
+module is not needed merely to define the constraint.
+
+Type arguments to a constraint are explicit and must satisfy its own bounds.
+As with generic functions, all names in its parameter list are in scope in
+the bounds, including forward references. Source constraints may be declared
+after their users and imported through relative modules. Nested bounds are
+completed in the referenced declaration's own scope; declaration cycles are
+rejected before emission. Class, struct, and interface types can occur inside
+collection terms. A bare parameter term (`E` or `~E`) is not allowed, and a map
+key parameter must have a suitable explicit bound such as `comparable`.
+Source type-set constraints can reference other source constraints, including
+generic instances: `constraint Values<E> = Slice<E>` and
+`constraint Number = Signed | Unsigned`. References may be forward-declared or
+imported. Validation expands these references, checks disjoint concrete terms,
+and applies the 100-term limit to the expanded union as well. Go output retains
+the named references. Applying `~` to a constraint is invalid. Ordinary source
+or imported interface terms and explicit intersections remain unsupported.
+Nullable qualifiers in collection elements are retained through constraint
+inference, range bindings, and concrete generic method owners. Matching Go
+storage types alone is insufficient: `Leaf[]` and a slice of `Leaf | null`
+cannot be substituted for each other through a generic bound. A nullable
+element must still be narrowed before accessing its members.
 
 A direct parameter underlying type such as `type Identity<T> = distinct T` is
 rejected because Go cannot declare that distinct type. The transparent form
@@ -498,6 +618,10 @@ top-level helper whose first argument is the receiver. Public methods produce
 public helpers such as `BoxChoose[U, T](*Box[T], U) U`; ordinary Kinmokusei calls retain
 `box.choose(value)`. This lowering preserves value versus pointer receiver
 behavior, single receiver evaluation, constraints, inheritance, and `super`.
+Method type parameters retain their declaration identity when an inherited
+method and a child class reuse the same name. Instantiating a receiver does not
+instantiate the method's independent parameters. Likewise, method inference
+cannot bind a type parameter belonging to the enclosing caller or receiver.
 Generic methods cannot be `virtual`, `override`, or `final`, and an
 uninstantiated generic method cannot be captured as a method value because Go
 has no corresponding value. Interface methods likewise remain non-generic.
@@ -625,9 +749,94 @@ Visible user declarations may shadow compiler built-ins. Generated names remain 
 for (const value of values) { consume(value); }
 for (const [index, value] of values) { consumeAt(index, value); }
 for (const [key, value] of lookup) { consumeEntry(key, value); }
+for (const index of 5) { consume(index); } // 0 through 4
 ```
 
 The single-binding form always binds the value, deliberately differing from the first Go range variable. Slice/array indexes are `int`; map keys keep their type; string indexes are UTF-8 byte offsets and values are `int32` code points. Invalid UTF-8 follows Go `RuneError` behavior. Map order is unspecified. Sources execute once, and range values are copies.
+
+Integer ranges require one binding (or `_`) and lower to Go integer range.
+They yield zero through the bound minus one; zero and negative bounds do not
+execute the body. The binding keeps the bound's integer type, including named
+types; an untyped integer bound defaults to `int`. An annotation must match
+that inferred type rather than converting the bound. Type parameters are
+supported when their constraint has one underlying integer type, such as
+`~int`. Bounds execute once even if the binding is unused; each iteration has
+a fresh binding, including when captured by a closure. Positive constant bounds
+can prove definite constructor field initialization.
+
+Collection-shaped type parameters can also be ranged over:
+
+```ts
+constraint IntValues = ~int[];
+function sum<S extends IntValues>(values: S): int {
+  let total = 0;
+  for (const value of values) { total += value; }
+  return total;
+}
+```
+
+Source constraints and imported Go constraints support a common underlying
+slice, fixed array, pointer-to-array, map, string, or iterator-function type.
+Channel constraints may combine bidirectional and receive-only channels with
+the same element type. Incompatible element types, array lengths, collection
+shapes, unrestricted type sets, and send-only channels are rejected. Embedded
+Go constraints are intersected, not treated as a union of all their terms.
+These checks retain the Go 1.23 range boundary on newer host toolchains.
+
+Iteration retains the original source expression and Go evaluation semantics;
+it does not copy a collection into an intermediate slice. Native class and
+struct element identities, class virtual dispatch, fresh bindings, and inferred
+editor types are preserved. A positive fixed-array constraint can prove definite
+constructor initialization; slice, map, channel, and iterator constraints cannot
+establish that guarantee from their type alone. Collection binding annotations
+must match the iterated type; an annotation cannot silently perform a class
+upcast that has no generated conversion.
+
+Function iterators also lower directly to Go range. An iterator takes a single
+`yield` callback and returns `void`; `yield` takes zero, one, or two parameters
+and returns `boolean`. Neither function may be variadic or uninstantiated
+generic. Imported `iter.Seq` / `iter.Seq2` values and bound class methods are
+supported.
+
+```ts
+for (const value of sequence.iterate) { consume(value); }
+for (const [index, value] of slices.All(items)) { consumeAt(index, value); }
+for (const _ of ticks) { tick(); } // yield() => boolean, no yielded values
+```
+
+A one-value iterator requires one binding. A two-value iterator accepts a pair,
+or one binding for the second yielded value, matching collection range. A
+zero-value iterator requires an unannotated `_`. An annotation must match the
+yielded type. Iterator expressions execute once, bindings are fresh on each
+iteration, and `break`, `continue`, labels, `return`, and `defer` retain Go
+range-function semantics. Yielding after `yield` returned false retains Go's
+runtime panic. Iterators do not establish a nonempty-constructor proof.
+Nullable iterators must be narrowed before use; member-nullability facts are
+invalidated when an iterator starts, advances, and finishes.
+
+### Type-parameter conversions
+
+Inside a generic function, class, or method, `T(value)` converts to an in-scope
+type parameter. The conversion must be valid for its entire constraint type
+set, not just one possible instantiation. Calls use one argument, no spread,
+and no extra type arguments. A closer value binding still shadows the type
+parameter as a callable.
+
+```ts
+constraint Number = ~int8 | ~int64;
+class Counter<T extends Number> {
+  private value: T;
+  constructor() { this.value = T(0); }
+  public function add(value: int): T { this.value += T(value); return this.value; }
+}
+```
+
+Constants must fit every possible target type. Integer constant bounds are
+checked at source level; generated Go validation also enforces floating-point
+and target-dependent constant rules. Conversion to a type parameter produces
+a nonconstant value, preserving instantiated floating-point rounding. Numeric,
+string/slice, slice/array, and identity conversions follow Go convertibility;
+nullable values cannot bypass narrowing with a conversion.
 
 ## Variables and inference
 
@@ -693,6 +902,25 @@ channels, and result signatures. Generic receiver parameters on external
 methods are receiver binders rather than independently callable method type
 parameters. Native generic classes, structs, interfaces, and defined types are
 implemented; generic defined map keys infer `comparable` where required.
+Inference also descends through instantiated native classes, structs, and
+interfaces, including when nested in collections or pointers. For a derived
+class argument, it uses the declared ancestor's type arguments; reordered or
+fixed base arguments need not match the child's parameter list. Calls insert
+the same nil- and identity-preserving class upcast used by ordinary typed
+arguments, without evaluating the argument again. Unrelated nominal types do
+not become compatible through inference.
+
+Numeric constant arguments retain their actual value during generic inference
+and are checked for representability in the inferred or explicit parameter
+type. For a direct parameter `T`, typed arguments (and their constraints) are
+processed before untyped numeric constants, independent of argument order:
+`pick(1.25, valueFloat32)` can infer `T = float32`. If only untyped numeric
+constants determine `T`, their combined kind supplies the default type;
+`pick(1, 2.5)` infers `float64`, and `pick(1.5, 2i)` infers `complex128`.
+Explicit `keep<byte>(255)` is valid, while `keep<byte>(256)` and
+`keep<int>(1.5)` are rejected. This also applies to generic methods, variadics,
+and imported Go generic calls. Typed numeric arguments still cannot silently
+change width, and immutable bindings lowered as Go variables remain typed.
 
 Multiple Go results are locally destructured:
 
@@ -875,6 +1103,13 @@ value when their element type is comparable.
 ## Classes and interfaces
 
 Classes are reference types. Visibility, constructor fields, instance/static methods, and explicit interface implementation lower to Go structs, constructors, methods, functions, and conformance checks.
+
+Instance fields also accept `field: Type = expression;`. Expressions run once
+per construction in field declaration order, after the base constructor and
+before constructor-field parameter assignments and the current constructor body.
+They resolve in module/class-type-parameter scope, without `this`, `super`, or
+constructor parameters. See [field initialization rules](oop-design.md#instance-field-initializers)
+for ordering, isolation, and definite initialization requirements.
 
 Static methods lower to package functions because Go has no type-level methods.
 A public static method such as `Meter.create` is exposed to Go consumers as the
@@ -1119,15 +1354,23 @@ and facts shared by every alternative path are retained. This can prove more
 than one collection nonempty. The proof also reaches both sides of an
 immediately nested condition when evaluating that condition cannot mutate the
 collection; length facts established by the nested condition are combined with
-the outer facts. A mismatched source, effectful compound or nested guard,
-nonterminal guard, intervening statement, or channel range is deliberately not
+the outer facts. Local `const` and `let` declarations with side-effect-free
+initializers may intervene before the range or nested condition. Literals,
+identifier reads, unary/binary expressions over those values, and built-in
+`len` of a tracked identifier preserve existing facts; a shadowing declaration
+does not acquire the outer declaration's proof. Calls to user functions,
+assignments, and other intervening statements discard the facts.
+A mismatched source, effectful compound or nested guard,
+nonterminal guard, or channel range is deliberately not
 accepted as a proof. A `switch (len(collection))` supplies the same first-range
 proof to a case only when every listed constant is positive. If an explicit
 case covers zero, its default branch is also known to be positive because
 lengths cannot be negative. Fallthrough into either branch discards the proof,
 since it bypasses that branch's case condition. An effectful case expression
 also discards every switch proof because it could mutate the collection after
-the switch subject was evaluated. Broader relational cardinality flow remains
+the switch subject was evaluated. The same side-effect-free declaration rule
+applies inside switch cases and after terminating empty guards.
+Broader relational cardinality flow remains
 future work.
 
 ## Nullable references
@@ -1296,7 +1539,10 @@ initializer. Resolution uses declaration identity, so shadowing is respected;
 `let`, parameters, and `const` snapshots of dynamic values do not become proofs.
 The proof changes acceptance only; generated Go retains the original condition,
 evaluation order, bindings, and range source.
-Constructors cannot return early, and an intentionally absent field must be
+Constructors cannot return early. An arrow declared inside a constructor is a
+separate callable: its `return` exits the arrow, and it cannot call `super()`
+to initialize the enclosing instance. Assignments inside that arrow do not
+prove constructor field initialization. An intentionally absent field must be
 declared as `T | null`.
 
 Operations whose nil behavior is explicitly safe in Go remain null-tolerant for

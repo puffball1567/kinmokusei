@@ -8,6 +8,7 @@ import (
 )
 
 func TestClassHierarchyPublicGoAPIMatchesIndependentPackage(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "hierarchy.km")
 	input := `

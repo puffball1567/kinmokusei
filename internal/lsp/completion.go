@@ -176,10 +176,10 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
-	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
+	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
-	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
+	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
 		add(completionItem{Label: name, Kind: 3, Detail: "compiler built-in", SortText: "2_" + name})
 	}
 	for _, imported := range program.Imports {
@@ -233,7 +233,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			}
 			add(completionItem{Label: declaration.Name, Kind: kind, Detail: detail, SortText: "1_" + declaration.Name})
 		case *ast.VariableDecl:
-			add(variableCompletion(declaration.Name, declaration.Type, declaration.Constant))
+			add(variableDeclarationCompletion(declaration))
 		}
 	}
 	addLocalCompletions(program, path, offset, add)
@@ -426,7 +426,7 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 	case *ast.LabeledStmt:
 		addStatementBindings(statement.Statement, add)
 	case *ast.VariableDecl:
-		add(variableCompletion(statement.Name, statement.Type, statement.Constant))
+		add(variableDeclarationCompletion(statement))
 	case *ast.MultiVariableDecl:
 		for _, binding := range statement.Bindings {
 			if binding.Name != "_" {
@@ -434,6 +434,14 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 			}
 		}
 	}
+}
+
+func variableDeclarationCompletion(declaration *ast.VariableDecl) completionItem {
+	ref := declaration.Type
+	if !ref.IsSpecified() && declaration.ResolvedType.Name != "<invalid>" {
+		ref = declaration.ResolvedType
+	}
+	return variableCompletion(declaration.Name, ref, declaration.Constant)
 }
 
 func variableCompletion(name string, ref ast.TypeRef, constant bool) completionItem {

@@ -420,6 +420,8 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 				}
 				if binding.Type.IsSpecified() {
 					detail += ": " + formatTypeRef(binding.Type)
+				} else if binding.ResolvedType.IsSpecified() {
+					detail += ": " + formatTypeRef(binding.ResolvedType)
 				}
 				*result = append(*result, declarationInfo{Name: binding.Name, Detail: detail, Kind: 13, Span: statement.Span, Selection: binding.NameSpan})
 			}
@@ -526,6 +528,13 @@ func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
 		if len(declaration.TypeParameters) != 0 {
 			detail += formatTypeParameters(declaration.TypeParameters)
 		}
+		if len(declaration.Bases) != 0 {
+			bases := make([]string, len(declaration.Bases))
+			for index, base := range declaration.Bases {
+				bases[index] = formatTypeRef(base)
+			}
+			detail += " extends " + strings.Join(bases, ", ")
+		}
 		return detail
 	}
 	terms := make([]string, len(declaration.Terms))
@@ -536,10 +545,28 @@ func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
 		}
 		terms[index] = prefix + formatTypeRef(term.Type)
 	}
-	return "constraint " + declaration.Name + " = " + strings.Join(terms, " | ")
+	name := declaration.Name
+	if len(declaration.TypeParameters) != 0 {
+		name += formatTypeParameters(declaration.TypeParameters)
+	}
+	return "constraint " + name + " = " + strings.Join(terms, " | ")
 }
 
 func formatTypeRef(ref ast.TypeRef) string {
+	if ref.GoInterface {
+		methods := make([]string, len(ref.ObjectFields))
+		for i, method := range ref.ObjectFields {
+			methods[i] = method.Name + ": " + formatTypeRef(method.Type)
+		}
+		return "interface { " + strings.Join(methods, "; ") + " }"
+	}
+	if len(ref.GoResults) != 0 {
+		results := make([]string, len(ref.GoResults))
+		for i, result := range ref.GoResults {
+			results[i] = formatTypeRef(result)
+		}
+		return "(" + strings.Join(results, ", ") + ")"
+	}
 	if ref.Nullable {
 		ref.Nullable = false
 		return formatTypeRef(ref) + " | null"

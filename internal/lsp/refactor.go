@@ -205,8 +205,48 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 		}
 	}
 	changed := true
+	connect := func(family []source.Span) {
+		for _, member := range family {
+			if result.contains(member) {
+				for _, related := range family {
+					key := spanKey(related)
+					if !result[key] {
+						result[key] = true
+						changed = true
+					}
+				}
+				return
+			}
+		}
+	}
+	interfaceMethods := func(root *ast.InterfaceDecl) []ast.InterfaceMethod {
+		var methods []ast.InterfaceMethod
+		seen := map[*ast.InterfaceDecl]bool{}
+		var visit func(*ast.InterfaceDecl)
+		visit = func(contract *ast.InterfaceDecl) {
+			if contract == nil || seen[contract] {
+				return
+			}
+			seen[contract] = true
+			methods = append(methods, contract.Methods...)
+			for _, base := range contract.Bases {
+				visit(interfaces[spanKey(base.ResolvedDeclaration)])
+			}
+		}
+		visit(root)
+		return methods
+	}
 	for changed {
 		changed = false
+		for _, contract := range interfaces {
+			families := map[string][]source.Span{}
+			for _, method := range interfaceMethods(contract) {
+				families[method.Name] = append(families[method.Name], method.NameSpan)
+			}
+			for _, family := range families {
+				connect(family)
+			}
+		}
 		for _, declaration := range program.Declarations {
 			class, ok := declaration.(*ast.ClassDecl)
 			if !ok {
@@ -232,29 +272,13 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 					if contract == nil {
 						continue
 					}
-					for index := range contract.Methods {
-						if contract.Methods[index].Name == method.Name {
-							family = append(family, contract.Methods[index].NameSpan)
+					for _, required := range interfaceMethods(contract) {
+						if required.Name == method.Name {
+							family = append(family, required.NameSpan)
 						}
 					}
 				}
-				connected := false
-				for _, member := range family {
-					if result.contains(member) {
-						connected = true
-						break
-					}
-				}
-				if !connected {
-					continue
-				}
-				for _, member := range family {
-					key := spanKey(member)
-					if !result[key] {
-						result[key] = true
-						changed = true
-					}
-				}
+				connect(family)
 			}
 		}
 	}
@@ -615,6 +639,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 				field := &declaration.Fields[index]
 				declare(field.NameSpan)
 				walkType(&field.Type)
+				walkExpression(field.Initializer)
 			}
 			if declaration.Constructor != nil {
 				for index, parameter := range declaration.Constructor.Parameters {
@@ -681,6 +706,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 				declare(parameter.NameSpan)
 			}
 			walkTypeParameters(declaration.TypeParameters)
+			for index := range declaration.Bases {
+				walkType(&declaration.Bases[index])
+			}
 			for index := range declaration.Terms {
 				walkType(&declaration.Terms[index].Type)
 			}

@@ -48,18 +48,52 @@ in the specified order before invoking it. This remains independent because it
 is authored from the language rule and never copied from or linked to generated
 output.
 
+## Bounded test parallelism
+
+Independent compiler differential fixtures opt into `t.Parallel()` at the start
+of the top-level test, before compilation or temporary-file creation. Each owns
+its files through `t.TempDir()` and creates its own compiler/type-checker state.
+Tests that change process-wide environment variables with `t.Setenv()` remain
+sequential; do not mark them or their parents parallel. Keep other shared-state
+fixtures sequential until their isolation has been checked.
+
+The compiler test binary caps its default parallel-test count at four (or the
+Go test default when lower). An explicit `-parallel` flag takes precedence.
+Nested differential `go test` commands default to `-p=2`, independently limiting
+package builds inside each fixture; a fixture's explicit `-p` flag is preserved.
+These limits are per compiler test binary, not a machine-wide process budget.
+Other package test binaries can still run concurrently under `go test -p`.
+Differential subprocesses inherit `GOCACHE`, falling back to Go's normal shared
+build cache when it is unset, rather than creating a cold cache per fixture.
+Generated sources and reference modules remain in each test's private directory.
+
+Use uncached runs when comparing scheduling choices:
+
+```sh
+go test ./internal/compiler -count=1 -parallel=1
+go test ./internal/compiler -count=1 -parallel=4
+KINMOKUSEI_DIFFERENTIAL_RACE=1 go test -race ./internal/compiler -count=1 -shuffle=on
+```
+
+The race environment variable enables the detector in generated/reference
+subprocesses as well as the outer compiler test binary's `-race` flag. Choose
+parallelism based on measured CPU and memory use; nested toolchain processes
+mean that a larger count is not necessarily faster.
+
 ## Go-equivalent contract coverage
 
 The compiler maintains an explicit registry of every implemented, accepted
 runtime contract that has a direct Go equivalent. Coverage is complete only
 when each registered contract is connected to an isolated handwritten-Go
-differential scenario. The current registry covers 84 of 84 contract groups
+differential scenario. The current registry covers 98 of 98 contract groups
 (100%), including core language behavior, collections, nullability, results,
 control flow, concurrency, standard/external Go interop, locked targets, CGO,
 unsafe operations, string conversion, native generic functions, classes, structs, and interfaces,
 native defined types and aliases including distinct native-struct definitions, source-declared and standard/external Go type-set
 constraints, stable generic struct/class JSON, native integer enums, the HTTP/JSON
-dogfood application, and the bounded fetch adapter.
+dogfood application, the bounded fetch adapter, integer and iterator ranges,
+type-parameter conversions, and generic interface inheritance. This measures the implemented surface, not all Go or
+OOP features; see [the remaining language work](language-remaining-work.md).
 
 An automated gate discovers every differential scenario in the compiler tests,
 requires it to be classified in the registry, rejects a registered scenario
@@ -270,9 +304,13 @@ terminating empty guard clauses carry that proof to the immediately following
 range. Side-effect-free boolean combinations preserve only facts valid on every
 path, including simultaneous facts for multiple collections. An immediately
 nested side-effect-free condition carries outer facts into both branches and
-combines them with its own length facts. Empty paths, ambiguous alternatives,
+combines them with its own length facts. Side-effect-free local `const` and
+`let` initializers preserve these facts before ranges and nested guards,
+including in length switches and after terminating empty guards. Declaration
+identity prevents shadowed variables from inheriting the proof. Empty paths, ambiguous alternatives,
 effectful compound or nested guards, different collections, nonterminal guards,
-intervening statements, and channel ranges remain conservative. Length switches
+intervening assignments or effectful initializers, other intervening statements,
+and channel ranges remain conservative. Length switches
 prove grouped positive cases and the default
 after an explicit zero case; mixed zero/positive cases and fallthrough bypasses
 remain conservative. Effectful case expressions invalidate all cardinality

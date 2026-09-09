@@ -280,9 +280,18 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 				methods = append(methods, &goast.Field{Type: union})
 			}
 			typeSpec := &goast.TypeSpec{Name: goast.NewIdent(decl.Name), Type: &goast.InterfaceType{Methods: &goast.FieldList{List: methods}}}
+			if len(decl.TypeParameters) != 0 {
+				typeSpec.TypeParams = &goast.FieldList{}
+				for _, parameter := range decl.TypeParameters {
+					typeSpec.TypeParams.List = append(typeSpec.TypeParams.List, goTypeParameterField(parameter, false))
+				}
+			}
 			return []goast.Decl{&goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{typeSpec}}}, nil
 		}
 		methods := make([]*goast.Field, 0, len(decl.Methods))
+		for _, base := range decl.Bases {
+			methods = append(methods, &goast.Field{Type: goType(base)})
+		}
 		for _, method := range decl.Methods {
 			parameters := make([]*goast.Field, 0, len(method.Parameters))
 			for _, parameter := range method.Parameters {
@@ -342,7 +351,7 @@ func comparableTypeParameters(ref kinmokuseiAST.TypeRef) map[string]bool {
 }
 
 func collectComparableTypeParameters(ref kinmokuseiAST.TypeRef, result map[string]bool) {
-	if ref.Name == "Map" && len(ref.GenericArguments) == 2 {
+	if ref.Qualifier == "" && ref.Name == "Map" && len(ref.GenericArguments) == 2 {
 		collectTypeParametersRequiringComparability(ref.GenericArguments[0], result)
 	}
 	if ref.Element != nil {
@@ -671,6 +680,31 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		initializerBody.List = append(initializerBody.List, baseCall)
 	}
+	fieldBody := &goast.BlockStmt{}
+	for _, field := range class.Fields {
+		if field.Initializer == nil {
+			continue
+		}
+		value, err := generateExpression(field.Initializer)
+		if err != nil {
+			return nil, err
+		}
+		fieldBody.List = append(fieldBody.List, &goast.AssignStmt{
+			Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(goName(memberName(field.Name, field.Visibility)))}},
+			Tok: token.ASSIGN, Rhs: []goast.Expr{value},
+		})
+	}
+	if len(fieldBody.List) != 0 {
+		// A separate lexical scope prevents constructor parameters from
+		// shadowing module bindings used by field initializers.
+		fieldType := &goast.FuncType{Params: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}}
+		if len(typeParameterFields) != 0 {
+			fieldType.TypeParams = &goast.FieldList{List: typeParameterFields}
+		}
+		name := "__kinmokuseiFields" + class.Name
+		declarations = append(declarations, &goast.FuncDecl{Name: goast.NewIdent(name), Type: fieldType, Body: fieldBody})
+		initializerBody.List = append(initializerBody.List, &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent(name), Args: []goast.Expr{goast.NewIdent("this")}}})
+	}
 	for _, parameter := range constructorParameters {
 		if parameter.IsField {
 			initializerBody.List = append(initializerBody.List, &goast.AssignStmt{
@@ -946,6 +980,13 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 }
 
 func functionResults(ref kinmokuseiAST.TypeRef) *goast.FieldList {
+	if len(ref.GoResults) != 0 {
+		fields := make([]*goast.Field, len(ref.GoResults))
+		for i, result := range ref.GoResults {
+			fields[i] = &goast.Field{Type: goType(result)}
+		}
+		return &goast.FieldList{List: fields}
+	}
 	if ref.Name == "void" {
 		return nil
 	}
@@ -1299,7 +1340,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 				Rhs: []goast.Expr{goast.NewIdent(goName(binding.Name))},
 			}}, body.List...)
 		}
-		if stmt.Kind == kinmokuseiAST.ChannelRange {
+		if stmt.Kind == kinmokuseiAST.ChannelRange || stmt.Kind == kinmokuseiAST.IntegerRange || stmt.Kind == kinmokuseiAST.IteratorRange {
 			if len(stmt.Bindings) == 1 && rangeBindingNeeded(stmt.Bindings[0]) {
 				result.Key = goast.NewIdent(goName(stmt.Bindings[0].Name))
 				result.Tok = token.DEFINE
@@ -1827,6 +1868,8 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		switch expr.Kind {
 		case kinmokuseiAST.FloatLiteral:
 			kind = token.FLOAT
+		case kinmokuseiAST.ImaginaryLiteral:
+			kind = token.IMAG
 		case kinmokuseiAST.StringLiteral:
 			kind = token.STRING
 		}
@@ -1920,6 +1963,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			if expr.Builtin == kinmokuseiAST.MakeSliceCall && len(arguments) == 2 {
 				// Evaluate size expressions in source order before invoking Go's make
 				// intrinsic so behavior does not vary between Go toolchains.
+				for index := range arguments {
+					if index < len(expr.IntegerSizeArguments) && expr.IntegerSizeArguments[index] {
+						arguments[index] = &goast.CallExpr{Fun: goast.NewIdent("int"), Args: []goast.Expr{arguments[index]}}
+					}
+				}
 				return orderedSliceMake(collectionType, arguments[0], arguments[1]), nil
 			}
 			args := append([]goast.Expr{collectionType}, arguments...)
@@ -1950,10 +1998,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: goast.NewIdent("close"), Args: args}, nil
 		}
-		if expr.Builtin >= kinmokuseiAST.LenCall && expr.Builtin <= kinmokuseiAST.MaxCall {
+		if expr.Builtin >= kinmokuseiAST.LenCall && expr.Builtin <= kinmokuseiAST.ImagCall {
 			name := map[kinmokuseiAST.BuiltinCallKind]string{
 				kinmokuseiAST.LenCall: "len", kinmokuseiAST.CapCall: "cap", kinmokuseiAST.AppendCall: "append", kinmokuseiAST.CopyCall: "copy", kinmokuseiAST.DeleteCall: "delete",
 				kinmokuseiAST.ClearCall: "clear", kinmokuseiAST.MinCall: "min", kinmokuseiAST.MaxCall: "max",
+				kinmokuseiAST.ComplexCall: "complex", kinmokuseiAST.RealCall: "real", kinmokuseiAST.ImagCall: "imag",
 			}[expr.Builtin]
 			args := make([]goast.Expr, len(expr.Arguments))
 			for i, argument := range expr.Arguments {
@@ -2004,15 +2053,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 		}
 		if expr.ConversionType == nil {
-			if len(expr.TypeArguments) == 1 {
-				callee = &goast.IndexExpr{X: callee, Index: goType(expr.TypeArguments[0])}
-			} else if len(expr.TypeArguments) > 1 {
-				indices := make([]goast.Expr, len(expr.TypeArguments))
-				for i := range expr.TypeArguments {
-					indices[i] = goType(expr.TypeArguments[i])
-				}
-				callee = &goast.IndexListExpr{X: callee, Indices: indices}
+			typeArguments := expr.TypeArguments
+			if len(expr.ResolvedTypeArguments) != 0 {
+				typeArguments = expr.ResolvedTypeArguments
 			}
+			callee = indexedGoType(callee, typeArguments)
 		}
 		args := make([]goast.Expr, 0, len(expr.Arguments)+1)
 		if genericReceiver != nil {
@@ -2324,7 +2369,7 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 		return taskGoType(ref.GenericArguments[0])
 	}
 	if ref.TypeParameter {
-		return goast.NewIdent(ref.Name)
+		return goast.NewIdent(goName(ref.Name))
 	}
 	if ref.NativeNamed {
 		return indexedGoType(goast.NewIdent(ref.Name), ref.GenericArguments)
@@ -2345,7 +2390,7 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 		}
 		return arrayType
 	}
-	if ref.Name == "Map" && len(ref.GenericArguments) == 2 {
+	if ref.Qualifier == "" && ref.Name == "Map" && len(ref.GenericArguments) == 2 {
 		return &goast.MapType{Key: goType(ref.GenericArguments[0]), Value: goType(ref.GenericArguments[1])}
 	}
 	if len(ref.GenericArguments) == 1 {
@@ -2391,6 +2436,13 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 		}
 		return &goast.StructType{Fields: &goast.FieldList{List: fields}}
 	}
+	if ref.GoInterface {
+		methods := make([]*goast.Field, len(ref.ObjectFields))
+		for i, method := range ref.ObjectFields {
+			methods[i] = &goast.Field{Names: []*goast.Ident{goast.NewIdent(method.Name)}, Type: goType(method.Type)}
+		}
+		return &goast.InterfaceType{Methods: &goast.FieldList{List: methods}}
+	}
 	if ref.IsFunction() {
 		parameters := make([]*goast.Field, len(ref.Parameters))
 		for i, parameter := range ref.Parameters {
@@ -2401,9 +2453,7 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 			parameters[i] = &goast.Field{Type: parameterType}
 		}
 		fn := &goast.FuncType{Params: &goast.FieldList{List: parameters}}
-		if ref.Return.Name != "void" {
-			fn.Results = &goast.FieldList{List: []*goast.Field{{Type: goType(*ref.Return)}}}
-		}
+		fn.Results = functionResults(*ref.Return)
 		return fn
 	}
 	if ref.Qualifier != "" {
@@ -2466,7 +2516,7 @@ func taskGoType(result kinmokuseiAST.TypeRef) goast.Expr {
 
 func isGoBuiltinType(name string) bool {
 	switch name {
-	case "bool", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "byte", "error":
+	case "bool", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "complex64", "complex128", "byte", "error":
 		return true
 	default:
 		return false
@@ -2616,6 +2666,9 @@ func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	case *kinmokuseiAST.BinaryExpr:
 		return isGoConstant(expr.Left) && isGoConstant(expr.Right)
 	case *kinmokuseiAST.CallExpr:
+		if expr.GoConstant {
+			return true
+		}
 		name, ok := expr.Callee.(*kinmokuseiAST.IdentifierExpr)
 		if !ok || !isBuiltinConversion(name.Name) {
 			return false

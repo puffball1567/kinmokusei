@@ -431,6 +431,14 @@ func nestedVisibleValueType(program *ast.Program, statement ast.Statement, path 
 }
 
 func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner string, static bool, seen map[string]bool, add func(completionItem)) {
+	if ref.GoInterface {
+		if !static {
+			for _, method := range ref.ObjectFields {
+				add(completionItem{Label: method.Name, Kind: 2, Detail: method.Name + ": " + formatTypeRef(method.Type), SortText: "0_" + method.Name})
+			}
+		}
+		return
+	}
 	if ref.Nullable {
 		ref.Nullable = false
 	}
@@ -592,13 +600,17 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			return
 		}
 		bindings := genericInterfaceTypeRefBindings(declaration, ref)
-		for _, method := range declaration.Methods {
+		methods := append(append([]ast.InterfaceMethod(nil), declaration.Methods...), declaration.InheritedGoMethods...)
+		for _, method := range methods {
 			parameters := append([]ast.Parameter(nil), method.Parameters...)
 			for index := range parameters {
 				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
 			}
 			result := substituteTypeRefParameters(method.ReturnType, bindings)
 			add(completionItem{Label: method.Name, Kind: 2, Detail: functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
+		}
+		for _, base := range declaration.Bases {
+			collectTypeMemberCompletions(program, substituteTypeRefParameters(base, bindings), owner, false, seen, add)
 		}
 	}
 }
@@ -721,6 +733,10 @@ func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRe
 		result.Return = &returnType
 	}
 	result.ObjectFields = append([]ast.ObjectTypeField(nil), ref.ObjectFields...)
+	result.GoResults = append([]ast.TypeRef(nil), ref.GoResults...)
+	for i := range result.GoResults {
+		result.GoResults[i] = substituteTypeRefParameters(result.GoResults[i], bindings)
+	}
 	for index := range result.ObjectFields {
 		result.ObjectFields[index].Type = substituteTypeRefParameters(result.ObjectFields[index].Type, bindings)
 	}

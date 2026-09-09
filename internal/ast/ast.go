@@ -57,10 +57,13 @@ type TypeRef struct {
 	ObjectFields         []ObjectTypeField
 	Object               bool
 	GoStruct             bool
-	Struct               bool
-	Interface            bool
-	TypeParameter        bool
-	NativeNamed          bool
+	// GoInterface and GoResults describe inferred Go types, not source syntax.
+	GoInterface   bool
+	GoResults     []TypeRef
+	Struct        bool
+	Interface     bool
+	TypeParameter bool
+	NativeNamed   bool
 	// LoweredType is populated for generic aliases. The source alias remains
 	// available to language tooling while Go code generation uses its expanded
 	// underlying type, keeping generated modules compatible with Go 1.23.
@@ -91,7 +94,7 @@ func (t TypeRef) IsPointer() bool      { return t.Pointee != nil }
 func (t TypeRef) IsObject() bool       { return t.Object }
 func (t TypeRef) IsGoStruct() bool     { return t.GoStruct }
 func (t TypeRef) IsSpecified() bool {
-	return t.Name != "" || t.Qualifier != "" || t.IsFunction() || t.IsArray() || t.IsPointer() || t.IsObject() || t.IsGoStruct()
+	return t.Name != "" || t.Qualifier != "" || t.IsFunction() || t.IsArray() || t.IsPointer() || t.IsObject() || t.IsGoStruct() || t.GoInterface || len(t.GoResults) != 0
 }
 
 type Parameter struct {
@@ -164,12 +167,13 @@ type CABIExport struct {
 }
 
 type FieldDecl struct {
-	Name       string
-	NameSpan   source.Span
-	Type       TypeRef
-	Visibility Visibility
-	GoName     string
-	Span       source.Span
+	Name        string
+	NameSpan    source.Span
+	Type        TypeRef
+	Initializer Expression
+	Visibility  Visibility
+	GoName      string
+	Span        source.Span
 }
 
 type ConstructorDecl struct {
@@ -290,6 +294,10 @@ type InterfaceDecl struct {
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
 	Methods        []InterfaceMethod
+	Bases          []TypeRef
+	// InheritedGoMethods is checked editor metadata, not source declarations
+	// or emitted methods. Go bases are emitted as interface embeddings.
+	InheritedGoMethods []InterfaceMethod
 	// Constraint distinguishes compile-time-only type-set interfaces from
 	// ordinary value interfaces. Terms lower directly to a Go interface union.
 	Constraint bool
@@ -482,6 +490,10 @@ const (
 	UnknownRange ForRangeKind = iota
 	ChannelRange
 	CollectionRange
+	IntegerRange
+	IteratorRange
+	IteratorPairRange
+	IteratorZeroRange
 )
 
 // ForRangeStmt binds a value, or a key/index and value pair, in a fresh loop
@@ -667,6 +679,7 @@ type LiteralKind int
 const (
 	IntegerLiteral LiteralKind = iota
 	FloatLiteral
+	ImaginaryLiteral
 	StringLiteral
 	BooleanLiteral
 	NilLiteral
@@ -752,17 +765,24 @@ func (*AwaitExpr) expression()            {}
 func (e *AwaitExpr) GetSpan() source.Span { return e.Span }
 
 type CallExpr struct {
-	Callee           Expression
-	TypeArguments    []TypeRef
-	Arguments        []Expression
-	Expanded         bool
-	Conversion       bool
-	ConversionType   *TypeRef
-	Builtin          BuiltinCallKind
-	Signature        *CallableSignature
-	SuperConstructor bool
-	SuperBase        string
-	Span             source.Span
+	Callee        Expression
+	TypeArguments []TypeRef
+	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
+	// structural interface inference cannot recover them from a method set.
+	ResolvedTypeArguments []TypeRef
+	Arguments             []Expression
+	// IntegerSizeArguments marks untyped numeric sizes that need an integer
+	// context when lowering introduces evaluation-order temporaries.
+	IntegerSizeArguments []bool
+	Expanded             bool
+	Conversion           bool
+	GoConstant           bool // Checked numeric calls/conversions that Go evaluates at compile time.
+	ConversionType       *TypeRef
+	Builtin              BuiltinCallKind
+	Signature            *CallableSignature
+	SuperConstructor     bool
+	SuperBase            string
+	Span                 source.Span
 }
 
 type CallableSignature struct {
@@ -789,6 +809,9 @@ const (
 	ClearCall
 	MinCall
 	MaxCall
+	ComplexCall
+	RealCall
+	ImagCall
 	MakeSliceCall
 	MakeMapCall
 	CopyArrayCall

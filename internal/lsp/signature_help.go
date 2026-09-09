@@ -283,6 +283,9 @@ func builtinSignature(name string) (ast.CallableSignature, bool) {
 		"clear":          {ParameterNames: []string{"collection"}, ParameterTypes: []string{"T[] | Map<K, V>"}, Result: "void"},
 		"min":            {ParameterNames: []string{"values"}, ParameterTypes: []string{"ordered"}, Result: "T", Variadic: true},
 		"max":            {ParameterNames: []string{"values"}, ParameterTypes: []string{"ordered"}, Result: "T", Variadic: true},
+		"complex":        {ParameterNames: []string{"real", "imaginary"}, ParameterTypes: []string{"float", "float"}, Result: "complex128"},
+		"real":           {ParameterNames: []string{"value"}, ParameterTypes: []string{"complex"}, Result: "float"},
+		"imag":           {ParameterNames: []string{"value"}, ParameterTypes: []string{"complex"}, Result: "float"},
 		"makeSlice":      {ParameterNames: []string{"length", "capacity?"}, ParameterTypes: []string{"int", "int"}, Result: "T[]"},
 		"makeMap":        {ParameterNames: []string{"capacity?"}, ParameterTypes: []string{"int"}, Result: "Map<K, V>"},
 		"copyArray":      {ParameterNames: []string{"source"}, ParameterTypes: []string{"T[]"}, Result: "[N]T"},
@@ -802,6 +805,9 @@ func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 		case *ast.ClassDecl:
 			if declaration.Constructor != nil {
 				block(declaration.Constructor.Body)
+			}
+			for _, field := range declaration.Fields {
+				expression(field.Initializer)
 			}
 			for _, method := range declaration.Methods {
 				block(method.Body)

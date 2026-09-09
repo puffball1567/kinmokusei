@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericAliasesMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_alias.km")
 	if err := os.WriteFile(source, []byte(`
@@ -168,6 +169,7 @@ func TestGenericAliasBehavior(t *testing.T) {
 }
 
 func TestLinkedGenericAliasesMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	dependency := filepath.Join(temporary, "values.km")
 	entry := filepath.Join(temporary, "entry.km")

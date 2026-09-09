@@ -41,8 +41,8 @@ func TestAssessGoInteropObjectMatrix(t *testing.T) {
 		{"generic", makeFunction("Generic", []gotypes.Type{genericParameter}, []gotypes.Type{genericParameter}, []*gotypes.TypeParam{genericParameter}), GoInteropSupported, ""},
 		{"unsafe", makeFunction("Unsafe", []gotypes.Type{unsafePointer}, nil, nil), GoInteropRequiresUnsafe, "unsafe.Pointer"},
 		{"anonymous struct", makeFunction("Struct", []gotypes.Type{anonymousStruct}, nil, nil), GoInteropSupported, ""},
-		{"anonymous struct with unsupported field", makeFunction("StructInterface", []gotypes.Type{structWithInterface}, nil, nil), GoInteropUnsupported, "anonymous Go interface"},
-		{"anonymous interface", makeFunction("Interface", nil, []gotypes.Type{anonymousInterface}, nil), GoInteropUnsupported, "anonymous Go interface"},
+		{"anonymous struct with interface field", makeFunction("StructInterface", []gotypes.Type{structWithInterface}, nil, nil), GoInteropSupported, ""},
+		{"anonymous interface", makeFunction("Interface", nil, []gotypes.Type{anonymousInterface}, nil), GoInteropSupported, ""},
 		{"variable slice", gotypes.NewVar(0, packageInfo, "Items", gotypes.NewSlice(integer)), GoInteropSupported, ""},
 		{"constant", gotypes.NewConst(0, packageInfo, "Answer", integer, constant.MakeInt64(42)), GoInteropSupported, ""},
 	}

@@ -41,6 +41,7 @@ const (
 	GoPointer
 	GoBasic
 	GoStruct
+	GoInterface
 	GoTypeName
 	Nil
 	Null
@@ -70,6 +71,12 @@ type Type struct {
 	TypeArguments  []Type
 	Results        []Type
 	GoFields       []GoStructField
+	GoMethods      []GoInterfaceMethod
+}
+
+type GoInterfaceMethod struct {
+	Name string
+	Type Type
 }
 
 type GoStructField struct {
@@ -80,26 +87,28 @@ type GoStructField struct {
 }
 
 var builtins = map[string]Type{
-	"void":      {Kind: Void, Name: "void"},
-	"boolean":   {Kind: Boolean, Name: "boolean"},
-	"string":    {Kind: String, Name: "string"},
-	"int":       {Kind: Int, Name: "int"},
-	"int8":      {Kind: Int8, Name: "int8"},
-	"int16":     {Kind: Int16, Name: "int16"},
-	"int32":     {Kind: Int32, Name: "int32"},
-	"int64":     {Kind: Int64, Name: "int64"},
-	"uint":      {Kind: Uint, Name: "uint"},
-	"uint8":     {Kind: Byte, Name: "byte"},
-	"uint16":    {Kind: Uint16, Name: "uint16"},
-	"uint32":    {Kind: Uint32, Name: "uint32"},
-	"uint64":    {Kind: Uint64, Name: "uint64"},
-	"float32":   {Kind: Float32, Name: "float32"},
-	"float":     {Kind: Float64, Name: "float"},
-	"number":    {Kind: Float64, Name: "float"},
-	"float64":   {Kind: Float64, Name: "float"},
-	"byte":      {Kind: Byte, Name: "byte"},
-	"error":     {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
-	"Exception": {Kind: Class, Name: "Exception"},
+	"void":       {Kind: Void, Name: "void"},
+	"boolean":    {Kind: Boolean, Name: "boolean"},
+	"string":     {Kind: String, Name: "string"},
+	"int":        {Kind: Int, Name: "int"},
+	"int8":       {Kind: Int8, Name: "int8"},
+	"int16":      {Kind: Int16, Name: "int16"},
+	"int32":      {Kind: Int32, Name: "int32"},
+	"int64":      {Kind: Int64, Name: "int64"},
+	"uint":       {Kind: Uint, Name: "uint"},
+	"uint8":      {Kind: Byte, Name: "byte"},
+	"uint16":     {Kind: Uint16, Name: "uint16"},
+	"uint32":     {Kind: Uint32, Name: "uint32"},
+	"uint64":     {Kind: Uint64, Name: "uint64"},
+	"float32":    {Kind: Float32, Name: "float32"},
+	"float":      {Kind: Float64, Name: "float"},
+	"number":     {Kind: Float64, Name: "float"},
+	"float64":    {Kind: Float64, Name: "float"},
+	"complex64":  {Kind: GoBasic, Name: "complex64", GoType: gotypes.Typ[gotypes.Complex64]},
+	"complex128": {Kind: GoBasic, Name: "complex128", GoType: gotypes.Typ[gotypes.Complex128]},
+	"byte":       {Kind: Byte, Name: "byte"},
+	"error":      {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
+	"Exception":  {Kind: Class, Name: "Exception"},
 }
 
 func LookupType(name string) (Type, bool) {
@@ -143,7 +152,7 @@ func (t Type) isComparable(visiting map[string]bool) bool {
 		return gotypes.Comparable(t.GoType)
 	}
 	switch t.Kind {
-	case Boolean, String, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface:
+	case Boolean, String, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface, GoInterface:
 		return true
 	case Nullable:
 		return t.Element != nil && t.Element.IsComparable()
@@ -228,6 +237,23 @@ func assignable(target, value Type) bool {
 		}
 		return true
 	}
+	if target.Kind == GoInterface && value.Kind == GoInterface {
+		// Compare source signatures before Go storage conversion, which may
+		// erase nullable class arguments in specialized imported contracts.
+		for _, required := range target.GoMethods {
+			found := false
+			for _, provided := range value.GoMethods {
+				if required.Name == provided.Name && identicalGoInterfaceSignature(required.Type, provided.Type) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+		return true
+	}
 	if targetGo, targetIsGo := goTypeOf(target); targetIsGo {
 		valueGo, valueIsGo := goTypeOf(value)
 		return valueIsGo && gotypes.AssignableTo(valueGo, targetGo)
@@ -300,6 +326,37 @@ func assignable(target, value Type) bool {
 
 func sameType(left, right Type) bool {
 	return assignable(left, right) || assignable(right, left)
+}
+
+// Imported interface method signatures are invariant, including source
+// qualifiers that cannot be recovered from their erased Go storage types.
+func identicalGoInterfaceSignature(left, right Type) bool {
+	if !sameConstraintNullability(left, right) {
+		return false
+	}
+	if left.Kind == Function && right.Kind == Function {
+		if left.Variadic != right.Variadic || len(left.Parameters) != len(right.Parameters) || left.Result == nil || right.Result == nil {
+			return false
+		}
+		for i := range left.Parameters {
+			if !identicalGoInterfaceSignature(left.Parameters[i], right.Parameters[i]) {
+				return false
+			}
+		}
+		return identicalGoInterfaceSignature(*left.Result, *right.Result)
+	}
+	if left.Kind == MultiValue && right.Kind == MultiValue {
+		if len(left.Results) != len(right.Results) {
+			return false
+		}
+		for i := range left.Results {
+			if !identicalGoInterfaceSignature(left.Results[i], right.Results[i]) {
+				return false
+			}
+		}
+		return true
+	}
+	return exactType(left, right)
 }
 
 func (t Type) String() string {
@@ -391,6 +448,20 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 		return t.GoType, true
 	}
 	switch t.Kind {
+	case GoInterface:
+		methods := make([]*gotypes.Func, len(t.GoMethods))
+		for i, method := range t.GoMethods {
+			converted, ok := goTypeOf(method.Type)
+			if !ok {
+				return nil, false
+			}
+			signature, ok := converted.(*gotypes.Signature)
+			if !ok {
+				return nil, false
+			}
+			methods[i] = gotypes.NewFunc(0, nil, method.Name, signature)
+		}
+		return gotypes.NewInterfaceType(methods, nil).Complete(), true
 	case Nullable:
 		if t.Element != nil {
 			return goTypeOf(*t.Element)
@@ -527,7 +598,7 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 }
 
 func isNilable(t Type) bool {
-	if t.Kind == GoPointer || t.Kind == GoChannel || t.Kind == Array || t.Kind == Map || t.Kind == Function || t.Kind == Class || t.Kind == Interface {
+	if t.Kind == GoPointer || t.Kind == GoChannel || t.Kind == Array || t.Kind == Map || t.Kind == Function || t.Kind == Class || t.Kind == Interface || t.Kind == GoInterface {
 		return true
 	}
 	goType, ok := goTypeOf(t)
@@ -656,6 +727,11 @@ func goTypeSetMask(goType gotypes.Type, visiting map[gotypes.Type]bool) uint64 {
 }
 
 func defaultLiteralType(t Type) Type {
+	if basic, ok := t.GoType.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 && basic.Info()&gotypes.IsNumeric != 0 {
+		if converted, err := kinmokuseiTypeFromGo(gotypes.Default(basic)); err == nil {
+			return converted
+		}
+	}
 	if t.Kind == UntypedInt {
 		return builtins["int"]
 	}

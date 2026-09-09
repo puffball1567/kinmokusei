@@ -290,6 +290,7 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 		}
 		for i := range declaration.Fields {
 			linkType(&declaration.Fields[i].Type, classVisible)
+			linkExpression(declaration.Fields[i].Initializer, classVisible, map[string]bool{})
 		}
 		if declaration.Constructor != nil {
 			locals := parameterNames(declaration.Constructor.Parameters)
@@ -364,6 +365,9 @@ func linkDeclaration(declaration ast.Declaration, declarations, visible moduleNa
 			delete(interfaceVisible, parameter.Name)
 		}
 		linkTypeParameters(declaration.TypeParameters, interfaceVisible)
+		for index := range declaration.Bases {
+			linkType(&declaration.Bases[index], interfaceVisible)
+		}
 		for index := range declaration.Terms {
 			linkType(&declaration.Terms[index].Type, interfaceVisible)
 		}
@@ -652,6 +656,9 @@ func linkType(ref *ast.TypeRef, visible moduleNames) {
 		linkType(&ref.Parameters[i], visible)
 	}
 	linkType(ref.Return, visible)
+	for i := range ref.GoResults {
+		linkType(&ref.GoResults[i], visible)
+	}
 	for i := range ref.ObjectFields {
 		linkType(&ref.ObjectFields[i].Type, visible)
 	}

@@ -112,7 +112,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 		{"send-only channel", gotypes.NewChan(gotypes.SendOnly, intType), GoChannel, false},
 		{"receive-only channel", gotypes.NewChan(gotypes.RecvOnly, intType), GoChannel, false},
 		{"anonymous struct", anonymousStruct, GoStruct, false},
-		{"anonymous interface", anonymousInterface, Invalid, true},
+		{"anonymous interface", anonymousInterface, GoInterface, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

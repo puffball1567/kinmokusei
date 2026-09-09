@@ -52,3 +52,17 @@ function direct(): int { return new Box<string>().echo<int>(2); }`
 		t.Fatalf("generic method type parameter completions = %#v", items)
 	}
 }
+
+func TestInheritedGenericMethodSignatureKeepsTypeParameterScopes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "generic_method_scopes.km")
+	text := `class Base<T> {
+  constructor(public value: T) {}
+  public function keep<U>(marker: U): T { return this.value; }
+}
+class Child<U> extends Base<U> { constructor(value: U) { super(value); } }
+function use(child: Child<string>): string { return child.keep<int>(1); }`
+	label, active, parameters := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "1);", 0)))
+	if label != "child.keep(marker: int): string" || active != 0 || len(parameters) != 1 {
+		t.Fatalf("inherited generic method signature = %q active=%v parameters=%#v", label, active, parameters)
+	}
+}

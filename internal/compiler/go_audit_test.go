@@ -29,8 +29,8 @@ func TestAuditGoInteropPackagesMatrix(t *testing.T) {
 	if report.FailedPackages[0].Path != "missing/package" || !strings.Contains(report.FailedPackages[0].Error, "unavailable") {
 		t.Fatalf("failure = %#v", report.FailedPackages[0])
 	}
-	assertAuditCount(t, "overall", report.Overall, GoInteropAuditCount{Total: 9, Supported: 6, RequiresUnsafe: 2, Unsupported: 1})
-	assertAuditCount(t, "callables", report.Callables, GoInteropAuditCount{Total: 5, Supported: 3, RequiresUnsafe: 1, Unsupported: 1})
+	assertAuditCount(t, "overall", report.Overall, GoInteropAuditCount{Total: 9, Supported: 7, RequiresUnsafe: 2})
+	assertAuditCount(t, "callables", report.Callables, GoInteropAuditCount{Total: 5, Supported: 4, RequiresUnsafe: 1})
 	assertAuditCount(t, "values", report.Values, GoInteropAuditCount{Total: 3, Supported: 2, RequiresUnsafe: 1})
 	assertAuditCount(t, "types", report.Types, GoInteropAuditCount{Total: 1, Supported: 1})
 
@@ -52,7 +52,7 @@ func TestAuditGoInteropPackagesMatrix(t *testing.T) {
 		{"function:Anonymous", sema.GoInteropSupported, ""},
 		{"field:Record.Value", sema.GoInteropSupported, ""},
 		{"field:Record.Raw", sema.GoInteropRequiresUnsafe, "unsafe.Pointer"},
-		{"method:Record.Inspect", sema.GoInteropUnsupported, "anonymous Go interface"},
+		{"method:Record.Inspect", sema.GoInteropSupported, ""},
 		{"method:Record.Read", sema.GoInteropSupported, ""},
 	}
 	for _, check := range checks {
