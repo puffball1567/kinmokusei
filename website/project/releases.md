@@ -9,7 +9,7 @@ Kinmokusei is currently pre-1.0. Released behavior is tested and documented, but
 
 ## Documentation version and release tag
 
-The navigation label **v0.2** identifies the language version described by this site. Published compiler and editor artifacts are identified by a matching release tag; use the release list to confirm which artifacts are available before installing.
+The navigation label **v0.3** identifies the language version described by this site. Published compiler and editor artifacts are identified by a matching release tag; use the release list to confirm which artifacts are available before installing.
 
 When a version is tagged, use these sources for different questions:
 
@@ -22,7 +22,40 @@ When a version is tagged, use these sources for different questions:
 
 A migration requirement exists when the release notes identify a source, lock, CLI, generated-API, or boundary change. The documentation version alone does not replace those notes.
 
-## Match the toolchain pieces
+## v0.3.0 highlights
+
+- Generic class/struct methods, reusable source type-set constraints, dependent
+  bounds and inference, and type-parameter conversions.
+- Multiple interface inheritance, imported Go interface bases, anonymous Go
+  runtime interfaces, and per-instance class field initializers.
+- Integer and function-iterator ranges, including collection-shaped generic
+  bounds and Go `iter.Seq` / `iter.Seq2`.
+- Go numeric literal forms, complex numbers, precise numeric constants, and
+  improved generic numeric inference.
+- Editor support for the new constructs, stronger constructor initialization
+  checks, bounded parallel differential tests, and 98 covered runtime contracts.
+
+The compiler still emits Go. KIR, C++, and Nim backend integration, abstract
+classes, property accessors, and static fields are not part of this release.
+
+When upgrading from v0.2.0, recheck code that relied on permissive numeric or
+generic assignment diagnostics. Overflow, fractional integer contexts, and
+incompatible nullable/generic assignments are rejected more precisely. A
+value-returning function must end with a terminating statement; remove trailing
+unreachable statements. Type parameters used by generated constructors or
+generic method helpers must not hide their enclosing type name.
+
+See the [complete changelog](https://github.com/puffball1567/kinmokusei/blob/main/CHANGELOG.md)
+for detailed behavior and fixes.
+
+This runnable example combines constraints, interface inheritance, instance
+defaults, generic methods, iterator/integer ranges, and complex literals:
+
+<<< ../snippets/release-v0-3.km{ts}
+
+It prints `3 3 2 2.5 4`.
+
+## Match compiler and editor versions
 
 Use the compiler and Visual Studio Code extension from the same release. Direct Go package loading also depends on the Go toolchain version used to build `keika`; the release notes identify the supported Go range.
 

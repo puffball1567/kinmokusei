@@ -77,7 +77,7 @@ function equal<T extends comparable>(left: T, right: T): boolean {
 }
 ```
 
-Slices, maps, and functions do not satisfy it. Native constraint type sets beyond `comparable` are currently unsupported rather than approximated.
+Slices, maps, and functions do not satisfy it. Source constraints can also name exact and underlying type sets, for example `constraint Integer = int | ~int64`. Generic constraints such as `constraint Slice<E> = ~E[]` support dependent bounds and inference. Constraint declarations are compile-time contracts, not runtime interface values.
 
 ## Generic named types
 
@@ -92,7 +92,7 @@ struct Box<T> {
 const box: Box<int> = Box<int> { value: 42 };
 ```
 
-Methods use the enclosing type parameters. Go does not permit method-local type parameters, so Kinmokusei does not invent them. Generic class inheritance, virtual/static generic class members, and generic aliases remain unsupported in v0.2.
+Methods can use enclosing type parameters and declare their own. A method-local generic is emitted as a typed Go helper with an explicit receiver; it cannot be virtual, override, or final. Generic class inheritance, ordinary virtual/static members on generic classes, and generic aliases are supported. Use type parameter names distinct from the enclosing class or generic method receiver type.
 
 ## Multiple results
 

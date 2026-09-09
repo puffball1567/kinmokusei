@@ -86,18 +86,26 @@ Keywords cannot be used as ordinary identifiers. The major families are:
 
 ## Numeric literals
 
-Integer literals contain decimal digits:
+Integer literals accept decimal digits and Go-compatible binary, octal, and hexadecimal forms:
 
 ```ts
 const count = 42;
 const zero = 0;
+const mask = 0xff;
+const bits = 0b1010;
+const permissions = 0o755;
+const grouped = 1_000;
 ```
 
-A float literal contains decimal digits and a dot:
+A floating-point literal may contain a decimal point or exponent; hexadecimal floats use a binary exponent:
 
 ```ts
 const ratio = 0.25;
 const whole = 42.0;
+const fraction = .5;
+const exponent = 1e3;
+const hexadecimal = 0x1.8p2;
+const imaginary = 2.5i;
 ```
 
 A leading sign is a unary operator, not part of the literal:
@@ -106,7 +114,7 @@ A leading sign is a unary operator, not part of the literal:
 const minimum: int8 = -128;
 ```
 
-Radix prefixes, exponent notation, and numeric separators are not implemented. Untyped integer constants default to `int` without another expected type. A representable expected numeric type may absorb a constant; runtime numeric values never widen implicitly.
+Separator placement and radix digits follow Go's literal rules. Untyped integer, floating, and complex constants default to `int`, `float64`, and `complex128` without another expected type. Constants retain precision until a typed boundary checks representability; runtime numeric values never widen implicitly. Integer-valued untyped numeric constants may also be used in indices, slice bounds, and collection/channel sizes.
 
 ## String literals
 
