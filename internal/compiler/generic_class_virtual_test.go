@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericClassVirtualDispatchMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_class_virtual.km")
 	input := `
@@ -204,6 +205,7 @@ func TestGenericVirtualBehavior(t *testing.T) {
 }
 
 func TestLinkedGenericClassVirtualDispatchMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	baseSource := filepath.Join(temporary, "base.km")
 	entrySource := filepath.Join(temporary, "entry.km")

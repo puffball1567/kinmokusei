@@ -40,6 +40,48 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 ## Frontend
 
+### Planned KIR backend boundary
+
+The intended replacement for direct Go lowering is a checked frontend feeding
+KIR (Kinmokusei intermediate representation). KIR is not a C++-only layer:
+the three primary backend routes are Go, C++, and Nim for C output.
+
+```text
+checked Kinmokusei semantics -> KIR -> Go
+                                   -> C++20
+                                   -> Go -> existing Go-to-Nim -> Nim -> C
+```
+
+This is an architectural target, not an implemented connection in this
+compiler. The existing Go emitter and handwritten-Go differential tests remain
+the executable baseline during migration. The Nim/C route retains the existing
+Go-to-Nim translator rather than requiring a new direct KIR-to-Nim emitter;
+each composed stage still needs its own support and equivalence checks.
+
+Keep declaration identities, instantiated types and bounds, evaluation order,
+implicit conversions, class identity and dispatch, exceptions, cleanup, and
+ownership/lifetime requirements explicit before backend lowering. Do not make
+Go-specific generated helper shapes the sole definition of source semantics.
+Generic-bound checking is a compile-time contract; it does not require runtime
+type tests, boxing, or additional allocation. Current use of `go/types` is a
+semantic implementation tool, not a requirement for generated programs to use
+the Go runtime.
+
+Common language features should have a portable semantic contract. Backend-
+specific libraries may intentionally narrow the supported output targets.
+C++-only features belong behind a dedicated library/intrinsic boundary; they
+are not being implemented ahead of the KIR connection. C/C++ libraries can be
+used directly by the C++ backend, while Go output requires a supported C ABI
+bridge. Go modules can be used directly by the Go backend; another backend
+needs an explicitly supported translation or ABI bridge. Neither direction is
+automatically portable merely because the frontend can import a dependency.
+
+At integration time, track target capabilities and ABI requirements through
+transitive dependencies and diagnose the dependency that prevents the selected
+output. Never silently substitute different behavior or assume that common
+source syntax makes backend-specific dependencies portable. This capability
+model and native C++ library integration are planned, not present features.
+
 ### Lexing and parsing
 
 - Accept only syntax that Kinmokusei actually supports; do not parse all TypeScript and reject it later.
@@ -63,10 +105,33 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 ### Type checking
 
+- Imported Go interface bases retain their checked package/type identities and
+  exported method names. Source class methods satisfy them by emitted public Go
+  name. Generic origin signatures are converted before source substitution to
+  retain nullable/class metadata. Keep editor-only inherited method metadata
+  separate from source declarations and emit the original interface embeddings.
 - Limit implicit conversion to safe untyped literal contexts.
 - Keep Go defined types, aliases, pointers, method sets, interfaces, multiple results, variadics, channels, and type parameters intact.
-- Use `go/types` assignability and generic constraints as authoritative for Go values. Exported standard and external Go interface type sets are valid native constraints; operator checking intersects embedded sets and requires every remaining term to support the operation.
+- Use `go/types` assignability and generic constraints as authoritative for Go values. Source-declared exact/underlying type sets and exported standard/external Go interface type sets are valid native constraints; operator checking intersects embedded sets and requires every remaining term to support the operation. Source constraints are predeclared and completed before generic bounds so forward and linked references retain Go type-set identity.
+- Source generic constraints retain their own declaration-keyed parameters and
+  source type-set terms. Complete nested bounds in the declaration's lexical
+  scope, reject declaration cycles, then check instantiated arguments. Emitting
+  a Go generic interface is one backend representation of that compile-time
+  contract, not a new runtime object or a dependency on a Go constraint library.
+- Source constraint references expand only concrete unions during validation;
+  preserve declaration references in the AST and Go output. Substitute both Go
+  term identities and source term shapes, so nullable metadata survives reuse.
+  Check overlaps and the expanded term limit before publishing the type set.
+  This expansion must not be generalized to flatten interface intersections.
+- Key native generic substitutions by type-parameter declaration identity.
+  Inference binds only parameters declared by the called function or method;
+  receiver and enclosing-callable parameters remain fixed. Descend through
+  native named-type arguments and normalize class arguments to the formal
+  ancestor before inference. After instantiation, apply ordinary class
+  upcasts to the already-checked argument expression without checking or
+  evaluating it a second time.
 - Represent native generic defined types with `go/types.Named`, infer `comparable` for parameters used as map keys, and re-instantiate named results after native generic substitution.
+- Lower class/struct methods with their own type parameters to typed top-level helpers with an explicit receiver; retain source call syntax and generate public helpers for public Go consumers.
 - Predeclare stable `go/types.Named` identities for native structs, complete their field layouts before ordinary declaration checking, and reuse those identities for distinct struct definitions, recursive storage, conversions, and generic instantiation.
 - Predeclare incomplete `go/types.Named` values for distinct types, complete them after resolving their underlyings, and permit recursive re-entry only beyond slice, map, pointer, function, or channel indirection. Keep direct, fixed-array-only, and alias cycles as source diagnostics.
 - Lower native generic classes to pointer-backed generic Go structs with generic constructors and receiver methods; preserve concrete type arguments through member substitution, interface conformance, module linking, public Go APIs, and source-name JSON tags. Decoding into a constructor-created class leaves its unexported hierarchy identity and virtual-dispatch state intact.
@@ -82,7 +147,10 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 ## Typed representation and lowering
 
-The compiler currently keeps typed AST metadata close to syntax nodes. A more explicit small typed IR may be introduced when transformations need it, but it must serve semantic clarity rather than optimization complexity.
+The compiler currently keeps typed AST metadata close to syntax nodes. Preserve
+that metadata as the semantic input to the planned KIR boundary above; introduce
+normalization only where it makes semantics explicit, not as a competing
+backend-specific definition of the language.
 
 Required typed information includes:
 
@@ -308,7 +376,15 @@ Completed foundations include:
     semantic pass resolves local, `for`-initializer, same-file global, and
     explicitly imported immutable `const` chains while declaration scopes and
     module visibility are available, then records the guaranteed-entry fact on
-    the loop AST for constructor flow.
+    the loop AST for constructor flow. Direct length guards and
+    `switch (len(collection))` cases supply branch-local nonempty proofs to an
+    immediately following matching collection range without trusting
+    fallthrough or effectful paths. A side-effect-free nested condition may
+    carry and combine those proofs for its immediate branch bodies.
+    Side-effect-free local declarations preserve pending proofs; other
+    intervening statements invalidate them. Resolved declaration identity
+    keeps shadowed collection bindings distinct. Each statement is analyzed
+    once with either the available range facts or the ordinary flow.
 21. Non-escaping `Task<T>` bindings with exactly-once `await` or `detach`,
     path-sensitive branch/loop joins, eager callee/argument evaluation, ordinary
     and `Result` task shapes, and panic transport across the task boundary.

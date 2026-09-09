@@ -253,7 +253,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.MethodDecl:
-			info := declarationInfo{Name: declaration.Name, Detail: functionDetail(declaration.Name, declaration.Parameters, declaration.ReturnType), Kind: 6, Span: declaration.Span, Selection: declaration.NameSpan}
+			info := declarationInfo{Name: declaration.Name, Detail: methodDetail(declaration, declaration.Parameters, declaration.ReturnType), Kind: 6, Span: declaration.Span, Selection: declaration.NameSpan}
 			for _, parameter := range declaration.TypeParameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
@@ -276,7 +276,10 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				child := declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				for _, parameter := range method.TypeParameters {
+					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+				}
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -294,7 +297,10 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				child := declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				for _, parameter := range method.TypeParameters {
+					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
+				}
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -327,11 +333,12 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			result = append(result, info)
 		case *ast.InterfaceDecl:
-			detail := "interface " + declaration.Name
-			if len(declaration.TypeParameters) != 0 {
-				detail += formatTypeParameters(declaration.TypeParameters)
+			detail := formatInterfaceOrConstraint(declaration)
+			kind := 11
+			if declaration.Constraint {
+				kind = 5
 			}
-			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: 11, Span: declaration.Span, Selection: declaration.NameSpan}
+			info := declarationInfo{Name: declaration.Name, Detail: detail, Kind: kind, Span: declaration.Span, Selection: declaration.NameSpan}
 			for _, parameter := range declaration.TypeParameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
@@ -413,6 +420,8 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 				}
 				if binding.Type.IsSpecified() {
 					detail += ": " + formatTypeRef(binding.Type)
+				} else if binding.ResolvedType.IsSpecified() {
+					detail += ": " + formatTypeRef(binding.ResolvedType)
 				}
 				*result = append(*result, declarationInfo{Name: binding.Name, Detail: detail, Kind: 13, Span: statement.Span, Selection: binding.NameSpan})
 			}
@@ -494,6 +503,14 @@ func functionDeclarationDetail(function *ast.FunctionDecl) string {
 	return functionDetail(name, function.Parameters, function.ReturnType)
 }
 
+func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast.TypeRef) string {
+	name := method.Name
+	if !method.External && len(method.TypeParameters) != 0 {
+		name += formatTypeParameters(method.TypeParameters)
+	}
+	return functionDetail(name, parameters, result)
+}
+
 func formatTypeParameters(parameters []ast.TypeParameter) string {
 	items := make([]string, len(parameters))
 	for index, parameter := range parameters {
@@ -505,7 +522,51 @@ func formatTypeParameters(parameters []ast.TypeParameter) string {
 	return "<" + strings.Join(items, ", ") + ">"
 }
 
+func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
+	if !declaration.Constraint {
+		detail := "interface " + declaration.Name
+		if len(declaration.TypeParameters) != 0 {
+			detail += formatTypeParameters(declaration.TypeParameters)
+		}
+		if len(declaration.Bases) != 0 {
+			bases := make([]string, len(declaration.Bases))
+			for index, base := range declaration.Bases {
+				bases[index] = formatTypeRef(base)
+			}
+			detail += " extends " + strings.Join(bases, ", ")
+		}
+		return detail
+	}
+	terms := make([]string, len(declaration.Terms))
+	for index, term := range declaration.Terms {
+		prefix := ""
+		if term.Underlying {
+			prefix = "~"
+		}
+		terms[index] = prefix + formatTypeRef(term.Type)
+	}
+	name := declaration.Name
+	if len(declaration.TypeParameters) != 0 {
+		name += formatTypeParameters(declaration.TypeParameters)
+	}
+	return "constraint " + name + " = " + strings.Join(terms, " | ")
+}
+
 func formatTypeRef(ref ast.TypeRef) string {
+	if ref.GoInterface {
+		methods := make([]string, len(ref.ObjectFields))
+		for i, method := range ref.ObjectFields {
+			methods[i] = method.Name + ": " + formatTypeRef(method.Type)
+		}
+		return "interface { " + strings.Join(methods, "; ") + " }"
+	}
+	if len(ref.GoResults) != 0 {
+		results := make([]string, len(ref.GoResults))
+		for i, result := range ref.GoResults {
+			results[i] = formatTypeRef(result)
+		}
+		return "(" + strings.Join(results, ", ") + ")"
+	}
 	if ref.Nullable {
 		ref.Nullable = false
 		return formatTypeRef(ref) + " | null"

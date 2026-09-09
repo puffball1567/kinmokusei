@@ -100,6 +100,7 @@ func TestTokenMatrix(t *testing.T) {
 		{"or", "||", token.Or},
 		{"ampersand", "&", token.Ampersand},
 		{"pipe", "|", token.Pipe},
+		{"tilde", "~", token.Tilde},
 		{"caret", "^", token.Caret},
 		{"shift left", "<<", token.ShiftLeft},
 		{"shift right", ">>", token.ShiftRight},

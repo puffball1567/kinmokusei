@@ -48,3 +48,51 @@ func TestComparableTypeParameterConstraintSyntaxFailure(t *testing.T) {
 		t.Fatalf("diagnostics = %v", messages)
 	}
 }
+
+func TestParsesSourceTypeSetConstraint(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+constraint Integer = ~int | ~int8 | uint64;
+function combine<T extends Integer>(left: T, right: T): T { return left + right; }
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	declaration, ok := program.Declarations[0].(*ast.InterfaceDecl)
+	if !ok || !declaration.Constraint || declaration.Name != "Integer" || len(declaration.Terms) != 3 {
+		t.Fatalf("constraint declaration = %#v", program.Declarations[0])
+	}
+	if !declaration.Terms[0].Underlying || declaration.Terms[0].Type.Name != "int" || !declaration.Terms[1].Underlying || declaration.Terms[1].Type.Name != "int8" || declaration.Terms[2].Underlying || declaration.Terms[2].Type.Name != "uint64" {
+		t.Fatalf("constraint terms = %#v", declaration.Terms)
+	}
+	parameter := program.Declarations[1].(*ast.FunctionDecl).TypeParameters[0]
+	if parameter.Constraint == nil || parameter.Constraint.Name != "Integer" {
+		t.Fatalf("type parameter = %#v", parameter)
+	}
+}
+
+func TestSourceTypeSetConstraintSyntaxFailures(t *testing.T) {
+	tests := []struct {
+		source string
+		want   string
+	}{
+		{`constraint = ~int;`, "expected constraint name"},
+		{`constraint Integer ~int;`, "expected '=' after constraint name"},
+		{`constraint Integer = ;`, "expected type name"},
+		{`constraint Integer = ~int |;`, "expected constraint term after '|'"},
+		{`constraint Integer = ~int`, "expected ';' after constraint declaration"},
+	}
+	for _, test := range tests {
+		tokens, lexDiagnostics := lexer.Lex("constraint_failure.km", test.source)
+		if len(lexDiagnostics) != 0 {
+			t.Fatalf("lexer diagnostics for %q = %v", test.source, lexDiagnostics)
+		}
+		_, diagnostics := Parse(tokens)
+		var messages []string
+		for _, diagnostic := range diagnostics {
+			messages = append(messages, diagnostic.Message)
+		}
+		if !strings.Contains(strings.Join(messages, "\n"), test.want) {
+			t.Fatalf("diagnostics for %q = %v, want %q", test.source, messages, test.want)
+		}
+	}
+}

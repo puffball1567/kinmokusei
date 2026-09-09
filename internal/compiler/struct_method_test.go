@@ -8,6 +8,7 @@ import (
 )
 
 func TestNativeStructReceiverMethodsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temp := t.TempDir()
 	source := filepath.Join(temp, "methods.km")
 	dependency := filepath.Join(temp, "meter.km")

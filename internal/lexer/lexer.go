@@ -52,28 +52,8 @@ func (l *Lexer) next() token.Token {
 		text := l.input[start.Offset:l.offset]
 		return token.Token{Kind: token.LookupIdentifier(text), Lexeme: text, Span: l.span(start)}
 	}
-	if unicode.IsDigit(r) {
-		kind := token.Integer
-		l.advance()
-		for !l.eof() {
-			r, _ = l.peek()
-			if !unicode.IsDigit(r) {
-				break
-			}
-			l.advance()
-		}
-		if r, _ = l.peek(); r == '.' {
-			kind = token.Float
-			l.advance()
-			for !l.eof() {
-				r, _ = l.peek()
-				if !unicode.IsDigit(r) {
-					break
-				}
-				l.advance()
-			}
-		}
-		return token.Token{Kind: kind, Lexeme: l.input[start.Offset:l.offset], Span: l.span(start)}
+	if isDecimalDigit(r) || r == '.' && l.offset+1 < len(l.input) && isDecimalDigit(rune(l.input[l.offset+1])) {
+		return l.scanNumber(start)
 	}
 
 	switch r {
@@ -222,6 +202,9 @@ func (l *Lexer) next() token.Token {
 			return l.makeToken(token.XorAssign, start)
 		}
 		return l.makeToken(token.Caret, start)
+	case '~':
+		l.advance()
+		return l.makeToken(token.Tilde, start)
 	case '?':
 		l.advance()
 		return l.makeToken(token.Question, start)

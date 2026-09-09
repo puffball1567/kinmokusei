@@ -8,6 +8,7 @@ import (
 )
 
 func TestNativeStructsCompileAndMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temp := t.TempDir()
 	source := filepath.Join(temp, "struct.km")
 	dependency := filepath.Join(temp, "dependency.km")

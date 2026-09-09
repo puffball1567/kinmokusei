@@ -1,0 +1,2 @@
+go test fuzz v1
+string("class A00<T>{constructor(public000000:T){}public function A00():T{return this;}}")

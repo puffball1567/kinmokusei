@@ -183,8 +183,8 @@ func TestVSCodeGrammarCoversLanguageVocabulary(t *testing.T) {
 		t.Fatalf("scopeName = %v", grammar["scopeName"])
 	}
 	fileTypes, ok := grammar["fileTypes"].([]any)
-	if !ok || len(fileTypes) != 1 || fileTypes[0] != "yn" {
-		t.Fatalf("fileTypes = %#v, want [yn]", grammar["fileTypes"])
+	if !ok || len(fileTypes) != 1 || fileTypes[0] != "km" {
+		t.Fatalf("fileTypes = %#v, want [km]", grammar["fileTypes"])
 	}
 	encoded, err := json.Marshal(grammar)
 	if err != nil {

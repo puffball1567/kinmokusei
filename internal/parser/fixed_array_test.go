@@ -61,7 +61,7 @@ func TestRejectsInvalidFixedArrayLengthMatrix(t *testing.T) {
 		{"missing", `function bad(value: []int): void {}`, "expected fixed array length"},
 		{"negative", `function bad(value: [-1]int): void {}`, "expected fixed array length"},
 		{"fractional", `function bad(value: [1.5]int): void {}`, "expected fixed array length"},
-		{"missing close", `function bad(value: [2int): void {}`, "expected ']' after fixed array length"},
+		{"missing close", `function bad(value: [2 int): void {}`, "expected ']' after fixed array length"},
 		{"missing element", `function bad(value: [2]): void {}`, "expected type name"},
 		{"overflow", `function bad(value: [9223372036854775808]int): void {}`, "fixed array length is out of range"},
 	}

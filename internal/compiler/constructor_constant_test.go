@@ -100,6 +100,68 @@ class MadeSliceRangeHolder {
   public function name(): string { return this.user.name; }
   public function count(): int { return len(this.visits); }
 }
+class GuardedRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[]) {
+    this.visits = [];
+    if (len(values) > 0) {
+      for (const value of values) {
+        this.user = new User("nonempty");
+        this.visits = append(this.visits, value);
+      }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
+class RequiredRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[]) {
+    this.visits = [];
+    if (len(values) === 0) { throw new Exception("empty"); }
+    for (const value of values) {
+      this.user = new User("required");
+      this.visits = append(this.visits, value);
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
+class CompoundRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[], enabled: boolean) {
+    this.visits = [];
+    if (enabled && len(values) > 0) {
+      for (const value of values) {
+        this.user = new User("enabled");
+        this.visits = append(this.visits, value);
+      }
+    } else {
+      this.user = new User("fallback");
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
+class AvailableRangeHolder {
+  private user: User;
+  private visits: int[];
+  constructor(values: int[], blocked: boolean) {
+    this.visits = [];
+    if (blocked || len(values) === 0) { throw new Exception("unavailable"); }
+    for (const value of values) {
+      this.user = new User("available");
+      this.visits = append(this.visits, value);
+    }
+  }
+  public function name(): string { return this.user.name; }
+  public function count(): int { return len(this.visits); }
+}
 function negatedName(): string { return new NegatedHolder().name(); }
 function negatedCount(): int { return new NegatedHolder().count(); }
 function numericName(): string { return new NumericHolder().name(); }
@@ -113,6 +175,26 @@ function spreadRangeName(): string { return new SpreadRangeHolder().name(); }
 function spreadRangeCount(): int { return new SpreadRangeHolder().count(); }
 function madeSliceRangeName(): string { return new MadeSliceRangeHolder().name(); }
 function madeSliceRangeCount(): int { return new MadeSliceRangeHolder().count(); }
+function guardedRangeName(values: int[]): string { return new GuardedRangeHolder(values).name(); }
+function guardedRangeCount(values: int[]): int { return new GuardedRangeHolder(values).count(); }
+function requiredRangeName(values: int[]): string {
+  try { return new RequiredRangeHolder(values).name(); }
+  catch (err: Exception) { return "error:" + err.message; }
+}
+function requiredRangeCount(values: int[]): int {
+  try { return new RequiredRangeHolder(values).count(); }
+  catch (err: Exception) { return -1; }
+}
+function compoundRangeName(values: int[], enabled: boolean): string { return new CompoundRangeHolder(values, enabled).name(); }
+function compoundRangeCount(values: int[], enabled: boolean): int { return new CompoundRangeHolder(values, enabled).count(); }
+function availableRangeName(values: int[], blocked: boolean): string {
+  try { return new AvailableRangeHolder(values, blocked).name(); }
+  catch (err: Exception) { return "error:" + err.message; }
+}
+function availableRangeCount(values: int[], blocked: boolean): int {
+  try { return new AvailableRangeHolder(values, blocked).count(); }
+  catch (err: Exception) { return -1; }
+}
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -162,6 +244,34 @@ func MadeSliceRange() (string, int) {
   for range make([]int, 1+1) { name = "make-slice"; count++ }
   return name, count
 }
+func GuardedRange(values []int) (string, int) {
+  name, count := "", 0
+  if len(values) > 0 {
+    for range values { name = "nonempty"; count++ }
+  } else {
+    name = "empty"
+  }
+  return name, count
+}
+func RequiredRange(values []int) (string, int) {
+  if len(values) == 0 { return "error:empty", -1 }
+  name, count := "", 0
+  for range values { name = "required"; count++ }
+  return name, count
+}
+func CompoundRange(values []int, enabled bool) (string, int) {
+  name, count := "fallback", 0
+  if enabled && len(values) > 0 {
+    for range values { name = "enabled"; count++ }
+  }
+  return name, count
+}
+func AvailableRange(values []int, blocked bool) (string, int) {
+  if blocked || len(values) == 0 { return "error:unavailable", -1 }
+  name, count := "", 0
+  for range values { name = "available"; count++ }
+  return name, count
+}
 `
 	testSource := `package constructorconstants
 import (
@@ -188,6 +298,22 @@ func TestConstructorConstants(t *testing.T) {
   wantName, wantCount = reference.MadeSliceRange()
   if got := madeSliceRangeName(); got != wantName { t.Fatalf("madeSliceRangeName = %q, equivalent Go = %q", got, wantName) }
   if got := madeSliceRangeCount(); got != wantCount { t.Fatalf("madeSliceRangeCount = %d, equivalent Go = %d", got, wantCount) }
+  for _, values := range [][]int{nil, {}, {0}, {1, 2, 3}, {-4, 0, 9, 12}} {
+    wantName, wantCount = reference.GuardedRange(values)
+    if got := guardedRangeName(values); got != wantName { t.Errorf("guardedRangeName(%v) = %q, equivalent Go = %q", values, got, wantName) }
+    if got := guardedRangeCount(values); got != wantCount { t.Errorf("guardedRangeCount(%v) = %d, equivalent Go = %d", values, got, wantCount) }
+    wantName, wantCount = reference.RequiredRange(values)
+    if got := requiredRangeName(values); got != wantName { t.Errorf("requiredRangeName(%v) = %q, equivalent Go = %q", values, got, wantName) }
+    if got := requiredRangeCount(values); got != wantCount { t.Errorf("requiredRangeCount(%v) = %d, equivalent Go = %d", values, got, wantCount) }
+    for _, enabled := range []bool{false, true} {
+      wantName, wantCount = reference.CompoundRange(values, enabled)
+      if got := compoundRangeName(values, enabled); got != wantName { t.Errorf("compoundRangeName(%v, %v) = %q, equivalent Go = %q", values, enabled, got, wantName) }
+      if got := compoundRangeCount(values, enabled); got != wantCount { t.Errorf("compoundRangeCount(%v, %v) = %d, equivalent Go = %d", values, enabled, got, wantCount) }
+      wantName, wantCount = reference.AvailableRange(values, enabled)
+      if got := availableRangeName(values, enabled); got != wantName { t.Errorf("availableRangeName(%v, %v) = %q, equivalent Go = %q", values, enabled, got, wantName) }
+      if got := availableRangeCount(values, enabled); got != wantCount { t.Errorf("availableRangeCount(%v, %v) = %d, equivalent Go = %d", values, enabled, got, wantCount) }
+    }
+  }
 }
 `
 	runGeneratedGoDifferentialTest(t, temp, "constructor-constants.test", generated, referenceSource, testSource)

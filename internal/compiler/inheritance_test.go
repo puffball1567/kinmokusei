@@ -8,6 +8,7 @@ import (
 )
 
 func TestSingleInheritanceVirtualDispatchMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "inheritance.km")
 	input := `

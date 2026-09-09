@@ -48,18 +48,52 @@ in the specified order before invoking it. This remains independent because it
 is authored from the language rule and never copied from or linked to generated
 output.
 
+## Bounded test parallelism
+
+Independent compiler differential fixtures opt into `t.Parallel()` at the start
+of the top-level test, before compilation or temporary-file creation. Each owns
+its files through `t.TempDir()` and creates its own compiler/type-checker state.
+Tests that change process-wide environment variables with `t.Setenv()` remain
+sequential; do not mark them or their parents parallel. Keep other shared-state
+fixtures sequential until their isolation has been checked.
+
+The compiler test binary caps its default parallel-test count at four (or the
+Go test default when lower). An explicit `-parallel` flag takes precedence.
+Nested differential `go test` commands default to `-p=2`, independently limiting
+package builds inside each fixture; a fixture's explicit `-p` flag is preserved.
+These limits are per compiler test binary, not a machine-wide process budget.
+Other package test binaries can still run concurrently under `go test -p`.
+Differential subprocesses inherit `GOCACHE`, falling back to Go's normal shared
+build cache when it is unset, rather than creating a cold cache per fixture.
+Generated sources and reference modules remain in each test's private directory.
+
+Use uncached runs when comparing scheduling choices:
+
+```sh
+go test ./internal/compiler -count=1 -parallel=1
+go test ./internal/compiler -count=1 -parallel=4
+KINMOKUSEI_DIFFERENTIAL_RACE=1 go test -race ./internal/compiler -count=1 -shuffle=on
+```
+
+The race environment variable enables the detector in generated/reference
+subprocesses as well as the outer compiler test binary's `-race` flag. Choose
+parallelism based on measured CPU and memory use; nested toolchain processes
+mean that a larger count is not necessarily faster.
+
 ## Go-equivalent contract coverage
 
 The compiler maintains an explicit registry of every implemented, accepted
 runtime contract that has a direct Go equivalent. Coverage is complete only
 when each registered contract is connected to an isolated handwritten-Go
-differential scenario. The current registry covers 82 of 82 contract groups
+differential scenario. The current registry covers 98 of 98 contract groups
 (100%), including core language behavior, collections, nullability, results,
 control flow, concurrency, standard/external Go interop, locked targets, CGO,
 unsafe operations, string conversion, native generic functions, classes, structs, and interfaces,
-native defined types and aliases including distinct native-struct definitions, standard and external Go type-set
+native defined types and aliases including distinct native-struct definitions, source-declared and standard/external Go type-set
 constraints, stable generic struct/class JSON, native integer enums, the HTTP/JSON
-dogfood application, and the bounded fetch adapter.
+dogfood application, the bounded fetch adapter, integer and iterator ranges,
+type-parameter conversions, and generic interface inheritance. This measures the implemented surface, not all Go or
+OOP features; see [the remaining language work](language-remaining-work.md).
 
 An automated gate discovers every differential scenario in the compiler tests,
 requires it to be classified in the registry, rejects a registered scenario
@@ -115,7 +149,7 @@ these percentages replaces the independent-Go runtime contract gate.
 | Parser | declarations, types, expressions, arrows, control, OOP, collections, interop | missing tokens, invalid targets, nested generic `>>`, statement-only updates, recovery | arbitrary input never panics and later declarations recover |
 | Predictability | value/reference, copy/alias, mutation, evaluation order/count, failure path | hidden alias, duplicate evaluation, unsupported fallback | generated form and runtime result tested together |
 | Types/operators | all built-ins including `uint`, `int8`/`int16`, `uint8`/`byte`, and `uint16`/`uint32`/`uint64`, native nominal `type Name = distinct T`, generic and finite recursive defined types, transparent generic and non-generic `alias Name<T> = T`, Go 1.23-compatible alias expansion, conversions, defined-type value/pointer receiver methods, arithmetic/comparison/logical/bitwise/shift, all compound updates, `++`/`--`, Go defined numbers | implicit nominal/signed/unsigned/width conversion, mixed types, infinite-size or alias declaration cycles, invalid underlyings/operands/targets, alias receiver rejection, generic arity/constraint failures, pointer-method addressability, conversion arity, const/nonaddressable mutation, fixed-width constant overflow, negative unsigned constant, zero divisor, negative/excessive shift | independent-Go exact results across scalars/slices/maps/fixed arrays/generic and recursive definitions/generic aliases/method values/nil receivers/Results/linked modules/external APIs, copy/alias behavior, machine/fixed-width overflow behavior, alias identity, target-once evaluation, Go flags/API, dynamic panic |
-| Names/functions | globals/locals, inference, shadowing, forward references, parameters/results, top-level generic function, class, struct, interface, and defined-type parameters, explicit `extends comparable`, standard/external Go interface type-set constraints, inferred/explicit/partial generic calls, explicit generic named-type instantiation | duplicate/reserved/unscoped/uninferred type parameters, inconsistent inference, non-interface/invalid/unsatisfied constraints and explicit types, unsupported operators across mixed type sets, uninstantiated/wrong-arity generic types and values, incompatible instantiations, const mutation, arity, missing return | top-level, linked-module, standard-library and external-module constrained/unconstrained generic calls and generic class/struct/interface/defined-type external APIs compile and match independent Go |
+| Names/functions | globals/locals, inference, shadowing, forward references, parameters/results, top-level generic functions, generic class/struct methods, class, struct, interface, and defined-type parameters, explicit constraints, source-declared exact/underlying type sets, standard/external Go interface type-set constraints, inferred/explicit/partial generic calls, explicit generic named-type instantiation | duplicate/reserved/unscoped/uninferred type parameters, owner/method parameter collisions, inconsistent inference, overlapping/invalid/unsatisfied constraint terms and explicit types, runtime misuse of constraint-only interfaces, unrepresentable generic method values/virtual dispatch, unsupported operators across mixed type sets, uninstantiated/wrong-arity generic types and values, incompatible instantiations, const mutation, arity, missing return | top-level and linked-module source constraints plus constrained/unconstrained generic functions and methods, named/constructed/returned/indexed receivers with single evaluation, value/pointer receivers, inheritance, `super`, and generic class/struct/interface/defined-type external APIs compile and match independent Go |
 | Control flow | conditionals, loops, all `for` clauses, range forms, value/type switches, branches, labels, labeled break/continue, forward/backward `goto` | nonboolean conditions, invalid range, incompatible/non-comparable/duplicate cases, scope/binding errors, duplicate/unused/undefined/non-enclosing/wrong-target labels, context-invalid branches | source-once range/switch, ordered case evaluation, value/reference comparison, index mutation, nil/empty, Unicode, named collections, independent-Go labeled control transfer |
 | Functions/arrows | expression/block bodies, annotations, callbacks, function/method values, native rest parameters on functions/generic functions/methods/interfaces/arrows/constructors | void or malformed/non-final rest parameters, signature mismatch, variadic arity/element/spread mismatch, fallthrough, invalid call controls | Go function literals/callbacks and independent variadic functions, methods, constructors, interfaces, and virtual forwarding execute |
 | Results/errors | `Result<T>`, `Result<void>`, `ok`, `fail`, postfix `?`, explicit split bindings, direct forwarding, raw Go error bridge | invalid placement/type/arity, forbidden storage/nesting, implicit raw conversion | generated `(T, error)`/`error`, success, zero-value failure, propagation |
@@ -244,6 +278,13 @@ Implemented: overlay frontend, same-binary `lsp --stdio`, lifecycle, transaction
   concrete, remapped, and multi-level bases, descendant-aware typed hierarchy conversions,
   construction-phase safety, relative linking, editor support, public generated-Go
   APIs, and independent-Go runtime comparison. (implemented)
+- Source-declared exact and underlying type-set constraints with `constraint`,
+  declaration-order-independent generic use, relative imports, operator checking,
+  editor navigation, generated Go APIs, and independent-Go runtime comparison. (implemented)
+- Generic class/struct methods with inferred, explicit, partial, constrained,
+  variadic, and `Result` calls; value/pointer receivers; inherited and `super`
+  calls; editor support; public generated-Go helpers; relative linking; and
+  independent-Go runtime comparison. (implemented)
 
 Most class/interface/object foundations, explicit result propagation,
 direct-assignment-sensitive local null narrowing and joins,
@@ -257,7 +298,23 @@ expressions, positive-length fixed arrays and pointers, provably nonempty
 also implemented for direct class-field paths. Local, `for`-initializer,
 same-file global, and explicitly imported `const` chains propagate these
 boolean, integer, string, and cardinality proofs by declaration identity;
-mutable or dynamic bindings do not. Broader cardinality proofs and package
+mutable or dynamic bindings do not. Direct `len(collection)` guards additionally
+prove the first matching collection range nonempty on the appropriate branch;
+terminating empty guard clauses carry that proof to the immediately following
+range. Side-effect-free boolean combinations preserve only facts valid on every
+path, including simultaneous facts for multiple collections. An immediately
+nested side-effect-free condition carries outer facts into both branches and
+combines them with its own length facts. Side-effect-free local `const` and
+`let` initializers preserve these facts before ranges and nested guards,
+including in length switches and after terminating empty guards. Declaration
+identity prevents shadowed variables from inheriting the proof. Empty paths, ambiguous alternatives,
+effectful compound or nested guards, different collections, nonterminal guards,
+intervening assignments or effectful initializers, other intervening statements,
+and channel ranges remain conservative. Length switches
+prove grouped positive cases and the default
+after an explicit zero case; mixed zero/positive cases and fallthrough bypasses
+remain conservative. Effectful case expressions invalidate all cardinality
+proofs for that switch. Broader relational cardinality flow and package
 distribution remain.
 
 The nullable-flow matrix now covers non-null/null direct assignments,

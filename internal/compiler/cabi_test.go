@@ -14,14 +14,11 @@ func TestCABISharedLibraryCompileAndCCallerMatrix(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shared library fixture currently targets Unix-like C toolchains")
 	}
-	cc := os.Getenv("CC")
-	if cc == "" {
-		cc = "cc"
-	}
-	if _, err := exec.LookPath(cc); err != nil {
-		t.Skipf("C compiler %q is unavailable", cc)
-	}
+	cc := requireCCompiler(t)
 	if output, err := exec.Command("go", "env", "CGO_ENABLED").CombinedOutput(); err != nil || strings.TrimSpace(string(output)) != "1" {
+		if requireCCompilerInCI() {
+			t.Fatalf("required cgo toolchain is unavailable: %v %s", err, output)
+		}
 		t.Skipf("cgo is unavailable: %v %s", err, output)
 	}
 
@@ -82,11 +79,11 @@ export c(
 		t.Fatalf("manifest/header fingerprint mismatch: manifest=%#v artifact=%q err=%v", manifest, artifacts.Fingerprint, err)
 	}
 	files := map[string][]byte{
-		"generated.go":      artifacts.GoSource,
-		"generated_cabi.go": artifacts.Gateway,
-		"kinmokusei_abi.h":      artifacts.Header,
-		"kinmokusei_abi.json":   artifacts.Manifest,
-		"go.mod":            []byte("module cabi.test\n\ngo 1.23\n"),
+		"generated.go":        artifacts.GoSource,
+		"generated_cabi.go":   artifacts.Gateway,
+		"kinmokusei_abi.h":    artifacts.Header,
+		"kinmokusei_abi.json": artifacts.Manifest,
+		"go.mod":              []byte("module cabi.test\n\ngo 1.23\n"),
 		"caller.c": []byte(`#include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>

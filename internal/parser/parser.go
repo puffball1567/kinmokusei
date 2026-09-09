@@ -13,13 +13,16 @@ import (
 type Parser struct {
 	tokens                       []token.Token
 	current                      int
+	previousToken                token.Token
+	tokenEdits                   []parserTokenEdit
 	diagnostics                  []diagnostic.Diagnostic
 	disallowUnqualifiedComposite bool
 	disallowCompositeBeforeBlock bool
 }
 
 func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
-	p := &Parser{tokens: tokens}
+	// Type-context token splitting must not modify the caller's lexer output.
+	p := &Parser{tokens: append([]token.Token(nil), tokens...)}
 	program := &ast.Program{}
 	for !p.at(token.EOF) {
 		start := p.current
@@ -172,6 +175,8 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		return p.parseTypeDeclaration(p.advance(), true)
 	case p.at(token.Identifier) && p.peek().Lexeme == "enum":
 		return p.parseEnum(p.advance())
+	case p.at(token.Identifier) && p.peek().Lexeme == "constraint":
+		return p.parseConstraint(p.advance())
 	case p.match(token.Interface):
 		if decl := p.parseInterface(p.previous()); decl != nil {
 			return decl
@@ -202,6 +207,53 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		p.synchronizeDeclaration()
 		return nil
 	}
+}
+
+func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
+	name, ok := p.expect(token.Identifier, "expected constraint name")
+	if !ok {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	parameters, valid := p.parseTypeParameters("constraint")
+	if !valid {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	if _, ok = p.expect(token.Assign, "expected '=' after constraint name"); !ok {
+		p.synchronizeDeclaration()
+		return nil
+	}
+	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, Constraint: true, TypeParameters: parameters}
+	for {
+		startTerm := p.peek()
+		underlying := p.match(token.Tilde)
+		term, valid := p.parseTypeInternal(false)
+		if !valid {
+			p.synchronizeDeclaration()
+			return nil
+		}
+		termSpan := term.Span
+		if underlying {
+			termSpan = startTerm.Span.Merge(term.Span)
+		}
+		declaration.Terms = append(declaration.Terms, ast.TypeSetTerm{Type: term, Underlying: underlying, Span: termSpan})
+		if !p.match(token.Pipe) {
+			break
+		}
+		if p.at(token.Semicolon) || p.at(token.EOF) {
+			p.report(p.peek(), "expected constraint term after '|'")
+			p.synchronizeDeclaration()
+			return nil
+		}
+	}
+	end, valid := p.expect(token.Semicolon, "expected ';' after constraint declaration")
+	if !valid {
+		p.synchronizeDeclaration()
+		end = p.previous()
+	}
+	declaration.Span = start.Span.Merge(end.Span)
+	return declaration
 }
 
 func (p *Parser) parseEnum(start token.Token) *ast.EnumDecl {
@@ -413,13 +465,29 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 		return nil
 	}
 	typeParameters, typeParametersValid := p.parseTypeParameters("interface")
+	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
+	if p.match(token.Extends) {
+		for {
+			base, valid := p.parseType()
+			if !valid {
+				return nil
+			}
+			declaration.Bases = append(declaration.Bases, base)
+			if !p.match(token.Comma) {
+				break
+			}
+		}
+	}
 	if _, ok = p.expect(token.LeftBrace, "expected '{' after interface name"); !ok {
 		return nil
 	}
-	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
 		methodStart, valid := p.expect(token.Function, "expected interface method")
 		if !valid {
+			// Statement recovery can stop immediately at a statement keyword or
+			// after a semicolon. Neither is a valid interface member: consume
+			// the offending token so malformed bodies cannot loop forever.
+			p.advance()
 			p.synchronizeStatement()
 			continue
 		}
@@ -550,10 +618,6 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		case p.match(token.Function):
 			function := p.parseFunction(p.previous())
 			if function != nil {
-				if len(function.TypeParameters) != 0 {
-					p.report(token.Token{Span: function.NameSpan}, "generic class methods are not supported; declare a top-level generic function")
-					continue
-				}
 				class.Methods = append(class.Methods, &ast.MethodDecl{
 					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
 					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Span: function.Span,
@@ -573,12 +637,16 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				p.synchronizeStatement()
 				continue
 			}
+			var initializer ast.Expression
+			if p.match(token.Assign) {
+				initializer = p.parseExpression()
+			}
 			end, valid := p.expect(token.Semicolon, "expected ';' after field declaration")
 			if !valid {
 				p.synchronizeStatement()
 				end = p.previous()
 			}
-			class.Fields = append(class.Fields, ast.FieldDecl{Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
+			class.Fields = append(class.Fields, ast.FieldDecl{Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
 		default:
 			p.report(p.peek(), "expected a field, constructor, or method")
 			p.advance()
@@ -621,10 +689,6 @@ func (p *Parser) parseStruct(start token.Token) *ast.StructDecl {
 		if p.match(token.Function) {
 			function := p.parseFunction(p.previous())
 			if function != nil {
-				if len(function.TypeParameters) != 0 {
-					p.report(token.Token{Span: function.NameSpan}, "generic struct methods are not supported; declare a top-level generic function")
-					continue
-				}
 				declaration.Methods = append(declaration.Methods, &ast.MethodDecl{
 					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
 					Body: function.Body, Visibility: visibility, PointerReceiver: pointerReceiver, Span: function.Span,
@@ -940,7 +1004,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		if !ok {
 			return ast.TypeRef{}, false
 		}
-		length, err := strconv.ParseInt(lengthToken.Lexeme, 10, 64)
+		length, err := strconv.ParseInt(lengthToken.Lexeme, 0, 64)
 		if err != nil {
 			p.report(lengthToken, "fixed array length is out of range")
 			return ast.TypeRef{}, false
@@ -1355,7 +1419,11 @@ func (p *Parser) parseIf(start token.Token) ast.Statement {
 		if p.match(token.If) {
 			elseBranch = p.parseIf(p.previous())
 		} else {
-			elseBranch = p.parseBlock()
+			// Do not box a nil *BlockStmt into a non-nil Statement interface
+			// when an incomplete else branch fails to parse.
+			if block := p.parseBlock(); block != nil {
+				elseBranch = block
+			}
 		}
 		if elseBranch != nil {
 			end = elseBranch.GetSpan()
@@ -1511,13 +1579,11 @@ func (p *Parser) parseFor(start token.Token) ast.Statement {
 		return nil
 	}
 	if p.at(token.Const) || p.at(token.Let) {
-		cursor := p.current
-		diagnosticCount := len(p.diagnostics)
+		checkpoint := p.checkpoint()
 		if ranged, recognized := p.tryParseForRange(start); recognized {
 			return ranged
 		}
-		p.current = cursor
-		p.diagnostics = p.diagnostics[:diagnosticCount]
+		p.restore(checkpoint)
 	}
 	var initializer ast.Statement
 	if p.match(token.Semicolon) {
@@ -1598,6 +1664,7 @@ func (p *Parser) tryParseForRange(start token.Token) (ast.Statement, bool) {
 	}
 	source := p.parseExpression()
 	if source == nil {
+		p.synchronizeStatement()
 		return nil, true
 	}
 	if _, ok := p.expect(token.RightParen, "expected ')' after range expression"); !ok {
@@ -1720,6 +1787,7 @@ func (p *Parser) parseSwitch(start token.Token) ast.Statement {
 	}
 	value := p.parseExpression()
 	if value == nil {
+		p.synchronizeStatement()
 		return nil
 	}
 	if _, ok := p.expect(token.RightParen, "expected ')' after switch value"); !ok {
@@ -2089,8 +2157,7 @@ func (p *Parser) parseCall() ast.Expression {
 			}
 			expr = &ast.MemberExpr{Object: expr, Name: name.Lexeme, NameSpan: name.Span, Span: expr.GetSpan().Merge(name.Span)}
 		case p.at(token.LeftBracket) && isExplicitTypeArgumentCallee(expr):
-			start := p.current
-			diagnosticCount := len(p.diagnostics)
+			checkpoint := p.checkpoint()
 			typeArguments, ok := p.tryParseCallTypeArguments()
 			if ok {
 				args, expanded, end, valid := p.parseArguments()
@@ -2100,13 +2167,11 @@ func (p *Parser) parseCall() ast.Expression {
 				expr = &ast.CallExpr{Callee: expr, TypeArguments: typeArguments, Arguments: args, Expanded: expanded, Span: expr.GetSpan().Merge(end.Span)}
 				continue
 			}
-			p.current = start
-			p.diagnostics = p.diagnostics[:diagnosticCount]
+			p.restore(checkpoint)
 			p.advance()
 			expr = p.parseSubscript(expr)
 		case p.at(token.Less) && isExplicitTypeArgumentCallee(expr):
-			start := p.current
-			diagnosticCount := len(p.diagnostics)
+			checkpoint := p.checkpoint()
 			typeArguments, ok := p.tryParseAngleTypeArguments()
 			if ok && p.match(token.LeftParen) {
 				args, expanded, end, valid := p.parseArguments()
@@ -2118,17 +2183,16 @@ func (p *Parser) parseCall() ast.Expression {
 			}
 			if ok && p.at(token.LeftBrace) {
 				if p.disallowCompositeBeforeBlock {
-					p.current = start
-					p.diagnostics = p.diagnostics[:diagnosticCount]
+					p.restore(checkpoint)
 					return expr
 				}
 				if _, unqualified := expr.(*ast.IdentifierExpr); unqualified && p.disallowUnqualifiedComposite {
-					p.current = start
-					p.diagnostics = p.diagnostics[:diagnosticCount]
+					p.restore(checkpoint)
 					return expr
 				}
 				typeRef, valid := qualifiedTypeExpression(expr)
 				if !valid {
+					p.restore(checkpoint)
 					return expr
 				}
 				typeRef.GenericArguments = typeArguments
@@ -2139,8 +2203,7 @@ func (p *Parser) parseCall() ast.Expression {
 				}
 				continue
 			}
-			p.current = start
-			p.diagnostics = p.diagnostics[:diagnosticCount]
+			p.restore(checkpoint)
 			return expr
 		case p.match(token.LeftBracket):
 			expr = p.parseSubscript(expr)
@@ -2210,21 +2273,13 @@ func (p *Parser) parseSubscript(object ast.Expression) ast.Expression {
 	return &ast.SliceExpr{Object: object, Low: low, High: high, Max: max, Full: full, Span: object.GetSpan().Merge(end.Span)}
 }
 
-func isQualifiedMemberExpression(expr ast.Expression) bool {
-	member, ok := expr.(*ast.MemberExpr)
-	if !ok {
+func isExplicitTypeArgumentCallee(expr ast.Expression) bool {
+	switch expr.(type) {
+	case *ast.IdentifierExpr, *ast.MemberExpr:
+		return true
+	default:
 		return false
 	}
-	_, ok = member.Object.(*ast.IdentifierExpr)
-	return ok
-}
-
-func isExplicitTypeArgumentCallee(expr ast.Expression) bool {
-	if isQualifiedMemberExpression(expr) {
-		return true
-	}
-	_, ok := expr.(*ast.IdentifierExpr)
-	return ok
 }
 
 // tryParseCallTypeArguments recognizes package.Function[T, U](...) and the
@@ -2324,6 +2379,9 @@ func (p *Parser) parsePrimary() ast.Expression {
 	case token.Float:
 		p.advance()
 		return &ast.LiteralExpr{Kind: ast.FloatLiteral, Text: tok.Lexeme, Span: tok.Span}
+	case token.Imaginary:
+		p.advance()
+		return &ast.LiteralExpr{Kind: ast.ImaginaryLiteral, Text: tok.Lexeme, Span: tok.Span}
 	case token.String:
 		p.advance()
 		return &ast.LiteralExpr{Kind: ast.StringLiteral, Text: tok.Lexeme, Span: tok.Span}
@@ -2586,14 +2644,23 @@ func (p *Parser) expect(kind token.Kind, message string) (token.Token, bool) {
 	return p.peek(), false
 }
 
-// expectTypeGreater resolves the only lexical ambiguity between nested generic
-// type arguments and the shift-right operator. In a type context, a >> token
-// closes two adjacent generic argument lists one > at a time.
+// expectTypeGreater consumes one closer only in a type context. The remaining
+// suffix is still a token: >> becomes >, >= becomes =, and >>= becomes >=.
+// Speculative callers restore these edits when the input is an expression.
 func (p *Parser) expectTypeGreater(message string) (token.Token, bool) {
 	if p.at(token.Greater) {
 		return p.advance(), true
 	}
-	if p.at(token.ShiftRight) {
+	var remainder token.Kind
+	switch p.peek().Kind {
+	case token.ShiftRight:
+		remainder = token.Greater
+	case token.GreaterEqual:
+		remainder = token.Assign
+	case token.ShrAssign:
+		remainder = token.GreaterEqual
+	}
+	if remainder != "" {
 		combined := p.peek()
 		middle := combined.Span.Start
 		middle.Offset++
@@ -2603,11 +2670,13 @@ func (p *Parser) expectTypeGreater(message string) (token.Token, bool) {
 			Lexeme: ">",
 			Span:   source.Span{Path: combined.Span.Path, Start: combined.Span.Start, End: middle},
 		}
+		p.tokenEdits = append(p.tokenEdits, parserTokenEdit{index: p.current, original: combined})
 		p.tokens[p.current] = token.Token{
-			Kind:   token.Greater,
-			Lexeme: ">",
+			Kind:   remainder,
+			Lexeme: combined.Lexeme[1:],
 			Span:   source.Span{Path: combined.Span.Path, Start: middle, End: combined.Span.End},
 		}
+		p.previousToken = first
 		return first, true
 	}
 	p.report(p.peek(), message)
@@ -2641,10 +2710,10 @@ func (p *Parser) peek() token.Token {
 }
 
 func (p *Parser) previous() token.Token {
-	if p.current == 0 {
+	if p.previousToken.Kind == "" {
 		return p.peek()
 	}
-	return p.tokens[p.current-1]
+	return p.previousToken
 }
 
 func (p *Parser) advance() token.Token {
@@ -2652,7 +2721,33 @@ func (p *Parser) advance() token.Token {
 	if p.current < len(p.tokens) {
 		p.current++
 	}
+	p.previousToken = tok
 	return tok
+}
+
+type parserTokenEdit struct {
+	index    int
+	original token.Token
+}
+
+type parserCheckpoint struct {
+	current, diagnostics, edits int
+	previous                    token.Token
+}
+
+func (p *Parser) checkpoint() parserCheckpoint {
+	return parserCheckpoint{p.current, len(p.diagnostics), len(p.tokenEdits), p.previousToken}
+}
+
+func (p *Parser) restore(checkpoint parserCheckpoint) {
+	for i := len(p.tokenEdits) - 1; i >= checkpoint.edits; i-- {
+		edit := p.tokenEdits[i]
+		p.tokens[edit.index] = edit.original
+	}
+	p.tokenEdits = p.tokenEdits[:checkpoint.edits]
+	p.current = checkpoint.current
+	p.diagnostics = p.diagnostics[:checkpoint.diagnostics]
+	p.previousToken = checkpoint.previous
 }
 
 func (p *Parser) report(tok token.Token, message string) {

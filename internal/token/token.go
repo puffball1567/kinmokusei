@@ -11,6 +11,7 @@ const (
 	Identifier Kind = "identifier"
 	Integer    Kind = "integer"
 	Float      Kind = "float"
+	Imaginary  Kind = "imaginary"
 	String     Kind = "string"
 
 	Function    Kind = "function"
@@ -113,6 +114,7 @@ const (
 	ShiftLeft     Kind = "<<"
 	ShiftRight    Kind = ">>"
 	AndNot        Kind = "&^"
+	Tilde         Kind = "~"
 	Question      Kind = "?"
 )
 

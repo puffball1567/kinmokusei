@@ -1,0 +1,2 @@
+go test fuzz v1
+string("import go fmt from\"fmt\";interface Named extends fmt.r{ class Value implements Named {public function string():string{return \"x\";}} function use():fmt.Snringer{return new Value();}")

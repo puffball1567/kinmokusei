@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericInterfacesMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_interface.km")
 	if err := os.WriteFile(source, []byte(`
@@ -176,6 +177,7 @@ func TestGenericInterfaceBehavior(t *testing.T) {
 }
 
 func TestLinkedGenericInterfaceMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	dependency := filepath.Join(temporary, "contract.km")
 	entry := filepath.Join(temporary, "entry.km")

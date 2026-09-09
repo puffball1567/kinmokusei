@@ -8,6 +8,7 @@ import (
 )
 
 func TestStaticMethodPublicGoAPIMatchesIndependentPackage(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "static_api.km")
 	input := `

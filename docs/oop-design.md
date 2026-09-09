@@ -25,6 +25,38 @@ class Counter {
 
 `new Counter(1)` returns a class reference. Assignment aliases the same instance; it does not copy class state.
 
+### Instance field initializers
+
+Fields can have an explicitly typed default expression:
+
+```ts
+class Bucket<T> {
+  private items: T[] = [];
+  public function add(value: T): void { this.items = append(this.items, value); }
+}
+```
+
+Each `new Bucket<int>()` evaluates its own initializers; defaults are not shared
+class-level values. An explicit constructor is optional unless the base class
+requires arguments. Initialization proceeds through the base constructor, then
+the current class's field initializers in declaration order, constructor-field
+parameter assignments, and finally its constructor body. An exception or panic
+stops that sequence; later fields and bodies are not evaluated.
+
+Initializers can use module bindings, ordinary function calls, accessible static
+methods, class type parameters, allocations, and callbacks. They cannot reference
+`this`, `super`, or constructor-local parameters, including through a callback;
+receiver-dependent initialization belongs in the constructor. A module binding
+with the same name as a constructor parameter still resolves to the module
+binding in a field initializer. Fields with valid initializers satisfy definite
+initialization checks, while other non-null reference fields still need a
+constructor assignment. Native struct defaults and static fields remain separate,
+unsupported features.
+
+Generated `NewClass(...)` functions perform initialization. Constructing a Go
+struct literal directly does not run source-language initializers. JSON decoding
+retains the existing rule of updating an already constructed instance.
+
 ### Encapsulation
 
 - `public` maps to exported Go-facing members where a public boundary is generated.
@@ -50,6 +82,95 @@ class Text implements Reader {
 
 Interface-typed values lower to Go interfaces and dispatch through the Go interface method set. Classes may also explicitly implement imported Go interfaces when signatures match after lowering.
 
+Source interfaces can extend multiple source interfaces, including generic
+contracts and forward declarations:
+
+```ts
+interface Reader<T> { function read(): T; }
+interface Writer<T> { function write(value: T): void; }
+interface Store<T> extends Reader<T>, Writer<T> {}
+
+class Cell<T> implements Store<T> {
+  constructor(private value: T) {}
+  public function read(): T { return this.value; }
+  public function write(value: T): void { this.value = value; }
+}
+```
+
+`Store<T>` embeds its bases in generated Go. Implementing a child contract
+requires all inherited methods and also permits use through its ancestors.
+Interface-to-ancestor assignment preserves identity and supports nullable
+values. Generic inference follows declared interface ancestry and explicit
+class implementations. Unrelated interfaces still require a declared
+relationship; structural similarity alone does not grant source conformance.
+When several ancestor instantiations could infer different arguments, provide
+explicit or partial type arguments to select a contract. The compiler emits
+resolved arguments where Go cannot infer them from interface methods alone,
+including marker interfaces with no methods.
+
+Diamond inheritance and same-signature method redeclarations are accepted.
+Cycles, duplicate direct bases, and incompatible same-name signatures are
+rejected. Generic substitution follows each inheritance edge, even when type
+parameters are reordered. Completion, signature help, navigation, and rename
+include inherited source contracts.
+
+Source interfaces may also extend imported runtime Go interfaces:
+
+```ts
+import go fmt from "fmt";
+interface Named extends fmt.Stringer {}
+class Label implements Named {
+  public function string(): string { return "label"; }
+}
+function describe(value: Named): string { return value.String(); }
+```
+
+Inherited Go methods retain their exported spelling (`String`), while class
+implementations are matched by the emitted public Go name (`string` emits
+`String`). Method values and virtual overrides retain ordinary dispatch. Source
+interfaces and their declared class implementations can upcast to their Go
+ancestors without wrappers; Go values do not implicitly become source interfaces.
+Generic imported contracts, variadic methods, and Go multiple results are
+preserved; a compatible source `Result<T>` method can implement `(T, error)`.
+Generic source wrappers retain native class identity and nullable arguments.
+Direct Go type arguments retain the existing Go-representability restrictions.
+
+Conflicts are checked by emitted Go name as well as source spelling. Unexported
+Go methods, type-set-only constraints, and unsupported interop method signatures
+are rejected as bases. The unsafe interop policy also applies to inherited
+signatures. Completion and checked-call signature help include inherited Go
+methods; these are external contracts, not renameable source declarations.
+Embedding an imported Go contract remains a Go-module dependency for future KIR
+backend-capability tracking, not an implicitly portable C++ or Nim library.
+
+### Iteration over class-defined collections
+
+A class can expose a bound iterator method without allocating an intermediate
+slice. The callback receives each value and returns whether iteration should
+continue:
+
+```ts
+class Sequence<T> {
+  constructor(private items: T[]) {}
+  public function iterate(yield: (value: T) => boolean): void {
+    for (const item of this.items) {
+      if (!yield(item)) { return; }
+    }
+  }
+}
+
+function sum(sequence: Sequence<int>): int {
+  let result = 0;
+  for (const value of sequence.iterate) { result += value; }
+  return result;
+}
+```
+
+Virtual iterator methods dispatch through the dynamic class implementation;
+`super` can invoke the base iterator. Generic class elements retain their
+reference identity. Always stop when `yield` returns false: the generated Go
+runtime detects protocol violations. See [range semantics](language-design.md#range).
+
 ### Composition
 
 Composition is the preferred state/implementation reuse mechanism before inheritance:
@@ -65,7 +186,8 @@ Fields remain ordinary named fields; embedding and promoted Go methods are not i
 ### Static members
 
 - Static methods lower to stable type-prefixed package functions.
-- Immutable static constants may lower to Go constants/package variables.
+- Static fields/constants are not implemented; use module constants or
+  explicit static methods today.
 - Mutable static state is discouraged and should require an explicit synchronization/lifecycle design.
 
 ## Deliberate differences from TypeScript/JavaScript
@@ -73,7 +195,7 @@ Fields remain ordinary named fields; embedding and promoted Go methods are not i
 - No prototype chain or prototype mutation.
 - No runtime field creation.
 - No dynamic `this` binding.
-- No implicit method binding when a method value is extracted.
+- Extracted method values retain their receiver using Go method-value semantics.
 - No dynamic class patterns that cannot be represented predictably in Go.
 - No arbitrary runtime decorator rewriting in the initial language.
 

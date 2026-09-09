@@ -1,0 +1,2 @@
+go test fuzz v1
+string("constraint Lookup<K extends comparable,V>=Map<K,V>;class A<K extends comparable,V,A extends Lookup<K,A>>{}")
