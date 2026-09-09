@@ -15,6 +15,8 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function f():int{return 1;{}}`,
+	`function f():int{switch(1){default{break;return 1;}}}`,
 	`function pick<T>(a:T,b:T):T{return b;}function f(v:float32):float32{return pick(1.25,v);}`,
 	`function keep<T>(v:T):T{return v;}function f():byte{return keep<byte>(256);}`,
 	`import go cmp from "cmp";function f():int{return cmp.Compare<float32>(1e40,0);}`,
@@ -126,7 +128,7 @@ func FuzzCompilePipelineNeverPanics(f *testing.F) {
 			t.Skip()
 		}
 		if _, _, err := compilePipelineProperty(input); err != nil {
-			t.Fatal(err)
+			t.Fatalf("input %q: %v", input, err)
 		}
 	})
 }

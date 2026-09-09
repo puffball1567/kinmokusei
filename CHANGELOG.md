@@ -6,6 +6,13 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Prevent invalid interface members from stalling parser recovery. Require a
+  terminating final statement for value-returning functions, matching Go;
+  switch/select breaks no longer count as guaranteed returns. Trailing
+  unreachable statements after a return must be removed or moved before it.
+- Preserve failing CI fuzz inputs as downloadable regression artifacts.
+- Diagnose type parameters that hide their enclosing type in generated class
+  constructors or generic method helpers; use a distinct type parameter name.
 - Preserve actual numeric constant values in imported Go generic inference and
   reject overflow/fractional arguments. Native generic calls infer from typed
   arguments before defaulting mixed numeric constants, with explicit/partial

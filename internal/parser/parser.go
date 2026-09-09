@@ -484,6 +484,10 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
 		methodStart, valid := p.expect(token.Function, "expected interface method")
 		if !valid {
+			// Statement recovery can stop immediately at a statement keyword or
+			// after a semicolon. Neither is a valid interface member: consume
+			// the offending token so malformed bodies cannot loop forever.
+			p.advance()
 			p.synchronizeStatement()
 			continue
 		}

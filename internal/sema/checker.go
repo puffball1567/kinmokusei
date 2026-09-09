@@ -551,6 +551,10 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 			if gotoken.Lookup(declaration.Name).IsKeyword() {
 				c.report(declaration.Span, fmt.Sprintf("class name %q is a Go keyword and cannot be generated", declaration.Name))
 			}
+			c.checkOwnerTypeParameterNames(declaration.Name, declaration.TypeParameters)
+			for _, method := range declaration.Methods {
+				c.checkOwnerTypeParameterNames(declaration.Name, method.TypeParameters)
+			}
 			claim(declaration.Name, declaration.Span)
 			claim("New"+declaration.Name, declaration.Span)
 			claim("__kinmokuseiInit"+declaration.Name, declaration.Span)
@@ -631,6 +635,12 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 		case *ast.StructDecl:
 			if gotoken.Lookup(declaration.Name).IsKeyword() {
 				c.report(declaration.Span, fmt.Sprintf("struct name %q is a Go keyword and cannot be generated", declaration.Name))
+			}
+			for _, method := range declaration.Methods {
+				if len(method.TypeParameters) != 0 {
+					c.checkOwnerTypeParameterNames(declaration.Name, declaration.TypeParameters)
+					c.checkOwnerTypeParameterNames(declaration.Name, method.TypeParameters)
+				}
 			}
 			claim(declaration.Name, declaration.Span)
 			for _, field := range declaration.Fields {
@@ -11502,7 +11512,12 @@ func (c *Checker) report(span source.Span, message string) {
 }
 
 func definitelyReturns(block *ast.BlockStmt) bool {
-	for _, stmt := range block.Statements {
+	if block == nil || len(block.Statements) == 0 {
+		return false
+	}
+	// Go requires a syntactically terminating final statement, even when an
+	// earlier return makes a trailing statement unreachable.
+	for _, stmt := range block.Statements[len(block.Statements)-1:] {
 		switch stmt := stmt.(type) {
 		case *ast.BlockStmt:
 			if definitelyReturns(stmt) {
@@ -11536,6 +11551,9 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 				return true
 			}
 		case *ast.SelectStmt:
+			if hasSwitchExit(stmt) {
+				return false
+			}
 			if len(stmt.Cases) == 0 {
 				return true
 			}
@@ -11554,6 +11572,9 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 				return true
 			}
 		case *ast.TypeSwitchStmt:
+			if hasSwitchExit(stmt) {
+				return false
+			}
 			hasDefault := false
 			allReturn := len(stmt.Cases) != 0
 			for i := range stmt.Cases {
@@ -11571,7 +11592,7 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 }
 
 func valueSwitchDefinitelyReturns(statement *ast.ValueSwitchStmt) bool {
-	if statement == nil || len(statement.Cases) == 0 {
+	if statement == nil || len(statement.Cases) == 0 || hasSwitchExit(statement) {
 		return false
 	}
 	caseReturns := make([]bool, len(statement.Cases))
