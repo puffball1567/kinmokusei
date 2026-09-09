@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericStructsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_struct.km")
 	if err := os.WriteFile(source, []byte(`
@@ -188,6 +189,7 @@ func TestGenericStructBehavior(t *testing.T) {
 }
 
 func TestLinkedGenericStructMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	dependency := filepath.Join(temporary, "box.km")
 	entry := filepath.Join(temporary, "entry.km")

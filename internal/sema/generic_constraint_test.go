@@ -1,6 +1,7 @@
 package sema
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -88,4 +89,58 @@ func TestGoTypeSetConstraintFailureMatrix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSourceTypeSetConstraintSemanticMatrix(t *testing.T) {
+	success := []struct {
+		name   string
+		source string
+	}{
+		{"function and defined type", `constraint Integer = ~int | ~int8 | ~uint64; type Score = distinct int; function add<T extends Integer>(left: T, right: T): T { return left + right; } function use(): Score { return add(Score(1), Score(2)); }`},
+		{"forward class constraint", `class Box<T extends Integer> { constructor(public value: T) {} public function doubled(): T { return this.value + this.value; } } constraint Integer = ~int | ~int16; function use(): int { return new Box<int>(2).doubled(); }`},
+		{"struct interface and defined map", `constraint Key = ~string | ~int; struct Entry<T extends Key> { public key: T; } interface Reader<T extends Key> { function read(): T; } type Lookup<T extends Key> = distinct Map<T, string>; function size(values: Lookup<int>): int { return len(values); }`},
+		{"exact type excludes aliases but accepts exact", `constraint OnlyInt = int; function identity<T extends OnlyInt>(value: T): T { return value; } function use(): int { return identity(3); }`},
+		{"exact forward nominal type", `constraint TicketOnly = Ticket; type Ticket = distinct string; function identity<T extends TicketOnly>(value: T): T { return value; } function use(value: Ticket): Ticket { return identity(value); }`},
+	}
+	for _, test := range success {
+		t.Run(test.name, func(t *testing.T) {
+			if diagnostics := checkSource(t, test.source); len(diagnostics) != 0 {
+				t.Fatalf("diagnostics = %v", diagnostics)
+			}
+		})
+	}
+}
+
+func TestSourceTypeSetConstraintFailureMatrix(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   string
+	}{
+		{"unsatisfied argument", `constraint Integer = ~int | ~int8; function identity<T extends Integer>(value: T): T { return value; } function bad(): boolean { return identity(true); }`, "does not satisfy T type parameter constraint"},
+		{"exact rejects defined type", `constraint OnlyInt = int; type Score = distinct int; function identity<T extends OnlyInt>(value: T): T { return value; } function bad(value: Score): Score { return identity(value); }`, "does not satisfy T type parameter constraint"},
+		{"runtime value type", `constraint Integer = ~int | ~int8; function bad(value: Integer): void {}`, "can only be used after 'extends'"},
+		{"implements constraint", `constraint Integer = ~int | ~int8; class Bad implements Integer {}`, "can only be used after 'extends'"},
+		{"overlap exact and underlying", `constraint Bad = ~int | int;`, "overlaps an earlier term"},
+		{"duplicate exact", `constraint Bad = string | string;`, "overlaps an earlier term"},
+		{"tilde named type", `type Score = distinct int; constraint Bad = ~Score;`, "must name its own underlying type"},
+		{"interface term", `interface Reader { function read(): int; } constraint Bad = Reader;`, "must be a concrete type, not an interface"},
+		{"too many terms", "constraint Bad = " + fixedArrayConstraintTerms(101) + ";", "cannot contain more than 100 terms"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			diagnostics := checkSource(t, test.source)
+			if !strings.Contains(strings.Join(diagnostics, "\n"), test.want) {
+				t.Fatalf("diagnostics = %v, want %q", diagnostics, test.want)
+			}
+		})
+	}
+}
+
+func fixedArrayConstraintTerms(count int) string {
+	terms := make([]string, count)
+	for index := range terms {
+		terms[index] = fmt.Sprintf("[%d]int", index)
+	}
+	return strings.Join(terms, " | ")
 }

@@ -84,8 +84,18 @@ Supported sources and bindings:
 | Map | value | key, value |
 | String | `int32` rune | `int` UTF-8 byte offset, `int32` rune |
 | Receive-capable channel | value | Not supported |
+| Integer | successive values from zero, excluding the bound | Not supported |
+| Function iterator yielding one value | yielded value | Not supported |
+| Function iterator yielding two values | second yielded value | both yielded values |
 
 The source evaluates once. Bindings may be `const` or `let` and may carry explicit annotations. Map order is unspecified; channel range continues until close and drain.
+
+Integer ranges with a nonpositive bound execute zero times. Function iterators
+include Go `iter.Seq` / `iter.Seq2` and compatible source functions or methods;
+the yield callback returns `boolean` to indicate whether iteration should
+continue. A zero-value iterator uses `for (const _ of ticks) { ... }`.
+Collection-shaped generic bounds also support range when all permitted types
+agree on the required range behavior.
 
 ## Value switch
 

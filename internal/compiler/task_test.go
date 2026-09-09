@@ -199,6 +199,8 @@ func DetachPanic() {
 import (
   "os"
   "os/exec"
+  "runtime"
+  "runtime/pprof"
   "strings"
   "sync"
   "sync/atomic"
@@ -231,6 +233,50 @@ func TestTaskBehavior(t *testing.T) {
 }
 func errorText(err error) string { if err == nil { return "" }; return err.Error() }
 func didPanic(call func() int) (panicked bool) { defer func() { panicked = recover() != nil }(); call(); return false }
+func requireNoGoroutineLeak(t *testing.T, name string, exercise func()) {
+  t.Helper()
+  baseline := runtime.NumGoroutine()
+  exercise()
+  deadline := time.Now().Add(3 * time.Second)
+  for time.Now().Before(deadline) {
+    runtime.GC()
+    if runtime.NumGoroutine() <= baseline { return }
+    time.Sleep(10 * time.Millisecond)
+  }
+  var stacks strings.Builder
+  _ = pprof.Lookup("goroutine").WriteTo(&stacks, 2)
+  t.Fatalf("%s leaked goroutines: baseline=%d current=%d\n%s", name, baseline, runtime.NumGoroutine(), stacks.String())
+}
+func TestTaskOperationsDoNotLeakGoroutines(t *testing.T) {
+  requireNoGoroutineLeak(t, "generated tasks", func() {
+    var counter atomic.Int64
+    var detached sync.WaitGroup
+    detached.Add(100)
+    for index := 0; index < 100; index++ {
+      _ = ordinary()
+      _ = direct()
+      _, _ = resultValue(index%2 == 0)
+      _ = resultVoid(index%2 == 0)
+      awaitVoid(&counter)
+      detachVoid(&counter, &detached)
+    }
+    detached.Wait()
+  })
+  requireNoGoroutineLeak(t, "independent Go tasks", func() {
+    var counter atomic.Int64
+    var detached sync.WaitGroup
+    detached.Add(100)
+    for index := 0; index < 100; index++ {
+      _ = reference.Ordinary()
+      _ = reference.Direct()
+      _, _ = reference.ResultValue(index%2 == 0)
+      _ = reference.ResultVoid(index%2 == 0)
+      reference.AwaitVoid(&counter)
+      reference.DetachVoid(&counter, &detached)
+    }
+    detached.Wait()
+  })
+}
 func TestDetachedPanicIsFatal(t *testing.T) {
   if mode := os.Getenv("KINMOKUSEI_DETACHED_PANIC_CHILD"); mode != "" {
     if mode == "generated" { detachPanic() } else { reference.DetachPanic() }

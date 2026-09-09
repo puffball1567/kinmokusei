@@ -7,7 +7,7 @@ description: Supported Go toolchains and platforms, direct Go type connectivity,
 
 ## Toolchains and platforms
 
-| Area | v0.2 contract |
+| Area | v0.3 contract |
 | --- | --- |
 | Go source compatibility | Go 1.23 through Go 1.27 |
 | Release compiler | Built with Go 1.27 |
@@ -49,6 +49,6 @@ Unsupported or ambiguous machine-width/pointer/ownership shapes are rejected bef
 
 ## Behavioral compatibility evidence
 
-The runtime contract registry contains 82/82 implemented Go-equivalent groups, each connected to an isolated independently handwritten Go scenario. This is contract coverage for implemented behavior, not a claim that every Go or planned Kinmokusei feature exists.
+The runtime contract registry contains 98/98 implemented Go-equivalent groups, each connected to an isolated independently handwritten Go scenario. This is contract coverage for implemented behavior, not a claim that every Go or planned Kinmokusei feature exists.
 
 See [Quality promise](../project/quality) for the oracle and generated-artifact gates.

@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericClassesMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_class.km")
 	if err := os.WriteFile(source, []byte(`
@@ -166,6 +167,7 @@ func TestGenericClassBehavior(t *testing.T) {
 }
 
 func TestLinkedGenericClassMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	dependency := filepath.Join(temporary, "box.km")
 	entry := filepath.Join(temporary, "entry.km")

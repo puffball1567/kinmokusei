@@ -1,9 +1,36 @@
 package sema
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 )
+
+func TestLengthComparisonProvesNonEmptyMatrix(t *testing.T) {
+	for _, test := range []struct {
+		operator            string
+		constant            int64
+		wantTrue, wantFalse bool
+	}{
+		{">", 0, true, false},
+		{">", -1, false, false},
+		{">=", 1, true, false},
+		{">=", 0, false, false},
+		{"<", 1, false, true},
+		{"<", 0, false, false},
+		{"<=", 0, false, true},
+		{"<=", -1, false, false},
+		{"==", 1, true, false},
+		{"===", 0, false, true},
+		{"!=", 0, true, false},
+		{"!==", 1, false, true},
+	} {
+		gotTrue, gotFalse := lengthComparisonProvesNonEmpty(test.operator, big.NewInt(test.constant))
+		if gotTrue != test.wantTrue || gotFalse != test.wantFalse {
+			t.Errorf("len %s %d proof = (%v, %v), want (%v, %v)", test.operator, test.constant, gotTrue, gotFalse, test.wantTrue, test.wantFalse)
+		}
+	}
+}
 
 func TestChecksDefiniteNonNullFieldInitialization(t *testing.T) {
 	diagnostics := checkSource(t, `
@@ -296,6 +323,178 @@ class GlobalConstantsInitialized {
     for (const rune of globalConstructorText) { this.items = [int(rune)]; }
   }
 }
+class GuardedSliceRangeInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) > 0) {
+      for (const value of values) { this.user = new User("nonempty-slice"); }
+    } else {
+      this.user = new User("empty-slice");
+    }
+  }
+}
+class ReversedLengthGuardInitialized {
+  private user: User;
+  constructor(values: string) {
+    if (0 < len(values)) {
+      for (const rune of values) { this.user = new User("nonempty-string"); }
+    } else {
+      this.user = new User("empty-string");
+    }
+  }
+}
+class ZeroLengthElseInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) === 0) {
+      this.user = new User("empty");
+    } else {
+      for (const value of values) { this.user = new User("nonempty"); }
+    }
+  }
+}
+class NegatedLengthGuardInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (!(len(values) <= 0)) {
+      for (const value of values) { this.user = new User("nonempty"); }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+}
+class ThrowingEmptyLengthBranchInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) !== 0) {
+      for (const value of values) { this.user = new User("nonempty"); }
+    } else {
+      throw new Exception("values must not be empty");
+    }
+  }
+}
+class EmptyGuardClauseInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) === 0) { throw new Exception("empty"); }
+    for (const value of values) { this.user = new User("nonempty"); }
+  }
+}
+class NegatedEmptyGuardClauseInitialized {
+  private user: User;
+  constructor(values: string) {
+    if (!(len(values) > 0)) { throw new Exception("empty"); }
+    for (const rune of values) { this.user = new User("nonempty"); }
+  }
+}
+class CompoundAndGuardInitialized {
+  private user: User;
+  constructor(values: int[], enabled: boolean) {
+    if (enabled && len(values) > 0) {
+      for (const value of values) { this.user = new User("nonempty"); }
+    } else {
+      this.user = new User("fallback");
+    }
+  }
+}
+class CompoundOrElseInitialized {
+  private user: User;
+  constructor(values: int[], fallback: boolean) {
+    if (len(values) === 0 || fallback) {
+      this.user = new User("fallback");
+    } else {
+      for (const value of values) { this.user = new User("nonempty"); }
+    }
+  }
+}
+class MultipleLengthGuardsInitialized {
+  private user: User;
+  constructor(left: int[], right: int[]) {
+    if (len(left) > 0 && len(right) > 0) {
+      for (const value of right) { this.user = new User("both-nonempty"); }
+    } else {
+      this.user = new User("fallback");
+    }
+  }
+}
+class CompoundEmptyGuardClauseInitialized {
+  private user: User;
+  constructor(values: int[], blocked: boolean) {
+    if (blocked || len(values) === 0) { throw new Exception("unavailable"); }
+    for (const value of values) { this.user = new User("available"); }
+  }
+}
+class RedundantOrGuardInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    if (len(values) > 0 || len(values) > 2) {
+      for (const value of values) { this.user = new User("nonempty"); }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+}
+class LengthSwitchDefaultInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    switch (len(values)) {
+      case 0 { this.user = new User("empty"); }
+      default {
+        for (const value of values) { this.user = new User("nonempty"); }
+      }
+    }
+  }
+}
+class LengthSwitchPositiveCasesInitialized {
+  private user: User;
+  constructor(values: int[]) {
+    switch (len(values)) {
+      case 1, 1 + 1 {
+        for (const value of values) { this.user = new User("short"); }
+      }
+      default { this.user = new User("other"); }
+    }
+  }
+}
+class StringLengthSwitchInitialized {
+  private user: User;
+  constructor(value: string) {
+    switch (len(value)) {
+      default {
+        for (const rune of value) { this.user = new User("text"); }
+      }
+      case 1 - 1 { this.user = new User("empty"); }
+    }
+  }
+}
+class NestedLengthGuardInitialized {
+  private user: User;
+  constructor(values: int[], enabled: boolean) {
+    if (len(values) > 0) {
+      if (enabled) {
+        for (const value of values) { this.user = new User("enabled"); }
+      } else {
+        for (const value of values) { this.user = new User("disabled"); }
+      }
+    } else {
+      this.user = new User("empty");
+    }
+  }
+}
+class NestedMultipleLengthGuardsInitialized {
+  private user: User;
+  constructor(left: int[], right: int[]) {
+    if (len(left) > 0) {
+      if (len(right) > 0) {
+        for (const value of right) { this.user = new User("right"); }
+      } else {
+        for (const value of left) { this.user = new User("left"); }
+      }
+    } else {
+      this.user = new User("empty-left");
+    }
+  }
+}
 `)
 	if len(diagnostics) != 0 {
 		t.Fatalf("unexpected diagnostics: %v", diagnostics)
@@ -334,10 +533,37 @@ func TestRejectsIncompleteNonNullFieldInitialization(t *testing.T) {
 		{"let boolean is not a proof", `class User {} class Holder { private user: User; constructor() { let enabled = true; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"const from parameter is dynamic", `class User {} class Holder { private user: User; constructor(flag: boolean) { const enabled = flag; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"const dynamic slice is not a proof", `class User {} class Holder { private user: User; constructor(values: int[]) { const snapshot = values; for (const value of snapshot) { this.user = new User(); } } }`, `every constructor path`},
+		{"length guard without empty path", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } } }`, `every constructor path`},
+		{"length guard for different range", `class User {} class Holder { private user: User; constructor(values: int[], other: int[]) { if (len(values) > 0) { for (const value of other) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"non-strict zero length guard", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) >= 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"intervening collection assignment", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { values = []; for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"channel length is not a range proof", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"shadowed len is not a proof", `function len(values: int[]): int { return 1; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"nonterminal empty guard", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) === 0) {} for (const value of values) { this.user = new User(); } } }`, `every constructor path`},
+		{"guard clause for different range", `class User {} class Holder { private user: User; constructor(values: int[], other: int[]) { if (len(values) === 0) { throw new Exception("empty"); } for (const value of other) { this.user = new User(); } } }`, `every constructor path`},
+		{"intervening assignment after guard clause", `class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) === 0) { throw new Exception("empty"); } const count = len(values); values = []; for (const value of values) { this.user = new User(); } } }`, `every constructor path`},
+		{"channel guard clause is not a range proof", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { if (len(values) === 0) { throw new Exception("empty"); } for (const value of values) { this.user = new User(); } } }`, `every constructor path`},
+		{"disjunction does not prove selected range", `class User {} class Holder { private user: User; constructor(values: int[], fallback: boolean) { if (len(values) > 0 || fallback) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"conjunction false path may still be empty", `class User {} class Holder { private user: User; constructor(values: int[], enabled: boolean) { if (len(values) === 0 && enabled) { this.user = new User(); } else { for (const value of values) { this.user = new User(); } } } }`, `every constructor path`},
+		{"different collection disjunction", `class User {} class Holder { private user: User; constructor(left: int[], right: int[]) { if (len(left) > 0 || len(right) > 0) { for (const value of left) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"effectful compound guard", `function clearAndKeep(values: int[]): boolean { clear(values); return true; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0 && clearAndKeep(values)) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"effectful nested guard", `function clearAndKeep(values: int[]): boolean { clear(values); return true; } class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { if (clearAndKeep(values)) { for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"nested guard intervening assignment", `class User {} class Holder { private user: User; constructor(values: int[], enabled: boolean) { if (len(values) > 0) { if (enabled) { const count = len(values); values = []; for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
+		{"nested guard different collection", `class User {} class Holder { private user: User; constructor(values: int[], other: int[], enabled: boolean) { if (len(values) > 0) { if (enabled) { for (const value of other) { this.user = new User(); } } else { this.user = new User(); } } else { this.user = new User(); } } }`, `every constructor path`},
 		{"shadowed false constant", `const enabled = true; class User {} class Holder { private user: User; constructor() { const enabled = false; while (enabled) { this.user = new User(); break; } } }`, `every constructor path`},
 		{"bound empty string", `class User {} class Holder { private user: User; constructor() { const left = ""; const text = left + ""; for (const rune of text) { this.user = new User(); } } }`, `every constructor path`},
 		{"value switch missing default", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { this.user = new User(); } } } }`, `every constructor path`},
 		{"value switch one case misses field", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0, 1 { this.user = new User(); } default {} } } }`, `every constructor path`},
+		{"length switch default without zero case", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 2 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch mixed zero case", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0, 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `every constructor path`},
+		{"length switch different range", `class User {} class Holder { private user: User; constructor(values: int[], other: int[]) { switch (len(values)) { case 0 { this.user = new User(); } default { for (const value of other) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch expression source is not tracked", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(append(values))) { case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch intervening assignment", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0 { this.user = new User(); } default { const count = len(values); values = []; for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"length switch channel range", `class User {} class Holder { private user: User; constructor(values: GoChannel<int>) { switch (len(values)) { case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"shadowed len switch", `function len(values: int[]): int { return 1; } class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"effectful length switch case", `function empty(values: int[]): int { clear(values); return -1; } class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case empty(values) { this.user = new User(); } case 0 { this.user = new User(); } default { for (const value of values) { this.user = new User(); } } } } }`, `every constructor path`},
+		{"effectful case before positive length case", `function empty(values: int[]): int { clear(values); return -1; } class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case empty(values) { this.user = new User(); } case 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `every constructor path`},
+		{"length switch fallthrough bypasses positive case", `class User {} class Holder { private user: User; constructor(values: int[]) { switch (len(values)) { case 0 { fallthrough; } case 1 { for (const value of values) { this.user = new User(); } } default { this.user = new User(); } } } }`, `every constructor path`},
 		{"break before assignment", `class User {} class Holder { private user: User; constructor(mode: int) { switch (mode) { case 0 { break; this.user = new User(); } default { this.user = new User(); } } } }`, `every constructor path`},
 		{"conditional break before assignment", `class User {} class Holder { private user: User; constructor(mode: int, stop: boolean) { switch (mode) { case 0 { if (stop) { break; } this.user = new User(); } default { this.user = new User(); } } } }`, `every constructor path`},
 		{"nested switch missing inner default", `class User {} class Holder { private user: User; constructor(mode: int, inner: int) { switch (mode) { case 0 { switch (inner) { case 1 { this.user = new User(); } } } default { this.user = new User(); } } } }`, `every constructor path`},

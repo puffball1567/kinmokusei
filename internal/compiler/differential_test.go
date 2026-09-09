@@ -64,7 +64,7 @@ func runGeneratedGoDifferentialTestConfigured(
 			t.Fatalf("independent Go reference must not import generated module %q", modulePath)
 		}
 	}
-	testFile, err := parser.ParseFile(token.NewFileSet(), "generated_test.go", testSource, parser.ImportsOnly)
+	testFile, err := parser.ParseFile(token.NewFileSet(), "generated_test.go", testSource, 0)
 	if err != nil {
 		t.Fatalf("parse generated/reference comparison test: %v", err)
 	}
@@ -81,6 +81,9 @@ func runGeneratedGoDifferentialTestConfigured(
 	}
 	if !importsReference {
 		t.Fatalf("generated/reference comparison test must import independent reference package %q", referenceImport)
+	}
+	if err := validateDifferentialAssertions(testFile, modulePath); err != nil {
+		t.Fatalf("generated/reference comparison test has an insufficient assertion contract: %v", err)
 	}
 
 	referenceDirectory := filepath.Join(root, "reference")
@@ -105,20 +108,33 @@ func runGeneratedGoDifferentialTestConfigured(
 	if len(arguments) == 0 {
 		arguments = []string{"test", "./..."}
 	}
+	arguments = limitDifferentialBuildParallelism(arguments)
 	if os.Getenv("KINMOKUSEI_DIFFERENTIAL_RACE") == "1" && environmentValue(extraEnvironment, "CGO_ENABLED") != "0" && len(arguments) != 0 && arguments[0] == "test" && !containsArgument(arguments, "-race") {
 		arguments = append([]string{"test", "-race"}, arguments[1:]...)
 	}
 	command := exec.Command("go", arguments...)
 	command.Dir = root
-	goCache := os.Getenv("GOCACHE")
-	if goCache == "" {
-		goCache = filepath.Join(root, "go-cache")
-	}
-	command.Env = append(os.Environ(), "GOCACHE="+goCache)
+	// Inherit GOCACHE (or Go's default cache) so independent fixtures can reuse
+	// compiled dependencies instead of rebuilding into a fresh cache per test.
+	command.Env = os.Environ()
 	command.Env = append(command.Env, extraEnvironment...)
 	if output, commandErr := command.CombinedOutput(); commandErr != nil {
 		t.Fatalf("generated/reference differential test failed: %v\n%s\n%s", commandErr, output, generated)
 	}
+}
+
+// Outer tests already run concurrently; do not let every nested go test build
+// as many packages as there are CPUs. Fixture-specific -p flags take priority.
+func limitDifferentialBuildParallelism(arguments []string) []string {
+	if len(arguments) == 0 || arguments[0] != "test" {
+		return arguments
+	}
+	for _, argument := range arguments[1:] {
+		if argument == "-p" || argument == "--p" || strings.HasPrefix(argument, "-p=") || strings.HasPrefix(argument, "--p=") {
+			return arguments
+		}
+	}
+	return append([]string{"test", "-p=2"}, arguments[1:]...)
 }
 
 func containsArgument(arguments []string, target string) bool {

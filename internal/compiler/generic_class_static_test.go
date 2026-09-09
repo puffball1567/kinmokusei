@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericClassStaticMethodsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_class_static.km")
 	input := `

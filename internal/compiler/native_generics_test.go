@@ -8,6 +8,7 @@ import (
 )
 
 func TestNativeGenericFunctionsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "native_generics.km")
 	input := `
@@ -154,6 +155,7 @@ func TestNativeGenerics(t *testing.T) {
 }
 
 func TestLinkedNativeGenericFunctionsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	dependency := filepath.Join(temporary, "generic_helpers.km")
 	entry := filepath.Join(temporary, "entry.km")
@@ -204,6 +206,7 @@ func TestLinkedNativeGenerics(t *testing.T) {
 }
 
 func TestPublicNativeGenericFunctionsMatchFromExternalGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "public_generics.km")
 	if err := os.WriteFile(source, []byte(`

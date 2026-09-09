@@ -5,7 +5,7 @@ description: Check Kinmokusei source, test observable recipes, and exercise an e
 
 # Testing applications
 
-Kinmokusei v0.2 does not provide a `keika test` command. Use `keika check` for source validity, executable recipes for end-to-end behavior, and ordinary Go tests when you need to exercise an emitted package API.
+Kinmokusei v0.3 does not provide a `keika test` command. Use `keika check` for source validity, executable recipes for end-to-end behavior, and ordinary Go tests when you need to exercise an emitted package API.
 
 ## Choose the boundary under test
 

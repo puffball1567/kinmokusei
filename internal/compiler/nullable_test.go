@@ -8,6 +8,7 @@ import (
 )
 
 func TestNullableCompilesAndRuns(t *testing.T) {
+	t.Parallel()
 	temp := t.TempDir()
 	source := filepath.Join(temp, "nullable.km")
 	input := `
@@ -318,6 +319,7 @@ func goBreakLoopName(present bool) string {
 }
 
 func TestDefiniteNonNullFieldInitializationCompilesAndRuns(t *testing.T) {
+	t.Parallel()
 	temp := t.TempDir()
 	source := filepath.Join(temp, "field_initialization.km")
 	input := `

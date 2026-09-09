@@ -10,9 +10,7 @@ import (
 )
 
 func TestIncomingCFFIGeneratesAndRunsScalarStatusMatrix(t *testing.T) {
-	if _, err := exec.LookPath("cc"); err != nil {
-		t.Skip("C compiler is not available")
-	}
+	requireCCompiler(t)
 	root := t.TempDir()
 	manifest := []byte(`{
   "schemaVersion": 1,
@@ -440,9 +438,7 @@ func main() {
 }
 
 func TestIncomingCFFICallScopedCallbacks(t *testing.T) {
-	if _, err := exec.LookPath("cc"); err != nil {
-		t.Skip("C compiler is not available")
-	}
+	requireCCompiler(t)
 	root := t.TempDir()
 	artifacts, err := GenerateCFFI([]byte(`{
   "schemaVersion":1,
@@ -909,9 +905,7 @@ func main() {
 }
 
 func TestIncomingCFFIRegisteredCallbacks(t *testing.T) {
-	if _, err := exec.LookPath("cc"); err != nil {
-		t.Skip("C compiler is not available")
-	}
+	requireCCompiler(t)
 	root := t.TempDir()
 	artifacts, err := GenerateCFFI([]byte(`{
   "schemaVersion":1,
@@ -1226,9 +1220,7 @@ func main() {
 }
 
 func TestIncomingCFFIThreadAffineUsesOneOSThread(t *testing.T) {
-	if _, err := exec.LookPath("cc"); err != nil {
-		t.Skip("C compiler is not available")
-	}
+	requireCCompiler(t)
 	root := t.TempDir()
 	artifacts, err := GenerateCFFI([]byte(`{
   "schemaVersion": 1,
@@ -1593,9 +1585,7 @@ func main() {
 }
 
 func TestIncomingCFFIRaylibStyleLoadUnloadShim(t *testing.T) {
-	if _, err := exec.LookPath("cc"); err != nil {
-		t.Skip("C compiler is not available")
-	}
+	requireCCompiler(t)
 	root := t.TempDir()
 	artifacts, err := GenerateCFFI([]byte(`{
   "schemaVersion":1,

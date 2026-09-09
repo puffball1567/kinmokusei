@@ -25,6 +25,11 @@ Runtime numeric values do not widen implicitly. Convert intentionally:
 const total: int64 = int64(count);
 ```
 
+`complex64` and `complex128` store complex values. Use imaginary literals or
+`complex(realPart, imaginaryPart)` to construct them, and `real(value)` /
+`imag(value)` to extract their components. Complex values support arithmetic
+and equality, but not ordering.
+
 ## Slice and fixed array
 
 ```ts
@@ -146,7 +151,7 @@ Generic defined types are supported over representable underlying shapes:
 type Lookup<K extends comparable, V> = distinct Map<K, V>;
 ```
 
-Generic aliases are not supported by the current minimum Go target.
+Generic aliases are expanded during lowering, so they do not require Go's generic alias syntax in the generated source.
 
 ## Channels and functions
 

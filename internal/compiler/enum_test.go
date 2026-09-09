@@ -8,6 +8,7 @@ import (
 )
 
 func TestEnumMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	path := filepath.Join(root, "enum.km")
 	source := `

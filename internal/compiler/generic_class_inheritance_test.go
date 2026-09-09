@@ -8,6 +8,7 @@ import (
 )
 
 func TestGenericClassInheritanceMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	source := filepath.Join(temporary, "generic_class_inheritance.km")
 	input := `
@@ -245,6 +246,7 @@ func TestGenericInheritanceBehavior(t *testing.T) {
 }
 
 func TestLinkedGenericClassInheritanceMatchesIndependentGo(t *testing.T) {
+	t.Parallel()
 	temporary := t.TempDir()
 	baseSource := filepath.Join(temporary, "base.km")
 	entrySource := filepath.Join(temporary, "entry.km")

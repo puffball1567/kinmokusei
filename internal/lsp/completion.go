@@ -173,13 +173,13 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			candidates[item.Label] = item
 		}
 	}
-	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
+	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
-	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
+	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
-	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
+	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
 		add(completionItem{Label: name, Kind: 3, Detail: "compiler built-in", SortText: "2_" + name})
 	}
 	for _, imported := range program.Imports {
@@ -226,13 +226,14 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 		case *ast.EnumDecl:
 			add(completionItem{Label: declaration.Name, Kind: 13, Detail: "enum " + declaration.Name + ": " + formatTypeRef(declaration.Underlying), SortText: "1_" + declaration.Name})
 		case *ast.InterfaceDecl:
-			detail := "interface " + declaration.Name
-			if len(declaration.TypeParameters) != 0 {
-				detail += formatTypeParameters(declaration.TypeParameters)
+			detail := formatInterfaceOrConstraint(declaration)
+			kind := 8
+			if declaration.Constraint {
+				kind = 7
 			}
-			add(completionItem{Label: declaration.Name, Kind: 8, Detail: detail, SortText: "1_" + declaration.Name})
+			add(completionItem{Label: declaration.Name, Kind: kind, Detail: detail, SortText: "1_" + declaration.Name})
 		case *ast.VariableDecl:
-			add(variableCompletion(declaration.Name, declaration.Type, declaration.Constant))
+			add(variableDeclarationCompletion(declaration))
 		}
 	}
 	addLocalCompletions(program, path, offset, add)
@@ -257,6 +258,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			addParameters(declaration.Parameters, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
 		case *ast.MethodDecl:
+			for _, parameter := range declaration.TypeParameters {
+				add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+			}
 			add(completionItem{Label: declaration.ReceiverName, Kind: 6, Detail: formatTypeRef(declaration.ReceiverType), SortText: "0_" + declaration.ReceiverName})
 			addParameters(declaration.Parameters, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
@@ -266,6 +270,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			}
 			for _, method := range declaration.Methods {
 				if spanContains(method.Span, path, offset) {
+					for _, parameter := range method.TypeParameters {
+						add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+					}
 					if !method.Static {
 						add(completionItem{Label: "this", Kind: 6, Detail: declaration.Name, SortText: "0_this"})
 					}
@@ -285,6 +292,9 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			}
 			for _, method := range declaration.Methods {
 				if spanContains(method.Span, path, offset) {
+					for _, parameter := range method.TypeParameters {
+						add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
+					}
 					detail := declaration.Name
 					if method.PointerReceiver {
 						detail = "*" + detail
@@ -416,7 +426,7 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 	case *ast.LabeledStmt:
 		addStatementBindings(statement.Statement, add)
 	case *ast.VariableDecl:
-		add(variableCompletion(statement.Name, statement.Type, statement.Constant))
+		add(variableDeclarationCompletion(statement))
 	case *ast.MultiVariableDecl:
 		for _, binding := range statement.Bindings {
 			if binding.Name != "_" {
@@ -424,6 +434,14 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 			}
 		}
 	}
+}
+
+func variableDeclarationCompletion(declaration *ast.VariableDecl) completionItem {
+	ref := declaration.Type
+	if !ref.IsSpecified() && declaration.ResolvedType.Name != "<invalid>" {
+		ref = declaration.ResolvedType
+	}
+	return variableCompletion(declaration.Name, ref, declaration.Constant)
 }
 
 func variableCompletion(name string, ref ast.TypeRef, constant bool) completionItem {

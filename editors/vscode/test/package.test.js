@@ -6,6 +6,10 @@ const test = require('node:test');
 const path = require('node:path');
 const { artifactName, productionDependencyDirectories, verifyEntries } = require('../scripts/package-vsix');
 
+const extensionRoot = path.resolve(__dirname, '..');
+const manifest = JSON.parse(fs.readFileSync(path.join(extensionRoot, 'package.json'), 'utf8'));
+const grammar = JSON.parse(fs.readFileSync(path.join(extensionRoot, 'syntaxes', 'kinmokusei.tmLanguage.json'), 'utf8'));
+
 const validEntries = [
   'extension/package.json',
   'extension/extension.js',
@@ -18,8 +22,17 @@ const validEntries = [
 ];
 
 test('package contract has a stable artifact name and production contents', () => {
-  assert.equal(artifactName, 'kinmokusei-0.2.0.vsix');
+  assert.equal(artifactName, `kinmokusei-${manifest.version}.vsix`);
   assert.doesNotThrow(() => verifyEntries(validEntries));
+});
+
+test('language identity accepts only the current .km source extension', () => {
+  const language = manifest.contributes.languages.find((entry) => entry.id === 'kinmokusei');
+  assert.ok(language, 'kinmokusei language contribution is missing');
+  assert.deepEqual(language.extensions, ['.km']);
+  assert.deepEqual(grammar.fileTypes, ['km']);
+  assert.ok(manifest.keywords.includes('km'));
+  assert.ok(!manifest.keywords.includes('yn'));
 });
 
 test('package contract rejects development-only contents', () => {

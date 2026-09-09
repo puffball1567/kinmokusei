@@ -81,7 +81,7 @@ func TestNativeGenericFunctionFailureMatrix(t *testing.T) {
 		{"blank type parameter", `function bad<_>(value: int): int { return value; }`, `cannot be '_'`},
 		{"Go constraint name", `function bad<any>(value: any): any { return value; }`, `cannot be 'any'`},
 		{"unknown outside scope", `function identity<T>(value: T): T { return value; } function bad(value: T): T { return value; }`, `unknown type "T"`},
-		{"inconsistent inference", `function choose<T>(left: T, right: T): T { return left; } function bad(): int { return choose(1, "x"); }`, `was already inferred as int, not string`},
+		{"inconsistent inference", `function choose<T>(left: T, right: T): T { return left; } function bad(): int { return choose(1, "x"); }`, `cannot use integer literal as string`},
 		{"explicit argument mismatch", `function identity<T>(value: T): T { return value; } function bad(): int { return identity<int>("x"); }`, `was already inferred as int, not string`},
 		{"too many explicit", `function identity<T>(value: T): T { return value; } function bad(): int { return identity<int, string>(1); }`, `has 1 type parameters, got 2 explicit type arguments`},
 		{"missing inference", `function choose<T, U>(value: T): T { return value; } function bad(): int { return choose(1); }`, `cannot infer type argument U`},
