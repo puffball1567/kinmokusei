@@ -398,22 +398,10 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 			c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 		}
-		previousResult := c.result
-		previousLoopDepth := c.loopDepth
-		previousBreakableDepth := c.breakableDepth
-		previousExceptionDepth := c.exceptionDepth
-		previousCatchTargets := c.catchTargets
-		c.loopDepth = 0
-		c.breakableDepth = 0
-		c.exceptionDepth = 0
-		c.catchTargets = nil
+		previousControl := c.enterCallableControl()
 		c.result = builtins["void"]
 		c.checkBlock(decl.Constructor.Body, false)
-		c.result = previousResult
-		c.loopDepth = previousLoopDepth
-		c.breakableDepth = previousBreakableDepth
-		c.exceptionDepth = previousExceptionDepth
-		c.catchTargets = previousCatchTargets
+		c.callableControlState = previousControl
 		c.popScope()
 		c.memberFlow = previousMemberFlow
 	}
@@ -432,25 +420,13 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 			c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 		}
-		previousResult := c.result
-		previousLoopDepth := c.loopDepth
-		previousBreakableDepth := c.breakableDepth
-		previousExceptionDepth := c.exceptionDepth
-		previousCatchTargets := c.catchTargets
-		c.loopDepth = 0
-		c.breakableDepth = 0
-		c.exceptionDepth = 0
-		c.catchTargets = nil
+		previousControl := c.enterCallableControl()
 		c.result = c.resolveType(method.ReturnType)
 		c.checkBlock(method.Body, false)
 		if c.result.Kind != Void && !definitelyReturns(method.Body) {
 			c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))
 		}
-		c.result = previousResult
-		c.loopDepth = previousLoopDepth
-		c.breakableDepth = previousBreakableDepth
-		c.exceptionDepth = previousExceptionDepth
-		c.catchTargets = previousCatchTargets
+		c.callableControlState = previousControl
 		c.popScope()
 		c.memberFlow = previousMemberFlow
 		c.popTypeParameterScope()

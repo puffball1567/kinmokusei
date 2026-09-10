@@ -12,13 +12,11 @@ import (
 )
 
 type Checker struct {
+	callableControlState
 	diagnostics                []diagnostic.Diagnostic
 	functions                  map[string]functionSymbol
 	globals                    map[string]valueSymbol
 	scopes                     []map[string]valueSymbol
-	result                     Type
-	loopDepth                  int
-	breakableDepth             int
 	classes                    map[string]*classSymbol
 	structs                    map[string]*structSymbol
 	interfaces                 map[string]*interfaceSymbol
@@ -41,8 +39,6 @@ type Checker struct {
 	usesTasks                  bool
 	usesExceptions             bool
 	nativeTypeIndirectionDepth int
-	exceptionDepth             int
-	catchTargets               []int
 	taskOperandDepth           int
 	directCallCallee           ast.Expression
 	typeParameterScopes        []map[string]Type

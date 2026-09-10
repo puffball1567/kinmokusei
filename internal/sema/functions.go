@@ -15,15 +15,7 @@ func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
 	c.pushTypeParameterScope(c.functionTypeParameters[decl])
 	defer c.popTypeParameterScope()
 	c.pushScope()
-	previousResult := c.result
-	previousLoopDepth := c.loopDepth
-	previousBreakableDepth := c.breakableDepth
-	previousExceptionDepth := c.exceptionDepth
-	previousCatchTargets := c.catchTargets
-	c.loopDepth = 0
-	c.breakableDepth = 0
-	c.exceptionDepth = 0
-	c.catchTargets = nil
+	previousControl := c.enterCallableControl()
 	for _, param := range decl.Parameters {
 		t := c.resolveType(param.Type)
 		c.rejectResultValueType(t, param.Type.Span, "parameters")
@@ -35,11 +27,7 @@ func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
 		c.report(decl.Span, fmt.Sprintf("function %q may complete without returning %s", decl.Name, c.result.String()))
 	}
 	c.popScope()
-	c.result = previousResult
-	c.loopDepth = previousLoopDepth
-	c.breakableDepth = previousBreakableDepth
-	c.exceptionDepth = previousExceptionDepth
-	c.catchTargets = previousCatchTargets
+	c.callableControlState = previousControl
 }
 
 func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
@@ -86,15 +74,7 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 		c.rejectTaskAPIType(parameters[i], parameter.Type.Span, "arrow parameters")
 		c.declareLocal(parameter.Name, parameters[i], false, nil, parameter.Span)
 	}
-	previousResult := c.result
-	previousLoopDepth := c.loopDepth
-	previousBreakableDepth := c.breakableDepth
-	previousExceptionDepth := c.exceptionDepth
-	previousCatchTargets := c.catchTargets
-	c.loopDepth = 0
-	c.breakableDepth = 0
-	c.exceptionDepth = 0
-	c.catchTargets = nil
+	previousControl := c.enterCallableControl()
 	var result Type
 	if expr.ReturnType != nil {
 		result = c.resolveType(*expr.ReturnType)
@@ -132,11 +112,7 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 	if containsTaskType(result) {
 		c.report(expr.Span, "arrow functions cannot return Task; Task is a non-escaping local capability")
 	}
-	c.result = previousResult
-	c.loopDepth = previousLoopDepth
-	c.breakableDepth = previousBreakableDepth
-	c.exceptionDepth = previousExceptionDepth
-	c.catchTargets = previousCatchTargets
+	c.callableControlState = previousControl
 	c.popScope()
 	captured := c.capturedWrites[len(c.capturedWrites)-1]
 	c.capturedWrites = c.capturedWrites[:len(c.capturedWrites)-1]

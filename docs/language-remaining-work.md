@@ -16,8 +16,10 @@ type resolution, Go interop, expressions, builtins, and control/effect analysis
 from the central checker. Constructor analysis consumes checked AST metadata
 and explicit field facts without owning mutable checker state.
 
-Shared callable-local checker state and the large parser/codegen files still
-need further decomposition. Select the feature additions from the audited Go
+Callable return/control-transfer state now has a shared entry and restoration
+boundary, with nested-callable regression coverage. Lexical/capture/nullable
+state and the large parser/codegen files still need further decomposition.
+Select the feature additions from the audited Go
 and OOP gaps below; no additional syntax is promised by this refactoring.
 Keep published package and documentation versions at v0.3.0 until v0.4.0 release
 preparation.

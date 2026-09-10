@@ -136,9 +136,12 @@ Semantic analysis is organized within `internal/sema` by responsibility:
 File extraction must preserve diagnostic ordering, AST metadata, and generated
 Go. Structural refactoring is reviewed separately from language extensions.
 Most feature checks still share `Checker` state; separating files does not by
-itself decouple those analyses. Further refactoring should make callable-local
-state lifetime explicit, followed by responsibility-based parser and codegen
-decomposition, without changing source semantics in the same patch.
+itself decouple those analyses. `callable_context.go` groups return, loop,
+breakable, and exception context into one saved/restored control state used by
+functions, constructors, methods, and arrows. Receiver access, lexical scopes,
+nullable facts, and capture tracking retain their separate lifetimes. Further
+refactoring should address those boundaries and responsibility-based parser
+and codegen decomposition without changing source semantics in the same patch.
 
 - Imported Go interface bases retain their checked package/type identities and
   exported method names. Source class methods satisfy them by emitted public Go
