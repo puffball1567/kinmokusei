@@ -85,6 +85,37 @@ single inheritance, virtual/override/final methods, construction-phase dispatch,
 identity-preserving class upcasts/downcasts, and public generated Go APIs.
 Abstract classes are not necessary to use these features.
 
+## Queued v0.4 syntax work
+
+Finish the in-flight semantic refactoring and source-encoding fix before the
+next feature implementation. The following additions are requested work, not
+claims about the currently released syntax:
+
+- **Optional semicolons:** retain explicit `;` compatibility and define
+  unambiguous newline, end-of-block, and end-of-file termination. Test multiline
+  calls/expressions, comments, return/throw boundaries, and loop headers.
+- **Named Go imports:** support `import go { Println } from "fmt"` alongside
+  package-qualified imports. Preserve Go export identity, generic signatures,
+  type/value namespaces, collision diagnostics, and ordinary qualified Go
+  output without runtime wrappers. Include linked-module and editor coverage.
+- **General arrow-function support, including main:** make arrow-style
+  definitions practical throughout ordinary application code, not only as a
+  special spelling of the entry point. Audit existing expression/block arrows,
+  callbacks, function-valued fields, local/global bindings, and closures; fill
+  gaps in contextual/result inference, recursion, and forward references with
+  explicit rules. Preserve `const`/`let` reassignment and capture semantics;
+  map an arrow-style main to a valid Go executable entry point. Cover source
+  diagnostics, generated APIs, editor behavior, and independent Go execution.
+
+The intended combined spelling includes named Go imports, omitted semicolons,
+and `const main = (): void => { ... }`. This is a syntax direction, not UI
+component or JSX support. Future UI integration with `clay-board-style-system`
+and possible Wails integration are outside this implementation scope. A new
+`kinmokusei/console` wrapper is also not required for these three additions.
+
+Keep feature work separate from refactoring and bug fixes, and retain v0.3.0
+version metadata until v0.4 release preparation.
+
 ## Confirmed Go-facing gaps
 
 | Area | Current limitation | Next implementation boundary |
@@ -112,8 +143,8 @@ Multiple class inheritance, prototype mutation, dynamic field creation, and
 runtime metaprogramming are deliberate exclusions, not missing Go compatibility.
 Single class inheritance plus multiple interface contracts remains the model.
 
-The next bounded Go implementation is constraint intersections or numeric
-constant-context parity. Further OOP additions require the design decisions listed
+After the queued syntax work, bounded Go additions include constraint
+intersections or numeric constant-context parity. Further OOP additions require the design decisions listed
 above. Each addition needs source diagnostics, linked-module and
 editor coverage where applicable, and an independent Go runtime oracle.
 
