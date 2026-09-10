@@ -47,6 +47,11 @@ The core `Result`, postfix `?`, and nil-backed nullable constructs in this examp
 
 ## Types
 
+Source files must contain valid UTF-8, including string literals and comments.
+Malformed bytes are diagnosed at their source location. String values may
+still contain arbitrary bytes through escapes such as `"\xFF"`; this does not
+make the source encoding invalid.
+
 ### Built-in types
 
 | Kinmokusei | Go | Notes |

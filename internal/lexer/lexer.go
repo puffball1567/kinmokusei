@@ -39,7 +39,7 @@ func (l *Lexer) next() token.Token {
 		return l.makeToken(token.EOF, start)
 	}
 
-	r, _ := l.peek()
+	r, size := l.peek()
 	if isIdentifierStart(r) {
 		l.advance()
 		for !l.eof() {
@@ -222,6 +222,9 @@ func (l *Lexer) next() token.Token {
 	}
 
 	tok := l.makeToken(token.Illegal, start)
+	if r == utf8.RuneError && size == 1 {
+		return tok // advance already reported the malformed source byte.
+	}
 	l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "unexpected character " + tok.Lexeme, Span: tok.Span})
 	return tok
 }
@@ -328,6 +331,16 @@ func (l *Lexer) advance() {
 	r, size := l.peek()
 	if size == 0 {
 		return
+	}
+	if r == utf8.RuneError && size == 1 {
+		start := l.position()
+		end := start
+		end.Offset++
+		end.Column++
+		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
+			Message: "invalid UTF-8 encoding",
+			Span:    source.Span{Path: l.path, Start: start, End: end},
+		})
 	}
 	l.offset += size
 	if r == '\n' {
