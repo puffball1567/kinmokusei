@@ -91,9 +91,12 @@ Finish the in-flight semantic refactoring and source-encoding fix before the
 next feature implementation. The following additions are requested work, not
 claims about the currently released syntax:
 
-- **Optional semicolons:** retain explicit `;` compatibility and define
-  unambiguous newline, end-of-block, and end-of-file termination. Test multiline
-  calls/expressions, comments, return/throw boundaries, and loop headers.
+- **Optional semicolons (implemented on the development branch):** newline,
+  end-of-block, and end-of-file termination with multiline expressions,
+  comments, restricted return/throw/branch boundaries, and explicit loop-header
+  separators. Parser matrices, linked-module handwritten-Go differential tests,
+  and editor navigation cover the addition. Existing multiline return/throw
+  code must follow the documented restricted-newline rule.
 - **Named Go imports:** support `import go { Println } from "fmt"` alongside
   package-qualified imports. Preserve Go export identity, generic signatures,
   type/value namespaces, collision diagnostics, and ordinary qualified Go
@@ -108,10 +111,7 @@ claims about the currently released syntax:
   diagnostics, generated APIs, editor behavior, and independent Go execution.
 
 The intended combined spelling includes named Go imports, omitted semicolons,
-and `const main = (): void => { ... }`. This is a syntax direction, not UI
-component or JSX support. Future UI integration with `clay-board-style-system`
-and possible Wails integration are outside this implementation scope. A new
-`kinmokusei/console` wrapper is also not required for these three additions.
+and `const main = (): void => { ... }`.
 
 Keep feature work separate from refactoring and bug fixes, and retain v0.3.0
 version metadata until v0.4 release preparation.

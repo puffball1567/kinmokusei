@@ -117,6 +117,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"optional-terminators.test":           {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"behavior.test":                       {implementedGoCompatibilityContracts[0]},
 	"generated.test":                      {implementedGoCompatibilityContracts[1]},
 	"generated.class.test":                {implementedGoCompatibilityContracts[2]},

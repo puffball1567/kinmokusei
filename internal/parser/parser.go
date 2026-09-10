@@ -89,7 +89,7 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 		p.report(pathToken, "invalid module path string")
 		path = ""
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after import")
+	end, ok := p.expectTerminator("expected ';' after import")
 	if !ok {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -117,7 +117,7 @@ func (p *Parser) parseGoImport(start token.Token) (ast.ImportDecl, bool) {
 		p.report(pathToken, "invalid Go import path string")
 		path = ""
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after Go import")
+	end, ok := p.expectTerminator("expected ';' after Go import")
 	if !ok {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -247,7 +247,7 @@ func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
 			return nil
 		}
 	}
-	end, valid := p.expect(token.Semicolon, "expected ';' after constraint declaration")
+	end, valid := p.expectTerminator("expected ';' after constraint declaration")
 	if !valid {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -344,7 +344,7 @@ func (p *Parser) parseTypeDeclaration(start token.Token, alias bool) *ast.TypeDe
 		p.synchronizeDeclaration()
 		return nil
 	}
-	end, valid := p.expect(token.Semicolon, "expected ';' after type declaration")
+	end, valid := p.expectTerminator("expected ';' after type declaration")
 	if !valid {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -450,7 +450,7 @@ func (p *Parser) parseCABIExport(start token.Token) ast.Declaration {
 		p.synchronizeDeclaration()
 		end = p.previous()
 	}
-	semicolon, valid := p.expect(token.Semicolon, "expected ';' after C ABI export list")
+	semicolon, valid := p.expectTerminator("expected ';' after C ABI export list")
 	if !valid {
 		p.synchronizeDeclaration()
 		semicolon = end
@@ -517,7 +517,7 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 			p.synchronizeStatement()
 			continue
 		}
-		end, valid := p.expect(token.Semicolon, "expected ';' after interface method")
+		end, valid := p.expectTerminator("expected ';' after interface method")
 		if !valid {
 			p.synchronizeStatement()
 			end = p.previous()
@@ -641,7 +641,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 			if p.match(token.Assign) {
 				initializer = p.parseExpression()
 			}
-			end, valid := p.expect(token.Semicolon, "expected ';' after field declaration")
+			end, valid := p.expectTerminator("expected ';' after field declaration")
 			if !valid {
 				p.synchronizeStatement()
 				end = p.previous()
@@ -714,7 +714,7 @@ func (p *Parser) parseStruct(start token.Token) *ast.StructDecl {
 			p.synchronizeStatement()
 			continue
 		}
-		end, valid := p.expect(token.Semicolon, "expected ';' after struct field declaration")
+		end, valid := p.expectTerminator("expected ';' after struct field declaration")
 		if !valid {
 			p.synchronizeStatement()
 			end = p.previous()
@@ -1170,7 +1170,7 @@ func (p *Parser) parseVariable(start token.Token, constant bool) *ast.VariableDe
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after variable declaration")
+	end, ok := p.expectTerminator("expected ';' after variable declaration")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1216,7 +1216,7 @@ func (p *Parser) parseMultiVariable(start token.Token, constant bool) *ast.Multi
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after variable declaration")
+	end, ok := p.expectTerminator("expected ';' after variable declaration")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1309,6 +1309,9 @@ func (p *Parser) parseStatement() ast.Statement {
 }
 
 func (p *Parser) parseThrow(start token.Token) ast.Statement {
+	if p.implicitTerminator() && !p.at(token.Semicolon) {
+		return &ast.ThrowStmt{Bare: true, Span: start.Span}
+	}
 	if p.match(token.Semicolon) {
 		return &ast.ThrowStmt{Bare: true, Span: start.Span.Merge(p.previous().Span)}
 	}
@@ -1317,7 +1320,7 @@ func (p *Parser) parseThrow(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after thrown error")
+	end, ok := p.expectTerminator("expected ';' after thrown error")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1379,6 +1382,9 @@ func (p *Parser) parseTry(start token.Token) ast.Statement {
 }
 
 func (p *Parser) parseReturn(start token.Token) ast.Statement {
+	if p.implicitTerminator() && !p.at(token.Semicolon) {
+		return &ast.ReturnStmt{Span: start.Span}
+	}
 	if p.match(token.Semicolon) {
 		return &ast.ReturnStmt{Span: start.Span.Merge(p.previous().Span)}
 	}
@@ -1387,7 +1393,7 @@ func (p *Parser) parseReturn(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after return value")
+	end, ok := p.expectTerminator("expected ';' after return value")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1450,7 +1456,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 		}
 		end := sent.GetSpan()
 		if requireSemicolon {
-			tok, valid := p.expect(token.Semicolon, "expected ';' after channel send")
+			tok, valid := p.expectTerminator("expected ';' after channel send")
 			if !valid {
 				p.synchronizeStatement()
 			} else {
@@ -1486,7 +1492,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 			}
 			end := right.GetSpan()
 			if requireSemicolon {
-				tok, valid := p.expect(token.Semicolon, "expected ';' after assignment")
+				tok, valid := p.expectTerminator("expected ';' after assignment")
 				if !valid {
 					p.synchronizeStatement()
 				} else {
@@ -1506,7 +1512,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 		}
 		end := right.GetSpan()
 		if requireSemicolon {
-			tok, valid := p.expect(token.Semicolon, "expected ';' after assignment")
+			tok, valid := p.expectTerminator("expected ';' after assignment")
 			if !valid {
 				p.synchronizeStatement()
 			} else {
@@ -1524,7 +1530,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 		}
 		end := operator.Span
 		if requireSemicolon {
-			tok, valid := p.expect(token.Semicolon, "expected ';' after increment or decrement")
+			tok, valid := p.expectTerminator("expected ';' after increment or decrement")
 			if !valid {
 				p.synchronizeStatement()
 			} else {
@@ -1535,7 +1541,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 	}
 	end := value.GetSpan()
 	if requireSemicolon {
-		tok, ok := p.expect(token.Semicolon, "expected ';' after expression")
+		tok, ok := p.expectTerminator("expected ';' after expression")
 		if !ok {
 			p.synchronizeStatement()
 		} else {
@@ -1604,6 +1610,10 @@ func (p *Parser) parseFor(start token.Token) ast.Statement {
 		initializer = p.parseSimpleStatement(true)
 	}
 	var condition ast.Expression
+	if initializer != nil && p.previous().Kind != token.Semicolon {
+		p.report(p.peek(), "expected explicit ';' after for initializer")
+		return nil
+	}
 	if !p.at(token.Semicolon) {
 		condition = p.parseExpression()
 	}
@@ -1976,10 +1986,10 @@ func (p *Parser) parseBranch(start token.Token, kind ast.BranchKind) ast.Stateme
 			p.synchronizeStatement()
 			return nil
 		}
-	} else if kind != ast.FallthroughBranch && p.at(token.Identifier) {
+	} else if kind != ast.FallthroughBranch && !p.lineBreakBeforeNext() && p.at(token.Identifier) {
 		label = p.advance()
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after branch statement")
+	end, ok := p.expectTerminator("expected ';' after branch statement")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -2011,7 +2021,7 @@ func (p *Parser) parseCallControl(start token.Token, kind ast.CallControlKind) a
 		}
 		p.report(p.previous(), keyword+" requires a function or method call")
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after call")
+	end, ok := p.expectTerminator("expected ';' after call")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -2025,7 +2035,7 @@ func (p *Parser) parseDetach(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after detached task")
+	end, ok := p.expectTerminator("expected ';' after detached task")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()

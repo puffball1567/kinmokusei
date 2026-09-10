@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	"import go strings from \"strings\"\nfunction f():string {\nreturn strings.TrimSpace\n(\" x \")\n}",
+	"function f():void {\nconst call = ():void => { return }\nfor (let i=0; i<2; i++) { call() }\n}",
+	"function f():int { return\n1 }",
 	`function f():int{return 1;{}}`,
 	`function f():int{switch(1){default{break;return 1;}}}`,
 	`function pick<T>(a:T,b:T):T{return b;}function f(v:float32):float32{return pick(1.25,v);}`,

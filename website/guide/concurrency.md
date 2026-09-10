@@ -15,7 +15,7 @@ For the sequential model, read [Concurrency and tasks](../book/concurrency-and-t
 go refreshCache();
 ```
 
-A semicolon makes this the raw Go statement form. It starts an ordinary goroutine and does not retain a result or enforce a join. Panics behave like unhandled Go goroutine panics.
+In statement position, this is the raw Go goroutine form; its semicolon may be omitted at a statement boundary. It starts an ordinary goroutine and does not retain a result or enforce a join. Panics behave like unhandled Go goroutine panics.
 
 Use this form only when the lifetime is intentionally unmanaged.
 

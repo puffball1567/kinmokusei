@@ -280,7 +280,7 @@ func TestParsesValueSwitchCaseShapes(t *testing.T) {
 
 func TestFallthroughParserFailureMatrix(t *testing.T) {
 	for _, test := range []struct{ name, source string }{
-		{"missing semicolon", `function bad(value: int): void { switch (value) { case 0 { fallthrough } default {} } }`},
+		{"missing separator", `function bad(value: int): void { switch (value) { case 0 { fallthrough work(); } default {} } }`},
 		{"cannot name target", `function bad(value: int): void { switch (value) { case 0 { fallthrough next; } default {} } }`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -420,7 +420,7 @@ func TestCABIExportListParserFailureMatrix(t *testing.T) {
 		{"empty names", `export c("kinmokusei_add") {};`},
 		{"missing symbol comma", `export c("kinmokusei_add" "kinmokusei_sub") { add, sub };`},
 		{"missing name comma", `export c("kinmokusei_add", "kinmokusei_sub") { add sub };`},
-		{"missing semicolon", `export c("kinmokusei_add") { add }`},
+		{"missing separator", `export c("kinmokusei_add") { add } const other = 1;`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, diagnostics := parseSource(t, test.source)
@@ -460,7 +460,7 @@ class Document implements Formatter, Named {
 }
 
 func TestReportsMalformedInterfaceMethod(t *testing.T) {
-	_, diagnosticCount := parseSource(t, `interface Broken { function format(value: string): string }`)
+	_, diagnosticCount := parseSource(t, `interface Broken { function format(value: string): string function other(): int; }`)
 	if diagnosticCount == 0 {
 		t.Fatal("expected parser diagnostic")
 	}

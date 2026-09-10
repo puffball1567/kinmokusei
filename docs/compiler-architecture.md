@@ -87,6 +87,10 @@ model and native C++ library integration are planned, not present features.
 - Accept only syntax that Kinmokusei actually supports; do not parse all TypeScript and reject it later.
 - Recover after syntax errors so one malformed statement does not suppress the rest of the file.
 - Preserve source spans on every AST node.
+- Recognize optional semicolons at completed statement/declaration boundaries
+  in `parser/terminators.go`, not by inserting tokens in the lexer. Preserve
+  expression continuations, restricted return/throw/branch newlines, explicit
+  `for` separators, and source spans during speculative generic parsing.
 - Resolve lexical ambiguities in context. For example, `>>` is a shift in expressions and two generic closers in nested type syntax.
 - Treat `type`, `alias`, and `distinct` as contextual declaration words so ordinary identifier positions remain source-compatible.
 - Keep mutations as statements: compound assignment and `++`/`--` are not expressions.
