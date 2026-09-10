@@ -6,6 +6,10 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Diagnose malformed UTF-8 at its source byte, including inside strings and
+  comments, instead of failing during generated Go validation. Unicode text
+  and escaped arbitrary string bytes remain supported.
+
 ## [0.3.0] - 2026-09-09
 
 - Prevent invalid interface members from stalling parser recovery. Require a
