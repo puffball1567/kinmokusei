@@ -1,0 +1,2 @@
+go test fuzz v1
+string("class Box<T>{constructor(public value:T){}public function get():T{return this.value;}}function A():string{return new Box<string>(\"\xd4\").get();}")
