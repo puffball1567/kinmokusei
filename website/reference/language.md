@@ -33,6 +33,7 @@ Calls, indexing, selectors, operators, and unfinished expressions/types can cont
 | Relative import | `import { A, functionName } from "./module";` |
 | Go import | `import go alias from "package/path";` |
 | Named Go import (development) | `import go { Name, Other } from "package/path"` |
+| Source export (development) | `export function name(): T { ... }`, `export const name = value`, `export { name }` |
 | Binding | `const name: T = value;`, `let name = value;` |
 | Function | `function name<T>(value: T): T { ... }` |
 | Class | `class Name extends Base implements Contract { ... }` |
@@ -47,6 +48,13 @@ Calls, indexing, selectors, operators, and unfinished expressions/types can cont
 Declarations may refer to later types in supported finite shapes. Duplicate source names and generated Go public-name collisions are diagnosed rather than renamed silently.
 
 Relative source imports are explicit and do not infer visibility from capitalization. In emitted Go, top-level identifiers preserve their written case: an initial uppercase Unicode letter makes the declaration exported under Go rules. Class and struct members instead use the documented `public`/`protected`/`private` contract before their Go names are generated.
+
+In development builds, any source export opts its file into explicit visibility:
+only exported local top-level declarations can be imported, and `export {}`
+exports none. Without a source export, all top-level declarations retain legacy
+selective importability. Export lists can precede declarations, cannot repeat
+names, and support trailing commas and omitted semicolons. C ABI `export c(...)`
+does not opt into this mode. See [modules and imports](../book/modules-and-imports).
 
 ## Files and imports
 

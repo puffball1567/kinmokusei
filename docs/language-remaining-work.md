@@ -126,13 +126,14 @@ following additions target v0.4, not the currently released v0.3 syntax:
   explicit rules. Preserve `const`/`let` reassignment and capture semantics;
   map an arrow-style main to a valid Go executable entry point. Cover source
   diagnostics, generated APIs, editor behavior, and independent Go execution.
-- **Source module exports (requested next after named Go imports):** add
-  explicit declaration exports such as `export function`, `export class`,
-  and `export const`, plus named export lists (`export { name }`). Define
-  compatibility with existing modules whose top-level declarations are
-  selectively importable without an export marker. Keep source module
-  visibility separate from Go capitalization and the existing `export c(...)`
-  ABI syntax; cover linking, diagnostics, editor navigation, and execution.
+- **Source module exports (implemented on the development branch):** declaration
+  exports (`export function`, `export class`, `export const`, and other named
+  declarations) and local named lists (`export { name }`). Any source export
+  opts that file into explicit visibility; `export {}` exposes none. Files
+  without source exports retain legacy selective imports. Source visibility
+  remains separate from Go capitalization and `export c(...)`. Covered by
+  linking/diagnostic tests, editor navigation/refactoring, and handwritten-Go
+  differential execution in `source_exports_test.go`.
 
 The intended combined spelling includes named Go imports, omitted semicolons,
 and `const main = (): void => { ... }`.

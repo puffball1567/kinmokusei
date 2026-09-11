@@ -567,6 +567,7 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 	l.states[key] = 2
 	l.merged.Imports = append(l.merged.Imports, program.Imports...)
 	l.merged.Declarations = append(l.merged.Declarations, program.Declarations...)
+	l.merged.Exports = append(l.merged.Exports, program.Exports...)
 	return nil
 }
 
@@ -589,26 +590,15 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 		return
 	}
 	available := map[string]bool{}
+	exported := map[string]bool{}
 	for _, declaration := range target.Declarations {
-		switch declaration := declaration.(type) {
-		case *ast.FunctionDecl:
-			available[declaration.Name] = true
-		case *ast.VariableDecl:
-			available[declaration.Name] = true
-		case *ast.ClassDecl:
-			available[declaration.Name] = true
-		case *ast.StructDecl:
-			available[declaration.Name] = true
-		case *ast.TypeDecl:
-			available[declaration.Name] = true
-		case *ast.EnumDecl:
-			available[declaration.Name] = true
-		case *ast.InterfaceDecl:
-			available[declaration.Name] = true
+		if name := topLevelName(declaration); name != "" {
+			available[name] = true
+			exported[name] = ast.SourceExported(target, declaration)
 		}
 	}
 	seen := map[string]bool{}
-	for _, name := range imported.Names {
+	for index, name := range imported.Names {
 		if seen[name] {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate imported name %q", name), Span: imported.Span})
 			continue
@@ -617,6 +607,14 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 		if !available[name] {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
 				Message: fmt.Sprintf("module %q does not declare %q", imported.Path, name), Span: imported.Span,
+			})
+		} else if !exported[name] {
+			span := imported.Span
+			if index < len(imported.NameSpans) {
+				span = imported.NameSpans[index]
+			}
+			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
+				Message: fmt.Sprintf("module %q does not export %q", imported.Path, name), Span: span,
 			})
 		}
 	}

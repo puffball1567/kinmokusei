@@ -51,6 +51,17 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 			bindings[path][name] = linked
 		}
 	}
+	// Capture visibility before linking mutates declaration and export names.
+	exportedBindings := map[string]moduleNames{}
+	for _, path := range paths {
+		exportedBindings[path] = moduleNames{}
+		for _, declaration := range l.programs[path].Declarations {
+			if ast.SourceExported(l.programs[path], declaration) {
+				name := topLevelName(declaration)
+				exportedBindings[path][name] = bindings[path][name]
+			}
+		}
+	}
 	goAliasBindings, canonicalGoAliases := l.linkGoAliases(paths, bindings)
 
 	allowed := map[string]map[string]bool{}
@@ -90,7 +101,7 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 			if imported.ResolvedPath == "" {
 				continue
 			}
-			targetBindings := bindings[imported.ResolvedPath]
+			targetBindings := exportedBindings[imported.ResolvedPath]
 			for _, name := range imported.Names {
 				if _, local := bindings[path][name]; local {
 					l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
@@ -214,24 +225,8 @@ func linkedGoAlias(importPath, alias string) string {
 }
 
 func topLevelName(declaration ast.Declaration) string {
-	switch declaration := declaration.(type) {
-	case *ast.FunctionDecl:
-		return declaration.Name
-	case *ast.VariableDecl:
-		return declaration.Name
-	case *ast.ClassDecl:
-		return declaration.Name
-	case *ast.StructDecl:
-		return declaration.Name
-	case *ast.TypeDecl:
-		return declaration.Name
-	case *ast.EnumDecl:
-		return declaration.Name
-	case *ast.InterfaceDecl:
-		return declaration.Name
-	default:
-		return ""
-	}
+	name, _ := ast.DeclarationBinding(declaration)
+	return name
 }
 
 func (l *moduleLoader) linkedModuleName(path, name string) string {
@@ -255,6 +250,13 @@ func (l *moduleLoader) linkedModuleName(path, name string) string {
 }
 
 func linkProgram(program *ast.Program, declarations, visible moduleNames) {
+	for _, exported := range program.Exports {
+		for i := range exported.Names {
+			if linked, ok := declarations[exported.Names[i].Name]; ok {
+				exported.Names[i].ResolvedName = linked
+			}
+		}
+	}
 	for _, declaration := range program.Declarations {
 		linkDeclaration(declaration, declarations, visible)
 	}

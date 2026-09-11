@@ -162,6 +162,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 			c.checkFunction(decl)
 		}
 	}
+	c.checkSourceExports(program)
 	c.checkCABIExports(program)
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)

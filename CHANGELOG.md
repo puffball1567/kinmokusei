@@ -6,6 +6,11 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Add source-module exports: `export function`, `export class`, `export const`,
+  other named declarations, and `export { name }`. Files with source exports
+  expose only selected declarations; `export {}` exposes none. Files without
+  source exports retain legacy import behavior. Preserve Go naming and C ABI
+  rules, and support export-list navigation, references, and rename.
 - Add named Go imports such as `import go { Println } from "fmt"`, retaining
   generic signatures, named types, constant precision, and variable identity.
   Support file-local bindings, qualified-import coexistence, shadowing,

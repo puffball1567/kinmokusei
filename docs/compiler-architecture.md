@@ -103,6 +103,12 @@ model and native C++ library integration are planned, not present features.
 - Manage Go keywords, predeclared identifiers, and generated-name collisions through deterministic mangling.
 - Place relative imports and Go package aliases in the same file scope.
 - Do not expose transitive relative imports; every reference must resolve to a local declaration or explicit import.
+- Keep source export directives as AST metadata beside ordinary declarations.
+  Any source export, including an empty list, opts that file into explicit
+  visibility; files without source exports retain legacy importability. Capture
+  exported bindings before module link-name rewriting, resolve export-list names
+  only against local top-level declarations, and preserve source spans for LSP
+  rename. Source exports do not change Go capitalization or C ABI directives.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.
 - Preserve package-path identity independently of source aliases and checkout paths.
