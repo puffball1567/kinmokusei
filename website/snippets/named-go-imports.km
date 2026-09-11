@@ -1,0 +1,8 @@
+import go { Println } from "fmt"
+import go { Compare } from "cmp"
+import go { Duration, Second } from "time"
+
+function main(): void {
+  const delay: Duration = Duration(2) * Second
+  Println(delay, Compare(3, 1))
+}

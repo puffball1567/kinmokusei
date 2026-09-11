@@ -19,6 +19,16 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			if declaration, ok := activeTypeParameters[ref.Name]; ok {
 				ref.TypeParameter = true
 				ref.ResolvedDeclaration = declaration
+			} else if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok && ref.Name != "" {
+				ref.ResolvedDeclaration = imported.span
+				lowered := *ref
+				lowered.LoweredType = nil
+				lowered.Qualifier = imported.pack.declaration.ResolvedAlias
+				if lowered.Qualifier == "" {
+					lowered.Qualifier = imported.pack.declaration.Alias
+				}
+				lowered.Go = true
+				ref.LoweredType = &lowered
 			} else if named, ok := c.nativeTypes[ref.Name]; ok {
 				ref.NativeNamed = true
 				ref.ResolvedDeclaration = named.declaration.NameSpan
@@ -33,6 +43,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 		} else if imported := c.lookupGoPackage(ref.Span.Path, ref.Qualifier); imported != nil {
 			ref.QualifierDeclaration = imported.declaration.AliasSpan
+			if imported.declaration.ResolvedAlias != "" {
+				ref.Qualifier = imported.declaration.ResolvedAlias
+			}
 		}
 		for i := range ref.GenericArguments {
 			visitType(&ref.GenericArguments[i])

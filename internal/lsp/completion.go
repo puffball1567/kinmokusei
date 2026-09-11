@@ -72,6 +72,9 @@ func goCompletionType(ref ast.TypeRef) bool {
 }
 
 func goCompletionTypeInfo(ref ast.TypeRef) (ast.TypeRef, bool, bool) {
+	if ref.LoweredType != nil {
+		ref = *ref.LoweredType
+	}
 	pointer := false
 	if ref.Nullable {
 		ref.Nullable = false
@@ -79,6 +82,9 @@ func goCompletionTypeInfo(ref ast.TypeRef) (ast.TypeRef, bool, bool) {
 	if ref.IsPointer() && ref.Pointee != nil {
 		pointer = true
 		ref = *ref.Pointee
+		if ref.LoweredType != nil {
+			ref = *ref.LoweredType
+		}
 	}
 	return ref, pointer, ref.Go && ref.Qualifier != "" && ref.Name != ""
 }
@@ -113,7 +119,7 @@ func goValueMemberCompletions(result compiler.Result, program *ast.Program, path
 
 func goImportPathForQualifier(program *ast.Program, path, qualifier string) string {
 	for _, imported := range program.Imports {
-		if imported.Go && imported.Alias == qualifier && samePath(imported.Span.Path, path) {
+		if imported.Go && (imported.Alias == qualifier || imported.ResolvedAlias == qualifier) && samePath(imported.Span.Path, path) {
 			return imported.Path
 		}
 	}
@@ -187,7 +193,13 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			continue
 		}
 		if imported.Go {
-			add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
+			if len(imported.Names) == 0 {
+				add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
+			} else {
+				for _, name := range imported.Names {
+					add(completionItem{Label: name, Kind: 9, Detail: "Go export from " + imported.Path, SortText: "1_" + name})
+				}
+			}
 			continue
 		}
 		for _, name := range imported.Names {

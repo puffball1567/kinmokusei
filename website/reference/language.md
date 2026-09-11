@@ -32,6 +32,7 @@ Calls, indexing, selectors, operators, and unfinished expressions/types can cont
 | --- | --- |
 | Relative import | `import { A, functionName } from "./module";` |
 | Go import | `import go alias from "package/path";` |
+| Named Go import (development) | `import go { Name, Other } from "package/path"` |
 | Binding | `const name: T = value;`, `let name = value;` |
 | Function | `function name<T>(value: T): T { ... }` |
 | Class | `class Name extends Base implements Contract { ... }` |
@@ -52,6 +53,7 @@ Relative source imports are explicit and do not infer visibility from capitaliza
 ```ts
 import { Name, functionName } from "./relative-module";
 import go alias from "go/package/path";
+import go { Name, Other } from "go/package/path";
 ```
 
 Files use `.km`, have independent scopes, and expose no transitive imports. `kinmokusei/http` is the implemented compiler-managed standard module.

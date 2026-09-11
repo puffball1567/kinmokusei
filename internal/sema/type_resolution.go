@@ -166,6 +166,13 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 				return parameter
 			}
 		}
+		if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok {
+			ref.Qualifier = imported.pack.declaration.ResolvedAlias
+			if ref.Qualifier == "" {
+				ref.Qualifier = imported.pack.declaration.Alias
+			}
+			return c.resolveType(ref)
+		}
 		if named, ok := c.nativeTypes[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {
 			return c.resolveNativeDefinedType(ref, named)
 		}

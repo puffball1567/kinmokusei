@@ -256,6 +256,9 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 func (c *Checker) isAddressableExpression(expression ast.Expression) bool {
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
+		if expression.GoMember != nil {
+			return expression.GoMember.Addressable
+		}
 		symbol, ok := c.lookupSymbol(expression.Name, expression.Span)
 		if ok {
 			expression.ResolvedDeclaration = symbol.declarationSpan

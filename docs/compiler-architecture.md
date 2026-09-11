@@ -106,6 +106,12 @@ model and native C++ library integration are planned, not present features.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.
 - Preserve package-path identity independently of source aliases and checkout paths.
+- Named Go imports retain file-local export bindings in semantic analysis.
+  Checked identifiers carry their resolved Go selector, while source spellings
+  and import-name spans remain available for diagnostics and editor navigation.
+  Type references retain source names and carry a qualified lowering form.
+  Module linking canonicalizes shared package paths; variables stay selectors
+  to the original storage, and constants retain Go constant values.
 
 ### Type checking
 

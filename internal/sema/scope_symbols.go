@@ -73,6 +73,9 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 		} else {
 			declared[name] = decl.GetSpan()
 		}
+		if _, imported := c.goNamedImports[decl.GetSpan().Path][name]; imported {
+			c.report(decl.GetSpan(), fmt.Sprintf("imported name %q conflicts with a declaration in the same module", name))
+		}
 		if isBuiltinTypeName(name) {
 			c.report(decl.GetSpan(), fmt.Sprintf("top-level name %q conflicts with a built-in type", name))
 		} else if isBuiltinValueName(name) {

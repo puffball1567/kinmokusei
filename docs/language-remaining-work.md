@@ -105,9 +105,8 @@ Abstract classes are not necessary to use these features.
 
 ## Queued v0.4 syntax work
 
-Finish the in-flight semantic refactoring and source-encoding fix before the
-next feature implementation. The following additions are requested work, not
-claims about the currently released syntax:
+Semantic refactoring and the source-encoding fix have landed on devel. The
+following additions target v0.4, not the currently released v0.3 syntax:
 
 - **Optional semicolons (implemented on the development branch):** newline,
   end-of-block, and end-of-file termination with multiline expressions,
@@ -115,7 +114,7 @@ claims about the currently released syntax:
   separators. Parser matrices, linked-module handwritten-Go differential tests,
   and editor navigation cover the addition. Existing multiline return/throw
   code must follow the documented restricted-newline rule.
-- **Named Go imports:** support `import go { Println } from "fmt"` alongside
+- **Named Go imports (implemented on the development branch):** support `import go { Println } from "fmt"` alongside
   package-qualified imports. Preserve Go export identity, generic signatures,
   type/value namespaces, collision diagnostics, and ordinary qualified Go
   output without runtime wrappers. Include linked-module and editor coverage.
@@ -127,6 +126,13 @@ claims about the currently released syntax:
   explicit rules. Preserve `const`/`let` reassignment and capture semantics;
   map an arrow-style main to a valid Go executable entry point. Cover source
   diagnostics, generated APIs, editor behavior, and independent Go execution.
+- **Source module exports (requested next after named Go imports):** add
+  explicit declaration exports such as `export function`, `export class`,
+  and `export const`, plus named export lists (`export { name }`). Define
+  compatibility with existing modules whose top-level declarations are
+  selectively importable without an export marker. Keep source module
+  visibility separate from Go capitalization and the existing `export c(...)`
+  ABI syntax; cover linking, diagnostics, editor navigation, and execution.
 
 The intended combined spelling includes named Go imports, omitted semicolons,
 and `const main = (): void => { ... }`.

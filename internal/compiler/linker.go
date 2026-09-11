@@ -76,6 +76,15 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 		}
 		for _, imported := range program.Imports {
 			if imported.Go {
+				for _, name := range imported.Names {
+					if _, local := bindings[path][name]; local {
+						l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("imported name %q conflicts with a declaration in the same module", name), Span: imported.Span})
+					}
+					if seenImports[name] {
+						l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate import binding %q", name), Span: imported.Span})
+					}
+					seenImports[name] = true
+				}
 				continue
 			}
 			if imported.ResolvedPath == "" {
@@ -114,6 +123,14 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 func (l *moduleLoader) linkGoAliases(paths []string, declarationBindings map[string]moduleNames) (map[string]moduleNames, map[string]string) {
 	bindings := map[string]moduleNames{}
 	canonical := map[string]string{}
+	namedPaths := map[string]bool{}
+	for _, path := range paths {
+		for _, imported := range l.programs[path].Imports {
+			if imported.Go && len(imported.Names) != 0 {
+				namedPaths[imported.Path] = true
+			}
+		}
+	}
 	usedAliases := map[string]string{
 		"bool": "<Go built-in>", "string": "<Go built-in>", "int": "<Go built-in>", "int32": "<Go built-in>",
 		"int64": "<Go built-in>", "float32": "<Go built-in>", "float64": "<Go built-in>", "byte": "<Go built-in>",
@@ -132,16 +149,22 @@ func (l *moduleLoader) linkGoAliases(paths []string, declarationBindings map[str
 			if !imported.Go {
 				continue
 			}
+			named := len(imported.Names) != 0
+			if named {
+				imported.Alias = ast.GoImportAlias(imported.Path)
+			}
 			if isReservedLanguageTypeName(imported.Alias) {
 				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("Go package alias %q conflicts with a built-in type", imported.Alias), Span: imported.Span})
 				continue
 			}
-			if seenPaths[imported.Path] {
+			if !named && seenPaths[imported.Path] {
 				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate Go package import %q", imported.Path), Span: imported.Span})
 				continue
 			}
-			seenPaths[imported.Path] = true
-			if seenAliases[imported.Alias] {
+			if !named {
+				seenPaths[imported.Path] = true
+			}
+			if !named && seenAliases[imported.Alias] {
 				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate import binding %q", imported.Alias), Span: imported.Span})
 				continue
 			}
@@ -149,13 +172,18 @@ func (l *moduleLoader) linkGoAliases(paths []string, declarationBindings map[str
 			linked, exists := canonical[imported.Path]
 			if !exists {
 				linked = imported.Alias
+				if namedPaths[imported.Path] {
+					linked = ast.GoImportAlias(imported.Path)
+				}
 				if previousPath, used := usedAliases[linked]; used && previousPath != imported.Path {
 					linked = linkedGoAlias(imported.Path, imported.Alias)
 				}
 				canonical[imported.Path] = linked
 				usedAliases[linked] = imported.Path
 			}
-			bindings[path][imported.Alias] = linked
+			if !named {
+				bindings[path][imported.Alias] = linked
+			}
 			imported.ResolvedAlias = linked
 		}
 	}

@@ -135,6 +135,17 @@ strings.
 
 ### Go interop types
 
+Go exports may be imported by package alias (`import go time from "time"`) or
+by name (`import go { Duration, Second } from "time"`). Named imports retain
+the original Go type, constant, function, or variable identity. They are scoped
+to the importing file; duplicate bindings and conflicts with top-level
+declarations are errors. Locals may shadow imported values and type parameters
+may shadow imported types. Both forms can share a package import. Generated Go
+always qualifies imported exports; it does not copy imported variables or
+introduce runtime wrappers. Names must match exported Go declarations exactly.
+Named lists support trailing commas and the ordinary optional-semicolon rules.
+
+
 Complex numbers use `complex64` (two float32 components) or `complex128` (two
 float64 components). Construct them with `complex(realPart, imaginaryPart)` and
 read components with `real(value)` / `imag(value)`. Typed construction arguments

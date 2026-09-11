@@ -1,6 +1,7 @@
 package sema
 
 import (
+	"go/constant"
 	gotypes "go/types"
 	"math/big"
 	"strconv"
@@ -27,6 +28,9 @@ func (c *Checker) expressionAlwaysTrue(expression ast.Expression) bool {
 func (c *Checker) resolvedBooleanConstantValue(expression ast.Expression, seen map[source.Span]bool) (bool, bool) {
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
+		if value := c.namedGoConstantValue(expression); value != nil && value.Kind() == constant.Bool {
+			return constant.BoolVal(value), true
+		}
 		symbol, ok := c.lookupSymbol(expression.Name, expression.Span)
 		if !ok || !symbol.constant || symbol.declaration == nil || seen[symbol.declarationSpan] {
 			return false, false
@@ -93,6 +97,9 @@ func (c *Checker) resolvedBooleanConstantValue(expression ast.Expression, seen m
 func (c *Checker) resolvedStringConstantValue(expression ast.Expression, seen map[source.Span]bool) (string, bool) {
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
+		if value := c.namedGoConstantValue(expression); value != nil && value.Kind() == constant.String {
+			return constant.StringVal(value), true
+		}
 		symbol, ok := c.lookupSymbol(expression.Name, expression.Span)
 		if !ok || !symbol.constant || symbol.declaration == nil || seen[symbol.declarationSpan] {
 			return "", false
@@ -388,6 +395,9 @@ func (c *Checker) resolvedIntegerConstantValue(expression ast.Expression) (*big.
 	seen := map[*ast.VariableDecl]bool{}
 	var resolve func(*ast.IdentifierExpr) (*big.Int, bool)
 	resolve = func(identifier *ast.IdentifierExpr) (*big.Int, bool) {
+		if value := c.namedGoConstantValue(identifier); value != nil && value.Kind() == constant.Int {
+			return new(big.Int).SetString(value.ExactString(), 10)
+		}
 		symbol, ok := c.lookupSymbol(identifier.Name, identifier.Span)
 		if !ok || !symbol.constant || symbol.declaration == nil || seen[symbol.declaration] {
 			return nil, false
@@ -406,6 +416,9 @@ func (c *Checker) integerExpressionIsCompileTimeConstant(expression ast.Expressi
 	check = func(expression ast.Expression) bool {
 		switch expression := expression.(type) {
 		case *ast.IdentifierExpr:
+			if c.namedGoConstant(expression) != nil {
+				return true
+			}
 			symbol, ok := c.lookupSymbol(expression.Name, expression.Span)
 			if !ok || !symbol.constant || symbol.declaration == nil || seen[symbol.declaration] {
 				return false

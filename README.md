@@ -108,7 +108,7 @@ command directly for `.km` files.
 
 ## Go interop
 
-Go packages are imported through an explicit namespace:
+Go packages support explicit namespace imports:
 
 ```ts
 import go strings from "strings";
@@ -117,6 +117,10 @@ function normalize(value: string): string {
   return strings.ToUpper(strings.TrimSpace(value));
 }
 ```
+
+Development builds also support named imports, for example
+`import go { ToUpper, TrimSpace } from "strings"`, followed by
+`ToUpper(TrimSpace(value))`. Both forms retain the original Go export identities.
 
 The compiler uses the current standard library, a discoverable existing `go.mod`, or a module graph locked by `kinmokusei.toml` and `kinmokusei.lock`. Only explicit dependency operations may resolve or update dependencies; normal check/build/run/code-generation paths validate the locked graph read-only and offline.
 

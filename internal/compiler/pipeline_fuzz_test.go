@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`import go { Compare, Ordered } from "cmp"; function f<T extends Ordered>(x:T,y:T):int{return Compare(x,y);}`,
+	`import go { Duration, Second } from "time"; function f():Duration{return Duration(2)*Second;}`,
+	`import go { Pi, MaxUint8 } from "math"; function f():byte{return MaxUint8;} function g():float32{return Pi;}`,
 	"import go strings from \"strings\"\nfunction f():string {\nreturn strings.TrimSpace\n(\" x \")\n}",
 	"function f():void {\nconst call = ():void => { return }\nfor (let i=0; i<2; i++) { call() }\n}",
 	"function f():int { return\n1 }",

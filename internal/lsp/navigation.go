@@ -188,6 +188,13 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 			}
 		}
 		for _, imported := range program.Imports {
+			if imported.Go {
+				for i, span := range imported.NameSpans {
+					if i < len(imported.Names) && sameSourceSpan(span, occurrence.Declaration) {
+						return declarationInfo{Name: imported.Names[i], Detail: fmt.Sprintf("import go { %s } from %q", imported.Names[i], imported.Path), Kind: 13, Span: imported.Span, Selection: span}, true
+					}
+				}
+			}
 			if imported.Go && sameSourceSpan(imported.AliasSpan, occurrence.Declaration) {
 				return declarationInfo{
 					Name: imported.Alias, Detail: fmt.Sprintf("import go %s from %q", imported.Alias, imported.Path), Kind: 2,

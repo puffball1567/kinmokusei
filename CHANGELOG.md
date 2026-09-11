@@ -6,6 +6,10 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Add named Go imports such as `import go { Println } from "fmt"`, retaining
+  generic signatures, named types, constant precision, and variable identity.
+  Support file-local bindings, qualified-import coexistence, shadowing,
+  source diagnostics, editor navigation, completion, and signature help.
 - Preserve constructor parameters that share their class's name without hiding
   the allocation type in generated Go, including generic and variadic calls.
 - Diagnose malformed UTF-8 at its source byte, including inside strings and
