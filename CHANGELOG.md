@@ -6,9 +6,17 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Preserve constructor parameters that share their class's name without hiding
+  the allocation type in generated Go, including generic and variadic calls.
 - Diagnose malformed UTF-8 at its source byte, including inside strings and
   comments, instead of failing during generated Go validation. Unicode text
   and escaped arbitrary string bytes remain supported.
+- Allow omitted statement/declaration semicolons at line breaks, before `}`,
+  and at end of file. Expressions can continue across lines; three-clause
+  `for` separators remain explicit. A newline immediately after `return` or
+  `throw` now ends that statement, and break/continue labels stay on the same
+  line. Keep a returned/thrown value on the keyword's line, or start a grouped
+  expression there, when migrating multiline code.
 
 ## [0.3.0] - 2026-09-09
 

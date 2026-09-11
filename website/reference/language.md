@@ -22,7 +22,9 @@ const label = "hello\nたまご";
 
 String escapes and decimal integer/float literals are validated lexically. Numeric separators and base prefixes are not implemented. A malformed escape, unterminated comment/string, invalid UTF-8 byte, or overflowing constant is reported against the original source span.
 
-Semicolons terminate imports, bindings, returns, expression statements, assignments, updates, branches, `throw`, `defer`, and C export blocks where shown. Braced declaration/control-flow bodies do not take a trailing semicolon.
+Semicolons terminate imports, bindings, fields, type declarations, interface signatures, returns, expression statements, assignments, updates, branches, `throw`, `defer`, and grouped C exports. They may be omitted after a complete statement when the next token is on a later line, is `}`, or is end of file. Three-clause `for` separators remain explicit. Braced declaration/control-flow bodies do not take a trailing semicolon.
+
+Calls, indexing, selectors, operators, and unfinished expressions/types can continue across newlines. Use `;` if a new statement beginning with `(` or `[` could otherwise continue the previous expression. Newlines inside comments count. Immediately after `return` or `throw`, a newline instead ends a bare return/rethrow; optional break/continue labels must stay on the keyword's line. These newline rules apply with or without explicit semicolons elsewhere.
 
 ## Top-level declaration inventory
 

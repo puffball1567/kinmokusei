@@ -1,0 +1,2 @@
+go test fuzz v1
+string("constraint A00000<K extends comparable,V>=Map<K,V>;class A{constructor(public A:A){}}")

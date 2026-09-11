@@ -21,7 +21,7 @@ Diagnostics refer to the original path, one-based line and column, and zero-base
 
 ## Whitespace
 
-Spaces, tabs, and line breaks separate tokens but otherwise carry no meaning. These declarations parse the same way:
+Spaces and tabs separate tokens. Line breaks can terminate complete statements, but incomplete expressions continue across them. These declarations parse the same way:
 
 ```ts
 const answer = 42;
@@ -32,7 +32,7 @@ const answer =
   42;
 ```
 
-Line breaks do not insert semicolons. A simple statement still needs its explicit `;` even when the next token starts on a new line.
+The parser recognizes an omitted semicolon at a completed statement boundary; the lexer does not insert tokens into multiline expressions or types.
 
 ## Comments
 
@@ -140,7 +140,7 @@ Strings contain UTF-8 bytes. Indexing returns a byte; range iteration returns a 
 
 Parentheses group expressions and delimit conditions, parameters, and arguments. Braces delimit blocks and literal bodies. Brackets form arrays, indexing, slicing, and Go-shaped explicit type arguments.
 
-Write a semicolon after:
+The following forms use a semicolon terminator, which may be omitted at a completed line, before `}`, or at end of file:
 
 - imports and binding declarations;
 - `return`, `throw`, branch, assignment, update, and expression statements;
@@ -148,6 +148,10 @@ Write a semicolon after:
 - grouped C export declarations where the grammar shows one.
 
 Do not write a semicolon after a function, class, struct, interface, loop, switch, select, or `try` block.
+
+Two statements on the same line still require a separator, and a three-clause `for` always requires both `;` separators. Expressions can continue across lines: `call` followed by `(value)` is one call, and `value` followed by `[index]` is one indexing expression. Use an explicit `;` to separate statements that would otherwise join. A newline inside a block comment also counts as a line break.
+
+An immediate newline after `return` or `throw` ends a bare return or rethrow. A value-returning function rejects a bare return; a bare rethrow requires a catch. Keep the value, or its opening `(`, on the keyword's line when writing a multiline operand. Optional labels following `break` and `continue` must also remain on the keyword's line. These restricted-newline rules apply even if other statements use explicit semicolons.
 
 ```ts
 function main(): void {

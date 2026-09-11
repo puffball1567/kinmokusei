@@ -88,7 +88,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"duplicate constructors", `class Broken { constructor() {} constructor() {} }`},
 		{"static constructor", `class Broken { static constructor() {} }`},
 		{"static field", `class Broken { static value: int; }`},
-		{"interface missing semicolon", `interface Broken { function value(): int }`},
+		{"interface missing separator", `interface Broken { function value(): int function other(): int; }`},
 		{"interface method body", `interface Broken { function value(): int {} }`},
 		{"implements missing type", `class Broken implements {}`},
 		{"Go import missing alias", `import go from "strings"; function recovered(): void {}`},

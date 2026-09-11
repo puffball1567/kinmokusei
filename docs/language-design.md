@@ -45,6 +45,29 @@ class UserController {
 
 The core `Result`, postfix `?`, and nil-backed nullable constructs in this example are implemented. The referenced application libraries remain design direction.
 
+## Statement termination
+
+Semicolons are optional after a complete declaration or simple statement when
+the next token is on a later line, is `}`, or is end of file. This includes
+imports, bindings, fields, interface signatures, type/constraint declarations,
+returns, assignments, updates, branches, sends, and call/effect statements.
+Same-line statements still require a separator; three-clause `for` headers
+always require their two `;` separators. Braced declarations and control-flow
+bodies retain their existing syntax.
+
+Newlines do not split incomplete expressions or types. Calls, indexing,
+selectors, and binary operations may continue onto the next line. If the next
+line begins with `(` or `[`, it can continue the preceding expression; use an
+explicit `;` to separate the statements in that case. Newlines inside comments
+count as line breaks.
+
+A newline immediately after `return` ends a bare return; after `throw`, it
+ends a bare rethrow (valid only within a catch). Optional break/continue labels
+must be on the keyword's line. A value-returning function rejects a bare return
+at the source location. Keep a return/throw operand on the keyword's line, or
+start its grouping parenthesis there, to express a multiline value. This
+restricted-newline rule also applies to code that uses explicit semicolons.
+
 ## Types
 
 Source files must contain valid UTF-8, including string literals and comments.

@@ -117,6 +117,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"optional-terminators.test":           {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"behavior.test":                       {implementedGoCompatibilityContracts[0]},
 	"generated.test":                      {implementedGoCompatibilityContracts[1]},
 	"generated.class.test":                {implementedGoCompatibilityContracts[2]},
@@ -165,6 +166,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"constructor-nested-guard.test":       {implementedGoCompatibilityContracts[43]},
 	"constructor-declarations.test":       {implementedGoCompatibilityContracts[43]},
 	"constructor-arrow.test":              {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[0]},
+	"constructor-names.test":              {implementedGoCompatibilityContracts[2]},
 	"constructor-bound-constants.test":    {implementedGoCompatibilityContracts[44]},
 	"constructor-imported-constants.test": {implementedGoCompatibilityContracts[45]},
 	"native-struct.test":                  {implementedGoCompatibilityContracts[46]},
