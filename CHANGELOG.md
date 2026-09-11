@@ -6,6 +6,8 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Preserve constructor parameters that share their class's name without hiding
+  the allocation type in generated Go, including generic and variadic calls.
 - Diagnose malformed UTF-8 at its source byte, including inside strings and
   comments, instead of failing during generated Go validation. Unicode text
   and escaped arbitrary string bytes remain supported.

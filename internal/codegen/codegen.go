@@ -651,8 +651,10 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	if class.Constructor != nil {
 		constructorParameters = class.Constructor.Parameters
 	}
-	for _, parameter := range constructorParameters {
+	factoryParameterNames := constructorFactoryParameterNames(class, constructorParameters)
+	for i, parameter := range constructorParameters {
 		field := goParameterField(parameter)
+		field.Names = []*goast.Ident{goast.NewIdent(factoryParameterNames[i])}
 		constructorType.Params.List = append(constructorType.Params.List, field)
 		initializerType.Params.List = append(initializerType.Params.List, goParameterField(parameter))
 	}
@@ -744,8 +746,8 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		Rhs: []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.CompositeLit{Type: classType}}},
 	})
 	initializerArguments := []goast.Expr{goast.NewIdent("this")}
-	for _, parameter := range constructorParameters {
-		initializerArguments = append(initializerArguments, goast.NewIdent(goName(parameter.Name)))
+	for _, name := range factoryParameterNames {
+		initializerArguments = append(initializerArguments, goast.NewIdent(name))
 	}
 	initializerCall := &goast.CallExpr{Fun: goast.NewIdent(initializerName(class.Name)), Args: initializerArguments}
 	if len(constructorParameters) != 0 && constructorParameters[len(constructorParameters)-1].Variadic {
