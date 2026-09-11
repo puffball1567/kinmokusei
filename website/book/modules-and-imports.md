@@ -129,7 +129,7 @@ Local bindings can shadow an imported value. Type parameters can shadow an
 imported type. Go package variables remain assignable and addressable; Go
 constants and function declarations do not become assignable.
 
-The checked example is [named-go-imports.km](../snippets/named-go-imports.km).
+The checked example is `website/snippets/named-go-imports.km` in the repository.
 Editor navigation leads to the import binding, and Go export names are read-only
 for rename. Dependency locking and unsafe interop policies apply identically
 to both import forms.
