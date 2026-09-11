@@ -10,6 +10,9 @@ import (
 )
 
 func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Type {
+	if arrow, ok := expr.(*ast.ArrowExpr); ok {
+		return c.checkArrowExpected(arrow, expected)
+	}
 	if array, ok := expr.(*ast.ArrayLiteralExpr); ok && (expected.Kind == Array || expected.Kind == FixedArray) && expected.Element != nil {
 		return c.checkArrayLiteralExpected(array, expected)
 	}
@@ -262,6 +265,9 @@ func (c *Checker) isAddressableExpression(expression ast.Expression) bool {
 		symbol, ok := c.lookupSymbol(expression.Name, expression.Span)
 		if ok {
 			expression.ResolvedDeclaration = symbol.declarationSpan
+			if symbol.declaration != nil && symbol.declaration.FunctionBinding {
+				return false
+			}
 		}
 		return ok
 	case *ast.MemberExpr:

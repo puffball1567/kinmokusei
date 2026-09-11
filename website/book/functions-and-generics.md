@@ -59,7 +59,60 @@ const clamp = (value: int): int => {
 };
 ```
 
-Arrows are ordinary function values. Parameter types remain explicit; the result annotation may be inferred where the body and expected context establish it. Captured bindings use lexical scope; captures do not create a JavaScript runtime or dynamic closure environment beyond the generated Go closure.
+Arrows have statically checked function types. Captured bindings use lexical
+scope; captures do not create a JavaScript runtime or dynamic closure environment
+beyond the generated Go closure.
+
+### Arrow definitions and main (development)
+
+Development builds support arrow-style entry points and function definitions:
+
+<<< ../snippets/arrow-functions.km{ts}
+
+Running this example prints `120 42`. A module-level `const` initialized directly
+with an arrow, with an inferred or unnamed function type, is a callable
+declaration. It emits an ordinary Go function and can be exported with
+`export const`. Its name follows the same Go capitalization rules as `function`.
+`main` must have no parameters and return `void`; `const main = () => { ... }`
+supplies that result context automatically.
+
+Give a callable declaration an explicit result annotation, or a complete
+function-type annotation on the binding, when using recursion, mutual recursion,
+or calls before the declaration. Its body can refer to later globals. For example,
+`const twice: (n: int) => int = (n) => { return n * 2 }` declares the whole signature
+without repeating it on the arrow.
+
+Callable declarations cannot be reassigned or addressed with `&`. This is a
+development-version API change: Go consumers receive a function rather than an
+assignable function variable. `let` bindings remain function storage that can be
+reassigned. An explicit named Go function type retains its named storage/type
+contract; local arrows continue to be lexical function values.
+
+### Contextual types and block results (development)
+
+When a binding, field, callback parameter, assignment, or return position supplies
+a matching function type, arrow parameters can omit their type annotations and
+the result annotation can be omitted for either body form:
+
+```ts
+function apply(value: int, transform: (n: int) => int): int {
+  return transform(value)
+}
+
+const result = apply(21, (n) => { return n * 2 })
+```
+
+The parameter count and rest-parameter shape must match the expected function
+type. Without such a context, parameter types are explicit. An explicit arrow
+annotation is still checked against the expected function type.
+
+Without a result context, a block arrow infers its result from its returns: the
+first return establishes the default value type and subsequent returns must be
+assignable to it. A block with no value returns is `void`. Mixed bare/value returns,
+incompatible results, and inference from `nil`/`null` require a correction or an
+explicit result annotation. Non-void arrows must return on every continuing path.
+Nested arrows have independent return inference; `try/finally` keeps the enclosing
+arrow's inferred result and cleanup behavior.
 
 ## Callbacks
 

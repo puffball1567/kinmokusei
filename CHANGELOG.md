@@ -6,6 +6,18 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support arrow-style entry points (`const main = () => { ... }`) and emit
+  module-level const arrows with unnamed function types as Go functions.
+  Explicit signatures support recursion, mutual recursion, forward calls, and
+  references to later globals. These callable declarations are not addressable;
+  Go consumers now receive functions rather than assignable function variables.
+- Infer arrow parameter and result types from matching function contexts in
+  bindings, callbacks, returns, and fields. Infer block-body results when no
+  result context is present, including nested arrows and try/finally. Preserve
+  mutable function values and lexical captures, and improve arrow navigation,
+  rename, completion, and inferred-signature hover.
+- Diagnose cyclic global initialization through global/function references at
+  the source binding while preserving legitimate function recursion.
 - Add source-module exports: `export function`, `export class`, `export const`,
   other named declarations, and `export { name }`. Files with source exports
   expose only selected declarations; `export {}` exposes none. Files without

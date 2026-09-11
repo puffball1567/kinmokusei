@@ -35,6 +35,12 @@ const transform: (value: string) => string = (text: string): string => text;
 
 Call targets, receiver expressions, and arguments evaluate once in source order at the boundaries where order affects behavior.
 
+In development builds you can also use `const main = () => { ... }`, omit arrow
+parameter/result annotations when a matching callback type supplies them, and
+infer block-body results. The [Manual's arrow section](../book/functions-and-generics#arrow-functions)
+explains callable declarations, recursion, mutable bindings, and the generated-Go
+API change.
+
 ## Rest parameters
 
 Rest parameters use a TypeScript-shaped slice annotation and lower to Go variadics:

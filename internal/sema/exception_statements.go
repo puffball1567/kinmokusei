@@ -13,6 +13,9 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 	stmt.HandlesReturn = c.exceptionDepth == 0
 	if stmt.HandlesReturn {
 		stmt.ReturnType = typeRefFromType(c.result, stmt.Span)
+		if c.arrowReturns != nil {
+			c.arrowReturns.tries = append(c.arrowReturns.tries, stmt)
+		}
 	}
 	entry := c.snapshotNullableFlow()
 

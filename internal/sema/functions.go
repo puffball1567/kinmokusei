@@ -8,6 +8,9 @@ import (
 )
 
 func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = decl.Name
+	defer func() { c.globalDependencyOwner = previousDependency }()
 	c.validateLabels(decl.Body)
 	previousMemberFlow := c.memberFlow
 	c.memberFlow = map[memberFlowKey]memberFlowState{}
@@ -31,6 +34,12 @@ func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
 }
 
 func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
+	return c.checkArrowExpected(expr, Type{})
+}
+
+func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
+	expected = c.arrowContext(expected)
+	inferredParameters := c.inferArrowParameters(expr, expected)
 	// Returns and super-constructor calls belong to the current callable, even
 	// when an arrow captures this from its enclosing constructor.
 	previousInConstructor := c.inConstructor
@@ -66,7 +75,13 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 	c.pushScope()
 	parameters := make([]Type, len(expr.Parameters))
 	for i, parameter := range expr.Parameters {
-		parameters[i] = c.resolveType(parameter.Type)
+		if inferred, ok := inferredParameters[i]; ok {
+			// Context already carries type identity, including private dependency
+			// types that the caller cannot name explicitly.
+			parameters[i] = inferred
+		} else {
+			parameters[i] = c.resolveType(parameter.Type)
+		}
 		if parameters[i].Kind == Void {
 			c.report(parameter.Type.Span, "parameters cannot have type void")
 		}
@@ -80,13 +95,16 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 		result = c.resolveType(*expr.ReturnType)
 		c.rejectTaskAPIType(result, expr.ReturnType.Span, "arrow return types")
 		c.result = result
+	} else if expected.Kind == Function && expected.Result != nil && expected.Result.Kind != MultiValue {
+		result = *expected.Result
+		c.result = result
 	}
 	if expr.ExpressionBody != nil {
 		if result.Kind == Result {
 			c.report(expr.ExpressionBody.GetSpan(), "Result arrow functions require a block body with an explicit return")
 		}
 		actual := c.checkExpressionExpectedSlot(&expr.ExpressionBody, result)
-		if expr.ReturnType == nil {
+		if expr.ReturnType == nil && result.Kind == Invalid {
 			actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())
 			if actual.Kind == Nil {
 				c.report(expr.ExpressionBody.GetSpan(), "cannot infer an arrow function return type from nil")
@@ -99,12 +117,16 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 		}
 	} else if expr.BlockBody != nil {
 		c.validateLabels(expr.BlockBody)
-		if expr.ReturnType == nil {
-			c.report(expr.Span, "arrow functions with a block body require an explicit return type")
-			result = Type{Kind: Invalid, Name: "<invalid>"}
-			c.result = result
+		var inference *arrowReturnInference
+		if expr.ReturnType == nil && result.Kind == Invalid {
+			inference = &arrowReturnInference{}
+			c.arrowReturns = inference
+			c.result = Type{}
 		}
 		c.checkBlock(expr.BlockBody, false)
+		if inference != nil {
+			result = c.finishArrowReturnInference(inference, expr)
+		}
 		if result.Kind != Void && result.Kind != Invalid && !definitelyReturns(expr.BlockBody) {
 			c.report(expr.Span, fmt.Sprintf("arrow function may complete without returning %s", result.String()))
 		}

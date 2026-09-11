@@ -195,6 +195,9 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	for _, seed := range []string{`const main=()=>{};`, `const f=(n)=>n;`, `const f=(...values)=>{};`, `const f=(a,b:int)=>{return b;};`} {
+		f.Add(seed)
+	}
 	for _, seed := range []string{`export {};`, `export { value, }; const value=1;`, `export function f():void{}`, `export type`, `export export {}`} {
 		f.Add(seed)
 	}

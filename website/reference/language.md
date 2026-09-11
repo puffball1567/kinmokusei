@@ -81,6 +81,15 @@ function variadic(prefix: int, ...values: int[]): int { return prefix; }
 
 `const`/`let` apply to bindings. Functions, arrows, function types, methods, interfaces, and constructors support final rest parameters. Generic calls accept inference, `<T>`, or `[T]` type arguments.
 
+Development builds emit module-level const arrows with inferred/unnamed function
+types as callable declarations, including `const main = () => { ... }`. Explicit
+signatures enable recursion and forward calls. Callable declarations are not
+addressable or reassignable; `let` retains mutable function storage. Expected
+function types can supply omitted arrow parameter/result annotations. Without a
+result context, block arrows infer a default result from their first return and
+check the remaining returns against it; no value returns means `void`.
+See [arrow semantics](../book/functions-and-generics#arrow-functions).
+
 Destructuring is limited to compiler-known multiple results:
 
 ```ts

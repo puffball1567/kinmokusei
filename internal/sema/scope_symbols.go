@@ -20,6 +20,7 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 			if decl.Type.IsSpecified() {
 				t = c.resolveType(decl.Type)
 			}
+			t = c.declareArrowBinding(decl, t)
 			if t.Kind == Void {
 				c.report(decl.Type.Span, "variables cannot have type void")
 			}
@@ -249,6 +250,12 @@ func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool
 		return valueSymbol{}, false
 	}
 	symbol, ok := c.globals[name]
+	if ok {
+		c.recordGlobalDependency(name)
+	}
+	if ok && symbol.typeInfo.Kind == Invalid && symbol.declaration != nil && symbol.declaration.FunctionBinding {
+		c.report(span, fmt.Sprintf("arrow function %q needs an explicit return type for recursive or forward references", name))
+	}
 	return symbol, ok
 }
 
@@ -265,6 +272,9 @@ func (c *Checker) lookupAssignmentSymbol(name string, span source.Span) (valueSy
 		return valueSymbol{}, false
 	}
 	symbol, ok := c.globals[name]
+	if ok {
+		c.recordGlobalDependency(name)
+	}
 	return symbol, ok
 }
 

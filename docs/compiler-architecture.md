@@ -109,6 +109,12 @@ model and native C++ library integration are planned, not present features.
   exported bindings before module link-name rewriting, resolve export-list names
   only against local top-level declarations, and preserve source spans for LSP
   rename. Source exports do not change Go capitalization or C ABI directives.
+- Mark module-level const arrow declarations with unnamed function types as
+  callable bindings. Predeclare explicit signatures and check their bodies after
+  stored globals; retain variable/arrow AST identity for source tools. Go emission
+  uses function declarations, while named function storage and mutable bindings
+  retain their existing representation. Arrow return inference is callable-local,
+  and inferred try-return metadata is finalized after the result is known.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.
 - Preserve package-path identity independently of source aliases and checkout paths.

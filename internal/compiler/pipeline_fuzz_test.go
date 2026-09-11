@@ -15,6 +15,14 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`const main=()=>{};`,
+	`const f=(n:int):int=>{if(n==0){return 1;}return n*f(n-1);};`,
+	`const f=()=>f();`,
+	`const f:(n:int)=>int=(n)=>{return n+1;};`,
+	`const f:(...values:int[])=>int=(...values)=>{return len(values);};`,
+	`const f=()=>{try{return 1;}finally{const nested=()=>{return "x";};nested();}};`,
+	`const f=(b:boolean)=>{if(b){return;}return 1;};`,
+	`import go http from "net/http"; const handler:http.HandlerFunc=(w,r)=>{};`,
 	`export function value():int{return hidden()} function hidden():int{return 2}`,
 	`export {}; const hidden=1;`,
 	`export { value }; const value=(n:int):int=>n+1;`,
