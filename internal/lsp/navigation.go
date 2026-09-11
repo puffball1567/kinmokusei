@@ -361,10 +361,13 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			detail := prefix + declaration.Name
 			if declaration.Type.IsSpecified() {
 				detail += ": " + formatTypeRef(declaration.Type)
+			} else if declaration.FunctionBinding && declaration.ResolvedType.IsSpecified() {
+				detail += ": " + formatTypeRef(declaration.ResolvedType)
 			}
 			result = append(result, declarationInfo{Name: declaration.Name, Detail: detail, Kind: kind, Span: declaration.Span, Selection: declaration.NameSpan})
 		}
 	}
+	addArrowDeclarations(program, result)
 	return result
 }
 

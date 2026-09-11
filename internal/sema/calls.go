@@ -122,6 +122,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	var callableName string
 	if ok {
 		if fn, exists := c.functions[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
+			c.recordGlobalDependency(name.Name)
 			name.ResolvedDeclaration = fn.declarationSpan
 			callable = callableTypeForFunction(fn)
 			callableName = fmt.Sprintf("function %q", name.Name)

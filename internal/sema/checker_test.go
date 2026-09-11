@@ -220,15 +220,15 @@ function compute(): int {
 	}
 }
 
-func TestBlockArrowRequiresReturnType(t *testing.T) {
+func TestBlockArrowInfersReturnType(t *testing.T) {
 	diagnostics := checkSource(t, `
 function compute(): int {
-  const invalid = (): int => { return 42; };
-  const missing = () => { return 42; };
-  return invalid();
+  const explicit = (): int => { return 42; };
+  const inferred = () => { return 42; };
+  return explicit() + inferred();
 }
 `)
-	if len(diagnostics) != 1 || !strings.Contains(diagnostics[0], "block body require") {
+	if len(diagnostics) != 0 {
 		t.Fatalf("diagnostics = %v", diagnostics)
 	}
 }

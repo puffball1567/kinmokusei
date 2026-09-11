@@ -261,6 +261,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 }
 
 func addLocalCompletions(program *ast.Program, path string, offset int, add func(completionItem)) {
+	defer addArrowCompletions(program, path, offset, add)
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
 			continue

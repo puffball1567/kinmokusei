@@ -118,14 +118,15 @@ following additions target v0.4, not the currently released v0.3 syntax:
   package-qualified imports. Preserve Go export identity, generic signatures,
   type/value namespaces, collision diagnostics, and ordinary qualified Go
   output without runtime wrappers. Include linked-module and editor coverage.
-- **General arrow-function support, including main:** make arrow-style
-  definitions practical throughout ordinary application code, not only as a
-  special spelling of the entry point. Audit existing expression/block arrows,
-  callbacks, function-valued fields, local/global bindings, and closures; fill
-  gaps in contextual/result inference, recursion, and forward references with
-  explicit rules. Preserve `const`/`let` reassignment and capture semantics;
-  map an arrow-style main to a valid Go executable entry point. Cover source
-  diagnostics, generated APIs, editor behavior, and independent Go execution.
+- **Arrow-function bindings and inference (implemented on the development branch):**
+  module-level const arrows with unnamed function types become callable
+  declarations, including `main`. Explicit signatures support recursion, mutual
+  recursion, forward calls, and later globals. Matching function contexts infer
+  parameter/result types in bindings, callbacks, fields, and returned arrows;
+  block bodies also infer results without a context. Mutable function storage,
+  captures, inferred try/finally returns, and editor navigation/refactoring are
+  covered by `arrow_bindings_test.go`. Further work: local recursive bindings,
+  dependency-driven forward result inference, and generic callback inference.
 - **Source module exports (implemented on the development branch):** declaration
   exports (`export function`, `export class`, `export const`, and other named
   declarations) and local named lists (`export { name }`). Any source export

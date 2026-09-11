@@ -171,6 +171,13 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 		if err != nil {
 			return nil, err
 		}
+		if decl.FunctionBinding {
+			function, ok := value.(*goast.FuncLit)
+			if !ok {
+				return nil, fmt.Errorf("function binding %q does not contain an arrow", decl.Name)
+			}
+			return []goast.Decl{&goast.FuncDecl{Name: goast.NewIdent(goName(decl.Name)), Type: function.Type, Body: function.Body}}, nil
+		}
 		tok := token.VAR
 		if decl.Constant && isGoConstant(decl.Value) {
 			tok = token.CONST

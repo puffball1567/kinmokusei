@@ -9,6 +9,7 @@ type callableControlState struct {
 	breakableDepth int
 	exceptionDepth int
 	catchTargets   []int
+	arrowReturns   *arrowReturnInference
 }
 
 // enterCallableControl starts a new control-transfer boundary and returns the

@@ -1123,6 +1123,10 @@ func (p *Parser) parseTypeSuffix(ref ast.TypeRef, allowNullable bool) (ast.TypeR
 }
 
 func (p *Parser) parseParameters(end token.Kind) ([]ast.Parameter, bool) {
+	return p.parseParametersWithInference(end, false)
+}
+
+func (p *Parser) parseParametersWithInference(end token.Kind, infer bool) ([]ast.Parameter, bool) {
 	var parameters []ast.Parameter
 	if p.at(end) {
 		return parameters, true
@@ -1133,18 +1137,25 @@ func (p *Parser) parseParameters(end token.Kind) ([]ast.Parameter, bool) {
 		if !ok {
 			return nil, false
 		}
-		if _, ok = p.expect(token.Colon, "expected ':' after parameter name"); !ok {
-			return nil, false
+		typeRef := ast.TypeRef{}
+		if !infer || p.at(token.Colon) {
+			if _, ok = p.expect(token.Colon, "expected ':' after parameter name"); !ok {
+				return nil, false
+			}
+			typeRef, ok = p.parseType()
+			if !ok {
+				return nil, false
+			}
 		}
-		typeRef, ok := p.parseType()
-		if !ok {
-			return nil, false
-		}
-		if variadic && !typeRef.IsSlice() {
+		if variadic && typeRef.IsSpecified() && !typeRef.IsSlice() {
 			p.report(name, "rest parameter type must be a slice")
 			return nil, false
 		}
-		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: name.Span.Merge(typeRef.Span)})
+		span := name.Span
+		if typeRef.IsSpecified() {
+			span = span.Merge(typeRef.Span)
+		}
+		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: span})
 		if !p.match(token.Comma) {
 			break
 		}
@@ -2603,7 +2614,7 @@ func (p *Parser) looksLikeArrow() bool {
 
 func (p *Parser) parseArrow() ast.Expression {
 	start, _ := p.expect(token.LeftParen, "expected '('")
-	parameters, ok := p.parseParameters(token.RightParen)
+	parameters, ok := p.parseParametersWithInference(token.RightParen, true)
 	if !ok {
 		p.synchronizeStatement()
 		return nil

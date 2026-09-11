@@ -55,6 +55,8 @@ type Checker struct {
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
 	numericValues              map[ast.Expression]gotypes.TypeAndValue
+	globalDependencyOwner      string
+	globalDependencies         map[string]map[string]bool
 }
 
 type GoInteropPolicy struct {
@@ -104,28 +106,8 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.declareTopLevel(program)
 	c.declareReceiverMethods(program)
 	c.validateStructValueCycles(program)
-	for _, decl := range program.Declarations {
-		if decl, ok := decl.(*ast.VariableDecl); ok {
-			declared := Type{Kind: Invalid, Name: "<inferred>"}
-			if decl.Type.IsSpecified() {
-				declared = c.resolveType(decl.Type)
-			}
-			valueType := c.checkExpressionExpectedSlot(&decl.Value, declared)
-			if !decl.Type.IsSpecified() {
-				declared = c.inferredVariableType(valueType, decl.Value.GetSpan())
-				if !decl.Constant || !numericInitializerEmitsConstant(decl.Value) {
-					c.checkNumericMaterialization(decl.Value, declared)
-				}
-			}
-			c.requireAssignable(declared, valueType, decl.Value.GetSpan())
-			if declared.Kind == Void {
-				c.report(decl.GetSpan(), "variables cannot have type void")
-			}
-			c.rejectResultValueType(declared, decl.Type.Span, "variables")
-			c.rejectTaskAPIType(declared, decl.Type.Span, "global variables")
-			decl.ResolvedType = typeRefFromType(declared, decl.Span)
-			c.globals[decl.Name] = valueSymbol{typeInfo: declared, declaredType: declared, constant: decl.Constant, declarationSpan: decl.NameSpan, declaration: decl}
-		}
+	for _, decl := range c.globalCheckOrder(program) {
+		c.checkGlobalBinding(decl)
 	}
 	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.EnumDecl); ok {
@@ -162,6 +144,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 			c.checkFunction(decl)
 		}
 	}
+	c.checkGlobalInitializationCycles(program)
 	c.checkSourceExports(program)
 	c.checkCABIExports(program)
 	c.checkGeneratedNames(program)
@@ -243,6 +226,11 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		}
 		if c.inConstructor {
 			c.report(stmt.Span, "constructors cannot return early; use conditional initialization and let the constructor complete")
+		}
+		if c.arrowReturns != nil {
+			c.collectArrowReturn(stmt)
+			c.reportPendingTasksBeforeExit()
+			return
 		}
 		if c.result.Kind == Result {
 			c.checkResultReturn(stmt)
@@ -585,6 +573,7 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 			return c.checkNamedGoIdentifier(expr, imported)
 		}
 		if function, ok := c.functions[expr.Name]; ok && c.isTopLevelAllowed(expr.Span, expr.Name) {
+			c.recordGlobalDependency(expr.Name)
 			expr.ResolvedDeclaration = function.declarationSpan
 			callable := callableTypeForFunction(function)
 			if callable.Generic {

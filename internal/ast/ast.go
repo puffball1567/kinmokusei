@@ -316,14 +316,17 @@ func (*InterfaceDecl) declaration()           {}
 func (d *InterfaceDecl) GetSpan() source.Span { return d.Span }
 
 type VariableDecl struct {
-	Constant     bool
-	Name         string
-	NameSpan     source.Span
-	Type         TypeRef
-	ResolvedType TypeRef
-	Value        Expression
-	Used         bool
-	Span         source.Span
+	// FunctionBinding marks a module-level const arrow with an unnamed function
+	// type. It is a callable declaration, not mutable function storage.
+	FunctionBinding bool
+	Constant        bool
+	Name            string
+	NameSpan        source.Span
+	Type            TypeRef
+	ResolvedType    TypeRef
+	Value           Expression
+	Used            bool
+	Span            source.Span
 }
 
 func (*VariableDecl) declaration()           {}
