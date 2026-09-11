@@ -32,7 +32,14 @@ func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
 			}
 			continue
 		}
-		decl := p.parseDeclaration()
+		var decl ast.Declaration
+		if p.at(token.Export) && !p.atCABIExport() {
+			var exported ast.ExportDecl
+			exported, decl = p.parseSourceExport(p.advance())
+			program.Exports = append(program.Exports, exported)
+		} else {
+			decl = p.parseDeclaration()
+		}
 		if decl != nil {
 			program.Declarations = append(program.Declarations, decl)
 		}

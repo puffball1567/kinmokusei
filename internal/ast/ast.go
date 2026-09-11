@@ -6,6 +6,7 @@ type Node interface{ GetSpan() source.Span }
 
 type Program struct {
 	Imports        []ImportDecl
+	Exports        []ExportDecl
 	Declarations   []Declaration
 	CABIExports    []CABIExport
 	UsesTasks      bool

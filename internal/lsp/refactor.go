@@ -371,6 +371,14 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		}
 	}
 
+	for _, exported := range program.Exports {
+		if !exported.Inline {
+			for _, name := range exported.Names {
+				add(name.NameSpan, name.ResolvedDeclaration)
+			}
+		}
+	}
+
 	var walkType func(*ast.TypeRef)
 	var walkExpression func(ast.Expression)
 	var walkStatement func(ast.Statement)
@@ -761,7 +769,7 @@ func (s *Server) topLevelDeclarationSpan(program *ast.Program, path, name string
 		default:
 			continue
 		}
-		if samePath(span.Path, path) && s.sourceTextWithOverlay(span, textByPath) == name {
+		if samePath(span.Path, path) && ast.SourceExported(program, declaration) && s.sourceTextWithOverlay(span, textByPath) == name {
 			return span, true
 		}
 	}

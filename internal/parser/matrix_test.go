@@ -146,7 +146,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"type switch default missing body", `function broken(value: error): void { switch (value) { default } }`},
 		{"value switch missing case value", `function broken(value: int): void { switch (value) { case {} } }`},
 		{"value switch trailing case comma", `function broken(value: int): void { switch (value) { case 1, {} } }`},
-		{"C ABI export missing boundary", `export function recovered(): void {}`},
+		{"export missing declaration", `export 42;`},
 		{"C ABI export unknown boundary", `export wasm("value") function recovered(): void {}`},
 		{"C ABI export missing open parenthesis", `export c "value") function recovered(): void {}`},
 		{"C ABI export missing symbol", `export c() function recovered(): void {}`},
@@ -195,6 +195,9 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	for _, seed := range []string{`export {};`, `export { value, }; const value=1;`, `export function f():void{}`, `export type`, `export export {}`} {
+		f.Add(seed)
+	}
 	for _, seed := range []string{
 		`import go { Println, Sprint, } from "fmt"`,
 		`import go { Println,`,

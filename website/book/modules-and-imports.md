@@ -27,7 +27,7 @@ Import selected declarations with braces:
 import { User, findUser } from "./users";
 ```
 
-The path resolves relative to the importing file. The `.km` extension may be omitted or written explicitly. The list cannot be empty, duplicate a name, or request a declaration the target does not contain.
+The path resolves relative to the importing file. The `.km` extension may be omitted or written explicitly. The list cannot be empty, duplicate a name, or request a declaration the target does not contain or export.
 
 Every imported name becomes one binding in the caller's module scope. It may refer to a function, class, struct, interface, enum, defined type, alias, or top-level value supported by the compiler.
 
@@ -45,13 +45,48 @@ function load(id: string): User | null {
 
 Calling `normalizeID` without importing it is an undefined-name diagnostic. This is module encapsulation by explicit binding, not by filename naming convention.
 
+## Explicit source exports (development)
+
+Development builds let a module choose its public declarations. Prefix a named
+top-level declaration with `export`, or select local declarations in a list:
+
+<<< ../snippets/source-exports-library.km{ts}
+
+The list can appear before or after the declarations. Functions, classes,
+structs, interfaces, constraints, enums, defined types, aliases, and `const`/`let`
+bindings all support declaration exports. Export names must exist in the same
+file, and each name can be exported only once. Lists allow a trailing comma and
+follow the ordinary semicolon-omission rules.
+
+Once a file contains any source export, only its selected declarations can be
+imported. Its functions and methods can still use its private helpers. Write
+`export {}` to keep every declaration private to that source module.
+
+For compatibility, a file with **no source exports** keeps the earlier behavior:
+all its top-level declarations can be selected by an import. Adding the first
+source export therefore changes that file's public surface; list every name its
+callers still need. This choice is per file, including when compiling several
+root files together. `export c(...)` alone does not change source visibility.
+
+A caller can use the checked example above like this:
+
+<<< ../snippets/source-exports-main.km{ts}
+
+Running it prints `42`. Editor definition/hover, references, and rename include
+named export lists and their imported uses.
+
 ## Source imports versus Go exports
 
-Relative Kinmokusei imports select a declaration by its written name, regardless of whether that name begins with a lower- or uppercase letter. The named import list controls the source-module boundary.
+Relative Kinmokusei imports select an available declaration by its written name, regardless of whether that name begins with a lower- or uppercase letter. Source exports control availability; named imports select the caller's bindings.
 
 An emitted Go package follows Go's export rule instead: a top-level function, type, or value whose written name begins with an uppercase Unicode letter is visible to external Go packages. For example, `function Add(...)` emits exported `Add`, while `function add(...)` remains package-local. Class/struct member visibility is separate—write `public` for a member that belongs to the public source and generated-Go contract.
 
 Choose uppercase top-level names only for the API you intend Go consumers to use, then test that package from an external or same-package Go test. The [testing guide](../guide/testing) provides a checked example.
+
+Source `export` does not change the emitted Go name: `export function add(...)`
+is available to Kinmokusei importers but stays package-local in Go. Conversely,
+an uppercase declaration remains Go-exported even if a source export list omits
+it. Source-module privacy is not a separate access barrier for Go consumers.
 
 ## Imports are not transitive
 

@@ -203,6 +203,9 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			continue
 		}
 		for _, name := range imported.Names {
+			if !sourceImportVisible(program, imported.ResolvedPath, name) {
+				continue
+			}
 			add(completionItem{Label: name, Kind: 9, Detail: "imported from " + imported.Path, SortText: "1_" + name})
 		}
 	}

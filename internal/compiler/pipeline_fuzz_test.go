@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`export function value():int{return hidden()} function hidden():int{return 2}`,
+	`export {}; const hidden=1;`,
+	`export { value }; const value=(n:int):int=>n+1;`,
+	`export { missing, missing };`,
+	`export type`,
 	`import go { Compare, Ordered } from "cmp"; function f<T extends Ordered>(x:T,y:T):int{return Compare(x,y);}`,
 	`import go { Duration, Second } from "time"; function f():Duration{return Duration(2)*Second;}`,
 	`import go { Pi, MaxUint8 } from "math"; function f():byte{return MaxUint8;} function g():float32{return Pi;}`,
