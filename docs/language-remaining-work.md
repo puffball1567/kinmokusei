@@ -6,7 +6,25 @@ remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
 
-## Completed in this implementation slice
+## v0.4 development sequence
+
+The next minor release will combine internal refactoring with additional
+language features. Start with behavior-preserving semantic-analysis boundaries;
+keep feature additions in separate changes with their own compatibility tests.
+The first refactoring slice separates named/OOP declarations, generic inference,
+type resolution, Go interop, expressions, builtins, and control/effect analysis
+from the central checker. Constructor analysis consumes checked AST metadata
+and explicit field facts without owning mutable checker state.
+
+Callable return/control-transfer state now has a shared entry and restoration
+boundary, with nested-callable regression coverage. Lexical/capture/nullable
+state and the large parser/codegen files still need further decomposition.
+Select the feature additions from the audited Go
+and OOP gaps below; no additional syntax is promised by this refactoring.
+Keep published package and documentation versions at v0.3.0 until v0.4.0 release
+preparation.
+
+## Completed through v0.3.0
 
 - Numeric constants in generic calls: real constant values in Go inference,
   typed-argument-first native inference and numeric-kind defaults, narrow and

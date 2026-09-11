@@ -105,6 +105,44 @@ model and native C++ library integration are planned, not present features.
 
 ### Type checking
 
+Semantic analysis is organized within `internal/sema` by responsibility:
+
+- `checker.go` holds the checker's shared context, orders semantic passes, and
+  dispatches statements and expressions. It does not contain each feature's
+  implementation.
+- `symbols.go` defines declaration metadata; `scope_symbols.go` manages lookup
+  and binding. `generated_names.go` and `cabi.go` validate emitted boundaries.
+- `named_types.go`, `interfaces.go`, `classes.go`, and `structs.go` check named
+  declarations. `type_parameters.go` and `generic_inference.go` own bounds,
+  inference, and substitution; the smaller constraint helpers remain separate.
+- `type_resolution.go`, `type_refs.go`, and `assignability.go` resolve source
+  types, annotate the checked AST, and validate assignments. `go_interop.go`
+  and `go_type_conversion.go` preserve imported Go identities and method sets.
+- `expression_checking.go`, `member_checking.go`, `calls.go`, and the builtin
+  modules implement expression checks. Functions, assignments, range/switch
+  statements, exceptions, tasks, and Result effects have dedicated modules.
+- `constructor_initialization.go` connects class checking to an independent
+  constructor analyzer. The analyzer reads checked AST nodes and required-field
+  metadata, cloning branch-local initialization state rather than changing a
+  `Checker` or its symbol tables.
+- `constructor_range_proofs.go` derives non-empty collection facts keyed by
+  declaration identity; `constant_expressions.go` evaluates constant expressions
+  used by control-flow and numeric checks.
+- `label_validation.go`, `return_flow.go`, and `nullable_flow.go` contain label
+  resolution, termination predicates, and nullable/task-flow snapshot joins.
+  Nullable joins retain their existing checker integration; this extraction
+  does not introduce a second type system or a new control-flow representation.
+
+File extraction must preserve diagnostic ordering, AST metadata, and generated
+Go. Structural refactoring is reviewed separately from language extensions.
+Most feature checks still share `Checker` state; separating files does not by
+itself decouple those analyses. `callable_context.go` groups return, loop,
+breakable, and exception context into one saved/restored control state used by
+functions, constructors, methods, and arrows. Receiver access, lexical scopes,
+nullable facts, and capture tracking retain their separate lifetimes. Further
+refactoring should address those boundaries and responsibility-based parser
+and codegen decomposition without changing source semantics in the same patch.
+
 - Imported Go interface bases retain their checked package/type identities and
   exported method names. Source class methods satisfy them by emitted public Go
   name. Generic origin signatures are converted before source substitution to
