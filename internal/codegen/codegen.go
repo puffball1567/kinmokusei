@@ -1284,6 +1284,12 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		targets := make([]goast.Expr, len(stmt.Bindings))
 		for i, binding := range stmt.Bindings {
 			targets[i] = goast.NewIdent(goName(binding.Name))
+			if binding.GoMember != nil {
+				targets[i], err = generateExpression(binding.GoMember)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.WhileStmt:
@@ -1858,6 +1864,9 @@ func rangeBindingNeeded(binding kinmokuseiAST.RangeBinding) bool {
 func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
 	case *kinmokuseiAST.IdentifierExpr:
+		if expr.GoMember != nil {
+			return generateExpression(expr.GoMember)
+		}
 		return goast.NewIdent(goName(expr.Name)), nil
 	case *kinmokuseiAST.LiteralExpr:
 		if expr.Kind == kinmokuseiAST.NilLiteral || expr.Kind == kinmokuseiAST.NullLiteral {
@@ -2661,6 +2670,8 @@ func goAssignmentToken(operator string) token.Token {
 
 func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	switch expr := expr.(type) {
+	case *kinmokuseiAST.IdentifierExpr:
+		return expr.GoMember != nil && expr.GoMember.Constant
 	case *kinmokuseiAST.LiteralExpr:
 		return expr.Kind != kinmokuseiAST.NilLiteral && expr.Kind != kinmokuseiAST.NullLiteral
 	case *kinmokuseiAST.UnaryExpr:

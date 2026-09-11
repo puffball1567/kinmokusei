@@ -10,10 +10,22 @@ import (
 )
 
 func (c *Checker) declareGoPackages(program *ast.Program) {
+	namedPaths := map[string]bool{}
+	for _, declaration := range program.Imports {
+		if declaration.Go && len(declaration.Names) != 0 {
+			namedPaths[declaration.Path] = true
+		}
+	}
 	for i := range program.Imports {
 		declaration := &program.Imports[i]
 		if !declaration.Go {
 			continue
+		}
+		if len(declaration.Names) != 0 && declaration.Alias == "" {
+			declaration.Alias = ast.GoImportAlias(declaration.Path)
+		}
+		if namedPaths[declaration.Path] {
+			declaration.ResolvedAlias = ast.GoImportAlias(declaration.Path)
 		}
 		if declaration.Alias == "_" {
 			c.report(declaration.Span, "Go package alias '_' cannot be used as a namespace")
@@ -28,7 +40,11 @@ func (c *Checker) declareGoPackages(program *ast.Program) {
 			byAlias = map[string]*goPackageSymbol{}
 			c.goPackages[declaration.Span.Path] = byAlias
 		}
-		if _, duplicate := byAlias[alias]; duplicate {
+		if previous, duplicate := byAlias[alias]; duplicate && (previous.path != declaration.Path || len(previous.declaration.Names) == 0 && len(declaration.Names) == 0) {
+			c.report(declaration.Span, fmt.Sprintf("duplicate Go package alias %q", declaration.Alias))
+			continue
+		}
+		if previous := byAlias[declaration.Alias]; len(declaration.Names) == 0 && previous != nil && previous.path != declaration.Path {
 			c.report(declaration.Span, fmt.Sprintf("duplicate Go package alias %q", declaration.Alias))
 			continue
 		}
@@ -49,7 +65,18 @@ func (c *Checker) declareGoPackages(program *ast.Program) {
 			c.report(declaration.PathSpan, fmt.Sprintf("Go package %q is not available in current Go interop", declaration.Path))
 			continue
 		}
-		byAlias[alias] = &goPackageSymbol{path: declaration.Path, declaration: declaration, packageInfo: packageInfo}
+		imported := &goPackageSymbol{path: declaration.Path, declaration: declaration, packageInfo: packageInfo}
+		// Keep an explicit namespace declaration as the canonical navigation
+		// target when the same file also selects individual exports.
+		if byAlias[alias] == nil || len(declaration.Names) == 0 {
+			byAlias[alias] = imported
+		}
+		if len(declaration.Names) == 0 {
+			byAlias[declaration.Alias] = imported
+		}
+		if len(declaration.Names) != 0 {
+			c.declareNamedGoImports(imported, program)
+		}
 	}
 }
 
@@ -245,11 +272,11 @@ func (c *Checker) prepareGoTypeForEmission(t *Type, span source.Span) {
 	if t.Kind == GoNamed && t.GoQualifier == "" {
 		packagePath := goTypePackagePath(t.GoType)
 		if packagePath != "" {
-			for alias, imported := range c.goPackages[span.Path] {
+			for _, imported := range c.goPackages[span.Path] {
 				if imported.path != packagePath {
 					continue
 				}
-				applyGoQualifier(t, packagePath, alias)
+				applyGoQualifier(t, packagePath, resolvedGoPackageAlias(imported))
 				imported.declaration.Used = true
 				break
 			}

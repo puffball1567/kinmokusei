@@ -75,7 +75,7 @@ func (s *Server) prepareRename(id json.RawMessage, raw json.RawMessage) error {
 	program := s.analyze(doc)
 	occurrences := s.symbolOccurrences(program)
 	target, ok := occurrenceAt(occurrences, doc.Path, offset)
-	if !ok || !hasDeclarationOccurrence(occurrences, target.Declaration) || fixedReceiverDeclaration(program, target.Declaration) {
+	if !ok || !hasDeclarationOccurrence(occurrences, target.Declaration) || fixedReceiverDeclaration(program, target.Declaration) || namedGoImportDeclaration(program, target.Declaration) {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	result := map[string]any{"range": s.protocolRangeFor(target.Span.Path, target.Span), "placeholder": target.Name}
@@ -109,6 +109,9 @@ func (s *Server) rename(id json.RawMessage, raw json.RawMessage) error {
 	}
 	if fixedReceiverDeclaration(program, target.Declaration) {
 		return s.renameError(id, "external method receiver 'this' is fixed syntax and cannot be renamed")
+	}
+	if namedGoImportDeclaration(program, target.Declaration) {
+		return s.renameError(id, "imported Go export names are read-only")
 	}
 	if params.NewName == target.Name {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: map[string]any{"changes": map[string][]textEdit{}}})
@@ -353,6 +356,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 	for _, imported := range program.Imports {
 		if imported.Go {
 			declare(imported.AliasSpan)
+			for _, span := range imported.NameSpans {
+				declare(span)
+			}
 			continue
 		}
 		for index, nameSpan := range imported.NameSpans {

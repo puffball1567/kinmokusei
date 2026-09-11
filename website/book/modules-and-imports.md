@@ -99,7 +99,40 @@ function main(): void {
 
 The alias is the qualifier for exported Go declarations. Kinmokusei loads the package for the locked/effective target and retains its original named types, functions, constants, variables, methods, interfaces, and generic information where supported.
 
-Go imports are never unqualified and cannot use a built-in type or existing module binding as their alias.
+An alias cannot use a built-in type or an existing module binding.
+
+### Named Go imports
+
+Development builds also allow selected Go exports without a source qualifier:
+
+```ts
+import go { Println } from "fmt"
+import go { Compare } from "cmp"
+import go { Duration, Second } from "time"
+
+function main(): void {
+  const delay: Duration = Duration(2) * Second
+  Println(delay, Compare(3, 1))
+}
+```
+
+The names must be exported Go functions, types, constants, variables, or
+supported compiler-recognized Go built-ins. Their original signatures,
+generic constraints, constant values, and storage identities are retained.
+Generated Go uses ordinary qualified references, not copied variables,
+dot imports, or wrapper functions. Package initialization is unchanged.
+
+Named lists may have trailing commas and may accompany a package-qualified
+import of the same path. Each name is visible only in its importing file;
+duplicate import bindings and conflicts with module declarations are rejected.
+Local bindings can shadow an imported value. Type parameters can shadow an
+imported type. Go package variables remain assignable and addressable; Go
+constants and function declarations do not become assignable.
+
+The checked example is `website/snippets/named-go-imports.km` in the repository.
+Editor navigation leads to the import binding, and Go export names are read-only
+for rename. Dependency locking and unsafe interop policies apply identically
+to both import forms.
 
 ## Compiler-managed standard modules
 

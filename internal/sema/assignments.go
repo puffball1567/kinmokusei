@@ -44,6 +44,17 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 		if binding.Name == "_" {
 			continue
 		}
+		if imported, exists := c.lookupNamedGoImport(binding.Name, binding.Span); exists {
+			identifier := &ast.IdentifierExpr{Name: binding.Name, Span: binding.Span}
+			c.checkNamedGoIdentifier(identifier, imported)
+			target := c.checkAssignmentTarget(identifier.GoMember)
+			binding.GoMember = identifier.GoMember
+			binding.ResolvedDeclaration = imported.span
+			if i < len(results) {
+				c.requireAssignable(target, results[i], binding.Span)
+			}
+			continue
+		}
 		symbol, exists := c.lookupAssignmentSymbol(binding.Name, binding.Span)
 		if !exists {
 			c.report(binding.Span, fmt.Sprintf("undefined name %q", binding.Name))
@@ -100,6 +111,10 @@ func (c *Checker) multipleResults(value Type, bindings int, span source.Span) []
 
 func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 	if identifier, ok := expr.(*ast.IdentifierExpr); ok {
+		if imported, exists := c.lookupNamedGoImport(identifier.Name, identifier.Span); exists {
+			c.checkNamedGoIdentifier(identifier, imported)
+			return c.checkAssignmentTarget(identifier.GoMember)
+		}
 		symbol, exists := c.lookupAssignmentSymbol(identifier.Name, identifier.Span)
 		if !exists {
 			c.report(identifier.Span, fmt.Sprintf("undefined name %q", identifier.Name))

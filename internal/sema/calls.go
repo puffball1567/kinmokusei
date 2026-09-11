@@ -129,6 +129,9 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			name.ResolvedDeclaration = symbol.declarationSpan
 			callable = symbol.typeInfo
 			callableName = fmt.Sprintf("value %q", name.Name)
+		} else if imported, exists := c.lookupNamedGoImport(name.Name, name.Span); exists {
+			callable = c.checkNamedGoIdentifier(name, imported)
+			callableName = fmt.Sprintf("Go member %q", name.Name)
 		} else {
 			c.report(name.Span, fmt.Sprintf("undefined function %q", name.Name))
 		}

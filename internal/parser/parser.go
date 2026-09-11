@@ -98,6 +98,11 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 }
 
 func (p *Parser) parseGoImport(start token.Token) (ast.ImportDecl, bool) {
+	if p.at(token.LeftBrace) {
+		imported, ok := p.parseImport(start)
+		imported.Go = true
+		return imported, ok
+	}
 	alias, ok := p.expect(token.Identifier, "expected Go package alias after 'import go'")
 	if !ok {
 		p.synchronizeDeclaration()

@@ -331,6 +331,7 @@ func (d *VariableDecl) GetSpan() source.Span { return d.Span }
 
 type Binding struct {
 	Name                string
+	GoMember            *MemberExpr
 	Used                bool
 	ResolvedDeclaration source.Span
 	ResolvedType        TypeRef
@@ -667,6 +668,7 @@ func (s *ChannelSendStmt) GetSpan() source.Span { return s.Span }
 
 type IdentifierExpr struct {
 	Name                string
+	GoMember            *MemberExpr
 	ResolvedDeclaration source.Span
 	Span                source.Span
 }

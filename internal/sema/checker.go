@@ -25,6 +25,7 @@ type Checker struct {
 	currentClass               string
 	allowed                    map[string]map[string]bool
 	goPackages                 map[string]map[string]*goPackageSymbol
+	goNamedImports             map[string]map[string]goNamedImport
 	goImporter                 gotypes.Importer
 	allowUnsafeGo              bool
 	inConstructor              bool
@@ -80,7 +81,8 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe,
-		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
+		goNamedImports: map[string]map[string]goNamedImport{},
+		memberFlow:     map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
@@ -573,7 +575,13 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		}
 		if imported := c.lookupGoPackage(expr.Span.Path, expr.Name); imported != nil {
 			expr.ResolvedDeclaration = imported.declaration.AliasSpan
+			if imported.declaration.ResolvedAlias != "" {
+				expr.Name = imported.declaration.ResolvedAlias
+			}
 			return Type{Kind: GoPackage, Name: expr.Name, GoPackage: imported}
+		}
+		if imported, ok := c.lookupNamedGoImport(expr.Name, expr.Span); ok {
+			return c.checkNamedGoIdentifier(expr, imported)
 		}
 		if function, ok := c.functions[expr.Name]; ok && c.isTopLevelAllowed(expr.Span, expr.Name) {
 			expr.ResolvedDeclaration = function.declarationSpan

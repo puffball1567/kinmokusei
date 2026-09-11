@@ -174,6 +174,22 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 	if signature, ok := s.sourceSignature(result.Program, doc.Path, context); ok {
 		return signature, true
 	}
+	if context.Qualifier == "" {
+		for _, imported := range result.Program.Imports {
+			if !imported.Go || !samePath(imported.Span.Path, doc.Path) {
+				continue
+			}
+			for _, name := range imported.Names {
+				if name != context.Name {
+					continue
+				}
+				signature, found, err := result.GoPackageFunctionSignature(imported.Path, name)
+				if err == nil && found {
+					return ast.CallableSignature{ParameterNames: signature.ParameterNames, ParameterTypes: signature.ParameterTypes, Result: signature.Result, Variadic: signature.Variadic}, true
+				}
+			}
+		}
+	}
 	if context.Qualifier != "" {
 		if signature, ok := s.goValueMethodSignature(result, doc, context); ok {
 			return signature, true

@@ -83,6 +83,11 @@ func evalNumericGo(pkg *gotypes.Package, expr goast.Expr) (gotypes.TypeAndValue,
 }
 
 func (c *Checker) numericConstant(expr ast.Expression) (gotypes.TypeAndValue, bool) {
+	if identifier, ok := expr.(*ast.IdentifierExpr); ok {
+		if value := c.namedGoConstant(identifier); value != nil {
+			return gotypes.TypeAndValue{Type: value.Type(), Value: value.Val()}, true
+		}
+	}
 	if value, ok := c.numericValues[expr]; ok && value.Value != nil {
 		return value, true
 	}
@@ -120,6 +125,8 @@ func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) 
 // refers to another local). Only propagate values from actual Go constants.
 func numericInitializerEmitsConstant(expr ast.Expression) bool {
 	switch e := expr.(type) {
+	case *ast.IdentifierExpr:
+		return e.GoMember != nil && e.GoMember.Constant
 	case *ast.LiteralExpr:
 		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral
 	case *ast.UnaryExpr:
@@ -152,6 +159,9 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 		gt, value = info.Type, info.Value
 	}
 	if id, ok := expr.(*ast.IdentifierExpr); ok {
+		if object := c.namedGoConstant(id); object != nil {
+			gt, value = object.Type(), object.Val()
+		}
 		if symbol, found := c.lookupSymbol(id.Name, id.Span); found && symbol.constant && symbol.declaration != nil && numericInitializerEmitsConstant(symbol.declaration.Value) {
 			if info, known := c.numericConstant(symbol.declaration.Value); known {
 				value = info.Value
