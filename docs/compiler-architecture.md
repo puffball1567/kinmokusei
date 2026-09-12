@@ -214,6 +214,16 @@ and codegen decomposition without changing source semantics in the same patch.
 
 ## Typed representation and lowering
 
+Generic callback preparation defers direct arrow bodies until other arguments,
+explicit callback signature parts, or dependent bounds supply parameter types.
+Ready callbacks may infer result parameters used by another callback; numeric
+defaults are applied only when ready typed callbacks cannot make progress.
+Every argument expression is checked once and emitted in its original position.
+Arrow capture checks and call-side invalidation still apply before checking the
+next source statement. A Go signature projection supplies context only; the
+original Go signature and numeric constants remain authoritative for final
+inference and validation. Unresolved callback-input cycles require annotations.
+
 The compiler currently keeps typed AST metadata close to syntax nodes. Preserve
 that metadata as the semantic input to the planned KIR boundary above; introduce
 normalization only where it makes semantics explicit, not as a competing

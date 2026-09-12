@@ -145,6 +145,31 @@ function apply(value: int, transform: (value: int) => int): int {
 const result = apply(21, (value: int): int => value * 2);
 ```
 
+### Generic callback inference (development)
+
+Direct arrow arguments can also omit parameter types when a generic call supplies
+their context, including imported Go generic functions:
+
+<<< ../snippets/generic-callbacks.km{ts}
+
+This prints `42 1 3`. Other arguments, explicit type arguments, callback signature
+annotations, and dependent constraints supply the callback's input types. The
+callback may appear before the argument that determines its input type. An
+inferred callback result can determine another type parameter, including the
+input type of another callback in the same call. Generic methods and variadic
+callbacks use the same rules.
+
+Ready typed callbacks take precedence over defaulting untyped numeric constants.
+If a callback needs a numeric default to determine its input type, that default
+unlocks checking its body. Runtime argument order and single evaluation do not
+change; creating an arrow does not execute its body.
+
+Inference does not guess parameter types from operations inside a body. If no
+argument or annotation supplies an input type, or callbacks depend on each other
+without an initial type, add a parameter annotation or explicit type arguments.
+Constraint failures, incompatible results, numeric overflow, and unsafe nullable
+captures remain errors.
+
 Imported Go callbacks connect when the generated function shape is representable. Parameter/result types, variadic status, and named Go type identity must match.
 
 ## Variadic parameters

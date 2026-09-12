@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function apply<T,U>(v:T,f:(x:T)=>U):U{return f(v);} const run=()=>apply(21,(x)=>x*2);`,
+	`function chain<T,U,V>(v:T,g:(u:U)=>V,f:(t:T)=>U):V{return g(f(v));} const run=()=>chain(1,(s)=>len(s),(n)=>"yes");`,
+	`import go slices from "slices"; const run=()=>slices.IndexFunc([1,2],(x)=>x==2);`,
+	`function apply<T>(f:(x:T)=>T):void{} const run=()=>apply((x)=>x);`,
+	`function pick<T>(v:T,f:()=>T):T{return f();} const run=()=>pick(1,()=>1.5);`,
 	`class Box<T>{constructor(public value:T){}} function run():Box<int>{const f=(n:int):Box<int>=>{if(n<=1){return new Box<int>(n);}return f(n-1);};return f(5);}`,
 	`function run():int{const f=(n:int):int=>{if(n<=1){return 1;}return n*f(n-1);};return f(5);}`,
 	`function run():void{let f=():void=>{f=():void=>{};};f();}`,

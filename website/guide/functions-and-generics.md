@@ -73,6 +73,10 @@ const partial = second<int>(1, goShaped);
 
 Calls may infer all arguments or provide a leading partial/full list with `<T>` or `[T]`. Repeated parameter uses must infer the same type, and every uninferred type parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
 
+Development builds also infer direct arrow callback parameters in native and Go
+generic calls. See [generic callback inference](../book/functions-and-generics#generic-callback-inference-development)
+for examples and inference boundaries.
+
 ## Constraints
 
 `extends comparable` maps to Go's `comparable` constraint:

@@ -1,0 +1,13 @@
+import go { Println } from "fmt"
+import go { IndexFunc } from "slices"
+
+function transform<T, U>(value: T, convert: (item: T) => U): U {
+  return convert(value)
+}
+
+const main = () => {
+  const doubled = transform(21, (n) => n * 2)
+  const position = IndexFunc([10, 20, 30], (n) => n == 20)
+  const length = transform("yes", (text) => { return len(text) })
+  Println(doubled, position, length)
+}
