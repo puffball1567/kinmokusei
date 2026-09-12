@@ -319,8 +319,8 @@ type VariableDecl struct {
 	// FunctionBinding marks a module-level const arrow with an unnamed function
 	// type. It is a callable declaration, not mutable function storage.
 	FunctionBinding bool
-	// RecursiveBinding marks local arrow storage referenced by its initializer.
-	// Backends must create the binding before constructing the closure.
+	// RecursiveBinding marks local arrow storage referenced by its own or an
+	// earlier peer's initializer. Backends create that storage before the group.
 	RecursiveBinding bool
 	Constant         bool
 	Name             string

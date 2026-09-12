@@ -49,7 +49,7 @@ func TestLocalRecursiveArrowDiagnostics(t *testing.T) {
 		{`function run():void{const f=(n:int):int=>f("bad");}`, "cannot use string"},
 		{`function run():void{const f:int=():int=>1;}`, "cannot use"},
 		{`function run():void{const f=():int=>1;const f=():int=>2;}`, "duplicate local name"},
-		{`function run():void{const f=():int=>g();const g=():int=>1;}`, "undefined"},
+		{`function run():void{const f=():int=>g();f();const g=():int=>1;}`, "undefined"},
 		{`function run():void{for(const f=():int=>f();false;){}}`, "before the for loop"},
 		{`function run():void{const f=(n:int):Result<int>=>{if(n<=1){return ok(1);}const value=f(n-1)?;return ok(n*value);};}`, "Result may only be used"},
 	} {

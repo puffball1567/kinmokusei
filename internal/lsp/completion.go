@@ -344,7 +344,7 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 	if block == nil || !spanContains(block.Span, path, offset) {
 		return
 	}
-	for _, statement := range block.Statements {
+	for index, statement := range block.Statements {
 		span := statement.GetSpan()
 		if span.Start.Offset >= offset {
 			return
@@ -356,7 +356,9 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 		switch statement := statement.(type) {
 		case *ast.VariableDecl:
 			if arrow, ok := statement.Value.(*ast.ArrowExpr); ok && spanContains(arrow.Span, path, offset) {
-				addStatementBindings(statement, add)
+				for _, peer := range ast.LocalArrowGroup(block.Statements[index:]) {
+					addStatementBindings(peer, add)
+				}
 			}
 		case *ast.LabeledStmt:
 			addVisibleBlock(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, path, offset, add)

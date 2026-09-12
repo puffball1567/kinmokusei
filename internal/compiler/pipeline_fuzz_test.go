@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function run():int{const first=():int=>last();const last=():int=>42;return first();}`,
+	`function run():int{const first=():int=>last();let last=():int=>1;last=():int=>7;return first();}`,
+	`function run():int{const first=():int=>last();first();const last=():int=>42;return last();}`,
+	`function run():int{const first=()=>last();const last=()=>first();return first();}`,
+	`function run():boolean{const even=(n:int):boolean=>{if(n==0){return true;}return odd(n-1);};const odd=(n:int):boolean=>{if(n==0){return false;}return even(n-1);};return even(8);}`,
 	`const first=()=>last();const last=()=>42;`,
 	`const first=(value:string)=>last();const last=()=>value;const value=42;`,
 	`const first=()=>last();const last=()=>first();`,

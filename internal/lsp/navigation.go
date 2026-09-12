@@ -388,6 +388,8 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 			detail := prefix + statement.Name
 			if statement.Type.IsSpecified() {
 				detail += ": " + formatTypeRef(statement.Type)
+			} else if statement.ResolvedType.IsSpecified() && statement.ResolvedType.Name != "<invalid>" {
+				detail += ": " + formatTypeRef(statement.ResolvedType)
 			}
 			*result = append(*result, declarationInfo{Name: statement.Name, Detail: detail, Kind: kind, Span: statement.Span, Selection: statement.NameSpan})
 		case *ast.MultiVariableDecl:

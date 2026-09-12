@@ -124,11 +124,18 @@ model and native C++ library integration are planned, not present features.
   generated declaration order unchanged, and retain the separate dependency
   graph check for runtime global initialization cycles.
 - A direct local arrow initializer sees its own binding during checking and
-  linking. Predeclare its explicit signature, then finalize that same symbol
-  after checking the body. References during initialization set
+  linking. Consecutive direct arrow declarations also see their peers, using
+  `ast.LocalArrowGroup` as the common syntactic boundary in checking, linking,
+  emission, and completion. Predeclare signatures, then finalize each same
+  symbol after checking its body. References during initialization set
   `VariableDecl.RecursiveBinding`; Go block emission splits storage declaration
-  from closure assignment without introducing another scope or private self
-  variable. Non-arrow initializer scope is unchanged. Recursive three-clause
+  from closure assignment, placing forward-referenced storage before the group
+  without introducing another scope or private self variable. Arrow construction
+  does not execute the body, so no user code runs between peer initialization
+  steps. Ordinary statements (including non-arrow initializers and labels) end
+  a group; no runtime initialization is hoisted across them. Forward local
+  signatures must be available without checking their bodies. Non-arrow
+  initializer scope is unchanged. Recursive three-clause
   loop initializers are diagnosed until lowering can preserve loop semantics.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.

@@ -35,7 +35,7 @@ feature work without mixing unrelated changes into its implementation.
 |---|---|---|
 | 1 | Generic callback contextual inference | Implemented for direct arrow arguments; see below |
 | 2 | Dependency-driven forward result inference | Implemented for module-level bindings |
-| 3 | Local mutual recursion and forward bindings | Queued |
+| 3 | Local mutual recursion and forward bindings | Implemented for consecutive arrow groups with forward signatures; nonconsecutive bindings and local dependency inference remain |
 | 4 | Recursive arrows in three-clause loop initializers | Queued |
 | 5 | Function values returning Result | Queued |
 | 6 | Additional export forms, including re-exports and aliases | Queued; define the supported forms |
@@ -160,8 +160,14 @@ following additions target v0.4, not the currently released v0.3 syntax:
   definition once in an isolated lexical context. Unresolved recursive result
   dependencies require annotations; runtime initialization cycles remain
   errors. Linked-module execution, initialization order, and editor navigation
-  are covered by `forward_arrow_inference_test.go`. Further work: recursive
-  arrows in loop initializers and local mutual recursion/forward bindings.
+  are covered by `forward_arrow_inference_test.go`. Consecutive direct local
+  arrow declarations now form a mutually visible group, with explicit
+  signatures for references to not-yet-checked peers. Group storage precedes
+  closure construction; initialization remains in source order. Tests in
+  `local_arrow_groups_test.go` cover recursion, mutable peers, linked modules,
+  escaping closures, loop captures, and editor scope/navigation. Further work:
+  recursive arrows in loop initializers, nonconsecutive local forward bindings,
+  and dependency-driven local result inference.
 - **Generic callback inference (implemented on the development branch):**
   direct arrow arguments use contexts inferred from other arguments, explicit
   callback annotations, and dependent constraints. Callback results can infer

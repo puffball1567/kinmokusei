@@ -440,7 +440,15 @@ func linkBlock(block *ast.BlockStmt, visible moduleNames, inherited map[string]b
 		return
 	}
 	locals := cloneNames(inherited)
-	for _, statement := range block.Statements {
+	groupEnd := 0
+	for index, statement := range block.Statements {
+		if index >= groupEnd {
+			group := ast.LocalArrowGroup(block.Statements[index:])
+			groupEnd = index + len(group)
+			for _, declaration := range group {
+				locals[declaration.Name] = true
+			}
+		}
 		linkStatement(statement, visible, locals)
 		if variable, ok := statement.(*ast.VariableDecl); ok {
 			locals[variable.Name] = true

@@ -165,7 +165,15 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 	}
 	terminated := false
 	var reachableFlow *nullableFlowSnapshot
-	for _, stmt := range block.Statements {
+	groupEnd := 0
+	for index, stmt := range block.Statements {
+		if index >= groupEnd {
+			group := ast.LocalArrowGroup(block.Statements[index:])
+			groupEnd = index + len(group)
+			if len(group) > 1 {
+				c.predeclareLocalArrowGroup(group)
+			}
+		}
 		if _, labeled := stmt.(*ast.LabeledStmt); labeled && terminated {
 			if reachableFlow != nil {
 				c.suppressFlowEffects--
@@ -554,7 +562,11 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 			return Type{Kind: GoPackage, Name: expr.Name, GoPackage: imported}
 		}
 		if imported, ok := c.lookupNamedGoImport(expr.Name, expr.Span); ok {
-			return c.checkNamedGoIdentifier(expr, imported)
+			callable := c.checkNamedGoIdentifier(expr, imported)
+			if callable.Generic {
+				c.report(expr.Span, "generic Go functions must be called before they can be used as values")
+			}
+			return callable
 		}
 		if function, ok := c.functions[expr.Name]; ok && c.isTopLevelAllowed(expr.Span, expr.Name) {
 			c.recordGlobalDependency(expr.Name)
@@ -596,7 +608,11 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 	case *ast.GoCompositeLiteralExpr:
 		return c.checkGoCompositeLiteral(expr)
 	case *ast.MemberExpr:
-		return c.checkMember(expr)
+		member := c.checkMember(expr)
+		if expr.Go && member.Generic && c.directCallCallee != expr {
+			c.report(expr.Span, "generic Go functions must be called before they can be used as values")
+		}
+		return member
 	case *ast.IndexExpr:
 		return c.checkIndex(expr, false)
 	case *ast.SliceExpr:
