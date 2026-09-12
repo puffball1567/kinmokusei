@@ -15,7 +15,9 @@ func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
 	arrow, isArrow := stmt.Value.(*ast.ArrowExpr)
 	if isArrow {
 		declared = c.arrowBindingSignature(arrow, declared)
-		c.declareLocal(stmt.Name, declared, stmt.Constant, stmt, stmt.Span)
+		if c.scopes[len(c.scopes)-1][stmt.Name].declaration != stmt {
+			c.declareLocal(stmt.Name, declared, stmt.Constant, stmt, stmt.Span)
+		}
 		scope := c.scopes[len(c.scopes)-1]
 		symbol := scope[stmt.Name]
 		if symbol.declaration == stmt {
@@ -60,7 +62,33 @@ func (c *Checker) recordLocalArrowReference(symbol valueSymbol, name string, spa
 		return
 	}
 	symbol.declaration.RecursiveBinding = true
+	if c.classes[name] != nil || c.structs[name] != nil || c.interfaces[name] != nil || c.nativeTypes[name] != nil || c.enums[name] != nil || c.lookupGoPackage(span.Path, name) != nil {
+		c.report(span, fmt.Sprintf("recursive or forward local arrow %q conflicts with a type or Go package name; rename the local binding", name))
+	}
+	for _, scope := range c.typeParameterScopes {
+		if _, exists := scope[name]; exists {
+			c.report(span, fmt.Sprintf("recursive or forward local arrow %q conflicts with a type parameter; rename the local binding", name))
+			break
+		}
+	}
 	if symbol.typeInfo.Kind == Invalid {
-		c.report(span, fmt.Sprintf("arrow function %q needs an explicit return type for recursive references", name))
+		c.report(span, fmt.Sprintf("arrow function %q needs an explicit return type for recursive or forward local references", name))
+	}
+}
+
+func (c *Checker) predeclareLocalArrowGroup(group []*ast.VariableDecl) {
+	for _, declaration := range group {
+		declared := Type{Kind: Invalid, Name: "<inferred>"}
+		if declaration.Type.IsSpecified() {
+			declared = c.resolveType(declaration.Type)
+		}
+		declared = c.arrowBindingSignature(declaration.Value.(*ast.ArrowExpr), declared)
+		c.declareLocal(declaration.Name, declared, declaration.Constant, declaration, declaration.Span)
+		scope := c.scopes[len(c.scopes)-1]
+		symbol := scope[declaration.Name]
+		if symbol.declaration == declaration {
+			symbol.initializingArrow = true
+			scope[declaration.Name] = symbol
+		}
 	}
 }

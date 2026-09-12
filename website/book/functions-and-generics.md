@@ -116,9 +116,34 @@ the same name. An arrow parameter or inner local can shadow that name in turn.
 Other initializers keep their existing scope: `const n = n + 1` inside a nested
 block still reads an outer `n`.
 
-An inferred recursive result requires an annotation. Local mutual recursion and
-calls to later local bindings are not supported. Declare recursive arrows in a
-block before a `for` loop, not in its three-clause initializer.
+An inferred recursive result requires an annotation. Declare recursive arrows
+in a block before a `for` loop, not in its three-clause initializer.
+
+### Local mutually recursive arrow groups (development)
+
+Consecutive direct arrow declarations form a group. Each arrow body can refer
+to any peer in the group, including later declarations:
+
+<<< ../snippets/local-arrow-groups.km{ts}
+
+This prints `true false 7`. A referenced later peer needs explicit parameter and
+result types, or a complete function type on its binding. Unlike module-level
+dependencies, local forward results are not yet inferred by visiting the later
+body. Both `const` and `let` participate; a peer reference reads the same storage,
+so replacing a `let` also changes what earlier or escaped closures call.
+
+Group names shadow outer bindings throughout the group, including in earlier
+arrow bodies. Arrow parameters and inner locals can shadow a peer in turn.
+Recursive or forward-referenced local arrows must not share a name with a type,
+type parameter, or Go package namespace; rename the local binding if diagnosed.
+Closure storage is prepared before the group and closures are initialized in
+source order. Only direct arrow declarations participate: comments and blank
+lines do not break a group, but a call, assignment, ordinary variable initializer,
+label, or other statement does. A body cannot use this feature to capture a
+later ordinary local, and calls before a group do not see its declarations.
+
+Keep mutually recursive definitions together, and call or publish them after
+the group. This avoids exposing a not-yet-initialized peer.
 
 ### Contextual types and block results (development)
 

@@ -1,0 +1,22 @@
+import go { Println } from "fmt"
+
+function main(): void {
+  const even = (n: int): boolean => {
+    if (n == 0) { return true }
+    return odd(n - 1)
+  }
+  const odd = (n: int): boolean => {
+    if (n == 0) { return false }
+    return even(n - 1)
+  }
+
+  Println(even(8), odd(8), replace())
+}
+
+function replace(): int {
+  const first = (): int => second()
+  let second = (): int => 1
+
+  second = (): int => 7
+  return first()
+}

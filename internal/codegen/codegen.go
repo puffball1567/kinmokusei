@@ -935,13 +935,21 @@ func generateConversionWrapper(name, implementation string, source, target kinmo
 
 func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 	result := &goast.BlockStmt{}
-	for _, stmt := range block.Statements {
-		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && variable.RecursiveBinding {
-			declaration, err := generateLocalArrowStorage(variable)
-			if err != nil {
-				return nil, err
+	groupEnd := 0
+	for index, stmt := range block.Statements {
+		if index >= groupEnd {
+			group := kinmokuseiAST.LocalArrowGroup(block.Statements[index:])
+			groupEnd = index + len(group)
+			for _, variable := range group {
+				if !variable.RecursiveBinding {
+					continue
+				}
+				declaration, err := generateLocalArrowStorage(variable)
+				if err != nil {
+					return nil, err
+				}
+				result.List = append(result.List, declaration)
 			}
-			result.List = append(result.List, declaration)
 		}
 		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
 			if propagated, ok := variable.Value.(*kinmokuseiAST.PropagateExpr); ok {

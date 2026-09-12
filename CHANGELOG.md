@@ -6,6 +6,16 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Diagnose uninstantiated Go generic functions used as values before Go
+  generation, for both qualified and named imports. Direct generic calls and
+  ordinary Go function values retain their existing behavior.
+- Support local mutual recursion and forward references within consecutive
+  direct arrow declarations, using explicit signatures for forward references.
+  Peer names shadow outer bindings throughout the group; ordinary statements
+  end the group. Preserve mutable storage, captures, initialization order, and
+  editor navigation/completion, and show inferred local types in hover.
+  Recursive/forward local storage that conflicts with a type, type parameter,
+  or Go package name is diagnosed at the source reference.
 - Infer module-level arrow results through forward declaration dependencies,
   including later inferred globals and linked-module callables. Check each
   dependency once in its own lexical context without changing runtime order;

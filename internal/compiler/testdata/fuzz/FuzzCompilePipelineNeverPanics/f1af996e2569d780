@@ -1,0 +1,2 @@
+go test fuzz v1
+string("import go slices from\"slices\";const A=slices.Index")
