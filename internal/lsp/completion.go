@@ -354,6 +354,10 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 			continue
 		}
 		switch statement := statement.(type) {
+		case *ast.VariableDecl:
+			if arrow, ok := statement.Value.(*ast.ArrowExpr); ok && spanContains(arrow.Span, path, offset) {
+				addStatementBindings(statement, add)
+			}
 		case *ast.LabeledStmt:
 			addVisibleBlock(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, path, offset, add)
 		case *ast.BlockStmt:

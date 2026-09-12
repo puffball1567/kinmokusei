@@ -19,6 +19,7 @@ type functionSymbol struct {
 
 type valueSymbol struct {
 	typeInfo              Type
+	initializingArrow     bool
 	declaredType          Type
 	flowInvalidated       source.Span
 	flowInvalidationCause string

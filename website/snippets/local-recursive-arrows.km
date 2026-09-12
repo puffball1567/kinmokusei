@@ -1,0 +1,17 @@
+import go { Println } from "fmt"
+
+const main = () => {
+  const factorial: (n: int) => int = (n) => {
+    if (n <= 1) { return 1 }
+    return n * factorial(n - 1)
+  }
+
+  let step = (n: int): int => {
+    if (n == 0) { return 1 }
+    return step(n - 1) + 1
+  }
+  const saved = step
+  step = (n: int): int => 10
+
+  Println(factorial(5), saved(2))
+}

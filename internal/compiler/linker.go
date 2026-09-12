@@ -459,6 +459,10 @@ func linkStatement(statement ast.Statement, visible moduleNames, locals map[stri
 	switch statement := statement.(type) {
 	case *ast.VariableDecl:
 		linkType(&statement.Type, visible)
+		if _, arrow := statement.Value.(*ast.ArrowExpr); arrow {
+			locals = cloneNames(locals)
+			locals[statement.Name] = true
+		}
 		linkExpression(statement.Value, visible, locals)
 	case *ast.MultiVariableDecl:
 		linkExpression(statement.Value, visible, locals)

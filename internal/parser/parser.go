@@ -1050,7 +1050,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		if !ok {
 			return ast.TypeRef{}, false
 		}
-		if _, ok = p.expect(token.FatArrow, "expected '=>' in function type"); !ok {
+		if _, ok = p.expectFatArrow("expected '=>' in function type"); !ok {
 			return ast.TypeRef{}, false
 		}
 		result, ok := p.parseType()
@@ -2630,7 +2630,7 @@ func (p *Parser) parseArrow() ast.Expression {
 		}
 		returnType = &parsed
 	}
-	if _, ok = p.expect(token.FatArrow, "expected '=>' after arrow signature"); !ok {
+	if _, ok = p.expectFatArrow("expected '=>' after arrow signature"); !ok {
 		return nil
 	}
 	arrow := &ast.ArrowExpr{Parameters: parameters, ReturnType: returnType}
@@ -2667,6 +2667,24 @@ func binaryPrecedence(kind token.Kind) int {
 	default:
 		return 0
 	}
+}
+
+// A generic closer can split the lexer token >= in Box<T>=> into > and =.
+// Rejoin that adjacent remainder with > only where an arrow is required.
+func (p *Parser) expectFatArrow(message string) (token.Token, bool) {
+	if p.at(token.Assign) && p.current+1 < len(p.tokens) {
+		next := p.tokens[p.current+1]
+		if next.Kind == token.Greater && p.peek().Span.End.Offset == next.Span.Start.Offset {
+			first := p.advance()
+			last := p.advance()
+			arrow := token.Token{Kind: token.FatArrow, Lexeme: "=>", Span: source.Span{
+				Path: first.Span.Path, Start: first.Span.Start, End: last.Span.End,
+			}}
+			p.previousToken = arrow
+			return arrow, true
+		}
+	}
+	return p.expect(token.FatArrow, message)
 }
 
 func (p *Parser) expect(kind token.Kind, message string) (token.Token, bool) {

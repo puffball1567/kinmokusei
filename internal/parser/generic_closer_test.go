@@ -27,6 +27,33 @@ func TestGenericClosersAdjacentToAssignment(t *testing.T) {
 	}
 }
 
+func TestGenericClosersAdjacentToArrow(t *testing.T) {
+	t.Parallel()
+	for _, result := range []string{"Box<int>", "Box<Box<int>>", "Box<Box<Box<int>>>", "Result<int>"} {
+		input := "const f=():" + result + "=>value;"
+		tokens, _ := lexer.Lex("arrow.km", input)
+		original := append([]token.Token(nil), tokens...)
+		program, diagnostics := Parse(tokens)
+		if len(diagnostics) != 0 {
+			t.Fatalf("%s: %v", input, diagnostics)
+		}
+		arrow := program.Declarations[0].(*ast.VariableDecl).Value.(*ast.ArrowExpr)
+		span := arrow.ReturnType.Span
+		if got := input[span.Start.Offset:span.End.Offset]; got != result {
+			t.Fatalf("return type span=%q, want %q", got, result)
+		}
+		repeated, errors := Parse(tokens)
+		if !reflect.DeepEqual(tokens, original) || len(errors) != 0 || !reflect.DeepEqual(program, repeated) {
+			t.Fatal("generic arrow parsing changed caller-owned tokens or repeated results")
+		}
+	}
+	for _, input := range []string{`const f=():Box<int>= >value;`, "const f=():Box<int>=\n>value;", `const f=():Box<int>=/*gap*/>value;`} {
+		if _, count := parseSource(t, input); count == 0 {
+			t.Fatalf("accepted separated arrow: %s", input)
+		}
+	}
+}
+
 func TestGenericSpeculationRestoresOperators(t *testing.T) {
 	for _, test := range []struct{ expression, operator string }{
 		{"a<b>>c", "<"},
