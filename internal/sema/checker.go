@@ -194,30 +194,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.invalidateControlTransferFlow(stmt.Span)
 		c.checkStatement(stmt.Statement)
 	case *ast.VariableDecl:
-		declared := Type{Kind: Invalid, Name: "<inferred>"}
-		if stmt.Type.IsSpecified() {
-			declared = c.resolveType(stmt.Type)
-		}
-		var value Type
-		if propagated, ok := stmt.Value.(*ast.PropagateExpr); ok {
-			value = c.checkPropagateExpression(propagated)
-		} else {
-			value = c.checkExpressionExpectedSlot(&stmt.Value, declared)
-		}
-		if !stmt.Type.IsSpecified() {
-			declared = c.inferredVariableType(value, stmt.Value.GetSpan())
-			if !stmt.Constant || !numericInitializerEmitsConstant(stmt.Value) {
-				c.checkNumericMaterialization(stmt.Value, declared)
-			}
-		}
-		if declared.Kind == Void {
-			c.report(stmt.Type.Span, "variables cannot have type void")
-		}
-		c.rejectResultValueType(declared, stmt.Type.Span, "variables")
-		c.requireAssignable(declared, value, stmt.Value.GetSpan())
-		stmt.ResolvedType = typeRefFromType(declared, stmt.Span)
-		c.declareLocal(stmt.Name, declared, stmt.Constant, stmt, stmt.Span)
-		c.updateIdentifierFlow(stmt.Name, stmt.NameSpan, value)
+		c.checkLocalBinding(stmt)
 	case *ast.MultiVariableDecl:
 		c.checkMultiVariableDeclaration(stmt)
 	case *ast.ReturnStmt:
@@ -365,6 +342,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 				}
 			}
 			c.checkStatement(stmt.Initializer)
+			if variable, ok := stmt.Initializer.(*ast.VariableDecl); ok && variable.RecursiveBinding {
+				c.report(variable.NameSpan, "declare a recursive arrow before the for loop, not in its initializer")
+			}
 		}
 		entryFlow := c.snapshotNullableFlow()
 		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {

@@ -936,6 +936,13 @@ func generateConversionWrapper(name, implementation string, source, target kinmo
 func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 	result := &goast.BlockStmt{}
 	for _, stmt := range block.Statements {
+		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && variable.RecursiveBinding {
+			declaration, err := generateLocalArrowStorage(variable)
+			if err != nil {
+				return nil, err
+			}
+			result.List = append(result.List, declaration)
+		}
 		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
 			if propagated, ok := variable.Value.(*kinmokuseiAST.PropagateExpr); ok {
 				generated, err := generatePropagationStatements(propagated, variable)
@@ -1185,6 +1192,12 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
+		}
+		if stmt.RecursiveBinding {
+			return &goast.AssignStmt{
+				Lhs: []goast.Expr{goast.NewIdent(goName(stmt.Name))}, Tok: token.ASSIGN,
+				Rhs: []goast.Expr{value},
+			}, nil
 		}
 		tok := token.VAR
 		if stmt.Constant && isGoConstant(stmt.Value) {

@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class Box<T>{constructor(public value:T){}} function run():Box<int>{const f=(n:int):Box<int>=>{if(n<=1){return new Box<int>(n);}return f(n-1);};return f(5);}`,
+	`function run():int{const f=(n:int):int=>{if(n<=1){return 1;}return n*f(n-1);};return f(5);}`,
+	`function run():void{let f=():void=>{f=():void=>{};};f();}`,
+	`function run():void{const f=()=>f();}`,
+	`function run():void{for(const f=():int=>f();false;){}}`,
 	`const main=()=>{};`,
 	`const f=(n:int):int=>{if(n==0){return 1;}return n*f(n-1);};`,
 	`const f=()=>f();`,

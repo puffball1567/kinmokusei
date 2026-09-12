@@ -115,6 +115,13 @@ model and native C++ library integration are planned, not present features.
   uses function declarations, while named function storage and mutable bindings
   retain their existing representation. Arrow return inference is callable-local,
   and inferred try-return metadata is finalized after the result is known.
+- A direct local arrow initializer sees its own binding during checking and
+  linking. Predeclare its explicit signature, then finalize that same symbol
+  after checking the body. References during initialization set
+  `VariableDecl.RecursiveBinding`; Go block emission splits storage declaration
+  from closure assignment without introducing another scope or private self
+  variable. Non-arrow initializer scope is unchanged. Recursive three-clause
+  loop initializers are diagnosed until lowering can preserve loop semantics.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.
 - Preserve package-path identity independently of source aliases and checkout paths.

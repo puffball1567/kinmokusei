@@ -88,6 +88,27 @@ assignable function variable. `let` bindings remain function storage that can be
 reassigned. An explicit named Go function type retains its named storage/type
 contract; local arrows continue to be lexical function values.
 
+### Local recursive arrows (development)
+
+Local `const` and `let` arrows can call themselves when the binding has a complete
+function type or the arrow has explicit parameter and result types:
+
+<<< ../snippets/local-recursive-arrows.km{ts}
+
+This prints `120 11`. A recursive call reads the same binding as any other use:
+after a `let` is reassigned, even a previously saved closure sees the replacement
+through that name. `const` still rejects reassignment. Captures remain valid when
+a closure is returned from its enclosing function.
+
+A direct arrow initializer sees its own binding, shadowing an outer binding of
+the same name. An arrow parameter or inner local can shadow that name in turn.
+Other initializers keep their existing scope: `const n = n + 1` inside a nested
+block still reads an outer `n`.
+
+An inferred recursive result requires an annotation. Local mutual recursion and
+calls to later local bindings are not supported. Declare recursive arrows in a
+block before a `for` loop, not in its three-clause initializer.
+
 ### Contextual types and block results (development)
 
 When a binding, field, callback parameter, assignment, or return position supplies

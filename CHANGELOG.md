@@ -6,6 +6,13 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support self-recursive local `const` and `let` arrows with an explicit result
+  or binding function type. Preserve lexical captures and mutable binding
+  identity across reassignment, source-module linking, and editor operations.
+  A direct arrow initializer now sees its own binding rather than an outer
+  binding of the same name; other initializer expressions retain their scope.
+- Accept an arrow immediately after a generic return type (`Box<int>=>`),
+  preserving generic type spans and ordinary comparison/shift tokenization.
 - Support arrow-style entry points (`const main = () => { ... }`) and emit
   module-level const arrows with unnamed function types as Go functions.
   Explicit signatures support recursion, mutual recursion, forward calls, and

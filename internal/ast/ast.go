@@ -319,14 +319,17 @@ type VariableDecl struct {
 	// FunctionBinding marks a module-level const arrow with an unnamed function
 	// type. It is a callable declaration, not mutable function storage.
 	FunctionBinding bool
-	Constant        bool
-	Name            string
-	NameSpan        source.Span
-	Type            TypeRef
-	ResolvedType    TypeRef
-	Value           Expression
-	Used            bool
-	Span            source.Span
+	// RecursiveBinding marks local arrow storage referenced by its initializer.
+	// Backends must create the binding before constructing the closure.
+	RecursiveBinding bool
+	Constant         bool
+	Name             string
+	NameSpan         source.Span
+	Type             TypeRef
+	ResolvedType     TypeRef
+	Value            Expression
+	Used             bool
+	Span             source.Span
 }
 
 func (*VariableDecl) declaration()           {}

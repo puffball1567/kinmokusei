@@ -125,8 +125,12 @@ following additions target v0.4, not the currently released v0.3 syntax:
   parameter/result types in bindings, callbacks, fields, and returned arrows;
   block bodies also infer results without a context. Mutable function storage,
   captures, inferred try/finally returns, and editor navigation/refactoring are
-  covered by `arrow_bindings_test.go`. Further work: local recursive bindings,
-  dependency-driven forward result inference, and generic callback inference.
+  covered by `arrow_bindings_test.go`. Local const/let arrows now support self
+  recursion with an explicit signature, preserve mutable storage identity, and
+  have linked-module execution and editor coverage in
+  `local_arrow_bindings_test.go`. Further work: recursive arrows in loop
+  initializers, local mutual recursion/forward bindings, dependency-driven
+  forward result inference, and generic callback inference.
 - **Source module exports (implemented on the development branch):** declaration
   exports (`export function`, `export class`, `export const`, and other named
   declarations) and local named lists (`export { name }`). Any source export

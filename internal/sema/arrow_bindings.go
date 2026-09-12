@@ -57,6 +57,13 @@ func (c *Checker) declareArrowBinding(declaration *ast.VariableDecl, declared Ty
 	if declared.Kind == Function {
 		return declared
 	}
+	return c.arrowBindingSignature(arrow, declared)
+}
+
+func (c *Checker) arrowBindingSignature(arrow *ast.ArrowExpr, declared Type) Type {
+	if declared.Kind != Invalid {
+		return declared
+	}
 	if arrow.ReturnType == nil {
 		return declared
 	}

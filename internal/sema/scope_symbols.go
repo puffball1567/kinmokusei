@@ -225,6 +225,7 @@ func (c *Checker) lookupValue(name string, span source.Span) (Type, bool) {
 func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool) {
 	for i := len(c.scopes) - 1; i >= 0; i-- {
 		if symbol, ok := c.scopes[i][name]; ok {
+			c.recordLocalArrowReference(symbol, name, span)
 			if symbol.declaration != nil {
 				symbol.declaration.Used = true
 			}
@@ -262,6 +263,7 @@ func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool
 func (c *Checker) lookupAssignmentSymbol(name string, span source.Span) (valueSymbol, bool) {
 	for i := len(c.scopes) - 1; i >= 0; i-- {
 		if symbol, ok := c.scopes[i][name]; ok {
+			c.recordLocalArrowReference(symbol, name, span)
 			if symbol.rangeBinding != nil {
 				symbol.rangeBinding.Assigned = true
 			}
