@@ -222,7 +222,7 @@ func (l *Lexer) next() token.Token {
 	}
 
 	tok := l.makeToken(token.Illegal, start)
-	if r == utf8.RuneError && size == 1 {
+	if r == utf8.RuneError && size == 1 || r == 0 {
 		return tok // advance already reported the malformed source byte.
 	}
 	l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "unexpected character " + tok.Lexeme, Span: tok.Span})
@@ -332,13 +332,19 @@ func (l *Lexer) advance() {
 	if size == 0 {
 		return
 	}
+	message := ""
 	if r == utf8.RuneError && size == 1 {
+		message = "invalid UTF-8 encoding"
+	} else if r == 0 {
+		message = "NUL character is not allowed in source text; use a string escape"
+	}
+	if message != "" {
 		start := l.position()
 		end := start
 		end.Offset++
 		end.Column++
 		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
-			Message: "invalid UTF-8 encoding",
+			Message: message,
 			Span:    source.Span{Path: l.path, Start: start, End: end},
 		})
 	}

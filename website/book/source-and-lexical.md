@@ -11,6 +11,9 @@ Before the compiler can reason about types, it turns UTF-8 source text into toke
 
 Kinmokusei source files conventionally use `.km` and contain UTF-8 text. A file is a module scope, not textual inclusion. Importing a file makes selected declarations available; it does not paste its source into the caller.
 
+Raw NUL characters are rejected, including inside strings and comments. To store
+a NUL byte in a string, write an escape such as `"\x00"` instead.
+
 ```text
 application/
 ├── main.km

@@ -58,9 +58,37 @@ func TestInvalidUTF8SourceMatrix(t *testing.T) {
 
 func TestValidUTF8AndByteEscapes(t *testing.T) {
 	t.Parallel()
-	for _, input := range []string{`"日本語 😀 �"`, `"\xFF\324\uFFFD\U0001F600"`, "// � 日本語\nconst 名 = 1;", "/* � 😀 */ const 名 = 1;"} {
+	for _, input := range []string{`"日本語 😀 �"`, `"\xFF\324\uFFFD\U0001F600"`, `"\x00\000\u0000\U00000000"`, "// � 日本語\nconst 名 = 1;", "/* � 😀 */ const 名 = 1;"} {
 		if _, diagnostics := Lex("valid.km", input); len(diagnostics) != 0 {
 			t.Fatalf("valid source %q rejected: %v", input, diagnostics)
+		}
+	}
+}
+
+func TestNULSourceDiagnostics(t *testing.T) {
+	t.Parallel()
+	for _, context := range []struct{ prefix, suffix string }{
+		{`"日本`, `"`}, {"// 日本", "\n"}, {"/* 日本", " */"}, {"日本", " "}, {"", ""},
+	} {
+		prefix := "\n" + context.prefix
+		input := prefix + "\x00" + context.suffix + "\nconst recovered=1;"
+		tokens, diagnostics := Lex("nul.km", input)
+		found := 0
+		for _, d := range diagnostics {
+			if d.Message != "NUL character is not allowed in source text; use a string escape" {
+				continue
+			}
+			found++
+			if d.Span.Path != "nul.km" || d.Span.Start.Offset != len(prefix) || d.Span.End.Offset != len(prefix)+1 || d.Span.Start.Line != 2 || d.Span.Start.Column != len([]rune(context.prefix))+1 {
+				t.Fatalf("incorrect NUL location: %+v", d.Span)
+			}
+		}
+		recovered := false
+		for _, item := range tokens {
+			recovered = recovered || item.Kind == token.Identifier && item.Lexeme == "recovered"
+		}
+		if found != 1 || !recovered || tokens[len(tokens)-1].Kind != token.EOF {
+			t.Fatalf("diagnostics=%v recovered=%v", diagnostics, recovered)
 		}
 	}
 }

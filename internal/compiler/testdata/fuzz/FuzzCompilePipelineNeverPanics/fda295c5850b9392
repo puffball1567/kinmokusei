@@ -1,0 +1,2 @@
+go test fuzz v1
+string("class Box<T extends comparable> { constructor(public value: T) {} public function get(): T { return this.value; } } function use(): string { return new Box<string>(\"va\x00\x01e\").get(); }")
