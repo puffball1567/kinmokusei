@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`const first=()=>last();const last=()=>42;`,
+	`const first=(value:string)=>last();const last=()=>value;const value=42;`,
+	`const first=()=>last();const last=()=>first();`,
+	`const value=read();const read=()=>value;`,
+	`const even=(n:int)=>{if(n==0){return true;}return odd(n-1);};const odd=(n:int):boolean=>{if(n==0){return false;}return even(n-1);};`,
 	`function apply<T,U>(v:T,f:(x:T)=>U):U{return f(v);} const run=()=>apply(21,(x)=>x*2);`,
 	`function chain<T,U,V>(v:T,g:(u:U)=>V,f:(t:T)=>U):V{return g(f(v));} const run=()=>chain(1,(s)=>len(s),(n)=>"yes");`,
 	`import go slices from "slices"; const run=()=>slices.IndexFunc([1,2],(x)=>x==2);`,

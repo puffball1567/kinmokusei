@@ -76,9 +76,20 @@ declaration. It emits an ordinary Go function and can be exported with
 `main` must have no parameters and return `void`; `const main = () => { ... }`
 supplies that result context automatically.
 
+Calls to later module-level arrows infer their results by following declaration
+dependencies, including later inferred globals. Definition order does not change
+the inferred result or reorder runtime initialization:
+
+<<< ../snippets/forward-arrow-inference.km{ts}
+
+This prints `42 42`. Dependencies use their own module's lexical scope, not the
+locals of the function that references them. This also works for explicitly
+imported module-level arrows.
+
 Give a callable declaration an explicit result annotation, or a complete
-function-type annotation on the binding, when using recursion, mutual recursion,
-or calls before the declaration. Its body can refer to later globals. For example,
+function-type annotation on the binding, to break a recursive result-inference
+cycle. Calls before a declaration do not otherwise require result annotations.
+Its body can refer to later globals. For example,
 `const twice: (n: int) => int = (n) => { return n * 2 }` declares the whole signature
 without repeating it on the arrow.
 

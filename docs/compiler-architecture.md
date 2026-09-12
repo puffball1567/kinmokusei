@@ -115,6 +115,14 @@ model and native C++ library integration are planned, not present features.
   uses function declarations, while named function storage and mutable bindings
   retain their existing representation. Arrow return inference is callable-local,
   and inferred try-return metadata is finalized after the result is known.
+- Resolve unknown global binding types on demand through lexical name lookup.
+  `global_inference.go` tracks visiting/completed declarations so each body is
+  checked once. Dependency checks share program symbols and expression metadata
+  but start with an empty lexical/control/flow context: they cannot capture the
+  requesting body's locals, receiver, type parameters, or return inference.
+  Explicit signatures break recursive inference dependencies. Keep the AST and
+  generated declaration order unchanged, and retain the separate dependency
+  graph check for runtime global initialization cycles.
 - A direct local arrow initializer sees its own binding during checking and
   linking. Predeclare its explicit signature, then finalize that same symbol
   after checking the body. References during initialization set

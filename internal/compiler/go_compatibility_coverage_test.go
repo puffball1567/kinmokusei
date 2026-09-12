@@ -118,6 +118,7 @@ var implementedGoCompatibilityContracts = []string{
 
 var differentialGoCompatibilityScenarios = map[string][]string{
 	"arrow-bindings.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
+	"forward-arrows.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"local-arrow-bindings.test":           {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"generic-callbacks.test":              {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"generic-callback-return.test":        {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
