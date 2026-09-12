@@ -24,6 +24,33 @@ and OOP gaps below; no additional syntax is promised by this refactoring.
 Keep published package and documentation versions at v0.3.0 until v0.4.0 release
 preparation.
 
+## Approved implementation queue
+
+These are ordered work areas, not equal-size tasks or a promise that every area
+must ship in v0.4. Each needs semantic checks, runtime comparisons, editor support
+where applicable, and documentation. Refactoring can accompany the relevant
+feature work without mixing unrelated changes into its implementation.
+
+| # | Work area | Status |
+|---|---|---|
+| 1 | Generic callback contextual inference | Implemented for direct arrow arguments; see below |
+| 2 | Dependency-driven forward result inference | Queued |
+| 3 | Local mutual recursion and forward bindings | Queued |
+| 4 | Recursive arrows in three-clause loop initializers | Queued |
+| 5 | Function values returning Result | Queued |
+| 6 | Additional export forms, including re-exports and aliases | Queued; define the supported forms |
+| 7 | Constraint intersections and interface composition | Queued |
+| 8 | Remaining numeric constant contexts | Queued |
+| 9 | Source anonymous-interface syntax | Queued |
+| 10 | Source-declared multiple results | Queued |
+| 11 | Abstract classes and methods | Queued |
+| 12 | Getter/setter properties | Queued |
+| 13 | Static fields and constants | Queued |
+| 14 | Receiver/constructor-dependent field initializers | Queued |
+| 15 | Parser decomposition | Queued |
+| 16 | Go emitter decomposition | Queued |
+| 17 | Lexical, capture, and nullable-state boundaries | Queued |
+
 ## Completed through v0.3.0
 
 - Numeric constants in generic calls: real constant values in Go inference,
@@ -130,7 +157,15 @@ following additions target v0.4, not the currently released v0.3 syntax:
   have linked-module execution and editor coverage in
   `local_arrow_bindings_test.go`. Further work: recursive arrows in loop
   initializers, local mutual recursion/forward bindings, dependency-driven
-  forward result inference, and generic callback inference.
+  forward result inference.
+- **Generic callback inference (implemented on the development branch):**
+  direct arrow arguments use contexts inferred from other arguments, explicit
+  callback annotations, and dependent constraints. Callback results can infer
+  remaining parameters and unlock other callbacks. Native functions/methods and
+  imported Go generics share contextual preparation, while the existing native
+  and Go checkers retain final compatibility/constraint checks. Numeric defaults
+  wait for ready typed callbacks. Cyclic or insufficient context still requires
+  annotations. Covered by `generic_callbacks_test.go` and editor tests.
 - **Source module exports (implemented on the development branch):** declaration
   exports (`export function`, `export class`, `export const`, and other named
   declarations) and local named lists (`export { name }`). Any source export

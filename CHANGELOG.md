@@ -6,6 +6,13 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Diagnose raw NUL characters in source text, including strings and comments,
+  before Go generation. Escaped NUL bytes in string values remain supported.
+- Infer direct arrow callback types in native and imported Go generic calls,
+  including generic methods, partial type arguments, dependent collection
+  bounds, variadic callbacks, and callback-result inference. Resolve callback
+  dependencies without reordering runtime arguments; preserve numeric constant
+  checks, captures, and editor navigation for inferred parameters.
 - Support self-recursive local `const` and `let` arrows with an explicit result
   or binding function type. Preserve lexical captures and mutable binding
   identity across reassignment, source-module linking, and editor operations.

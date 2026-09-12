@@ -36,10 +36,7 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 			bindings[callable.TypeParameters[index].GoType] = resolved
 		}
 	}
-	actualTypes := make([]Type, len(expr.Arguments))
-	for index, argument := range expr.Arguments {
-		actualTypes[index] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
-	}
+	actualTypes := c.checkGenericCallbackArguments(expr, callable, bindings)
 	numericArguments := c.genericNumericArguments(expr.Arguments, actualTypes)
 	deferredNumeric := map[gotypes.Type]int{}
 	minimumArguments := len(callable.Parameters)
@@ -527,10 +524,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		}
 		typeArguments[i] = goType
 	}
-	actualTypes := make([]Type, len(expr.Arguments))
-	for i, argument := range expr.Arguments {
-		actualTypes[i] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
-	}
+	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, typeArguments)
 	numericArguments := c.genericNumericArguments(expr.Arguments, actualTypes)
 	instantiatedSignature, err := inferGoGenericCall(signature, actualTypes, typeArguments, expr.Expanded, numericArguments)
 	if err != nil {
@@ -555,10 +549,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		}
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	actualTypes := make([]Type, len(expr.Arguments))
-	for i, argument := range expr.Arguments {
-		actualTypes[i] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
-	}
+	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, nil)
 	numericArguments := c.genericNumericArguments(expr.Arguments, actualTypes)
 	instantiated, err := inferGoGenericCall(signature, actualTypes, nil, expr.Expanded, numericArguments)
 	if err != nil {
