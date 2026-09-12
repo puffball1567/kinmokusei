@@ -57,6 +57,7 @@ type Checker struct {
 	numericValues              map[ast.Expression]gotypes.TypeAndValue
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
+	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
 }
 
 type GoInteropPolicy struct {
@@ -89,6 +90,9 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
 		validFallthrough:       map[*ast.BranchStmt]bool{},
+		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
+		globalDependencies:     map[string]map[string]bool{},
+		numericValues:          map[ast.Expression]gotypes.TypeAndValue{},
 	}
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
@@ -107,7 +111,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.declareReceiverMethods(program)
 	c.validateStructValueCycles(program)
 	for _, decl := range c.globalCheckOrder(program) {
-		c.checkGlobalBinding(decl)
+		c.ensureGlobalBindingChecked(decl)
 	}
 	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.EnumDecl); ok {

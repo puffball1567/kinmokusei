@@ -64,7 +64,7 @@ func TestArrowBindingDiagnostics(t *testing.T) {
 		{`const f=(b:boolean)=>{if(b){return 1;}return "x";};`, "cannot use"},
 		{`const f=(b:boolean)=>{if(b){return 1;}};`, "may complete"},
 		{`const f=()=>f();`, "needs an explicit return type"},
-		{`const f=()=>g();const g=()=>1;`, "needs an explicit return type"},
+		{`const f=()=>g();const g=()=>f();`, "needs an explicit return type"},
 		{`const main=(n:int):void=>{};`, "main must be"},
 		{`const main=():int=>1;`, "main must be"},
 		{`let main=():void=>{};`, "main must be"},

@@ -34,7 +34,7 @@ feature work without mixing unrelated changes into its implementation.
 | # | Work area | Status |
 |---|---|---|
 | 1 | Generic callback contextual inference | Implemented for direct arrow arguments; see below |
-| 2 | Dependency-driven forward result inference | Queued |
+| 2 | Dependency-driven forward result inference | Implemented for module-level bindings |
 | 3 | Local mutual recursion and forward bindings | Queued |
 | 4 | Recursive arrows in three-clause loop initializers | Queued |
 | 5 | Function values returning Result | Queued |
@@ -155,9 +155,13 @@ following additions target v0.4, not the currently released v0.3 syntax:
   covered by `arrow_bindings_test.go`. Local const/let arrows now support self
   recursion with an explicit signature, preserve mutable storage identity, and
   have linked-module execution and editor coverage in
-  `local_arrow_bindings_test.go`. Further work: recursive arrows in loop
-  initializers, local mutual recursion/forward bindings, dependency-driven
-  forward result inference.
+  `local_arrow_bindings_test.go`. Module-level forward result inference now
+  follows dependencies through arrows and inferred globals, checking each
+  definition once in an isolated lexical context. Unresolved recursive result
+  dependencies require annotations; runtime initialization cycles remain
+  errors. Linked-module execution, initialization order, and editor navigation
+  are covered by `forward_arrow_inference_test.go`. Further work: recursive
+  arrows in loop initializers and local mutual recursion/forward bindings.
 - **Generic callback inference (implemented on the development branch):**
   direct arrow arguments use contexts inferred from other arguments, explicit
   callback annotations, and dependent constraints. Callback results can infer

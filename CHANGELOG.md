@@ -6,6 +6,10 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Infer module-level arrow results through forward declaration dependencies,
+  including later inferred globals and linked-module callables. Check each
+  dependency once in its own lexical context without changing runtime order;
+  require annotations for unresolved recursive inference cycles.
 - Diagnose raw NUL characters in source text, including strings and comments,
   before Go generation. Escaped NUL bytes in string values remain supported.
 - Infer direct arrow callback types in native and imported Go generic calls,

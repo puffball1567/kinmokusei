@@ -253,9 +253,13 @@ func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool
 	symbol, ok := c.globals[name]
 	if ok {
 		c.recordGlobalDependency(name)
+		if symbol.typeInfo.Kind == Invalid && symbol.declaration != nil {
+			c.ensureGlobalBindingChecked(symbol.declaration)
+			symbol = c.globals[name]
+		}
 	}
 	if ok && symbol.typeInfo.Kind == Invalid && symbol.declaration != nil && symbol.declaration.FunctionBinding {
-		c.report(span, fmt.Sprintf("arrow function %q needs an explicit return type for recursive or forward references", name))
+		c.report(span, fmt.Sprintf("arrow function %q needs an explicit return type to resolve a recursive inference dependency", name))
 	}
 	return symbol, ok
 }

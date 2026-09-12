@@ -1,0 +1,10 @@
+import go { Println } from "fmt"
+
+const answer = twice(21)
+const read = () => later
+const twice = (value: int) => value * 2
+const later = 42
+
+const main = () => {
+  Println(answer, read())
+}
