@@ -749,6 +749,16 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 }
 
 func (s *Server) topLevelDeclarationSpan(program *ast.Program, path, name string, textByPath map[string]string) (source.Span, bool) {
+	for _, exported := range program.Exports {
+		if !samePath(exported.Span.Path, path) {
+			continue
+		}
+		for _, selected := range exported.Names {
+			if selected.Name == name && selected.ResolvedDeclaration.Path != "" {
+				return selected.ResolvedDeclaration, true
+			}
+		}
+	}
 	for _, declaration := range program.Declarations {
 		var span source.Span
 		switch declaration := declaration.(type) {

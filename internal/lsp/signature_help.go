@@ -275,9 +275,10 @@ func (s *Server) sourceSignature(program *ast.Program, path string, context call
 			if name != context.Name {
 				continue
 			}
+			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, nil)
 			for _, declaration := range program.Declarations {
 				function, ok := declaration.(*ast.FunctionDecl)
-				if ok && samePath(function.Span.Path, imported.ResolvedPath) && s.sourceText(function.NameSpan) == name {
+				if ok && found && sameSourceSpan(function.NameSpan, target) {
 					return signatureFromFunction(function), true
 				}
 			}
@@ -328,9 +329,10 @@ func sourceClassDeclaration(s *Server, program *ast.Program, path, name string) 
 			if importedName != name {
 				continue
 			}
+			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, nil)
 			for _, declaration := range program.Declarations {
 				class, ok := declaration.(*ast.ClassDecl)
-				if ok && samePath(class.Span.Path, imported.ResolvedPath) && s.sourceText(class.NameSpan) == name {
+				if ok && found && sameSourceSpan(class.NameSpan, target) {
 					return class
 				}
 			}

@@ -24,6 +24,7 @@ func TestSourceExportValidation(t *testing.T) {
 		{`const value = 1; export { value, value };`, `duplicate exported name "value"`},
 		{`import go { Sprint } from "fmt"; export { Sprint };`, `not a local top-level declaration`},
 		{`function f():void { const local = 1; } export { local };`, `not a local top-level declaration`},
+		{`const value=1; export {value} from "./library";`, `re-export requires a resolved source module`},
 	} {
 		diagnostics := checkSource(t, test.input)
 		found := false

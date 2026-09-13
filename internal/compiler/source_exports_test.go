@@ -23,7 +23,7 @@ func TestSourceExportModuleVisibility(t *testing.T) {
 		{"C ABI and source", `export c("native") function native():int32{return 1} export {};`, `import { native } from "./library";`, `does not export "native"`},
 		{"missing", `export {};`, `import { missing } from "./library";`, `does not declare "missing"`},
 		{"duplicate import", `export const value=1;`, `import { value, value } from "./library";`, `duplicate imported name "value"`},
-		{"imported binding", `const value=1;`, `import { value } from "./library"; export { value };`, `not a local top-level declaration`},
+		{"imported binding", `const value=1;`, `import { value } from "./library"; export { value };`, ""},
 		{"private type", `export {}; class Box {}`, `import { Box } from "./library";`, `does not export "Box"`},
 	} {
 		t.Run(test.name, func(t *testing.T) {

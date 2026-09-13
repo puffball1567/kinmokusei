@@ -3,6 +3,7 @@ package parser
 import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/token"
+	"strconv"
 )
 
 func (p *Parser) atCABIExport() bool {
@@ -26,6 +27,22 @@ func (p *Parser) parseSourceExport(start token.Token) (ast.ExportDecl, ast.Decla
 		if _, ok := p.expect(token.RightBrace, "expected '}' after exported names"); !ok {
 			p.synchronizeDeclaration()
 			return exported, nil
+		}
+		if p.match(token.From) {
+			path, ok := p.expect(token.String, "expected module path string after export from")
+			if !ok {
+				p.synchronizeDeclaration()
+				return exported, nil
+			}
+			exported.PathSpan = path.Span
+			var err error
+			exported.Path, err = strconv.Unquote(path.Lexeme)
+			if err != nil || exported.Path == "" {
+				p.report(path, "invalid export module path string")
+			}
+			if len(exported.Names) == 0 {
+				p.report(path, "re-export list cannot be empty")
+			}
 		}
 		end, ok := p.expectTerminator("expected ';' after export list")
 		if !ok {

@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`export { value } from "./library";`,
+	`export {} from "./library";`,
+	`export { value } from ""; const value=1;`,
 	`function run():Result<int>{const f=():Result<int>=>{return ok(42);};return f();}`,
 	`function run():Result<int>{const f=(n:int):Result<int>=>{if(n==0){return ok(1);}const value=f(n-1)?;return ok(n*value);};return f(5);}`,
 	`type Load<T>=distinct ()=>Result<T>;function run():Result<int>{const f:Load<int>=()=>{return ok(42);};return f();}`,

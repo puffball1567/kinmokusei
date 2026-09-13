@@ -852,6 +852,16 @@ func sourceVisibleNamedType(program *ast.Program, path, name string) ast.Declara
 			if importedName != name {
 				continue
 			}
+			for _, exported := range program.Exports {
+				if !samePath(exported.Span.Path, imported.ResolvedPath) {
+					continue
+				}
+				for _, selected := range exported.Names {
+					if selected.Name == name && selected.ResolvedDeclaration.Path != "" {
+						return sourceTypeDeclaration(program, ast.TypeRef{ResolvedDeclaration: selected.ResolvedDeclaration})
+					}
+				}
+			}
 			for _, declaration := range program.Declarations {
 				if samePath(declaration.GetSpan().Path, imported.ResolvedPath) {
 					switch declaration := declaration.(type) {

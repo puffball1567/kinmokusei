@@ -22,8 +22,15 @@ func (c *Checker) checkSourceExports(program *ast.Program) {
 		for i := range exported.Names {
 			name := &exported.Names[i]
 			key := binding{exported.Span.Path, name.Name}
+			if exported.Path != "" && name.ResolvedDeclaration.Path == "" {
+				c.diagnostics = append(c.diagnostics, diagnostic.Diagnostic{Message: "re-export requires a resolved source module", Span: name.NameSpan})
+				continue
+			}
 			if name.ResolvedName != "" {
 				key.name = name.ResolvedName
+			}
+			if name.ResolvedDeclaration.Path != "" {
+				key.path = name.ResolvedDeclaration.Path
 			}
 			name.ResolvedDeclaration = source.Span{}
 			if span, exists := locals[key]; exists {
@@ -31,10 +38,11 @@ func (c *Checker) checkSourceExports(program *ast.Program) {
 			} else {
 				c.diagnostics = append(c.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("exported name %q is not a local top-level declaration", name.Name), Span: name.NameSpan})
 			}
-			if seen[key] {
+			exportKey := binding{exported.Span.Path, name.Name}
+			if seen[exportKey] {
 				c.diagnostics = append(c.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate exported name %q", name.Name), Span: name.NameSpan})
 			}
-			seen[key] = true
+			seen[exportKey] = true
 		}
 	}
 }
