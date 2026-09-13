@@ -8,6 +8,10 @@ import (
 )
 
 func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
+	if symbol := c.scopes[len(c.scopes)-1][stmt.Name]; symbol.declaration == stmt && symbol.localArrowInference != nil && symbol.localArrowInference != c.checkingLocalArrow {
+		c.finishLocalArrowBinding(symbol.localArrowInference)
+		return
+	}
 	declared := Type{Kind: Invalid, Name: "<inferred>"}
 	if stmt.Type.IsSpecified() {
 		declared = c.resolveType(stmt.Type)
@@ -61,14 +65,21 @@ func (c *Checker) recordLocalArrowReference(symbol valueSymbol, name string, spa
 	if !symbol.initializingArrow || symbol.declaration == nil {
 		return
 	}
-	symbol.declaration.RecursiveBinding = true
-	if c.classes[name] != nil || c.structs[name] != nil || c.interfaces[name] != nil || c.nativeTypes[name] != nil || c.enums[name] != nil || c.lookupGoPackage(span.Path, name) != nil {
-		c.report(span, fmt.Sprintf("recursive or forward local arrow %q conflicts with a type or Go package name; rename the local binding", name))
-	}
-	for _, scope := range c.typeParameterScopes {
-		if _, exists := scope[name]; exists {
-			c.report(span, fmt.Sprintf("recursive or forward local arrow %q conflicts with a type parameter; rename the local binding", name))
-			break
+	// The group snapshot retains initializing flags, even for a peer that comes
+	// earlier in source order. Only self/forward uses need predeclared storage;
+	// an unresolved backward dependency can still participate in a type cycle.
+	declSpan := symbol.declaration.Span
+	backward := symbol.localArrowInference != nil && declSpan.End.Offset > declSpan.Start.Offset && span.Path == declSpan.Path && span.Start.Offset >= declSpan.End.Offset
+	if !backward {
+		symbol.declaration.RecursiveBinding = true
+		if c.classes[name] != nil || c.structs[name] != nil || c.interfaces[name] != nil || c.nativeTypes[name] != nil || c.enums[name] != nil || c.lookupGoPackage(span.Path, name) != nil {
+			c.report(span, fmt.Sprintf("recursive or forward local arrow %q conflicts with a type or Go package name; rename the local binding", name))
+		}
+		for _, scope := range c.typeParameterScopes {
+			if _, exists := scope[name]; exists {
+				c.report(span, fmt.Sprintf("recursive or forward local arrow %q conflicts with a type parameter; rename the local binding", name))
+				break
+			}
 		}
 	}
 	if symbol.typeInfo.Kind == Invalid {
@@ -77,6 +88,7 @@ func (c *Checker) recordLocalArrowReference(symbol valueSymbol, name string, spa
 }
 
 func (c *Checker) predeclareLocalArrowGroup(group []*ast.VariableDecl) {
+	context := &localArrowGroupContext{}
 	for _, declaration := range group {
 		declared := Type{Kind: Invalid, Name: "<inferred>"}
 		if declaration.Type.IsSpecified() {
@@ -88,7 +100,11 @@ func (c *Checker) predeclareLocalArrowGroup(group []*ast.VariableDecl) {
 		symbol := scope[declaration.Name]
 		if symbol.declaration == declaration {
 			symbol.initializingArrow = true
+			symbol.localArrowInference = &localArrowInference{declaration: declaration, context: context}
 			scope[declaration.Name] = symbol
 		}
 	}
+	context.checker = *c
+	context.checker.scopes = cloneValueScopes(c.scopes)
+	context.checker.memberFlow = cloneMemberFlow(c.memberFlow)
 }

@@ -133,10 +133,18 @@ model and native C++ library integration are planned, not present features.
   without introducing another scope or private self variable. Arrow construction
   does not execute the body, so no user code runs between peer initialization
   steps. Ordinary statements (including non-arrow initializers and labels) end
-  a group; no runtime initialization is hoisted across them. Forward local
-  signatures must be available without checking their bodies. Non-arrow
+  a group; no runtime initialization is hoisted across them. Non-arrow
   initializer scope is unchanged. Recursive three-clause
   loop initializers are diagnosed until lowering can preserve loop semantics.
+- `local_arrow_inference.go` checks local peer dependencies on demand, caching
+  each result and its diagnostics once. A group captures its lexical environment
+  after predeclaration, including declaration identities, type parameters and
+  receiver access. Peer checks use this environment, not the requesting body's
+  locals, return state, task operand state, or capture stacks. Capture writes and
+  member mutations are collected separately and replayed at the source binding
+  position, including propagation to enclosing closures. Explicit signatures
+  break recursive inference cycles; parameters still need annotations or a
+  matching function-type context.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.
 - Preserve package-path identity independently of source aliases and checkout paths.

@@ -139,6 +139,10 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 	captured := c.capturedWrites[len(c.capturedWrites)-1]
 	c.capturedWrites = c.capturedWrites[:len(c.capturedWrites)-1]
 	capturedMemberWrite := c.capturedMemberWrites[len(c.capturedMemberWrites)-1]
+	if inference := c.checkingLocalArrow; inference != nil && inference.declaration.Value == expr {
+		inference.capturedWrites = captured
+		inference.memberWrite = capturedMemberWrite
+	}
 	c.capturedMemberWrites = c.capturedMemberWrites[:len(c.capturedMemberWrites)-1]
 	c.capturedMemberRoots = c.capturedMemberRoots[:len(c.capturedMemberRoots)-1]
 	c.callableScopeBases = c.callableScopeBases[:len(c.callableScopeBases)-1]

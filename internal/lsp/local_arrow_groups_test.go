@@ -7,8 +7,15 @@ import (
 )
 
 func TestLocalArrowGroupNavigation(t *testing.T) {
+	testLocalArrowGroupNavigation(t, `const later=():string=>"outer";function run():int{const first=():int=>later();const later=():int=>42;return first();}`)
+}
+
+func TestLocalArrowInferredGroupNavigation(t *testing.T) {
+	testLocalArrowGroupNavigation(t, `const later=():string=>"outer";function run():int{const first=()=>later();const later=()=>42;return first();}`)
+}
+
+func testLocalArrowGroupNavigation(t *testing.T, input string) {
 	t.Parallel()
-	input := `const later=():string=>"outer";function run():int{const first=():int=>later();const later=():int=>42;return first();}`
 	uri := fileURI(filepath.Join(t.TempDir(), "groups.km"))
 	at := positionOf(input, "later()", 0)
 	messages := serveMessages(t, openDocument(uri, input),

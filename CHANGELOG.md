@@ -6,11 +6,15 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Infer local arrow results through forward dependencies within consecutive
+  declaration groups. Check each body once in the group's lexical environment,
+  retain generic/receiver context, and preserve source-order capture effects.
+  Unresolved recursive result cycles still require annotations.
 - Diagnose uninstantiated Go generic functions used as values before Go
   generation, for both qualified and named imports. Direct generic calls and
   ordinary Go function values retain their existing behavior.
 - Support local mutual recursion and forward references within consecutive
-  direct arrow declarations, using explicit signatures for forward references.
+  direct arrow declarations.
   Peer names shadow outer bindings throughout the group; ordinary statements
   end the group. Preserve mutable storage, captures, initialization order, and
   editor navigation/completion, and show inferred local types in hover.

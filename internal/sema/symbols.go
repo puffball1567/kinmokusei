@@ -20,6 +20,7 @@ type functionSymbol struct {
 type valueSymbol struct {
 	typeInfo              Type
 	initializingArrow     bool
+	localArrowInference   *localArrowInference
 	declaredType          Type
 	flowInvalidated       source.Span
 	flowInvalidationCause string

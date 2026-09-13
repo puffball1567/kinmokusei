@@ -126,10 +126,7 @@ to any peer in the group, including later declarations:
 
 <<< ../snippets/local-arrow-groups.km{ts}
 
-This prints `true false 7`. A referenced later peer needs explicit parameter and
-result types, or a complete function type on its binding. Unlike module-level
-dependencies, local forward results are not yet inferred by visiting the later
-body. Both `const` and `let` participate; a peer reference reads the same storage,
+This prints `true false 7`. Both `const` and `let` participate; a peer reference reads the same storage,
 so replacing a `let` also changes what earlier or escaped closures call.
 
 Group names shadow outer bindings throughout the group, including in earlier
@@ -144,6 +141,20 @@ later ordinary local, and calls before a group do not see its declarations.
 
 Keep mutually recursive definitions together, and call or publish them after
 the group. This avoids exposing a not-yet-initialized peer.
+
+### Local forward result inference (development)
+
+Within a group, results can also be inferred through references to later peers:
+
+<<< ../snippets/local-arrow-result-inference.km{ts}
+
+This prints `43`. The later function captures the group's `offset`, not the
+earlier function's same-named parameter. Each body is checked once in that
+shared lexical environment; runtime initialization order does not change.
+Generic type parameters, receiver access, nested closures, and capture-write
+checks are preserved. Parameters still need annotations or a matching function
+type on the binding. A cycle whose result cannot be determined requires an
+explicit result or binding function type to break the inference dependency.
 
 ### Contextual types and block results (development)
 

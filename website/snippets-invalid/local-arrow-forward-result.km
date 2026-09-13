@@ -1,5 +1,5 @@
 function main(): void {
-  const first = (): int => second()
-  const second = () => 42
+  const first = () => second()
+  const second = () => first()
   first()
 }

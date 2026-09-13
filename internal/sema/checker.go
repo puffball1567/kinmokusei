@@ -58,6 +58,7 @@ type Checker struct {
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
+	checkingLocalArrow         *localArrowInference
 }
 
 type GoInteropPolicy struct {
