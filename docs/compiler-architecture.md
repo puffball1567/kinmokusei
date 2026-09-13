@@ -80,9 +80,14 @@ baseline for accepted constructs with a Go equivalent.
 - Keep source export directives as AST metadata beside ordinary declarations.
   Any source export, including an empty list, opts that file into explicit
   visibility; files without source exports retain legacy importability. Capture
-  exported bindings before module link-name rewriting, resolve export-list names
-  only against local top-level declarations, and preserve source spans for LSP
-  rename. Source exports do not change Go capitalization or C ABI directives.
+  exported bindings before module link-name rewriting. Export lists resolve local
+  declarations or explicit source imports; export-from declarations load a
+  dependency without introducing local names. `module_exports.go` resolves each
+  public name to its original module/declaration before linking, retaining shared
+  storage and type identity across chains and diamonds. Mixed import/export
+  dependencies follow source order and initialize once. Preserve original source
+  spans for LSP navigation, signatures, and rename. Source exports do not change
+  Go capitalization or C ABI directives.
 - Mark module-level const arrow declarations with unnamed function types as
   callable bindings. Predeclare explicit signatures and check their bodies after
   stored globals; retain variable/arrow AST identity for source tools. Go emission

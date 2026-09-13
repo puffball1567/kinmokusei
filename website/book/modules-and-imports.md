@@ -54,8 +54,9 @@ top-level declaration with `export`, or select local declarations in a list:
 
 The list can appear before or after the declarations. Functions, classes,
 structs, interfaces, constraints, enums, defined types, aliases, and `const`/`let`
-bindings all support declaration exports. Export names must exist in the same
-file, and each name can be exported only once. Lists allow a trailing comma and
+bindings all support declaration exports. Export lists may select local
+declarations or explicitly imported Kinmokusei bindings, and each name can be
+exported only once. Lists allow a trailing comma and
 follow the ordinary semicolon-omission rules.
 
 Once a file contains any source export, only its selected declarations can be
@@ -74,6 +75,29 @@ A caller can use the checked example above like this:
 
 Running it prints `42`. Editor definition/hover, references, and rename include
 named export lists and their imported uses.
+
+### Named re-exports
+
+A public entry module can gather selected names from other modules:
+
+<<< ../snippets/named-reexports-library.km{ts}
+
+`export { Box } from "./source-exports-library"` makes `Box` available to callers
+without introducing `Box` into this module's local scope. Import a name first
+when this module also needs to use it. Both forms retain the original function,
+type, or variable: a re-export does not copy mutable state or wrap a function.
+
+<<< ../snippets/named-reexports-main.km{ts}
+
+Running this prints `42`. Re-export chains and multiple paths to the same module
+retain declaration identity. Import and export-from dependencies are visited in
+source order, with each module initialized once. Cycles remain errors, and
+re-exporting a private or nonexistent name is rejected:
+
+<<< ../snippets-invalid/private-reexport.km{ts}
+
+Imports alone are not re-exported. Each public name must be selected explicitly;
+two export declarations cannot publish the same name, even from the same origin.
 
 ## Source imports versus Go exports
 

@@ -5,9 +5,12 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 // ExportDecl controls source-module visibility, independently of Go and C ABI
 // exports. An empty list still opts its source file into explicit exports.
 type ExportDecl struct {
-	Names  []ExportName
-	Inline bool
-	Span   source.Span
+	Names        []ExportName
+	Inline       bool
+	Span         source.Span
+	Path         string
+	PathSpan     source.Span
+	ResolvedPath string
 }
 
 type ExportName struct {
@@ -66,6 +69,9 @@ func SourceExported(program *Program, declaration Declaration) bool {
 			continue
 		}
 		explicit = true
+		if exported.Path != "" {
+			continue
+		}
 		for _, selected := range exported.Names {
 			resolved := selected.Name
 			if selected.ResolvedName != "" {

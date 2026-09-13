@@ -55,10 +55,13 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 	exportedBindings := map[string]moduleNames{}
 	for _, path := range paths {
 		exportedBindings[path] = moduleNames{}
-		for _, declaration := range l.programs[path].Declarations {
-			if ast.SourceExported(l.programs[path], declaration) {
-				name := topLevelName(declaration)
-				exportedBindings[path][name] = bindings[path][name]
+		for name, origin := range l.exports[path] {
+			exportedBindings[path][name] = bindings[origin.module][origin.name]
+		}
+		for _, exported := range l.programs[path].Exports {
+			for i := range exported.Names {
+				name := &exported.Names[i]
+				name.ResolvedName = exportedBindings[path][name.Name]
 			}
 		}
 	}
@@ -252,7 +255,7 @@ func (l *moduleLoader) linkedModuleName(path, name string) string {
 func linkProgram(program *ast.Program, declarations, visible moduleNames) {
 	for _, exported := range program.Exports {
 		for i := range exported.Names {
-			if linked, ok := declarations[exported.Names[i].Name]; ok {
+			if linked, ok := declarations[exported.Names[i].Name]; ok && exported.Names[i].ResolvedName == "" {
 				exported.Names[i].ResolvedName = linked
 			}
 		}

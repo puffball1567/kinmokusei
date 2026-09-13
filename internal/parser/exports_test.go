@@ -36,6 +36,8 @@ func TestParseSourceExports(t *testing.T) {
 		`export {};`, `export { value }; const value = 1;`,
 		"const value = 1\nexport {\n value, // comment\n}\n",
 		`export c("native") function native(): int32 { return 1; } export { native };`,
+		`export { value } from "./library";`,
+		"export { value, }\nfrom \"./library\"\n",
 	} {
 		program, diagnostics := parseSource(t, input)
 		if diagnostics != 0 || len(program.Exports) != 1 || program.Exports[0].Inline {
@@ -52,6 +54,8 @@ func TestParseSourceExportErrors(t *testing.T) {
 		`export function`, `export class`, `export interface`, `export enum`, `export let`,
 		`struct S {} export function value(this: S): void {}`,
 		`function value(): void { export const local = 1; }`,
+		`export {} from "./library";`, `export { value } from;`,
+		`export { value } from 42;`, `export { value } from "";`,
 	} {
 		t.Run(input, func(t *testing.T) {
 			_, diagnostics := parseSource(t, input)
@@ -59,5 +63,19 @@ func TestParseSourceExportErrors(t *testing.T) {
 				t.Fatal("invalid export accepted")
 			}
 		})
+	}
+}
+
+func TestParseReexportPathSpans(t *testing.T) {
+	t.Parallel()
+	input := `export { value } from "./library";`
+	tokens, _ := lexer.Lex("barrel.km", input)
+	program, diagnostics := Parse(tokens)
+	if len(diagnostics) != 0 {
+		t.Fatal(diagnostics)
+	}
+	exported := program.Exports[0]
+	if exported.Path != "./library" || input[exported.PathSpan.Start.Offset:exported.PathSpan.End.Offset] != `"./library"` || len(program.Imports) != 0 {
+		t.Fatalf("export=%+v imports=%v", exported, program.Imports)
 	}
 }

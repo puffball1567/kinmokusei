@@ -6,6 +6,10 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support named source re-exports with `export { name } from "./module"` and
+  export lists selecting explicitly imported source bindings. Preserve original
+  declaration/type identity, shared mutable storage, dependency initialization
+  order, visibility, and editor navigation/refactoring across re-export chains.
 - Support function values returning `Result<T>` or `Result<void>` in bindings,
   callbacks, returned closures, fields, collections, and channels. Preserve
   recursive captures, native named/generic function signatures, nullable result

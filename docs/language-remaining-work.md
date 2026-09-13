@@ -38,7 +38,7 @@ feature work without mixing unrelated changes into its implementation.
 | 3 | Local mutual recursion and forward bindings | Implemented for consecutive arrow groups, including dependency-driven result inference; nonconsecutive bindings remain |
 | 4 | Recursive arrows in three-clause loop initializers | Implemented with per-iteration bindings and explicit recursive signatures |
 | 5 | Function values returning Result | Implemented for bindings, callbacks, fields, collections, and native named function types |
-| 6 | Additional export forms, including re-exports and aliases | Queued; define the supported forms |
+| 6 | Additional export forms, including re-exports and aliases | Named re-exports implemented; aliases remain |
 | 7 | Constraint intersections and interface composition | Queued |
 | 8 | Remaining numeric constant contexts | Queued |
 | 9 | Source anonymous-interface syntax | Queued |
@@ -194,7 +194,15 @@ following additions target v0.4, not the currently released v0.3 syntax:
   annotations. Covered by `generic_callbacks_test.go` and editor tests.
 - **Source module exports (implemented on the development branch):** declaration
   exports (`export function`, `export class`, `export const`, and other named
-  declarations) and local named lists (`export { name }`). Any source export
+  declarations) and named lists (`export { name }`) selecting local declarations
+  or explicitly imported source bindings. Named re-exports also support
+  `export { name } from "./module"` without introducing a local name. Multi-hop
+  and diamond dependencies preserve the original declaration, mutable storage,
+  and generic type identity; mixed import/export dependencies load in source
+  order. Private/missing names, cycles, and duplicate exports are rejected.
+  Independent Go runtime comparisons and editor tests cover these boundaries
+  in `named_reexports_test.go` and `named_reexports_runtime_test.go`.
+  Any source export
   opts that file into explicit visibility; `export {}` exposes none. Files
   without source exports retain legacy selective imports. Source visibility
   remains separate from Go capitalization and `export c(...)`. Covered by

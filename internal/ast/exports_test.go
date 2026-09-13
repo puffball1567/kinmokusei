@@ -28,6 +28,7 @@ func TestSourceExportVisibility(t *testing.T) {
 			{[]ExportDecl{{Span: span, Names: []ExportName{{Name: "name"}}}}, true},
 			{[]ExportDecl{{Span: span, Names: []ExportName{{Name: "source", ResolvedName: "name"}}}}, true},
 			{[]ExportDecl{{Span: span, Names: []ExportName{{Name: "other"}}}}, false},
+			{[]ExportDecl{{Span: span, Path: "./other", Names: []ExportName{{Name: "name"}}}}, false},
 		} {
 			if got := SourceExported(&Program{Exports: test.exports}, declaration); got != test.want {
 				t.Fatalf("%T %v: %v want %v", declaration, test.exports, got, test.want)
