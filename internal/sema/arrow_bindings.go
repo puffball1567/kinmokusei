@@ -10,12 +10,7 @@ func (c *Checker) arrowContext(expected Type) Type {
 	if expected.Kind == Nullable && expected.Element != nil {
 		expected = *expected.Element
 	}
-	if expected.Kind == GoNamed && expected.GoType != nil {
-		if signature, err := kinmokuseiTypeFromGo(expected.GoType.Underlying()); err == nil && signature.Kind == Function {
-			return signature
-		}
-	}
-	return expected
+	return c.callableType(expected)
 }
 
 func (c *Checker) inferArrowParameters(arrow *ast.ArrowExpr, expected Type) map[int]Type {

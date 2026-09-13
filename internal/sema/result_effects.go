@@ -134,16 +134,18 @@ func (c *Checker) checkPropagateExpression(expr *ast.PropagateExpr) Type {
 }
 
 func (c *Checker) rejectResultValueType(value Type, span source.Span, context string) {
-	if containsResultType(value) {
+	if containsStoredResultType(value) {
 		c.report(span, fmt.Sprintf("Result may only be used as a function or method return type, not for %s", context))
 	}
 }
 
-func containsResultType(value Type) bool {
-	return containsResultTypeSeen(value, map[string]bool{})
+// A callable may return Result without storing one. Its parameters and the
+// success payload of its return effect must still be ordinary value types.
+func containsStoredResultType(value Type) bool {
+	return containsStoredResultTypeSeen(value, map[string]bool{})
 }
 
-func containsResultTypeSeen(value Type, visiting map[string]bool) bool {
+func containsStoredResultTypeSeen(value Type, visiting map[string]bool) bool {
 	if value.Kind == Task {
 		return false
 	}
@@ -157,23 +159,28 @@ func containsResultTypeSeen(value Type, visiting map[string]bool) bool {
 		visiting[value.Name] = true
 		defer delete(visiting, value.Name)
 	}
-	if value.Element != nil && containsResultTypeSeen(*value.Element, visiting) {
+	if value.Element != nil && containsStoredResultTypeSeen(*value.Element, visiting) {
 		return true
 	}
-	if value.Key != nil && containsResultTypeSeen(*value.Key, visiting) {
+	if value.Key != nil && containsStoredResultTypeSeen(*value.Key, visiting) {
 		return true
 	}
-	if value.Result != nil && containsResultTypeSeen(*value.Result, visiting) {
-		return true
+	if result := value.Result; result != nil {
+		if value.Kind == Function && result.Kind == Result {
+			result = result.Element
+		}
+		if result != nil && containsStoredResultTypeSeen(*result, visiting) {
+			return true
+		}
 	}
 	for _, parameter := range value.Parameters {
-		if containsResultTypeSeen(parameter, visiting) {
+		if containsStoredResultTypeSeen(parameter, visiting) {
 			return true
 		}
 	}
 	if value.Kind == Object || value.Kind == Struct {
 		for _, field := range value.Fields {
-			if containsResultTypeSeen(field, visiting) {
+			if containsStoredResultTypeSeen(field, visiting) {
 				return true
 			}
 		}

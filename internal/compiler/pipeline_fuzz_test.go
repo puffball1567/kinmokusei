@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function run():Result<int>{const f=():Result<int>=>{return ok(42);};return f();}`,
+	`function run():Result<int>{const f=(n:int):Result<int>=>{if(n==0){return ok(1);}const value=f(n-1)?;return ok(n*value);};return f(5);}`,
+	`type Load<T>=distinct ()=>Result<T>;function run():Result<int>{const f:Load<int>=()=>{return ok(42);};return f();}`,
+	`function run():Result<void>{const f=():Result<void>=>{return ok();};f()?;return ok();}`,
+	`function bad():void{const f=():Result<int>=>{return ok(1);};f();}`,
 	`function run():void{let i=0;goto again;again:for(const f=():int=>f();i<3;i++){if(i==0){i++;goto again;}if(i==1){continue again;}break again;}}`,
 	`function run():int{for(const f=(n:int):int=>{if(n==0){return 1;}return f(n-1);}; ;){return f(2);}return 0;}`,
 	`function run():void{let i=0;outer:for(let f=():int=>f();i<2;i++){continue outer;}}`,

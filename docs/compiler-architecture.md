@@ -251,6 +251,10 @@ Required typed information includes:
 - Native defined-type identity versus transparent alias identity, explicit conversion targets, finite recursive named-type graphs, cycle-safe Go type conversion, direct Go `TypeSpec` lowering, and Go 1.23-compatible use-site expansion of generic aliases.
 - Closure captures.
 - Multiple-result and `Result<T>` lowering metadata, including explicit split bindings and postfix `?` propagation.
+- Result storage checks distinguish raw Result values from ordinary functions
+  returning Result. Callable resolution preserves native defined/generic source
+  signatures before Go projection, including source nullable-result contracts;
+  native storage projection retains class identities in callback payloads.
 - Typed-exception boundaries, terminal-flow metadata, `finally` unwinding, and structural cross-package exception markers that leave ordinary Go panics untouched.
 - Structured task result shape, single-consumption state, and `await`/`detach` lowering metadata.
 - Deterministic anonymous struct shapes for object literals.

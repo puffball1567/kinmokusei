@@ -6,6 +6,11 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support function values returning `Result<T>` or `Result<void>` in bindings,
+  callbacks, returned closures, fields, collections, and channels. Preserve
+  recursive captures, native named/generic function signatures, nullable result
+  contracts, Go callback interoperability, and editor navigation/signatures.
+  Result calls still require propagation, explicit splitting, or return.
 - Support recursive arrows in three-clause loop initializers, preserving
   per-iteration bindings, mutable captures, condition/post evaluation order,
   labeled control flow, and editor navigation.

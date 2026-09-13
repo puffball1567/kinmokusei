@@ -44,6 +44,12 @@ The return effect lowers directly to Go `(T, error)`. `Result<void>` lowers to o
 
 `Result` is not a storable sum object. It cannot be a field, parameter, local value, collection element, or nested result.
 
+On the development branch, [functions returning Result](./functions-and-generics#result-returning-function-values)
+are ordinary values and can occupy those storage positions. Calling one still
+requires handling its Result; simply discarding the call is an error:
+
+<<< ../snippets-invalid/unhandled-result-function.km{ts}
+
 ## Propagating Go operations
 
 Postfix `?` works on a compatible Go `(T, error)` or single `error` call inside a `Result` function:

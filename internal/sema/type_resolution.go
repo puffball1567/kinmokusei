@@ -80,7 +80,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Element.Span, "Task cannot be nested inside an array type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if containsResultType(element) {
+		if containsStoredResultType(element) {
 			c.report(ref.Element.Span, "Result cannot be nested inside an array type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
@@ -120,13 +120,13 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 				c.report(ref.Span, "Task is not supported inside a function type")
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
-			if containsResultType(parameter) {
-				c.report(ref.Span, "Result is not supported inside a function type")
+			if containsStoredResultType(parameter) {
+				c.report(ref.Span, "Result may only be used as a function return type, not in its parameters")
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 		}
-		if containsResultType(result) {
-			c.report(ref.Span, "Result is not supported inside a function type")
+		if result.Kind != Result && containsStoredResultType(result) {
+			c.report(ref.Span, "Result cannot be stored inside a function result")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if containsTaskType(result) {
@@ -147,7 +147,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			if fieldType.Kind == Void {
 				c.report(field.Type.Span, fmt.Sprintf("object field %q cannot have type void", field.Name))
 			}
-			if containsResultType(fieldType) {
+			if containsStoredResultType(fieldType) {
 				c.report(field.Type.Span, fmt.Sprintf("object field %q cannot contain Result", field.Name))
 				fieldType = Type{Kind: Invalid, Name: "<invalid>"}
 			}
@@ -226,7 +226,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, "Task cannot be nested inside a Map type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if containsResultType(key) || containsResultType(value) {
+		if containsStoredResultType(key) || containsStoredResultType(value) {
 			c.report(ref.Span, "Result cannot be nested inside a Map type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}

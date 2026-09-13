@@ -1,0 +1,4 @@
+function main(): void {
+  const load = (): Result<int> => { return ok(42) }
+  load()
+}

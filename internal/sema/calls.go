@@ -153,11 +153,6 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		expr.Conversion = true
 		return c.checkGoConversion(expr, callable)
 	}
-	if callable.Kind == GoNamed && callable.GoType != nil {
-		if converted, err := kinmokuseiTypeFromGo(callable.GoType); err == nil && converted.Kind == Function {
-			callable = converted
-		}
-	}
 	if callable.Kind == Nullable {
 		c.report(expr.Callee.GetSpan(), fmt.Sprintf("nullable callable %s must be checked against null before calling", callable.String()))
 		if callable.Element == nil {
@@ -165,6 +160,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		}
 		callable = *callable.Element
 	}
+	callable = c.callableType(callable)
 	if callable.Kind != Function || callable.Result == nil {
 		c.report(expr.Callee.GetSpan(), fmt.Sprintf("%s is not callable", callableName))
 		for _, arg := range expr.Arguments {

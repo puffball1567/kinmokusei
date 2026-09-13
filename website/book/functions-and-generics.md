@@ -338,7 +338,7 @@ There is no hidden error discard and no tuple wrapper. Bind every result or use 
 
 ## Result functions
 
-`Result<T>` is a return effect, lowering to `(T, error)`; `Result<void>` lowers to `error`. It cannot be stored, nested, or used as a field/parameter. `ok`, `fail`, and `?` make the result paths explicit.
+`Result<T>` is a return effect, lowering to `(T, error)`; `Result<void>` lowers to `error`. The Result itself cannot be stored, nested, or used as a field/parameter. `ok`, `fail`, and `?` make the result paths explicit.
 
 A result-producing function therefore advertises the effect at the boundary:
 
@@ -350,6 +350,27 @@ function validatePort(value: int): Result<int> {
   return ok(value);
 }
 ```
+
+### Result-returning function values
+
+On the development branch (targeting v0.4), a function returning Result is an
+ordinary value. Store it in a binding, pass it as a callback, return a closure,
+or use it in fields and collections. The callback's type keeps the error path
+visible to its callers:
+
+<<< ../snippets/result-function-values.km{ts}
+
+The matching callback context supplies the arrow's parameter and Result types.
+Without such a context, write an explicit return annotation, such as
+`(value: int): Result<int> => { return ok(value); }`. Result arrows require a
+block body and explicit returns; their call results must still be propagated
+with `?`, split into value/error bindings, or forwarded by `return`.
+
+Native aliases and defined function types can carry this signature, including
+generic payloads. Explicitly annotating an ABI-compatible Go function also works:
+`const parse: (text: string) => Result<int> = strconv.Atoi;`. This adds no wrapper
+and forwards the original Go values and error. An unannotated Go function keeps
+its raw Go result list.
 
 ## Methods as functions with receivers
 

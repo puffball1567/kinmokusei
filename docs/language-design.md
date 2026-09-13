@@ -1027,7 +1027,7 @@ initializer of one variable; a void result may be an expression statement.
 `?` is not accepted in a nested expression or a `for` initializer, so its
 control-flow boundary remains visible.
 
-Raw Go multiple results never convert implicitly. For example,
+Raw Go multiple-result expressions never convert implicitly. For example,
 `return strconv.Atoi(text);` is rejected in a `Result<int>` function; use
 `const value = strconv.Atoi(text)?; return ok(value);`. Explicit split binding
 remains available when the caller wants to inspect the `error` without
@@ -1040,6 +1040,29 @@ const [cleanupErr] = cleanup();
 
 This is direct multiple-result binding, not object destructuring. A real object
 is generated only when the called API actually returns an object.
+
+On the development branch, a function returning Result is an ordinary function
+value: `(text: string) => Result<int>` can be a variable, callback parameter,
+field, collection/channel element, or another function's success payload.
+Only the Result itself is non-storable. Aliases and native defined function
+types, including generic instantiations, retain this source return effect and
+their nominal identity. Result success nullability remains part of the source
+function contract even when Go signatures have the same representation.
+
+Result arrows require an explicit result annotation or a matching function
+context, and a block body with explicit `return ok(...)`, `return fail(...)`, or
+forwarding return. The outer function's Result context does not leak into a
+nested arrow. Calls through function values have the same handling requirements
+as declared Result functions.
+
+An explicit function annotation can establish a Result contract for an
+ABI-compatible Go function, for example
+`const parse: (text: string) => Result<int> = strconv.Atoi;`. Calling `parse`
+then has the source return effect. No wrapper is introduced: forwarding keeps
+both Go results exactly, including a nonzero value returned alongside an error.
+Source Result functions also pass to compatible Go callbacks directly. Function
+types inferred from imported Go APIs remain Go signatures; annotate a returned
+callback explicitly to establish its Result contract.
 
 ## Typed exceptions
 

@@ -205,6 +205,18 @@ func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
 		var results []*gotypes.Var
 		switch value.Result.Kind {
 		case Void:
+		case Result:
+			if value.Result.Element == nil {
+				return nil, false
+			}
+			if value.Result.Element.Kind != Void {
+				resultType, ok := c.goTypeForNativeStorage(*value.Result.Element)
+				if !ok {
+					return nil, false
+				}
+				results = append(results, gotypes.NewVar(gotoken.NoPos, nil, "", resultType))
+			}
+			results = append(results, gotypes.NewVar(gotoken.NoPos, nil, "", gotypes.Universe.Lookup("error").Type()))
 		case MultiValue:
 			results = make([]*gotypes.Var, len(value.Result.Results))
 			for index, result := range value.Result.Results {
