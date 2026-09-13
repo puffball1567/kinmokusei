@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function run():int{const first=()=>last();const last=()=>42;return first();}`,
+	`function run():int{const value=42;const first=(value:string)=>last();const last=()=>value;return first("shadow");}`,
+	`function run():int{const first=()=>{last=()=>7;return last();};let last=()=>1;return first();}`,
+	`function run<T>(value:T):T{const first=()=>last();const last=()=>value;return first();}`,
+	`function run():int{const first=()=>last();const last=()=>first();return first();}`,
 	`function run():int{const first=():int=>last();const last=():int=>42;return first();}`,
 	`function run():int{const first=():int=>last();let last=():int=>1;last=():int=>7;return first();}`,
 	`function run():int{const first=():int=>last();first();const last=():int=>42;return last();}`,

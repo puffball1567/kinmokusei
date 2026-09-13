@@ -1,0 +1,9 @@
+import go { Println } from "fmt"
+
+function main(): void {
+  const offset = 1
+  const first = (offset: string) => last(21)
+  const last = (value: int) => value * 2 + offset
+
+  Println(first("shadow"))
+}

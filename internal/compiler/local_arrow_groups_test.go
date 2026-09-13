@@ -59,7 +59,6 @@ func TestLocalArrowGroupsDiagnostics(t *testing.T) {
 		{`class Box{}function run():Box{const first=():Box=>{Box();return later();};const later=():Box=>new Box();const Box=():int=>1;return first();}`, "conflicts with a type"},
 		{`function run<T>(value:T):T{const first=():T=>{T();return value;};const T=():int=>1;return first();}`, "conflicts with a type parameter"},
 		{`import go http from "net/http";function run():void{const first=():void=>http();const http=():void=>{};first();}`, "conflicts with a type or Go package"},
-		{`function run():int{const a=()=>b();const b=()=>42;return a();}`, "needs an explicit return type"},
 		{`function run():int{const a=()=>b();const b=()=>a();return a();}`, "needs an explicit return type"},
 		{`function run():int{return a();const a=():int=>42;}`, "undefined"},
 		{`function run():int{const a=():int=>b();a();const b=():int=>42;return b();}`, "undefined"},
