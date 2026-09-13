@@ -205,6 +205,9 @@ func assignable(target, value Type) bool {
 	if target.Kind == Result || value.Kind == Result {
 		return target.Kind == Result && value.Kind == Result && target.Element != nil && value.Element != nil && sameType(*target.Element, *value.Element)
 	}
+	if !compatibleResultFunctionTypes(target, value) {
+		return false
+	}
 	if target.Kind == Task || value.Kind == Task {
 		return target.Kind == Task && value.Kind == Task && target.Element != nil && value.Element != nil && sameType(*target.Element, *value.Element)
 	}

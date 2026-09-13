@@ -21,7 +21,7 @@ func (c *Checker) checkGoChannelMake(expr *ast.CallExpr) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	element := c.resolveType(expr.TypeArguments[0])
-	elementGoType, ok := goTypeOf(element)
+	elementGoType, ok := c.goTypeForNativeStorage(element)
 	if !ok {
 		c.report(expr.TypeArguments[0].Span, fmt.Sprintf("type %s cannot be used as a Go channel element", element.String()))
 	}

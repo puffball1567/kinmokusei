@@ -51,6 +51,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	if target.Kind == Invalid || value.Kind == Invalid {
 		return true
 	}
+	if !compatibleResultFunctionTypes(c.callableType(target), c.callableType(value)) {
+		return false
+	}
 	if target.Kind == Nullable && target.Element != nil {
 		if value.Kind == Null {
 			return true

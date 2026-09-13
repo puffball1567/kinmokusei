@@ -37,7 +37,7 @@ feature work without mixing unrelated changes into its implementation.
 | 2 | Dependency-driven forward result inference | Implemented for module-level bindings |
 | 3 | Local mutual recursion and forward bindings | Implemented for consecutive arrow groups, including dependency-driven result inference; nonconsecutive bindings remain |
 | 4 | Recursive arrows in three-clause loop initializers | Implemented with per-iteration bindings and explicit recursive signatures |
-| 5 | Function values returning Result | Queued |
+| 5 | Function values returning Result | Implemented for bindings, callbacks, fields, collections, and native named function types |
 | 6 | Additional export forms, including re-exports and aliases | Queued; define the supported forms |
 | 7 | Constraint intersections and interface composition | Queued |
 | 8 | Remaining numeric constant contexts | Queued |
@@ -172,6 +172,18 @@ following additions target v0.4, not the currently released v0.3 syntax:
   closure initialization, condition/post order, labels, and escaped captures;
   see `recursive_loop_arrows_test.go`. Nonconsecutive local forward bindings
   remain further work.
+- **Result-returning function values (implemented on the development branch):**
+  `Result<T>` and `Result<void>` are supported in stored function signatures,
+  callback parameters, returned closures, fields, collections, and channels.
+  Native aliases and defined/generic function types retain the return effect.
+  Arrows need an explicit Result annotation or matching function context, plus
+  a block body with explicit returns. Raw Result values remain non-storable;
+  calls require `?`, explicit split binding, or forwarding return. Explicit
+  function annotations can expose ABI-compatible Go callbacks as Result without
+  a runtime wrapper; ordinary Go multiple-result expressions remain unchanged.
+  Pipeline, independent handwritten-Go runtime comparisons, negative checks,
+  editor tests, and fuzz seeds cover these boundaries in
+  `result_function_values_test.go` and `result_function_runtime_test.go`.
 - **Generic callback inference (implemented on the development branch):**
   direct arrow arguments use contexts inferred from other arguments, explicit
   callback annotations, and dependent constraints. Callback results can infer
