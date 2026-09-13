@@ -342,7 +342,7 @@ as `~int` also accepts nominal Kinmokusei or Go types whose underlying type is
 `int`, so `Score` satisfies `Integer`. Terms lower to the corresponding Go
 constraint interface and may be used by generic functions, classes, structs,
 interfaces, and defined types, including across relative imports. Overlapping
-terms, `~` applied to a named type, and ordinary interface terms are rejected before Go
+union terms, `~` applied to a named type, and ordinary interface terms are rejected before Go
 generation; a single declaration follows the Go toolchain limit of at most 100
 union terms. A declared constraint is not a runtime value type and cannot be
 used for fields, parameters, variables, or `implements`.
@@ -385,8 +385,26 @@ generic instances: `constraint Values<E> = Slice<E>` and
 `constraint Number = Signed | Unsigned`. References may be forward-declared or
 imported. Validation expands these references, checks disjoint concrete terms,
 and applies the 100-term limit to the expanded union as well. Go output retains
-the named references. Applying `~` to a constraint is invalid. Ordinary source
-or imported interface terms and explicit intersections remain unsupported.
+the named references. Applying `~` to a constraint is invalid.
+
+Use `&` to intersect source type sets: `constraint Narrow = Number & Scalar`
+accepts only types in both operands. Exact terms narrow overlapping underlying
+terms, so `constraint OnlyScore = ~int & Score` accepts `Score`, not plain `int`.
+Repeated intersection operands are valid. Each operand becomes a separate Go
+interface embedding, without a runtime wrapper. Intersections can themselves
+be referenced in unions or other intersections, including through export aliases.
+Generic operands with matching parameterized terms are supported, for example
+`constraint Values<E> = Slice<E> & ~E[]`; inference retains the element type.
+An unmatched term containing type parameters is conservatively rejected because
+substitution could change whether it overlaps another operand. Instantiate the
+operands with concrete types before intersecting them in that case.
+Empty intersections and overlapping terms with incompatible source nullability
+are diagnosed. A declaration uses either `|` or `&`, not both; name intermediate
+constraints to combine the operators. The normalized union still has a 100-term
+limit; the count of `&` operands alone is not subject to that union limit.
+Ordinary source or imported interface terms remain unsupported in these
+source type-set declarations.
+
 Nullable qualifiers in collection elements are retained through constraint
 inference, range bindings, and concrete generic method owners. Matching Go
 storage types alone is insufficient: `Leaf[]` and a slice of `Leaf | null`

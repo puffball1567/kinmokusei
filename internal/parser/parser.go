@@ -237,6 +237,7 @@ func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
 		return nil
 	}
 	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, Constraint: true, TypeParameters: parameters}
+	var separator token.Kind
 	for {
 		startTerm := p.peek()
 		underlying := p.match(token.Tilde)
@@ -250,11 +251,19 @@ func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
 			termSpan = startTerm.Span.Merge(term.Span)
 		}
 		declaration.Terms = append(declaration.Terms, ast.TypeSetTerm{Type: term, Underlying: underlying, Span: termSpan})
-		if !p.match(token.Pipe) {
+		if !p.match(token.Pipe, token.Ampersand) {
 			break
 		}
+		operator := p.previous()
+		if separator != "" && separator != operator.Kind {
+			p.report(operator, "cannot mix '|' and '&' in a constraint declaration; use named intermediate constraints")
+			p.synchronizeDeclaration()
+			return nil
+		}
+		separator = operator.Kind
+		declaration.Intersection = separator == token.Ampersand
 		if p.at(token.Semicolon) || p.at(token.EOF) {
-			p.report(p.peek(), "expected constraint term after '|'")
+			p.report(p.peek(), "expected constraint term after '"+operator.Lexeme+"'")
 			p.synchronizeDeclaration()
 			return nil
 		}

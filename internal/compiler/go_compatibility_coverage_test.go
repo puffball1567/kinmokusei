@@ -242,6 +242,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"constrained-range.test":              {implementedGoCompatibilityContracts[89]},
 	"dependent-bounds.test":               {implementedGoCompatibilityContracts[90]},
 	"source-generic-bounds.test":          {implementedGoCompatibilityContracts[91]},
+	"constraint-intersections.test":       {implementedGoCompatibilityContracts[82], implementedGoCompatibilityContracts[91]},
 	"go-interface-inheritance.test":       {implementedGoCompatibilityContracts[92]},
 	"anonymous-go-interface.test":         {implementedGoCompatibilityContracts[93]},
 	"complex-numbers.test":                {implementedGoCompatibilityContracts[94]},

@@ -1,0 +1,30 @@
+import go { Println } from "fmt"
+
+constraint Number = ~int | ~int8
+constraint Scalar = ~int | ~string
+constraint Integer = Number & Scalar
+type Score = distinct int
+constraint OnlyScore = Integer & Score
+
+constraint Storage<E> = ~E[]
+constraint Slice<E> = Storage<E> & ~E[]
+
+function twice<T extends Integer>(value: T): T {
+  return value * 2
+}
+
+function next<T extends OnlyScore>(value: T): T {
+  return value + 1
+}
+
+function copy<S extends Slice<E>, E>(values: S): E[] {
+  let result: E[] = []
+  for (const value of values) { result = append(result, value) }
+  return result
+}
+
+const main = (): void => {
+  Println(twice(6))
+  Println(next(Score(7)))
+  Println(len(copy([1, 2, 3])))
+}

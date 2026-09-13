@@ -89,6 +89,10 @@ function equal<T extends comparable>(left: T, right: T): boolean {
 
 Slices, maps, and functions do not satisfy it. Source constraints can also name exact and underlying type sets, for example `constraint Integer = int | ~int64`. Generic constraints such as `constraint Slice<E> = ~E[]` support dependent bounds and inference. Constraint declarations are compile-time contracts, not runtime interface values.
 
+`constraint Narrow = A & B` restricts a type parameter to types shared by both
+source type sets. Use named intermediate constraints to combine unions and
+intersections; a single declaration cannot mix `|` and `&`.
+
 ## Generic named types
 
 Classes, structs, interfaces, and distinct defined types may declare parameters and must be fully instantiated in type positions:

@@ -39,7 +39,7 @@ feature work without mixing unrelated changes into its implementation.
 | 4 | Recursive arrows in three-clause loop initializers | Implemented with per-iteration bindings and explicit recursive signatures |
 | 5 | Function values returning Result | Implemented for bindings, callbacks, fields, collections, and native named function types |
 | 6 | Additional export forms, including re-exports and aliases | Implemented: named re-exports and export aliases |
-| 7 | Constraint intersections and interface composition | Queued |
+| 7 | Constraint intersections and interface composition | Source type-set intersections implemented; ordinary/imported interface terms remain |
 | 8 | Remaining numeric constant contexts | Queued |
 | 9 | Source anonymous-interface syntax | Queued |
 | 10 | Source-declared multiple results | Queued |
@@ -226,7 +226,7 @@ version metadata until v0.4 release preparation.
 
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
-| Source constraint composition | Source type-set references and unions are implemented; ordinary/imported interface terms and explicit intersections remain unavailable | Define intersection syntax and method-set composition, retaining inference and linked-declaration semantics |
+| Source constraint composition | Source type-set references, unions, and `&` intersections are implemented, including matching generic shapes and linked export aliases | Add ordinary/imported interface terms and method-set composition; extend parameter-dependent intersections beyond matching shapes |
 | Numeric constant contexts | Indices, slicing, collection/channel sizes, generic numeric arguments, and direct floating/complex constant references are supported; source `const` aliases may still lower to runtime bindings, and declared array lengths require integer literal syntax | Audit deferred nonconstant shifts, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs and inference; no source anonymous-interface literal syntax | Source callback annotations can use an imported Go alias; consider source syntax separately, and retain rejection of anonymous private method identities |
 | Source-declared multiple results | Raw Go multiple-result calls can be consumed; source callable results use a single type or `Result<T>` | Decide a source result-list syntax and propagation rules before expanding declarations |
@@ -250,7 +250,7 @@ runtime metaprogramming are deliberate exclusions, not missing Go compatibility.
 Single class inheritance plus multiple interface contracts remains the model.
 
 After the queued syntax work, bounded Go additions include constraint
-intersections or numeric constant-context parity. Further OOP additions require the design decisions listed
+method-set composition or numeric constant-context parity. Further OOP additions require the design decisions listed
 above. Each addition needs source diagnostics, linked-module and
 editor coverage where applicable, and an independent Go runtime oracle.
 

@@ -564,7 +564,11 @@ func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
 	if len(declaration.TypeParameters) != 0 {
 		name += formatTypeParameters(declaration.TypeParameters)
 	}
-	return "constraint " + name + " = " + strings.Join(terms, " | ")
+	separator := " | "
+	if declaration.Intersection {
+		separator = " & "
+	}
+	return "constraint " + name + " = " + strings.Join(terms, separator)
 }
 
 func formatTypeRef(ref ast.TypeRef) string {
