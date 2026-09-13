@@ -172,65 +172,42 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	defer c.popTypeParameterScope()
 	terms := make([]*gotypes.Term, 0, len(decl.Terms))
 	valid := true
-	if len(decl.Terms) > 100 {
+	if !decl.Intersection && len(decl.Terms) > 100 {
 		c.report(decl.Span, "constraint declarations cannot contain more than 100 terms because the Go toolchain cannot compile larger unions")
 		valid = false
 	}
-	for _, term := range decl.Terms {
-		if candidates, shapes, handled := c.sourceConstraintTerms(term); handled {
-			if len(candidates) == 0 {
-				valid = false
-			}
-			for i, candidate := range candidates {
-				for _, existing := range terms {
-					if typeSetTermsOverlap(existing, candidate) {
-						c.report(term.Span, fmt.Sprintf("constraint term %s overlaps an earlier term", formatTypeSetTermForDiagnostic(term)))
-						valid = false
-						break
-					}
-				}
-				terms = append(terms, candidate)
-				symbol.constraintTermTypes = append(symbol.constraintTermTypes, shapes[i])
-			}
-			continue
-		}
-		resolved := c.resolveType(term.Type)
-		if resolved.Kind == Invalid {
-			valid = false
-			continue
-		}
-		goType, ok := goTypeOf(resolved)
+	for index, term := range decl.Terms {
+		candidates, shapes, ok := c.resolveConstraintTerm(term)
 		if !ok {
-			goType, ok = c.goTypeForNativeStorage(resolved)
-		}
-		if !ok || goType == nil {
-			c.report(term.Span, fmt.Sprintf("constraint term %s cannot be represented as a Go type", formatTypeRefForDiagnostic(term.Type)))
 			valid = false
 			continue
 		}
-		goType = gotypes.Unalias(goType)
-		if underlyingGoInterface(goType) != nil {
-			c.report(term.Span, fmt.Sprintf("constraint term %s must be a concrete type, not an interface", formatTypeRefForDiagnostic(term.Type)))
-			valid = false
-			continue
-		}
-		if term.Underlying && !gotypes.Identical(goType, goType.Underlying()) {
-			c.report(term.Span, fmt.Sprintf("underlying constraint term ~%s must name its own underlying type", formatTypeRefForDiagnostic(term.Type)))
-			valid = false
-			continue
-		}
-		candidate := gotypes.NewTerm(term.Underlying, goType)
-		for _, existing := range terms {
-			if typeSetTermsOverlap(existing, candidate) {
-				c.report(term.Span, fmt.Sprintf("constraint term %s overlaps an earlier term", formatTypeSetTermForDiagnostic(term)))
+		if decl.Intersection && index != 0 {
+			var problem string
+			terms, symbol.constraintTermTypes, problem = c.intersectConstraintTerms(terms, symbol.constraintTermTypes, candidates, shapes)
+			if problem != "" {
+				c.report(term.Span, problem)
 				valid = false
-				break
 			}
+			continue
 		}
-		terms = append(terms, candidate)
-		symbol.constraintTermTypes = append(symbol.constraintTermTypes, resolved)
+		for i, candidate := range candidates {
+			for _, existing := range terms {
+				if typeSetTermsOverlap(existing, candidate) {
+					c.report(term.Span, fmt.Sprintf("constraint term %s overlaps an earlier term", formatTypeSetTermForDiagnostic(term)))
+					valid = false
+					break
+				}
+			}
+			terms = append(terms, candidate)
+			symbol.constraintTermTypes = append(symbol.constraintTermTypes, shapes[i])
+		}
 	}
-	if len(terms) > 100 && len(decl.Terms) <= 100 {
+	if valid && decl.Intersection && len(terms) == 0 {
+		c.report(decl.Span, "constraint intersection has no common types")
+		valid = false
+	}
+	if len(terms) > 100 && (decl.Intersection || len(decl.Terms) <= 100) {
 		c.report(decl.Span, "expanded constraint declarations cannot contain more than 100 terms because the Go toolchain cannot compile larger unions")
 		valid = false
 	}

@@ -271,10 +271,15 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 	case *kinmokuseiAST.InterfaceDecl:
 		if decl.Constraint {
 			var union goast.Expr
+			methods := []*goast.Field{}
 			for _, term := range decl.Terms {
 				termType := goType(term.Type)
 				if term.Underlying {
 					termType = &goast.UnaryExpr{Op: token.TILDE, X: termType}
+				}
+				if decl.Intersection {
+					methods = append(methods, &goast.Field{Type: termType})
+					continue
 				}
 				if union == nil {
 					union = termType
@@ -282,7 +287,6 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 					union = &goast.BinaryExpr{X: union, Op: token.OR, Y: termType}
 				}
 			}
-			methods := []*goast.Field{}
 			if union != nil {
 				methods = append(methods, &goast.Field{Type: union})
 			}

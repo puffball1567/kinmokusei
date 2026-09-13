@@ -6,6 +6,11 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support source type-set intersections (`constraint Narrow = A & B`),
+  including exact/underlying terms, generic constraint references, inferred
+  collection elements, linked export aliases, and editor navigation. Emit Go
+  interface embeddings; diagnose empty intersections, erased-nullability
+  conflicts, and unmatched parameter-dependent terms before generation.
 - Support export aliases (`export { local as publicName }`), including imported
   source bindings and export-from lists. Multiple public names retain one
   declaration and shared storage. Keep implementation-name and public-alias

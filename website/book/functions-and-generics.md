@@ -309,7 +309,26 @@ function size<S extends Slice<E>, E>(values: S): int {
 
 Bounds may refer to later parameters. Calls infer dependent parameters from typed arguments and constraints before defaulting untyped numeric constants. Mixed untyped numeric arguments select a common numeric kind, while every actual constant must remain representable in the inferred type. `T(value)` explicitly converts to an in-scope type parameter when its bound permits the conversion.
 
-Constraints cannot be stored as runtime values. Source-written intersections and ordinary runtime-interface terms in source constraint unions remain unsupported.
+Intersect source type sets with `&` to accept only types satisfying both:
+
+<<< ../snippets/constraint-intersections.km{ts}
+
+The program prints `12`, `8`, and `3`. An exact term such as `Score` narrows
+`~int` to that one nominal type. Intersections emit separate Go interface
+embeddings, and can be reused through imports, re-exports, and export aliases.
+Matching generic collection terms retain element inference and nullable types.
+
+A declaration uses either `|` or `&`; name intermediate constraints to combine
+the operators. Empty intersections and conflicting nullable shapes are rejected.
+Unmatched terms containing type parameters are conservatively rejected because
+later substitution might make them overlap; instantiate the operands with
+concrete types first. The expanded union limit remains 100 terms, but repeated
+`&` operands do not consume that union limit. Constraints cannot be stored as
+runtime values. Ordinary runtime-interface operands are not supported yet.
+
+This intersection has no common types:
+
+<<< ../snippets-invalid/constraint-intersection-empty.km{ts}
 
 ## Generic named types
 

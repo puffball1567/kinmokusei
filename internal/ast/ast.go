@@ -303,10 +303,12 @@ type InterfaceDecl struct {
 	// or emitted methods. Go bases are emitted as interface embeddings.
 	InheritedGoMethods []InterfaceMethod
 	// Constraint distinguishes compile-time-only type-set interfaces from
-	// ordinary value interfaces. Terms lower directly to a Go interface union.
+	// ordinary value interfaces.
 	Constraint bool
-	Terms      []TypeSetTerm
-	Span       source.Span
+	// Intersection embeds each term separately instead of forming a union.
+	Intersection bool
+	Terms        []TypeSetTerm
+	Span         source.Span
 }
 
 type TypeSetTerm struct {

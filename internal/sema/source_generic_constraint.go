@@ -7,7 +7,7 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// Source constraints currently contain only concrete unions. Expand references
+// Source constraints normalize to concrete unions. Expand references
 // for validation while retaining their source shapes (Go storage erases nullable
 // class elements). Emission keeps the named references, not this expansion.
 func (c *Checker) sourceConstraintTerms(term ast.TypeSetTerm) ([]*gotypes.Term, []Type, bool) {
