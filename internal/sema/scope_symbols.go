@@ -287,6 +287,9 @@ func (c *Checker) lookupAssignmentSymbol(name string, span source.Span) (valueSy
 }
 
 func (c *Checker) isTopLevelAllowed(span source.Span, name string) bool {
+	if c.unimportedReferences[span] {
+		return false
+	}
 	if name == "Exception" {
 		return true
 	}

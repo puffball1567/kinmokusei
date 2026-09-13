@@ -178,6 +178,9 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 		return declarationInfo{}, false
 	}
 	if occurrence, ok := occurrenceAt(s.symbolOccurrences(program), doc.Path, offset); ok {
+		if alias, found := s.exportAliasInfo(program, occurrence.Declaration); found {
+			return alias, true
+		}
 		for _, declaration := range flattenDeclarations(collectDeclarations(program)) {
 			if sameSourceSpan(declaration.Selection, occurrence.Declaration) {
 				if displayName := s.sourceText(declaration.Selection); displayName != "" && displayName != declaration.Name {

@@ -24,6 +24,7 @@ type Checker struct {
 	enums                      map[string]*enumSymbol
 	currentClass               string
 	allowed                    map[string]map[string]bool
+	unimportedReferences       map[source.Span]bool
 	goPackages                 map[string]map[string]*goPackageSymbol
 	goNamedImports             map[string]map[string]goNamedImport
 	goImporter                 gotypes.Importer
@@ -83,7 +84,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	}
 	c := &Checker{
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
-		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed,
+		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe,
 		goNamedImports: map[string]map[string]goNamedImport{},
 		memberFlow:     map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},

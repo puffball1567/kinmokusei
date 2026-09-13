@@ -38,9 +38,13 @@ func (c *Checker) checkSourceExports(program *ast.Program) {
 			} else {
 				c.diagnostics = append(c.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("exported name %q is not a local top-level declaration", name.Name), Span: name.NameSpan})
 			}
-			exportKey := binding{exported.Span.Path, name.Name}
+			exportKey := binding{exported.Span.Path, name.PublicName()}
 			if seen[exportKey] {
-				c.diagnostics = append(c.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate exported name %q", name.Name), Span: name.NameSpan})
+				span := name.NameSpan
+				if name.Alias != "" {
+					span = name.AliasSpan
+				}
+				c.diagnostics = append(c.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate exported name %q", name.PublicName()), Span: span})
 			}
 			seen[exportKey] = true
 		}

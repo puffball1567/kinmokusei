@@ -5,12 +5,15 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 type Node interface{ GetSpan() source.Span }
 
 type Program struct {
-	Imports        []ImportDecl
-	Exports        []ExportDecl
-	Declarations   []Declaration
-	CABIExports    []CABIExport
-	UsesTasks      bool
-	UsesExceptions bool
+	// UnimportedReferences prevents aliases from exposing their runtime target's
+	// original source spelling after modules are flattened.
+	UnimportedReferences map[source.Span]bool
+	Imports              []ImportDecl
+	Exports              []ExportDecl
+	Declarations         []Declaration
+	CABIExports          []CABIExport
+	UsesTasks            bool
+	UsesExceptions       bool
 }
 
 type ImportDecl struct {

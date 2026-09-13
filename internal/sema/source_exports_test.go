@@ -9,6 +9,7 @@ func TestSourceExportValidation(t *testing.T) {
 	t.Parallel()
 	for _, input := range []string{
 		`export {}; function hidden(): int { return 1; }`,
+		`const value=1; export {value as first,value as second};`,
 		`export { value }; function value(): int { return 1; }`,
 		`export function value(): int { return hidden(); } function hidden(): int { return 2; }`,
 		`export class Box {} export interface Item {} export const value = 1;`,
@@ -25,6 +26,7 @@ func TestSourceExportValidation(t *testing.T) {
 		{`import go { Sprint } from "fmt"; export { Sprint };`, `not a local top-level declaration`},
 		{`function f():void { const local = 1; } export { local };`, `not a local top-level declaration`},
 		{`const value=1; export {value} from "./library";`, `re-export requires a resolved source module`},
+		{`const a=1;const b=2;export {a as same,b as same}`, `duplicate exported name "same"`},
 	} {
 		diagnostics := checkSource(t, test.input)
 		found := false

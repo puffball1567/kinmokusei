@@ -33,7 +33,7 @@ Calls, indexing, selectors, operators, and unfinished expressions/types can cont
 | Relative import | `import { A, functionName } from "./module";` |
 | Go import | `import go alias from "package/path";` |
 | Named Go import (development) | `import go { Name, Other } from "package/path"` |
-| Source export (development) | `export function name(): T { ... }`, `export const name = value`, `export { name }`, `export { name } from "./module"` |
+| Source export (development) | `export function name(): T { ... }`, `export const name = value`, `export { name as publicName }`, `export { name } from "./module"` |
 | Binding | `const name: T = value;`, `let name = value;` |
 | Function | `function name<T>(value: T): T { ... }` |
 | Class | `class Name extends Base implements Contract { ... }` |

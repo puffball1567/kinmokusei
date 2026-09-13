@@ -17,6 +17,7 @@ import (
 type sourceExportBinding struct {
 	module, name string
 	span         source.Span
+	publicSpan   source.Span
 }
 
 func (l *moduleLoader) resolveSourceExports(key string, program *ast.Program) {
@@ -26,7 +27,7 @@ func (l *moduleLoader) resolveSourceExports(key string, program *ast.Program) {
 	locals := map[string]sourceExportBinding{}
 	for _, declaration := range program.Declarations {
 		if name, span := ast.DeclarationBinding(declaration); name != "" {
-			locals[name] = sourceExportBinding{key, name, span}
+			locals[name] = sourceExportBinding{key, name, span, span}
 		}
 	}
 	if len(program.Exports) == 0 {
@@ -60,7 +61,9 @@ func (l *moduleLoader) resolveSourceExports(key string, program *ast.Program) {
 			name := &exported.Names[i]
 			if binding, ok := bindings[name.Name]; ok {
 				name.ResolvedDeclaration = binding.span
-				result[name.Name] = binding
+				name.ReferencedDeclaration = binding.publicSpan
+				binding.publicSpan = name.PublicDeclaration()
+				result[name.PublicName()] = binding
 			}
 		}
 	}
@@ -84,7 +87,14 @@ func (l *moduleLoader) loadSourceDependencies(path string, program *ast.Program,
 			continue
 		}
 		imported := &ast.ImportDecl{Path: exported.Path, PathSpan: exported.PathSpan, Span: exported.Span}
+		seen := map[string]bool{}
 		for _, name := range exported.Names {
+			// Selecting one source declaration under multiple public names is
+			// valid. Public-name duplicates are checked independently by sema.
+			if seen[name.Name] {
+				continue
+			}
+			seen[name.Name] = true
 			imported.Names = append(imported.Names, name.Name)
 			imported.NameSpans = append(imported.NameSpans, name.NameSpan)
 		}

@@ -38,7 +38,7 @@ feature work without mixing unrelated changes into its implementation.
 | 3 | Local mutual recursion and forward bindings | Implemented for consecutive arrow groups, including dependency-driven result inference; nonconsecutive bindings remain |
 | 4 | Recursive arrows in three-clause loop initializers | Implemented with per-iteration bindings and explicit recursive signatures |
 | 5 | Function values returning Result | Implemented for bindings, callbacks, fields, collections, and native named function types |
-| 6 | Additional export forms, including re-exports and aliases | Named re-exports implemented; aliases remain |
+| 6 | Additional export forms, including re-exports and aliases | Implemented: named re-exports and export aliases |
 | 7 | Constraint intersections and interface composition | Queued |
 | 8 | Remaining numeric constant contexts | Queued |
 | 9 | Source anonymous-interface syntax | Queued |
@@ -202,6 +202,13 @@ following additions target v0.4, not the currently released v0.3 syntax:
   order. Private/missing names, cycles, and duplicate exports are rejected.
   Independent Go runtime comparisons and editor tests cover these boundaries
   in `named_reexports_test.go` and `named_reexports_runtime_test.go`.
+  Export aliases (`export { local as publicName }`) work for local declarations,
+  imported source bindings, and export-from lists. Public names are unique per
+  module; multiple names may select one declaration without copying its value or
+  changing its nominal type. Alias imports do not expose the original spelling.
+  Rename follows each explicit alias boundary independently of runtime identity.
+  Pipeline, handwritten-Go differential, and editor tests in
+  `export_aliases_test.go` and `export_aliases_runtime_test.go` cover the addition.
   Any source export
   opts that file into explicit visibility; `export {}` exposes none. Files
   without source exports retain legacy selective imports. Source visibility

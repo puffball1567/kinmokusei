@@ -128,6 +128,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"generic-callback-return.test":        {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"source-exports.test":                 {implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[4]},
 	"named-reexports.test":                {implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[4]},
+	"export-aliases.test":                 {implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[4]},
 	"optional-terminators.test":           {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"named-go-imports.test":               {implementedGoCompatibilityContracts[22], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[25], implementedGoCompatibilityContracts[28]},
 	"behavior.test":                       {implementedGoCompatibilityContracts[0]},

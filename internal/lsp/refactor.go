@@ -345,13 +345,24 @@ func (s *Server) symbolOccurrences(program *ast.Program) []symbolOccurrence {
 
 func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[string]string) []symbolOccurrence {
 	var result []symbolOccurrence
-	add := func(span, declaration source.Span) {
+	addResolved := func(span, declaration source.Span) {
 		if span.Path == "" || declaration.Path == "" {
 			return
 		}
 		result = append(result, symbolOccurrence{Name: s.sourceTextWithOverlay(span, textByPath), Span: span, Declaration: declaration})
 	}
-	declare := func(span source.Span) { add(span, span) }
+	aliases := s.importedExportAliases(program)
+	add := func(span, declaration source.Span) {
+		if span.Path == "" || declaration.Path == "" {
+			return
+		}
+		key := exportAliasReference{cleanPath(span.Path), s.sourceTextWithOverlay(span, textByPath), spanKey(declaration)}
+		if alias, ok := aliases[key]; ok && !sameSourceSpan(span, declaration) {
+			declaration = alias
+		}
+		addResolved(span, declaration)
+	}
+	declare := func(span source.Span) { addResolved(span, span) }
 
 	for _, imported := range program.Imports {
 		if imported.Go {
@@ -365,8 +376,8 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			if index >= len(imported.Names) {
 				continue
 			}
-			if target, ok := s.topLevelDeclarationSpan(program, imported.ResolvedPath, imported.Names[index], textByPath); ok {
-				add(nameSpan, target)
+			if target, ok := s.publicDeclarationSpan(program, imported.ResolvedPath, imported.Names[index], textByPath); ok {
+				addResolved(nameSpan, target)
 			}
 		}
 	}
@@ -374,7 +385,14 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 	for _, exported := range program.Exports {
 		if !exported.Inline {
 			for _, name := range exported.Names {
-				add(name.NameSpan, name.ResolvedDeclaration)
+				target := name.ReferencedDeclaration
+				if target.Path == "" {
+					target = name.ResolvedDeclaration
+				}
+				addResolved(name.NameSpan, target)
+				if name.Alias != "" {
+					declare(name.AliasSpan)
+				}
 			}
 		}
 	}
@@ -749,15 +767,20 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 }
 
 func (s *Server) topLevelDeclarationSpan(program *ast.Program, path, name string, textByPath map[string]string) (source.Span, bool) {
+	explicit := false
 	for _, exported := range program.Exports {
 		if !samePath(exported.Span.Path, path) {
 			continue
 		}
+		explicit = true
 		for _, selected := range exported.Names {
-			if selected.Name == name && selected.ResolvedDeclaration.Path != "" {
+			if selected.PublicName() == name && selected.ResolvedDeclaration.Path != "" {
 				return selected.ResolvedDeclaration, true
 			}
 		}
+	}
+	if explicit {
+		return source.Span{}, false
 	}
 	for _, declaration := range program.Declarations {
 		var span source.Span
