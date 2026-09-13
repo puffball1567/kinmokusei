@@ -3,7 +3,29 @@ package sema
 import (
 	"strings"
 	"testing"
+
+	"github.com/puffball1567/kinmokusei/internal/ast"
 )
+
+func TestLoopBranchLabelsAvoidSourceNames(t *testing.T) {
+	t.Parallel()
+	loop := &ast.LabeledStmt{Label: "loop", Statement: &ast.ForStmt{Body: &ast.BlockStmt{Statements: []ast.Statement{
+		&ast.BranchStmt{Kind: ast.BreakBranch, Label: "loop"},
+	}}}}
+	const occupied = "__kinmokusei_loop_label_0"
+	body := &ast.BlockStmt{Statements: []ast.Statement{
+		&ast.BranchStmt{Kind: ast.GotoBranch, Label: "loop"}, loop,
+		&ast.BranchStmt{Kind: ast.GotoBranch, Label: occupied},
+		&ast.LabeledStmt{Label: occupied, Statement: &ast.BlockStmt{}},
+	}}
+	checker := &Checker{}
+	for range 2 {
+		checker.validateLabels(body)
+		if len(checker.diagnostics) != 0 || loop.LoopBranchLabel != occupied+"_" {
+			t.Fatalf("label=%q diagnostics=%v", loop.LoopBranchLabel, checker.diagnostics)
+		}
+	}
+}
 
 func TestGotoAndLabeledBranches(t *testing.T) {
 	diagnostics := checkSource(t, `

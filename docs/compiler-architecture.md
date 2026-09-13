@@ -12,7 +12,7 @@ in differential tests.
 
 ## Pipeline
 
-The first compiler is implemented in Go to simplify single-binary distribution and integration with the generated Go toolchain.
+The compiler is implemented in Go to simplify single-binary distribution and integration with the generated Go toolchain.
 
 ```text
 Kinmokusei source
@@ -40,47 +40,21 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 ## Frontend
 
-### Planned KIR backend boundary
+### Go output boundary
 
-The intended replacement for direct Go lowering is a checked frontend feeding
-KIR (Kinmokusei intermediate representation). KIR is not a C++-only layer:
-the three primary backend routes are Go, C++, and Nim for C output.
-
-```text
-checked Kinmokusei semantics -> KIR -> Go
-                                   -> C++20
-                                   -> Go -> existing Go-to-Nim -> Nim -> C
-```
-
-This is an architectural target, not an implemented connection in this
-compiler. The existing Go emitter and handwritten-Go differential tests remain
-the executable baseline during migration. The Nim/C route retains the existing
-Go-to-Nim translator rather than requiring a new direct KIR-to-Nim emitter;
-each composed stage still needs its own support and equivalence checks.
+Kinmokusei targets Go exclusively. Checked source semantics lower directly to
+Go; language features and library APIs are designed around Go interoperability
+and the minimum supported Go toolchain. Go package imports are ordinary module
+dependencies, not dependencies that require a second backend implementation.
+Existing C ABI exports and checked C FFI remain Go-toolchain integration paths.
 
 Keep declaration identities, instantiated types and bounds, evaluation order,
-implicit conversions, class identity and dispatch, exceptions, cleanup, and
-ownership/lifetime requirements explicit before backend lowering. Do not make
-Go-specific generated helper shapes the sole definition of source semantics.
-Generic-bound checking is a compile-time contract; it does not require runtime
-type tests, boxing, or additional allocation. Current use of `go/types` is a
-semantic implementation tool, not a requirement for generated programs to use
-the Go runtime.
-
-Common language features should have a portable semantic contract. Backend-
-specific libraries may intentionally narrow the supported output targets.
-C++-only features belong behind a dedicated library/intrinsic boundary; they
-are not being implemented ahead of the KIR connection. C/C++ libraries can be
-used directly by the C++ backend, while Go output requires a supported C ABI
-bridge. Go modules can be used directly by the Go backend; another backend
-needs an explicitly supported translation or ABI bridge. Neither direction is
-automatically portable merely because the frontend can import a dependency.
-
-At integration time, track target capabilities and ABI requirements through
-transitive dependencies and diagnose the dependency that prevents the selected
-output. Never silently substitute different behavior or assume that common
-source syntax makes backend-specific dependencies portable. This capability
-model and native C++ library integration are planned, not present features.
+implicit conversions, class identity and dispatch, and exception/cleanup
+behavior explicit before lowering. Generated helper shapes are implementation
+details, not the sole definition of source semantics. Generic-bound checking
+is a compile-time contract and does not require runtime type tests, boxing, or
+additional allocation. Independent handwritten-Go tests define the behavioral
+baseline for accepted constructs with a Go equivalent.
 
 ### Lexing and parsing
 
@@ -134,8 +108,17 @@ model and native C++ library integration are planned, not present features.
   does not execute the body, so no user code runs between peer initialization
   steps. Ordinary statements (including non-arrow initializers and labels) end
   a group; no runtime initialization is hoisted across them. Non-arrow
-  initializer scope is unchanged. Recursive three-clause
-  loop initializers are diagnosed until lowering can preserve loop semantics.
+  initializer scope is unchanged. Recursive three-clause loop initializers
+  retain a short declaration in the Go loop header, so each iteration has its
+  own binding. A private flag in an enclosing block initializes the closure once,
+  before evaluating the first source condition. Later iterations copy the
+  preceding binding before the post statement, as ordinary Go loops do.
+  Keep the original body in its own lexical block. `LabeledStmt.LoopBranchLabel`
+  records a collision-free branch label for loops also used as goto targets:
+  goto targets the enclosing initialization block, while labeled break/continue
+  target the actual Go loop. When both use
+  the same source label, the emitter gives the loop a private label, rewriting
+  only its matching break/continue references and skipping nested callables.
 - `local_arrow_inference.go` checks local peer dependencies on demand, caching
   each result and its diagnostics once. A group captures its lexical environment
   after predeclaration, including declaration identities, type parameters and
@@ -247,10 +230,10 @@ next source statement. A Go signature projection supplies context only; the
 original Go signature and numeric constants remain authoritative for final
 inference and validation. Unresolved callback-input cycles require annotations.
 
-The compiler currently keeps typed AST metadata close to syntax nodes. Preserve
-that metadata as the semantic input to the planned KIR boundary above; introduce
-normalization only where it makes semantics explicit, not as a competing
-backend-specific definition of the language.
+The compiler keeps typed AST metadata close to syntax nodes. Preserve that
+metadata as the semantic input to Go lowering; introduce normalization where
+it makes evaluation, conversions, and dispatch explicit without duplicating
+the type checker's decisions in the emitter.
 
 Required typed information includes:
 

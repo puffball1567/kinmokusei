@@ -35,8 +35,8 @@ A migration requirement exists when the release notes identify a source, lock, C
 - Editor support for the new constructs, stronger constructor initialization
   checks, bounded parallel differential tests, and 98 covered runtime contracts.
 
-The compiler still emits Go. KIR, C++, and Nim backend integration, abstract
-classes, property accessors, and static fields are not part of this release.
+Kinmokusei targets Go. Abstract classes, property accessors, and static fields
+are not part of this release.
 
 When upgrading from v0.2.0, recheck code that relied on permissive numeric or
 generic assignment diagnostics. Overflow, fractional integer contexts, and

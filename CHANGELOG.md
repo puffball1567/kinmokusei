@@ -6,6 +6,10 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support recursive arrows in three-clause loop initializers, preserving
+  per-iteration bindings, mutable captures, condition/post evaluation order,
+  labeled control flow, and editor navigation.
+- Align the architecture and roadmap with Go-only output and direct Go lowering.
 - Infer local arrow results through forward dependencies within consecutive
   declaration groups. Check each body once in the group's lexical environment,
   retain generic/receiver context, and preserve source-order capture effects.

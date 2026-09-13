@@ -116,8 +116,22 @@ the same name. An arrow parameter or inner local can shadow that name in turn.
 Other initializers keep their existing scope: `const n = n + 1` inside a nested
 block still reads an outer `n`.
 
-An inferred recursive result requires an annotation. Declare recursive arrows
-in a block before a `for` loop, not in its three-clause initializer.
+An inferred recursive result requires an annotation.
+
+### Recursive loop-initializer arrows (development)
+
+A three-clause `for` initializer can also declare a recursive arrow:
+
+<<< ../snippets/recursive-loop-arrows.km{ts}
+
+This prints `120`. The closure is created once before the first condition is
+evaluated. As in other three-clause loops, each iteration has its own binding;
+the next binding copies the previous value before the post statement runs.
+An escaped closure keeps the binding from the iteration where it was created.
+In particular, the initializer's self-reference retains the first iteration's
+binding; copying the function into later iterations does not rebuild it or
+retarget its captures. A `let` can be reassigned, while `const` remains immutable.
+The loop binding is not visible after the loop.
 
 ### Local mutually recursive arrow groups (development)
 

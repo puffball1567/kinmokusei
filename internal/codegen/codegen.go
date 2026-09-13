@@ -1331,31 +1331,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.ForStmt{Cond: condition, Body: body}, nil
 	case *kinmokuseiAST.ForStmt:
-		result := &goast.ForStmt{}
-		var err error
-		if stmt.Initializer != nil {
-			result.Init, err = generateForClause(stmt.Initializer, true)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if stmt.Condition != nil {
-			result.Cond, err = generateExpression(stmt.Condition)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if stmt.Post != nil {
-			result.Post, err = generateForClause(stmt.Post, false)
-			if err != nil {
-				return nil, err
-			}
-		}
-		result.Body, err = generateBlock(stmt.Body)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
+		return generateForStatement(stmt)
 	case *kinmokuseiAST.ForRangeStmt:
 		source, err := generateExpression(stmt.Source)
 		if err != nil {
@@ -1468,11 +1444,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return generated, nil
 	case *kinmokuseiAST.LabeledStmt:
-		statement, err := generateStatement(stmt.Statement)
-		if err != nil {
-			return nil, err
-		}
-		return &goast.LabeledStmt{Label: goast.NewIdent(stmt.Label), Stmt: statement}, nil
+		return generateLabeledStatement(stmt)
 	case *kinmokuseiAST.CallControlStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {

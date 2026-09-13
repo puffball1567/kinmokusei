@@ -394,6 +394,10 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 		case *ast.ForStmt:
 			if statement.Initializer != nil && statement.Initializer.GetSpan().End.Offset <= offset {
 				addStatementBindings(statement.Initializer, add)
+			} else if variable, ok := statement.Initializer.(*ast.VariableDecl); ok {
+				if arrow, ok := variable.Value.(*ast.ArrowExpr); ok && spanContains(arrow.Span, path, offset) {
+					addStatementBindings(variable, add)
+				}
 			}
 			addVisibleBlock(statement.Body, path, offset, add)
 		case *ast.ForRangeStmt:
