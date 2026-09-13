@@ -140,8 +140,8 @@ Go methods, type-set-only constraints, and unsupported interop method signatures
 are rejected as bases. The unsafe interop policy also applies to inherited
 signatures. Completion and checked-call signature help include inherited Go
 methods; these are external contracts, not renameable source declarations.
-Embedding an imported Go contract remains a Go-module dependency for future KIR
-backend-capability tracking, not an implicitly portable C++ or Nim library.
+Embedding an imported Go contract retains its Go package identity and module
+dependency in the generated Go API.
 
 ### Iteration over class-defined collections
 

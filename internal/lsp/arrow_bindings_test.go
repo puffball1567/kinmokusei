@@ -52,9 +52,16 @@ func TestInferredBlockArrowHover(t *testing.T) {
 }
 
 func TestLocalRecursiveArrowNavigation(t *testing.T) {
+	testRecursiveArrowNavigation(t, `const f=():int=>99; function run():int{const f=(n:int):int=>{if(n<=1){return 1;}return n*f(n-1);};return f(5);}`)
+}
+
+func TestRecursiveLoopArrowNavigation(t *testing.T) {
+	testRecursiveArrowNavigation(t, `const f=():int=>99; function run():int{for(const f=(n:int):int=>{if(n<=1){return 1;}return n*f(n-1);}; ;){return f(5);}return 0;}`)
+}
+
+func testRecursiveArrowNavigation(t *testing.T, input string) {
 	t.Parallel()
 	uri := fileURI(filepath.Join(t.TempDir(), "recursive.km"))
-	input := `const f=():int=>99; function run():int{const f=(n:int):int=>{if(n<=1){return 1;}return n*f(n-1);};return f(5);}`
 	messages := serveMessages(t, openDocument(uri, input),
 		requestAt("textDocument/hover", 2, uri, positionOf(input, "f(n-1)", 0), ""),
 		requestAt("textDocument/definition", 3, uri, positionOf(input, "f(n-1)", 0), ""),

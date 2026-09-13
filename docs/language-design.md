@@ -368,9 +368,9 @@ function elements<S extends Slice<E>, E>(values: S): E[] {
 
 `Slice<E>` emits a Go `interface { ~[]E }` with the corresponding type
 parameters. The declaration remains compile-time-only: it does not introduce
-a runtime wrapper, boxing, or ownership policy. Its source type-set terms and
-parameter identities are the semantic contract for future KIR lowering; a Go
-module is not needed merely to define the constraint.
+a runtime wrapper or boxing. Its source type-set terms and parameter identities
+are preserved through checking and Go emission; importing a Go package is not
+needed merely to define the constraint.
 
 Type arguments to a constraint are explicit and must satisfy its own bounds.
 As with generic functions, all names in its parameter list are in scope in

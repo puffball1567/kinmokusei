@@ -622,10 +622,13 @@ func (*BranchStmt) statement()             {}
 func (s *BranchStmt) GetSpan() source.Span { return s.Span }
 
 type LabeledStmt struct {
-	Label     string
-	LabelSpan source.Span
-	Statement Statement
-	Span      source.Span
+	// LoopBranchLabel is a collision-free internal label for a for-loop also
+	// targeted by goto, when lowering must separate loop entry from branches.
+	LoopBranchLabel string
+	Label           string
+	LabelSpan       source.Span
+	Statement       Statement
+	Span            source.Span
 }
 
 func (*LabeledStmt) statement()             {}

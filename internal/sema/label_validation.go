@@ -67,6 +67,7 @@ func (c *Checker) validateLabels(body *ast.BlockStmt) {
 		if !ok {
 			return
 		}
+		labeled.LoopBranchLabel = ""
 		if previous, duplicate := labels[labeled.Label]; duplicate {
 			c.report(labeled.LabelSpan, fmt.Sprintf("duplicate label %q; first declared at %d:%d", labeled.Label, previous.LabelSpan.Start.Line, previous.LabelSpan.Start.Column))
 			return
@@ -77,6 +78,10 @@ func (c *Checker) validateLabels(body *ast.BlockStmt) {
 		}
 		labels[labeled.Label] = labeled
 	})
+	claimedLabels := map[string]bool{}
+	for name := range labels {
+		claimedLabels[name] = true
+	}
 
 	type controlLocation struct {
 		blocks []*ast.BlockStmt
@@ -158,6 +163,14 @@ func (c *Checker) validateLabels(body *ast.BlockStmt) {
 			statement.ResolvedDeclaration = target.LabelSpan
 			used[statement.Label] = true
 			if statement.Kind == ast.GotoBranch {
+				if _, loop := target.Statement.(*ast.ForStmt); loop && target.LoopBranchLabel == "" {
+					name := fmt.Sprintf("__kinmokusei_loop_label_%d", target.LabelSpan.Start.Offset)
+					for claimedLabels[name] {
+						name += "_"
+					}
+					target.LoopBranchLabel = name
+					claimedLabels[name] = true
+				}
 				gotoLocation := branchLocations[statement]
 				targetLocation := labelLocations[target]
 				if gotoLocation.region != targetLocation.region {

@@ -355,9 +355,6 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 				}
 			}
 			c.checkStatement(stmt.Initializer)
-			if variable, ok := stmt.Initializer.(*ast.VariableDecl); ok && variable.RecursiveBinding {
-				c.report(variable.NameSpan, "declare a recursive arrow before the for loop, not in its initializer")
-			}
 		}
 		entryFlow := c.snapshotNullableFlow()
 		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {

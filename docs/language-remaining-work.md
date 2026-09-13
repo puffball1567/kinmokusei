@@ -36,7 +36,7 @@ feature work without mixing unrelated changes into its implementation.
 | 1 | Generic callback contextual inference | Implemented for direct arrow arguments; see below |
 | 2 | Dependency-driven forward result inference | Implemented for module-level bindings |
 | 3 | Local mutual recursion and forward bindings | Implemented for consecutive arrow groups, including dependency-driven result inference; nonconsecutive bindings remain |
-| 4 | Recursive arrows in three-clause loop initializers | Queued |
+| 4 | Recursive arrows in three-clause loop initializers | Implemented with per-iteration bindings and explicit recursive signatures |
 | 5 | Function values returning Result | Queued |
 | 6 | Additional export forms, including re-exports and aliases | Queued; define the supported forms |
 | 7 | Constraint intersections and interface composition | Queued |
@@ -167,8 +167,11 @@ following additions target v0.4, not the currently released v0.3 syntax:
   effects are replayed in declaration order. Group storage precedes
   closure construction; initialization remains in source order. Tests in
   `local_arrow_groups_test.go` cover recursion, mutable peers, linked modules,
-  escaping closures, loop captures, and editor scope/navigation. Further work:
-  recursive arrows in loop initializers and nonconsecutive local forward bindings.
+  escaping closures, loop captures, and editor scope/navigation. Recursive
+  three-clause loop initializers now preserve per-iteration storage, one-time
+  closure initialization, condition/post order, labels, and escaped captures;
+  see `recursive_loop_arrows_test.go`. Nonconsecutive local forward bindings
+  remain further work.
 - **Generic callback inference (implemented on the development branch):**
   direct arrow arguments use contexts inferred from other arguments, explicit
   callback annotations, and dependent constraints. Callback results can infer
@@ -224,9 +227,7 @@ intersections or numeric constant-context parity. Further OOP additions require 
 above. Each addition needs source diagnostics, linked-module and
 editor coverage where applicable, and an independent Go runtime oracle.
 
-The frontend is intended to feed KIR with three backend routes: Go, C++, and
-Nim for C (via KIR-generated Go and the existing Go-to-Nim translator). Keep
-common language semantics separate from backend-specific dependencies; C++-
-only libraries and target-capability enforcement remain integration work, not
-prerequisites for filling the common language gaps. See
-[the KIR boundary](compiler-architecture.md#planned-kir-backend-boundary).
+Kinmokusei remains a Go-output language. Prioritize Go interoperability,
+predictable language semantics, OOP completeness, diagnostics, and maintainable
+compiler boundaries. Libraries need only support the Go output path; see
+[the Go output boundary](compiler-architecture.md#go-output-boundary).
