@@ -88,6 +88,14 @@ baseline for accepted constructs with a Go equivalent.
   dependencies follow source order and initialize once. Preserve original source
   spans for LSP navigation, signatures, and rename. Source exports do not change
   Go capitalization or C ABI directives.
+- Export aliases keep public spelling, runtime declaration, and rename identity
+  separate. Public tables map multiple aliases to one original declaration;
+  each explicit alias introduces a new editor identity without a runtime binding.
+  `source_linker.go` handles lexical rewriting separately from module graph
+  linking. It records unimported original spellings by source span so the checker
+  cannot accidentally expose an alias's runtime target, while local names, type
+  parameters, and built-ins retain their own resolution. Qualified Go type names
+  do not participate in the source alias namespace.
 - Mark module-level const arrow declarations with unnamed function types as
   callable bindings. Predeclare explicit signatures and check their bodies after
   stored globals; retain variable/arrow AST identity for source tools. Go emission

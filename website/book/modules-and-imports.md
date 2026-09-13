@@ -99,6 +99,32 @@ re-exporting a private or nonexistent name is rejected:
 Imports alone are not re-exported. Each public name must be selected explicitly;
 two export declarations cannot publish the same name, even from the same origin.
 
+### Export aliases
+
+Use `as` to choose a public name independently of the implementation name:
+
+<<< ../snippets/export-aliases-library.km{ts}
+
+The same syntax works for local declarations: `export { local as publicName }`.
+An export alias creates a public name, not a new local variable or type. It keeps
+the original declaration's identity; two aliases of one mutable variable share
+the same storage, and two aliases of one defined type remain the same type.
+
+<<< ../snippets/export-aliases-main.km{ts}
+
+This prints `42`. Callers import the selected public names; selecting an alias
+does not also make the original name available. Public names must be unique:
+
+<<< ../snippets-invalid/duplicate-export-alias.km{ts}
+
+Editor rename treats both sides of `as` independently. Renaming the implementation
+updates the left side without changing the public name. Renaming a public alias
+updates uses of that name in the analyzed dependency graph, stopping at the next
+explicit alias boundary. Definition on an imported alias leads to its export
+clause; the left side leads to the selected declaration or upstream alias.
+
+Aliases do not rename generated Go declarations or C ABI symbols.
+
 ## Source imports versus Go exports
 
 Relative Kinmokusei imports select an available declaration by its written name, regardless of whether that name begins with a lower- or uppercase letter. Source exports control availability; named imports select the caller's bindings.

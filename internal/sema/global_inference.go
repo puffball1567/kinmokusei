@@ -26,7 +26,7 @@ func (c *Checker) ensureGlobalBindingChecked(decl *ast.VariableDecl) {
 	dependency := &Checker{
 		functions: c.functions, globals: c.globals,
 		classes: c.classes, structs: c.structs, interfaces: c.interfaces,
-		nativeTypes: c.nativeTypes, enums: c.enums, allowed: c.allowed,
+		nativeTypes: c.nativeTypes, enums: c.enums, allowed: c.allowed, unimportedReferences: c.unimportedReferences,
 		goPackages: c.goPackages, goNamedImports: c.goNamedImports,
 		goImporter: c.goImporter, allowUnsafeGo: c.allowUnsafeGo,
 		nativeConstraintsReady:  c.nativeConstraintsReady,

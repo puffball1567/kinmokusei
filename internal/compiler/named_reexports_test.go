@@ -26,7 +26,7 @@ func TestNamedReexports(t *testing.T) {
 		{`export const value=1`, `export {missing} from "./library"`, `import {missing} from "./barrel"`, "does not declare"},
 		{`export const value=1`, `export {value} from "./library";function run():int{return value}`, `import {value} from "./barrel"`, "undefined name"},
 		{`export const value=1`, `export {value} from "./library";export const value=2`, `import {value} from "./barrel"`, "duplicate exported name"},
-		{`export const value=1`, `export {value,value} from "./library"`, `import {value} from "./barrel"`, "duplicate imported name"},
+		{`export const value=1`, `export {value,value} from "./library"`, `import {value} from "./barrel"`, "duplicate exported name"},
 		{`export const value=1`, `export {value} from "./library";export {value} from "./library"`, `import {value} from "./barrel"`, "duplicate exported name"},
 		{`export const value=1`, `import {value} from "./library"`, `import {value} from "./barrel"`, "does not declare"},
 		{`export const value=1`, `import go {Println} from "fmt";export {Println}`, `import {Println} from "./barrel"`, "does not declare"},

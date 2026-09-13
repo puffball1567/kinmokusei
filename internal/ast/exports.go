@@ -15,9 +15,31 @@ type ExportDecl struct {
 
 type ExportName struct {
 	Name                string
+	Alias               string
+	AliasSpan           source.Span
 	ResolvedName        string
 	NameSpan            source.Span
 	ResolvedDeclaration source.Span
+	// ReferencedDeclaration is the source spelling's rename identity. An
+	// imported export alias has its own identity, separate from runtime storage.
+	ReferencedDeclaration source.Span
+}
+
+func (n ExportName) PublicName() string {
+	if n.Alias != "" {
+		return n.Alias
+	}
+	return n.Name
+}
+
+func (n ExportName) PublicDeclaration() source.Span {
+	if n.Alias != "" {
+		return n.AliasSpan
+	}
+	if n.ReferencedDeclaration.Path != "" {
+		return n.ReferencedDeclaration
+	}
+	return n.ResolvedDeclaration
 }
 
 // DeclarationBinding returns the standalone binding introduced by a declaration.

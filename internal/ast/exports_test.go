@@ -41,3 +41,23 @@ func TestSourceExportVisibility(t *testing.T) {
 		}
 	}
 }
+
+func TestExportPublicIdentity(t *testing.T) {
+	t.Parallel()
+	origin := source.Span{Path: "origin.km"}
+	upstream := source.Span{Path: "upstream.km"}
+	alias := source.Span{Path: "alias.km"}
+	for _, test := range []struct {
+		name   ExportName
+		public string
+		span   source.Span
+	}{
+		{ExportName{Name: "value", ResolvedDeclaration: origin}, "value", origin},
+		{ExportName{Name: "value", ResolvedDeclaration: origin, ReferencedDeclaration: upstream}, "value", upstream},
+		{ExportName{Name: "value", Alias: "public", AliasSpan: alias, ResolvedDeclaration: origin, ReferencedDeclaration: upstream}, "public", alias},
+	} {
+		if test.name.PublicName() != test.public || test.name.PublicDeclaration() != test.span {
+			t.Fatal(test)
+		}
+	}
+}

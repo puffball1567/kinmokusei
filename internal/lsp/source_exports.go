@@ -12,7 +12,7 @@ func sourceImportVisible(program *ast.Program, path, name string) bool {
 		}
 		explicit = true
 		for _, selected := range exported.Names {
-			if selected.Name == name {
+			if selected.PublicName() == name {
 				return true
 			}
 		}

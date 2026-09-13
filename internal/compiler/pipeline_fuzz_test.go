@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`const value=1;export {value as publicName,value as another};`,
+	`export {value as renamed} from "./library";`,
+	`export {value as};`,
 	`export { value } from "./library";`,
 	`export {} from "./library";`,
 	`export { value } from ""; const value=1;`,

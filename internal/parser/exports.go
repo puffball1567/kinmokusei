@@ -19,7 +19,16 @@ func (p *Parser) parseSourceExport(start token.Token) (ast.ExportDecl, ast.Decla
 				p.synchronizeDeclaration()
 				return exported, nil
 			}
-			exported.Names = append(exported.Names, ast.ExportName{Name: name.Lexeme, NameSpan: name.Span})
+			selected := ast.ExportName{Name: name.Lexeme, NameSpan: name.Span}
+			if p.match(token.As) {
+				alias, ok := p.expect(token.Identifier, "expected public name after 'as'")
+				if !ok {
+					p.synchronizeDeclaration()
+					return exported, nil
+				}
+				selected.Alias, selected.AliasSpan = alias.Lexeme, alias.Span
+			}
+			exported.Names = append(exported.Names, selected)
 			if !p.match(token.Comma) {
 				break
 			}

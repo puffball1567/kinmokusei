@@ -6,6 +6,12 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support export aliases (`export { local as publicName }`), including imported
+  source bindings and export-from lists. Multiple public names retain one
+  declaration and shared storage. Keep implementation-name and public-alias
+  rename identities separate across chains, and prevent original names from
+  leaking through alias imports. Preserve qualified Go type names when a source
+  alias has the same spelling. Split source rewriting from module graph linking.
 - Support named source re-exports with `export { name } from "./module"` and
   export lists selecting explicitly imported source bindings. Preserve original
   declaration/type identity, shared mutable storage, dependency initialization

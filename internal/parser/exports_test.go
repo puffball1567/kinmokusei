@@ -37,6 +37,8 @@ func TestParseSourceExports(t *testing.T) {
 		"const value = 1\nexport {\n value, // comment\n}\n",
 		`export c("native") function native(): int32 { return 1; } export { native };`,
 		`export { value } from "./library";`,
+		`export { value as renamed, value as another }; const value=1;`,
+		`export { value as renamed } from "./library";`,
 		"export { value, }\nfrom \"./library\"\n",
 	} {
 		program, diagnostics := parseSource(t, input)
@@ -56,6 +58,7 @@ func TestParseSourceExportErrors(t *testing.T) {
 		`function value(): void { export const local = 1; }`,
 		`export {} from "./library";`, `export { value } from;`,
 		`export { value } from 42;`, `export { value } from "";`,
+		`export { value as };`, `export { value as default };`, `export { value as 42 };`,
 	} {
 		t.Run(input, func(t *testing.T) {
 			_, diagnostics := parseSource(t, input)
@@ -77,5 +80,19 @@ func TestParseReexportPathSpans(t *testing.T) {
 	exported := program.Exports[0]
 	if exported.Path != "./library" || input[exported.PathSpan.Start.Offset:exported.PathSpan.End.Offset] != `"./library"` || len(program.Imports) != 0 {
 		t.Fatalf("export=%+v imports=%v", exported, program.Imports)
+	}
+}
+
+func TestParseExportAliasSpans(t *testing.T) {
+	t.Parallel()
+	input := `export { value as 公開 } from "./library";`
+	tokens, _ := lexer.Lex("exports.km", input)
+	program, diagnostics := Parse(tokens)
+	if len(diagnostics) != 0 {
+		t.Fatal(diagnostics)
+	}
+	name := program.Exports[0].Names[0]
+	if name.Name != "value" || name.PublicName() != "公開" || input[name.NameSpan.Start.Offset:name.NameSpan.End.Offset] != "value" || input[name.AliasSpan.Start.Offset:name.AliasSpan.End.Offset] != "公開" || name.PublicDeclaration() != name.AliasSpan {
+		t.Fatal(name)
 	}
 }
