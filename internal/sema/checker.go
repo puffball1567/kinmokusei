@@ -155,6 +155,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkCABIExports(program)
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
+	c.recordTypeParameterMethods(program)
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
 	return c.diagnostics

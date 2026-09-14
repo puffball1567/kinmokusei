@@ -431,6 +431,14 @@ func nestedVisibleValueType(program *ast.Program, statement ast.Statement, path 
 }
 
 func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner string, static bool, seen map[string]bool, add func(completionItem)) {
+	if ref.TypeParameter {
+		if !static {
+			for _, method := range program.TypeParameterMethods[ref.ResolvedDeclaration] {
+				add(completionItem{Label: method.Name, Kind: 2, Detail: method.Name + ": " + formatTypeRef(method.Type), SortText: "0_" + method.Name})
+			}
+		}
+		return
+	}
 	if ref.GoInterface {
 		if !static {
 			for _, method := range ref.ObjectFields {

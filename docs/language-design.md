@@ -342,7 +342,7 @@ as `~int` also accepts nominal Kinmokusei or Go types whose underlying type is
 `int`, so `Score` satisfies `Integer`. Terms lower to the corresponding Go
 constraint interface and may be used by generic functions, classes, structs,
 interfaces, and defined types, including across relative imports. Overlapping
-union terms, `~` applied to a named type, and ordinary interface terms are rejected before Go
+union terms, `~` applied to a named type, and native source interface terms are rejected before Go
 generation; a single declaration follows the Go toolchain limit of at most 100
 union terms. A declared constraint is not a runtime value type and cannot be
 used for fields, parameters, variables, or `implements`.
@@ -402,8 +402,39 @@ Empty intersections and overlapping terms with incompatible source nullability
 are diagnosed. A declaration uses either `|` or `&`, not both; name intermediate
 constraints to combine the operators. The normalized union still has a 100-term
 limit; the count of `&` operands alone is not subject to that union limit.
-Ordinary source or imported interface terms remain unsupported in these
-source type-set declarations.
+Ordinary Go interfaces can contribute method requirements:
+
+```ts
+import go fmt from "fmt";
+import go io from "io";
+constraint Printable = ~int & fmt.Stringer;
+constraint ReadClosable = io.Reader & io.Closer;
+function show<T extends Printable>(value: T): string {
+  return (value + value).String();
+}
+```
+
+Method-only declarations (`constraint Named = fmt.Stringer`) and generic Go
+interfaces (`constraint Access<E> = api.Getter<E> & api.Setter<E>`) are supported.
+Calls use the original Go method spelling, including capitalization. Method
+values, dependent inference, generic owners, and linked constraint references
+retain the checked method contracts. Duplicate identical signatures coalesce;
+conflicting signatures are rejected. Unexported methods retain Go package
+identity for satisfaction checks and are not exposed as callable members or
+editor completions. Concrete type arguments must satisfy both the finite type
+set, when present, and every required method; declaration alone need not prove
+that an implementor exists. A nullable value cannot satisfy a method-bearing
+bound without first being narrowed.
+
+An operand carrying method requirements cannot appear in a `|` union, even
+through an intermediate source constraint; combine it using `&` instead.
+Imported interfaces containing type-set or `comparable` restrictions remain
+usable directly as generic bounds but are not accepted as declaration operands
+yet. Native source interface operands also remain unavailable.
+Go method arguments must round-trip without losing source type information:
+nullable or native-only shapes in method signatures are diagnosed, including
+when supplied through a later generic substitution. Collection-only parameters
+retain their existing nullable inference support.
 
 Nullable qualifiers in collection elements are retained through constraint
 inference, range bindings, and concrete generic method owners. Matching Go

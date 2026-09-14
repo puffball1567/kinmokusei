@@ -9,11 +9,7 @@ import (
 
 // Resolve a source operand to a disjoint union and retain the source shape of
 // each term: Go storage alone cannot distinguish nullable class elements.
-func (c *Checker) resolveConstraintTerm(term ast.TypeSetTerm) ([]*gotypes.Term, []Type, bool) {
-	if candidates, shapes, handled := c.sourceConstraintTerms(term); handled {
-		return candidates, shapes, len(candidates) != 0
-	}
-	resolved := c.resolveType(term.Type)
+func (c *Checker) resolveConstraintTerm(term ast.TypeSetTerm, resolved Type) ([]*gotypes.Term, []Type, bool) {
 	if resolved.Kind == Invalid {
 		return nil, nil, false
 	}

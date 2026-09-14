@@ -7,36 +7,40 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// Source constraints normalize to concrete unions. Expand references
-// for validation while retaining their source shapes (Go storage erases nullable
+// Source constraints retain a normalized union plus any method requirements.
+// Expand references while retaining source shapes (Go storage erases nullable
 // class elements). Emission keeps the named references, not this expansion.
-func (c *Checker) sourceConstraintTerms(term ast.TypeSetTerm) ([]*gotypes.Term, []Type, bool) {
+func (c *Checker) sourceConstraintOperand(term ast.TypeSetTerm) (constraintOperand, bool) {
 	ref := term.Type
 	if ref.Qualifier != "" || ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
-		return nil, nil, false
+		return constraintOperand{}, false
 	}
 	if _, parameter := c.lookupTypeParameter(ref.Name); parameter {
-		return nil, nil, false
+		return constraintOperand{}, false
 	}
 	symbol := c.interfaces[ref.Name]
 	if symbol == nil || !symbol.constraint || !c.isTopLevelAllowed(ref.Span, ref.Name) {
-		return nil, nil, false
+		return constraintOperand{}, false
 	}
 	if term.Underlying {
 		c.report(term.Span, fmt.Sprintf("underlying constraint term ~%s cannot name a constraint", formatTypeRefForDiagnostic(ref)))
-		return nil, nil, true
+		return constraintOperand{}, true
 	}
 	instance, ok := c.instantiateNativeConstraint(ref, symbol)
-	if !ok {
-		return nil, nil, true
+	if !ok || !symbol.constraintValid {
+		return constraintOperand{}, true
 	}
 	contract := underlyingGoInterface(instance)
-	if contract == nil || contract.NumEmbeddeds() != 1 {
-		return nil, nil, true // Invalid dependency already has a diagnostic.
+	if contract == nil {
+		return constraintOperand{}, true
+	}
+	operand := constraintOperand{methods: constraintMethods(contract), valid: true}
+	if contract.NumEmbeddeds() == 0 {
+		return operand, true
 	}
 	union, ok := contract.EmbeddedType(0).(*gotypes.Union)
 	if !ok || union.Len() != len(symbol.constraintTermTypes) {
-		return nil, nil, true
+		return constraintOperand{}, true
 	}
 	bindings := make(nativeTypeBindings, len(symbol.typeParameters))
 	for i, argument := range ref.GenericArguments {
@@ -48,7 +52,8 @@ func (c *Checker) sourceConstraintTerms(term ast.TypeSetTerm) ([]*gotypes.Term, 
 		terms[i] = union.Term(i)
 		shapes[i] = substituteNativeTypeParameters(symbol.constraintTermTypes[i], bindings)
 	}
-	return terms, shapes, true
+	operand.terms, operand.shapes, operand.restricted = terms, shapes, true
+	return operand, true
 }
 
 func (c *Checker) instantiateNativeConstraint(ref ast.TypeRef, symbol *interfaceSymbol) (gotypes.Type, bool) {
@@ -87,6 +92,9 @@ func (c *Checker) instantiateNativeConstraint(ref ast.TypeRef, symbol *interface
 		}
 	}
 	if !valid {
+		return nil, false
+	}
+	if !c.checkConstraintMethodArguments(symbol.goNamed, arguments, ref.Span) {
 		return nil, false
 	}
 	if c.pendingBoundInstances == nil && !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "constraint "+ref.Name) {

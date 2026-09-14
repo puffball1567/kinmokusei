@@ -93,6 +93,11 @@ Slices, maps, and functions do not satisfy it. Source constraints can also name 
 source type sets. Use named intermediate constraints to combine unions and
 intersections; a single declaration cannot mix `|` and `&`.
 
+Ordinary Go interfaces can add method requirements:
+`constraint Printable = ~int & fmt.Stringer`. Generic code can then use both
+integer operators and `value.String()`. `constraint Stream = io.Reader & io.Closer`
+combines method contracts without restricting the underlying type.
+
 ## Generic named types
 
 Classes, structs, interfaces, and distinct defined types may declare parameters and must be fully instantiated in type positions:
