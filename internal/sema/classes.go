@@ -264,7 +264,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 				c.report(method.Span, fmt.Sprintf("override method %q cannot be static", method.Name))
 			case method.Visibility != inherited.visibility:
 				c.report(method.Span, fmt.Sprintf("override method %q must preserve inherited visibility", method.Name))
-			case !exactType(methodType, inherited.typeInfo):
+			case !identicalMethodSignature(methodType, inherited.typeInfo):
 				c.report(method.Span, fmt.Sprintf("override method %q has an incompatible signature", method.Name))
 			}
 			virtualOwner = inherited.virtualOwner
@@ -355,7 +355,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s must be public", decl.Name, contractName, name))
 			case actual.static:
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s cannot be static", decl.Name, contractName, name))
-			case !exactType(actual.typeInfo, requiredType):
+			case !identicalMethodSignature(actual.typeInfo, requiredType):
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s has an incompatible signature", decl.Name, contractName, name))
 			}
 		}

@@ -6,6 +6,12 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Enforce invariant interface and override method contracts, including nullable
+  types nested in callbacks, collections, objects, and generic arguments.
+  Reject conflicting inherited contracts and generic methods implementing
+  non-generic requirements before Go generation. Preserve compatible source
+  `Result<T>` implementations of Go multiple-result methods. Share method
+  signature validation and separate interface declaration resolution.
 - Compose source constraints with ordinary Go interfaces, including generic
   method contracts, method-only compositions, and type-set intersections.
   Preserve method requirements through constraint reuse and export aliases,

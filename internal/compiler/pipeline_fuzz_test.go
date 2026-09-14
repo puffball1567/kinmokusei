@@ -15,6 +15,10 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class Leaf{} interface Reader{function read():Leaf;} class Bad implements Reader{public function read():Leaf|null{return null;}}`,
+	`class Leaf{} interface Reader<T>{function read():T;} interface A extends Reader<Leaf>{} interface B extends Reader<Leaf|null>{} interface Bad extends A,B{}`,
+	`class Leaf{} alias Maybe=Leaf|null; interface Reader{function read(callback:(value:Maybe)=>void):Maybe[];} class Good implements Reader{public function read(callback:(value:Maybe)=>void):Maybe[]{callback(null);return [null];}}`,
+	`class Leaf{} interface Reader{function read():Result<Leaf>;} class Bad implements Reader{public function read():Result<Leaf|null>{return ok(null);}}`,
 	`const value=1;export {value as publicName,value as another};`,
 	`export {value as renamed} from "./library";`,
 	`export {value as};`,

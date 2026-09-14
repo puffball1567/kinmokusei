@@ -114,6 +114,14 @@ rejected. Generic substitution follows each inheritance edge, even when type
 parameters are reordered. Completion, signature help, navigation, and rename
 include inherited source contracts.
 
+Method signatures are invariant: implementations, overrides, and inherited
+same-name methods must agree on both parameter and result types. This includes
+`null` qualifiers inside collections, objects, callbacks, and generic arguments.
+For example, `read(): Leaf | null` cannot implement `read(): Leaf`, even though
+both results use pointers in Go. Narrowing a nullable parameter is also rejected;
+ordinary assignment compatibility does not determine method conformance.
+A generic method cannot satisfy a non-generic method requirement.
+
 Source interfaces may also extend imported runtime Go interfaces:
 
 ```ts

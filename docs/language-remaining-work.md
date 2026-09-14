@@ -91,6 +91,12 @@ feature work without mixing unrelated changes into its implementation.
   inherited class implementation checks, ancestor assignment, generic inference
   from explicitly implemented contracts, and editor navigation/refactoring.
   Differential coverage: `interface_inheritance_test.go`.
+- Invariant source method contracts across implementations, overrides, and
+  inherited conflicts, including nested nullable types and linked re-exports.
+  Compatible nullable dispatch and source `Result<T>` implementations of Go
+  multiple-result methods retain runtime behavior. Differential coverage:
+  `method_contract_test.go`. This hardens the prerequisite contract checks;
+  native source interfaces as constraint operands/bounds remain pending.
 - Type-parameter conversions such as `T(0)` and `T(value)`, including type-set
   convertibility, constant bounds, numeric/collection conversions, generic
   constructors and methods, and editor navigation. Differential coverage:
