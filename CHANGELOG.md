@@ -6,6 +6,11 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Compose source constraints with ordinary Go interfaces, including generic
+  method contracts, method-only compositions, and type-set intersections.
+  Preserve method requirements through constraint reuse and export aliases,
+  diagnose conflicting signatures and lossy source type arguments, and offer
+  constrained-method completion for generic parameters.
 - Support source type-set intersections (`constraint Narrow = A & B`),
   including exact/underlying terms, generic constraint references, inferred
   collection elements, linked export aliases, and editor navigation. Emit Go

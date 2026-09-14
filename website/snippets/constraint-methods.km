@@ -1,0 +1,17 @@
+import go fmt from "fmt"
+import go strconv from "strconv"
+
+constraint Printable = ~int & fmt.Stringer
+type Score = distinct int
+
+public function string(this: Score): string {
+  return strconv.Itoa(int(this))
+}
+
+function show<T extends Printable>(value: T): string {
+  return (value + value).String()
+}
+
+const main = (): void => {
+  fmt.Println(show(Score(21)))
+}

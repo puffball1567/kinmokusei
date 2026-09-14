@@ -1,0 +1,2 @@
+import go io from "io"
+constraint Invalid = io.Reader | io.Closer

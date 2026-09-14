@@ -170,19 +170,33 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	c.completeNativeTypeParameterBounds(decl.TypeParameters, symbol.typeParamScope, nil, true)
 	c.pushTypeParameterScope(symbol.typeParamScope)
 	defer c.popTypeParameterScope()
-	terms := make([]*gotypes.Term, 0, len(decl.Terms))
+	var terms []*gotypes.Term
+	var methods []*gotypes.Func
+	restricted := false
 	valid := true
 	if !decl.Intersection && len(decl.Terms) > 100 {
 		c.report(decl.Span, "constraint declarations cannot contain more than 100 terms because the Go toolchain cannot compile larger unions")
 		valid = false
 	}
-	for index, term := range decl.Terms {
-		candidates, shapes, ok := c.resolveConstraintTerm(term)
-		if !ok {
+	for _, term := range decl.Terms {
+		operand := c.resolveConstraintOperand(term)
+		if !operand.valid {
 			valid = false
 			continue
 		}
-		if decl.Intersection && index != 0 {
+		if !decl.Intersection && len(decl.Terms) > 1 && (!operand.restricted || len(operand.methods) != 0) {
+			c.report(term.Span, "constraint union operands must be type sets without method requirements; use '&' to compose interfaces")
+			valid = false
+			continue
+		}
+		var compatible bool
+		methods, compatible = c.mergeConstraintMethods(methods, operand.methods, term.Span)
+		valid = valid && compatible
+		if !operand.restricted {
+			continue
+		}
+		candidates, shapes := operand.terms, operand.shapes
+		if decl.Intersection && restricted {
 			var problem string
 			terms, symbol.constraintTermTypes, problem = c.intersectConstraintTerms(terms, symbol.constraintTermTypes, candidates, shapes)
 			if problem != "" {
@@ -191,6 +205,7 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 			}
 			continue
 		}
+		restricted = true
 		for i, candidate := range candidates {
 			for _, existing := range terms {
 				if typeSetTermsOverlap(existing, candidate) {
@@ -203,7 +218,7 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 			symbol.constraintTermTypes = append(symbol.constraintTermTypes, shapes[i])
 		}
 	}
-	if valid && decl.Intersection && len(terms) == 0 {
+	if valid && restricted && len(terms) == 0 {
 		c.report(decl.Span, "constraint intersection has no common types")
 		valid = false
 	}
@@ -211,12 +226,17 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 		c.report(decl.Span, "expanded constraint declarations cannot contain more than 100 terms because the Go toolchain cannot compile larger unions")
 		valid = false
 	}
-	constraint := gotypes.NewInterfaceType(nil, nil)
-	if valid && len(terms) != 0 {
-		constraint = gotypes.NewInterfaceType(nil, []gotypes.Type{gotypes.NewUnion(terms)})
+	var embedded []gotypes.Type
+	if valid && restricted {
+		embedded = []gotypes.Type{gotypes.NewUnion(terms)}
 	}
+	if !valid {
+		methods = nil
+	}
+	constraint := gotypes.NewInterfaceType(methods, embedded)
 	constraint.Complete()
 	symbol.goNamed.SetUnderlying(constraint)
+	symbol.constraintValid = valid
 }
 
 func typeSetTermsOverlap(left, right *gotypes.Term) bool {

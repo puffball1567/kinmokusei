@@ -177,6 +177,9 @@ func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings
 	if !constraintOK || constraint.Empty() {
 		return true
 	}
+	if argument.Kind == Nullable && constraint.NumMethods() != 0 {
+		return false // A nullable value cannot promise callable methods.
+	}
 	argument = defaultLiteralType(argument)
 	goArgument, ok := goTypeOf(argument)
 	if !ok {
@@ -203,6 +206,10 @@ func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs
 	for index := range parameters {
 		if index < len(arguments) {
 			if parameter, ok := parameters[index].GoType.(*gotypes.TypeParam); ok {
+				if !c.checkConstraintMethodBindings(parameter.Constraint(), nativeBindings, fallback) {
+					valid = false
+					continue
+				}
 				if shape, ok := c.parameterRangeShape(parameter); ok && !sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index])) {
 					span := fallback
 					if index < len(refs) {

@@ -5,6 +5,9 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 type Node interface{ GetSpan() source.Span }
 
 type Program struct {
+	// TypeParameterMethods is checked editor metadata keyed by parameter
+	// declaration identity. It does not participate in source syntax or emission.
+	TypeParameterMethods map[source.Span][]ObjectTypeField
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool

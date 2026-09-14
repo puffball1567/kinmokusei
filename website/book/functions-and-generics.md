@@ -324,11 +324,39 @@ Unmatched terms containing type parameters are conservatively rejected because
 later substitution might make them overlap; instantiate the operands with
 concrete types first. The expanded union limit remains 100 terms, but repeated
 `&` operands do not consume that union limit. Constraints cannot be stored as
-runtime values. Ordinary runtime-interface operands are not supported yet.
+runtime values.
 
 This intersection has no common types:
 
 <<< ../snippets-invalid/constraint-intersection-empty.km{ts}
+
+Ordinary Go interfaces can contribute methods to a constraint:
+
+<<< ../snippets/constraint-methods.km{ts}
+
+This prints `42`. Both the underlying integer type and the `String()` method
+are required. `constraint Stream = io.Reader & io.Closer` combines two method
+interfaces; `constraint Named = fmt.Stringer` names just a method contract.
+Generic Go interfaces can be composed too, for example
+`constraint Access<E> = api.Getter<E> & api.Setter<E>`. Calls retain Go's method
+capitalization, and method values and dependent type inference are supported.
+
+Repeated identical methods are valid; conflicting signatures are errors.
+Interfaces with methods cannot be operands of `|`, including via a named
+constraint. Go's private methods retain their package identity and cannot be
+called from Kinmokusei. An argument must satisfy all method requirements when
+the constraint is instantiated; declaring a constraint does not guarantee that
+an implementor exists.
+
+Native source interfaces and imported Go type-set interfaces are not declaration
+operands yet. Nullable or native-only arguments in Go method signatures are
+diagnosed if conversion would lose source type information, including through
+later generic substitutions. Existing collection-only nullable inference is
+unchanged.
+
+Use `&`, not a union, to combine method contracts:
+
+<<< ../snippets-invalid/constraint-method-union.km{ts}
 
 ## Generic named types
 

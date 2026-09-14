@@ -99,6 +99,7 @@ type structSymbol struct {
 type interfaceSymbol struct {
 	constraintDeclaration *ast.InterfaceDecl
 	constraintResolving   bool
+	constraintValid       bool
 	constraintTermTypes   []Type
 	methods               map[string]methodSymbol
 	bases                 []Type

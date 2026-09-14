@@ -23,7 +23,7 @@ func TestConstraintIntersectionSemanticMatrix(t *testing.T) {
 		{"cycle", `constraint A=B&int; constraint B=A&int;`, "constraint declaration cycle"},
 		{"invalid reference", `constraint A=Missing&int;`, "unknown type"},
 		{"invalid underlying", `constraint A=~int; constraint B=~A&A;`, "cannot name a constraint"},
-		{"interface operand", `import go io from "io"; constraint A=io.Reader&int;`, "must be a concrete type"},
+		{"interface operand", `import go io from "io"; constraint A=io.Reader&~int;`, ""},
 		{"generic inference", `constraint Base<E>=~E[]; constraint Slice<E>=Base<E>&~E[]; function copy<S extends Slice<E>,E>(xs:S):E[]{let result:E[]=[];for(const x of xs){result=append(result,x);}return result;} function use(xs:int[]):int[]{return copy(xs);}`, ""},
 		{"concrete generic intersection", `constraint Base<E>=~E[]; constraint Slice=Base<int>&~int[]; function use<S extends Slice>(xs:S):int{let total=0;for(const x of xs){total+=x;}return total;}`, ""},
 		{"dependent match", `constraint Bad<E>=~E[]&~int[];`, "unmatched parameter-dependent terms"},
