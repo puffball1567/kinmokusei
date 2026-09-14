@@ -26,7 +26,7 @@ func classMethodByGoName(class *classSymbol, name string) (methodSymbol, bool) {
 
 func (c *Checker) checkInheritedGoMethodConflict(name string, symbol *interfaceSymbol, inherited methodSymbol, span source.Span) {
 	for _, existing := range symbol.methods {
-		if existing.goName == inherited.goName && !exactType(existing.typeInfo, inherited.typeInfo) {
+		if existing.goName == inherited.goName && !identicalMethodSignature(existing.typeInfo, inherited.typeInfo) {
 			c.report(span, fmt.Sprintf("interface %s inherits incompatible signatures for Go method %s", name, inherited.goName))
 		}
 	}

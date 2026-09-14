@@ -122,6 +122,17 @@ class Welcome implements Greeter {
 
 Implementation is explicit. The compiler checks the public instance method set, including parameter/result types and variadic status. Static/private methods do not satisfy interface methods.
 
+Method signatures must match exactly across implementations, overrides, and
+inherited same-name declarations. This includes nullable types nested inside
+collections, objects, callbacks, and generic arguments. A method accepting
+`Leaf` cannot implement a requirement accepting `Leaf | null`; a nullable result
+cannot replace a non-null result either. Generic methods do not satisfy
+non-generic requirements.
+
+This example is rejected before Go generation:
+
+<<< ../snippets-invalid/interface-nullable-contract.km{ts}
+
 Imported Go interfaces can also appear after `implements` when the generated method set connects exactly.
 
 An interface can inherit multiple source interfaces with

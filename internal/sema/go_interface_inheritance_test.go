@@ -45,6 +45,7 @@ func TestGoInterfaceInheritanceGenericAndRestrictedContracts(t *testing.T) {
 	file, err := goparser.ParseFile(set, "contracts.go", `package contracts
 import "unsafe"
 type Reader[E any] interface { Read() E }
+type Loader[E any] interface { Load() (E, error) }
 type Hidden interface { hidden() }
 type Unsafe interface { Pointer() unsafe.Pointer }
 type Anonymous interface { Read(interface{Read() int}) }
@@ -62,6 +63,9 @@ type Integers interface { ~int }
 		{"nullable generic result", `class Leaf{public value:int=1;} alias Maybe=Leaf|null; interface Reader<T> extends c.Reader<T>{} function bad(value:Reader<Maybe>):int{return value.Read().value;}`, "nullable"},
 		{"concrete nullable result", `class Leaf{public value:int=1;} alias Maybe=Leaf|null; interface Generic<T> extends c.Reader<T>{} interface Reader extends Generic<Maybe>{} function bad(value:Reader):int{return value.Read().value;}`, "nullable"},
 		{"native class identity", `class Leaf{public value:int=1;} interface Generic<T> extends c.Reader<T>{} interface Reader extends Generic<Leaf>{} class Box implements Reader{public function read():Leaf{return new Leaf();}} function use(value:Reader):int{return value.Read().value;}`, ""},
+		{"nullable Result implementation", `class Leaf{} interface Generic<T> extends c.Loader<T>{} interface Loader extends Generic<Leaf|null>{} class Box implements Loader{public function load():Result<Leaf|null>{return ok(null);}}`, ""},
+		{"nullable Result mismatch", `class Leaf{} interface Generic<T> extends c.Loader<T>{} interface Loader extends Generic<Leaf>{} class Bad implements Loader{public function load():Result<Leaf|null>{return ok(null);}}`, "incompatible signature"},
+		{"nullable Go ancestor conflict", `class Leaf{} interface Generic<T> extends c.Reader<T>{} interface A extends Generic<Leaf>{} interface B extends Generic<Leaf|null>{} interface Bad extends A,B{}`, "incompatible signatures"},
 		{"hidden", `interface Hidden extends c.Hidden{}`, "unexported Go method"},
 		{"unsafe", `interface Unsafe extends c.Unsafe{}`, "uses unsafe.Pointer"},
 		{"anonymous", `interface Anonymous extends c.Anonymous{}`, ""},
