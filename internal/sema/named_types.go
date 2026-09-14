@@ -184,14 +184,15 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 			valid = false
 			continue
 		}
-		if !decl.Intersection && len(decl.Terms) > 1 && (!operand.restricted || len(operand.methods) != 0) {
-			c.report(term.Span, "constraint union operands must be type sets without method requirements; use '&' to compose interfaces")
+		if !decl.Intersection && len(decl.Terms) > 1 && (!operand.restricted || len(operand.methods) != 0 || operand.comparable) {
+			c.report(term.Span, "constraint union operands must be type sets without method or comparable requirements; use '&' to compose interfaces")
 			valid = false
 			continue
 		}
 		var compatible bool
 		methods, compatible = c.mergeConstraintMethods(methods, operand.methods, term.Span)
 		valid = valid && compatible
+		symbol.constraintComparable = symbol.constraintComparable || operand.comparable
 		if !operand.restricted {
 			continue
 		}
@@ -218,6 +219,9 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 			symbol.constraintTermTypes = append(symbol.constraintTermTypes, shapes[i])
 		}
 	}
+	if symbol.constraintComparable {
+		terms, symbol.constraintTermTypes = comparableConstraintTerms(terms, symbol.constraintTermTypes)
+	}
 	if valid && restricted && len(terms) == 0 {
 		c.report(decl.Span, "constraint intersection has no common types")
 		valid = false
@@ -229,6 +233,9 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	var embedded []gotypes.Type
 	if valid && restricted {
 		embedded = []gotypes.Type{gotypes.NewUnion(terms)}
+	}
+	if valid && symbol.constraintComparable {
+		embedded = append(embedded, gotypes.Universe.Lookup("comparable").Type())
 	}
 	if !valid {
 		methods = nil

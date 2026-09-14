@@ -345,7 +345,7 @@ func (c *Checker) substituteNativeMethodOwnerTypeParameters(value Type, bindings
 			}
 		}
 		for i, parameter := range methodParameters {
-			clone := gotypes.NewTypeParam(gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil), nil)
+			clone := gotypes.NewTypeParam(gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil), parameter.GoType.(*gotypes.TypeParam).Constraint())
 			methodParameters[i].GoType = clone
 			native[parameter.GoType] = methodParameters[i]
 			goBindings[parameter.GoType] = clone

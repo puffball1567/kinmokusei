@@ -428,9 +428,29 @@ bound without first being narrowed.
 
 An operand carrying method requirements cannot appear in a `|` union, even
 through an intermediate source constraint; combine it using `&` instead.
-Imported interfaces containing type-set or `comparable` restrictions remain
-usable directly as generic bounds but are not accepted as declaration operands
-yet. Native source interface operands also remain unavailable.
+Imported Go type-set interfaces can also be operands. For example,
+`constraint Integer = cmp.Ordered & ~int` narrows an imported numeric contract.
+Nested interface embeddings remain intersections; imported interface union
+alternatives are normalized even when their type sets overlap legally in Go.
+Generic collection terms retain source element shapes through substitution,
+so `constraint Items<E> = api.Slice<E>` supports nullable element inference.
+The existing conservative rule for unmatched parameter-dependent intersections
+also applies to imported terms.
+
+`comparable` can be named or intersected directly, and its explicit requirement
+is preserved through imported constraints, source references, and export aliases.
+Concrete non-strictly-comparable terms are removed from its type set; an empty
+intersection is diagnosed. Interfaces embedding `comparable` cannot be operands
+of a multi-term union, even when another operand already restricts them to
+integers. A numeric type set without an explicit `comparable` embedding can
+still participate in a union. Type argument satisfaction retains Go's rules,
+including its exception for comparable interface values; dynamic equality can
+still panic when those values contain non-comparable data.
+Native source interface operands remain unavailable.
+When targeting Go 1.23 tooling, put a comparable element parameter before a
+parameter whose bound combines that element with `comparable` (for example,
+`<E extends comparable, T extends Pair<E>>`). The compiler checks forward bounds,
+but Go 1.23's export-data importer can panic on the reversed order during vet.
 Go method arguments must round-trip without losing source type information:
 nullable or native-only shapes in method signatures are diagnosed, including
 when supplied through a later generic substitution. Collection-only parameters

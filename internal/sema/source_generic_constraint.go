@@ -34,8 +34,8 @@ func (c *Checker) sourceConstraintOperand(term ast.TypeSetTerm) (constraintOpera
 	if contract == nil {
 		return constraintOperand{}, true
 	}
-	operand := constraintOperand{methods: constraintMethods(contract), valid: true}
-	if contract.NumEmbeddeds() == 0 {
+	operand := constraintOperand{methods: constraintMethods(contract), comparable: symbol.constraintComparable, valid: true}
+	if len(symbol.constraintTermTypes) == 0 {
 		return operand, true
 	}
 	union, ok := contract.EmbeddedType(0).(*gotypes.Union)
