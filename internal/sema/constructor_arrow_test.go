@@ -15,7 +15,7 @@ class Holder {
       return inner();
     };
     const ignore = (): void => { return; };
-    const [parsed, failure] = ((): Result<int> => { return ok(nested()); })();
+    const [parsed, _] = ((): Result<int> => { return ok(nested()); })();
     ignore();
     this.callback = nested;
   }

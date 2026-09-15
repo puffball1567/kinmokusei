@@ -33,6 +33,9 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 		binding.ResolvedType = typeRefFromType(result, binding.Span)
 		c.declareMultiLocal(binding.Name, result, stmt.Constant, stmt, i, binding.Span)
 		c.updateIdentifierFlow(binding.Name, binding.Span, result)
+		if value.Kind == Result && i == len(results)-1 {
+			c.trackResultError(binding.Name, binding.Span)
+		}
 	}
 }
 
@@ -71,6 +74,9 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			}
 			c.requireAssignable(declared, results[i], binding.Span)
 			c.updateIdentifierFlow(binding.Name, binding.Span, results[i])
+			if value.Kind == Result && i == len(results)-1 {
+				c.trackResultError(binding.Name, binding.Span)
+			}
 		}
 	}
 }

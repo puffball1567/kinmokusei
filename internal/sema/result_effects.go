@@ -9,7 +9,7 @@ import (
 
 func (c *Checker) singleValue(value Type, span source.Span) Type {
 	if value.Kind == Result {
-		c.report(span, "Result values must be consumed with ?, explicitly split, or returned")
+		c.report(span, resultUsageMessage)
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	if value.Kind != MultiValue {

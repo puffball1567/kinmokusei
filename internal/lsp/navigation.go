@@ -384,6 +384,9 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 			*result = append(*result, declarationInfo{Name: statement.Label, Detail: "label " + statement.Label, Kind: 20, Span: statement.Span, Selection: statement.LabelSpan})
 			collectBlockDeclarations(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, result)
 		case *ast.VariableDecl:
+			if statement.Name == "_" {
+				continue
+			}
 			kind, prefix := 13, "let "
 			if statement.Constant {
 				kind, prefix = 14, "const "

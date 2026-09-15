@@ -77,7 +77,7 @@ export function ReturnedFunction():Result<()=>Result<int>>{return ok(()=>{return
 export function EvaluateOnce():int{
   let trace=0;
   const callee=():Load=>{trace=trace*10+1;return (n)=>{trace=trace*10+3;return ok(n);};};
-  const arg=():int=>{trace=trace*10+2;return 7;};const [value,err]=callee()(arg());return trace*10+value;
+  const arg=():int=>{trace=trace*10+2;return 7;};const [value,_]=callee()(arg());return trace*10+value;
 }
 `,
 		"entry.km": `import {Factory,Parse,Recursive,Reassign,NamedCall,Callbacks,GoBoundary,VoidBoundary,MethodValue,Objects,Async,Finally,ReturnedFunction,EvaluateOnce} from "./library";

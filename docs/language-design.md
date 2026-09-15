@@ -1110,6 +1110,22 @@ const [cleanupErr] = cleanup();
 This is direct multiple-result binding, not object destructuring. A real object
 is generated only when the called API actually returns an object.
 
+On the development branch, named local error bindings populated by a source
+Result split must be read somewhere in source code. An unused error is a
+compile error; generated Go unused-variable cleanup does not count as handling.
+Checking, returning, passing, or explicitly discarding the error counts as use.
+This is binding-level validation, not path-sensitive recovery or per-write
+analysis. It does not follow aliases or prove that closures reading an error
+are invoked. Raw imported Go errors retain their existing policy.
+
+Explicit discard remains available: `const [value, _] = operation()` keeps
+the success value, while local `const _ = operation()`, `let _ = operation()`,
+and `_ = operation()` discard all results. These forms evaluate the expression
+once without declaring a local named `_`, and preserve side effects and panics.
+`const _ = operation()?` discards success but propagates failure. Type annotations
+on blank bindings still require assignment compatibility. `Task` cannot be
+discarded; it still requires `await` or `detach`.
+
 On the development branch, a function returning Result is an ordinary function
 value: `(text: string) => Result<int>` can be a variable, callback parameter,
 field, collection/channel element, or another function's success payload.

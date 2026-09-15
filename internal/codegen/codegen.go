@@ -965,7 +965,7 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 					return nil, err
 				}
 				result.List = append(result.List, generated...)
-				if !variable.Used {
+				if variable.Name != "_" && !variable.Used {
 					result.List = append(result.List, &goast.AssignStmt{
 						Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN,
 						Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
@@ -989,7 +989,7 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 			return nil, err
 		}
 		result.List = append(result.List, generated)
-		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && !variable.Used {
+		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && variable.Name != "_" && !variable.Used {
 			result.List = append(result.List, &goast.AssignStmt{
 				Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN,
 				Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
@@ -1204,6 +1204,9 @@ func zeroValue(ref kinmokuseiAST.TypeRef) goast.Expr {
 func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 	switch stmt := stmt.(type) {
 	case *kinmokuseiAST.VariableDecl:
+		if stmt.DiscardArity > 0 {
+			return generateDiscard(stmt.Value, stmt.DiscardArity, stmt.Type)
+		}
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
@@ -1292,6 +1295,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.ExprStmt{X: value}, nil
 	case *kinmokuseiAST.AssignmentStmt:
+		if stmt.DiscardArity > 0 {
+			return generateDiscard(stmt.Value, stmt.DiscardArity, kinmokuseiAST.TypeRef{})
+		}
 		target, err := generateExpression(stmt.Target)
 		if err != nil {
 			return nil, err
@@ -1813,6 +1819,9 @@ func generateTypeSwitchCase(clause *kinmokuseiAST.TypeSwitchCase, guardName stri
 
 func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.Stmt, error) {
 	if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
+		if variable.DiscardArity > 0 {
+			return generateDiscard(variable.Value, variable.DiscardArity, variable.Type)
+		}
 		value, err := generateExpression(variable.Value)
 		if err != nil {
 			return nil, err
