@@ -63,6 +63,10 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 			return
 		}
 		bound, valid := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+		if valid && c.recursiveComparableConstraint(*parameter.Constraint, bound, scope, state) {
+			c.report(parameter.Constraint.Span, "recursive comparable type-set bound cannot be resolved; break the dependency with an independent type parameter")
+			valid = false
+		}
 		if !valid {
 			bound = gotypes.NewInterfaceType(nil, nil).Complete()
 		}

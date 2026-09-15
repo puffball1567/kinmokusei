@@ -1,0 +1,6 @@
+const original = 255
+const tooLarge = original + 1
+
+function main(): void {
+  const value: byte = tooLarge
+}

@@ -26,7 +26,7 @@ function Narrow():float32{return Offset;}
 function LargeIntermediate():float{return Huge/Huge;}
 function Rounded():float32{const n:float32=16777217.;return n-16777216.;}
 function Stored(a:int[]):int{const b=new Box<int>(a);return b.read();}
-function RuntimeAlias():float{const n=2.;const alias=n;return alias+1.;}
+function RuntimeAlias():float{const n=2.;let alias=n;return alias+1.;}
 let count:int=0;
 function next():int{count++;return 1;}
 function Evaluation(a:int[]):int{count=0;const n=a[next()+0];return n+count*100;}

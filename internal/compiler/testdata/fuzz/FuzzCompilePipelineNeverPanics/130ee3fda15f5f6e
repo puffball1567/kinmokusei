@@ -1,0 +1,2 @@
+go test fuzz v1
+string("constraint Pair<E>=comparable&~[0]E;function A<A extends Pair<A>,E>():t{}")

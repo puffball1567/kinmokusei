@@ -1,0 +1,17 @@
+import go { Println } from "fmt"
+
+const base = 254
+const byteValue = base + 1
+const offset = 2.0
+const index = offset
+const huge = 1e400
+const sameHuge = huge
+
+function keep<T>(value: T): T { return value }
+
+function main(): void {
+  const values = [10, 20, 30]
+  const copiedIndex = index
+  const narrow: byte = keep<byte>(byteValue)
+  Println(values[copiedIndex], narrow, sameHuge / huge)
+}

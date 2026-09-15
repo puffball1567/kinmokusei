@@ -121,12 +121,12 @@ func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) 
 	return true
 }
 
-// A source const can lower to a Go variable (for example an initializer that
-// refers to another local). Only propagate values from actual Go constants.
+// Only propagate values from numeric initializers that emit Go constants.
+// Identifiers carry the checked binding fact, not merely source immutability.
 func numericInitializerEmitsConstant(expr ast.Expression) bool {
 	switch e := expr.(type) {
 	case *ast.IdentifierExpr:
-		return e.GoMember != nil && e.GoMember.Constant
+		return e.GoConstant || e.GoMember != nil && e.GoMember.Constant
 	case *ast.LiteralExpr:
 		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral
 	case *ast.UnaryExpr:
@@ -162,7 +162,7 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 		if object := c.namedGoConstant(id); object != nil {
 			gt, value = object.Type(), object.Val()
 		}
-		if symbol, found := c.lookupSymbol(id.Name, id.Span); found && symbol.constant && symbol.declaration != nil && numericInitializerEmitsConstant(symbol.declaration.Value) {
+		if symbol, found := c.lookupSymbol(id.Name, id.Span); found && symbol.declaration != nil && symbol.declaration.GoConstant {
 			if info, known := c.numericConstant(symbol.declaration.Value); known {
 				value = info.Value
 				if !symbol.declaration.Type.IsSpecified() {

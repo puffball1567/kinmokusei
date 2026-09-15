@@ -296,6 +296,16 @@ function choose<T extends comparable>(value: T, fallback: T): T {
 
 `comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. A source declaration such as `constraint Numeric = ~int | ~float64` names a union of permitted types. Constraint references can be reused in other unions; overlapping terms and cycles are rejected.
 
+Constraint terms that need a source struct's value storage before it is finalized
+are currently diagnosed, including generic struct instances. Imported Go concrete
+types do not have this source declaration-order limitation.
+
+Recursive source bounds whose array/struct comparability depends on the same
+unresolved parameter are currently diagnosed. For example, with
+`constraint Pair<E> = comparable & ~[1]E`, avoid `T extends Pair<T>`; use an
+independent `E extends comparable` and `T extends Pair<E>` where appropriate.
+Recursive pointer terms and method contracts do not have this restriction.
+
 Generic constraints can describe collection element relationships:
 
 ```ts

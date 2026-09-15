@@ -120,11 +120,19 @@ with an integer value, including `2.0` and `2+0i`. Explicitly typed floating or
 complex constants and variables are not integer indices. Constant negative,
 oversized, or out-of-bounds indices and invalid size/bound ordering are rejected.
 Target-dependent `int` width remains subject to generated Go validation.
-Direct references to floating/complex Go-emittable constants retain their
-constant precision and representability checks. Source `const` means an
-immutable binding, not necessarily a Go compile-time constant: an alias such as
-`const copy = original` currently lowers to a variable and cannot supply an
-untyped floating constant to an integer-only context.
+On the development branch, references to numeric Go-emittable constants retain
+precision, explicit types, and representability checks through chains such as
+`const copy = original` and `const next = copy + 1`. This includes local and
+module bindings, source exports/aliases, and numeric Go imports. An untyped
+integral floating constant remains usable in integer-only contexts. Typed
+constants preserve their original type and floating-point rounding.
+
+Source `const` still means an immutable binding, not necessarily a Go compile-time
+constant. Function results, copies of mutable/runtime bindings, and three-clause
+loop variables remain runtime values. Their aliases cannot become untyped
+constants. Checked numeric constant operations also diagnose typed overflow;
+numeric compile-time constants cannot have their address taken. Use a `let`
+copy when addressable storage is needed.
 
 Explicit conversions use Go convertibility rules for representable source and
 target types. In particular, `string(bytes)`, `string(runes)`, and conversions

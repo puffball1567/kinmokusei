@@ -2687,7 +2687,7 @@ func goAssignmentToken(operator string) token.Token {
 func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	switch expr := expr.(type) {
 	case *kinmokuseiAST.IdentifierExpr:
-		return expr.GoMember != nil && expr.GoMember.Constant
+		return expr.GoConstant || expr.GoMember != nil && expr.GoMember.Constant
 	case *kinmokuseiAST.LiteralExpr:
 		return expr.Kind != kinmokuseiAST.NilLiteral && expr.Kind != kinmokuseiAST.NullLiteral
 	case *kinmokuseiAST.UnaryExpr:

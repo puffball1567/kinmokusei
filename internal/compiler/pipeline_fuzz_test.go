@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`struct Holder<E>{value:E;}constraint Box<E>=comparable&Holder<E>;function use<A extends Box<A>>():void{}`,
+	`const a=1e400;const b=a;const c=b+b;function run():float{return c/a;}`,
+	`const a=254;const b=a+1;function run():byte{return b;}`,
+	`const a:int8=120;const b=a+8;`,
+	`function run(xs:int[]):int{for(const n=2.;false;){const m=n;return xs[m];}return 0;}`,
+	`function run():void{const a=1;const b=a;const pointer=&b;}`,
 	`function load():Result<int>{return ok(1);}function run():void{const _=load();_=load();const [_,err]=load();_=err;}`,
 	`function load():Result<int>{return ok(1);}function run():void{const [value,err]=load();}`,
 	`function run():Result<void>{const load=():Result<int>=>{return ok(1);};const _=load()?;return ok();}`,

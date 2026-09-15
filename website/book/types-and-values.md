@@ -30,6 +30,25 @@ const total: int64 = int64(count);
 `imag(value)` to extract their components. Complex values support arithmetic
 and equality, but not ordering.
 
+### Numeric constant references
+
+On the development branch, numeric `const` references and constant arithmetic
+retain Go constant semantics through local/module bindings and source imports:
+
+<<< ../snippets/constant-aliases.km{ts}
+
+Untyped constants retain precision until a concrete type is needed. An explicit
+type annotation stays attached to the constant and its copies; a typed
+`float32` constant is not an integer index just because its value is integral.
+Overflow is still rejected through a chain of constant references:
+
+<<< ../snippets-invalid/constant-alias-overflow.km{ts}
+
+`const` still means an immutable binding, not necessarily a compile-time value.
+Function results, copies of runtime variables, and three-clause loop bindings
+remain runtime values. No user function is evaluated at compile time. Numeric
+compile-time constants have no address; use a `let` copy when storage is needed.
+
 ## Slice and fixed array
 
 ```ts
