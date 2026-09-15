@@ -65,7 +65,7 @@
           "name": "keyword.declaration.kinmokusei",
           "match": "\\b(function|const|let|class|struct|enum|type|alias|constraint|distinct|constructor|interface|import|from|export)\\b"
         },
-        {"name": "storage.modifier.kinmokusei", "match": "\\b(public|private|protected|static|implements|extends|virtual|override|final)\\b"},
+        {"name": "storage.modifier.kinmokusei", "match": "\\b(public|private|protected|static|implements|extends|virtual|override|final|abstract)\\b"},
         {"name": "storage.modifier.kinmokusei", "match": "\\bpointer(?=\\s+function\\b)"},
         {"name": "keyword.operator.word.kinmokusei", "match": "\\b(as|new)\\b"},
         {"name": "variable.language.this.kinmokusei", "match": "\\bthis\\b"}

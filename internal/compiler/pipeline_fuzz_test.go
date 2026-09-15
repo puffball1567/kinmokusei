@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`abstract class Base<T>{public abstract function read():T;}class Leaf extends Base<int>{public override function read():int{return 1;}}function run():int{const base:Base<int>=new Leaf();return base.read();}`,
+	`abstract class Base{public abstract function read():int;}class Leaf extends Base{}`,
+	`abstract final class Base{private static abstract function read():int{return 1;}}`,
 	`struct Holder<E>{value:E;}constraint Box<E>=comparable&Holder<E>;function use<A extends Box<A>>():void{}`,
 	`const a=1e400;const b=a;const c=b+b;function run():float{return c/a;}`,
 	`const a=254;const b=a+1;function run():byte{return b;}`,

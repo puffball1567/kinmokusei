@@ -114,10 +114,12 @@ var implementedGoCompatibilityContracts = []string{
 	"Go numeric literals with binary, octal, hexadecimal and decimal integers, separators, decimal and hexadecimal floating exponents, imaginary literals, untyped constant precision, narrow assignments, generic storage, array lengths, indices, slicing, and switches",
 	"numeric constant contexts with integral untyped floating and complex constants, slice/array/pointer/string indices, slicing, collection and channel sizes, linked constants, generic class access, constant precision and rounding, runtime aliases, single evaluation, and runtime bounds",
 	"generic numeric arguments with exact constant values, typed-argument-first inference, numeric constant kind promotion, explicit and partial type arguments, variadics, imported Go generics and constants, named types, linked modules, generic class methods, rounding, and single evaluation",
+	"abstract classes and methods with explicit concrete implementation, dependency injection, generic and multi-level inheritance, re-abstraction, interface dispatch, Result and variadic method values, hierarchy identity, linked export aliases, and construction-phase failure",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
 	"constant-aliases.test":               {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[96], implementedGoCompatibilityContracts[97]},
+	"abstract-classes.test":               {implementedGoCompatibilityContracts[98]},
 	"result-discard.test":                 {implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[28]},
 	"arrow-bindings.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"forward-arrows.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},

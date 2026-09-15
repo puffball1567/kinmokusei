@@ -201,6 +201,7 @@ type MethodDecl struct {
 	Virtual        bool
 	Override       bool
 	Final          bool
+	Abstract       bool
 	VirtualOwner   string
 	// PointerReceiver is used by native value structs. Class instance methods
 	// always retain their existing implicit pointer receiver.
@@ -219,6 +220,7 @@ func (*MethodDecl) declaration()           {}
 func (d *MethodDecl) GetSpan() source.Span { return d.Span }
 
 type ClassDecl struct {
+	Abstract       bool
 	Name           string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter

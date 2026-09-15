@@ -6,6 +6,16 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Add abstract classes and bodyless abstract methods with explicit concrete
+  overrides, generic dependency-injection types, multi-level inheritance and
+  re-abstraction. Preserve interface/method-value dispatch and hierarchy identity.
+  Diagnose direct construction, incomplete concrete classes, incompatible
+  modifiers/signatures, and abstract super access. Preserve construction-phase
+  dispatch with explicit panic on indirect unimplemented slots; omit abstract
+  Go constructor factories. Add editor details/completion, regressions, and docs.
+- Resolve local callable bindings before same-named top-level functions, so
+  extracted methods and callback parameters obey lexical shadowing.
+
 - Preserve numeric constant semantics through local and module reference chains,
   arithmetic, source export aliases, and Go constant imports. Retain precision,
   explicit types and rounding for integer contexts and narrow/generic arguments.

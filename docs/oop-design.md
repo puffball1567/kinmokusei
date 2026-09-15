@@ -299,9 +299,57 @@ slots remain intact. Automatic `encoding/json` allocation does not run a class
 constructor. A user-defined `unmarshalJSON(data: byte[]): error` method may
 define allocation-time initialization when a type needs that behavior.
 
-## Abstract classes and properties
+## Abstract classes
 
-Abstract classes are not required for the initial model. Interfaces provide contracts, ordinary classes provide shared state, and delegation/package functions provide shared behavior. Abstract classes may be reconsidered only after inheritance proves insufficient without them.
+On the development branch, an `abstract class` combines a nominal contract with
+shared fields, constructors, and concrete methods. It can be a parameter, field,
+return type, collection element, or dependency-injection type. A concrete
+descendant is implicitly assignable to that base type, retaining identity and
+virtual dispatch. Interfaces remain explicit method-only contracts; an abstract
+class participates in the ordinary single-class inheritance hierarchy.
+
+```ts
+abstract class Repository<T> {
+  public abstract function find(id: int): T;
+  public function first(): T { return this.find(0); }
+}
+class Names extends Repository<string> {
+  public override function find(id: int): string { return "name"; }
+}
+class Service {
+  constructor(private repository: Repository<string>) {}
+  public function run(): string { return this.repository.first(); }
+}
+```
+
+An abstract method has a signature and terminator, but no body. It is implicitly
+virtual and must be public or protected. Concrete overrides must use `override`
+and preserve visibility and the full signature, including nullable types.
+Abstract intermediate classes may leave inherited abstract methods unresolved,
+or redeclare an inherited virtual method with `abstract override`. Every
+nonabstract class must implement all abstract methods, even if never constructed.
+An abstract class may have no abstract methods, but `new` is still forbidden.
+`abstract` cannot combine with a final class or a static/final method.
+Method-level type parameters remain unsupported on virtual/abstract methods;
+class type parameters are supported.
+
+An abstract class may explicitly `implements` source or Go interfaces. It must
+declare their methods as abstract or concrete (or inherit matching declarations);
+missing interface signatures are not synthesized. `super` cannot access an
+abstract method because no base implementation exists.
+
+Construction retains phase-local virtual dispatch. Direct access to an abstract
+method on `this` in a constructor is rejected. An indirect call through a helper,
+callback, or escaped receiver can still reach an abstract slot during that phase;
+it **panics**, rather than invoking an uninitialized descendant or returning a
+zero value. Do not call abstract-dependent behavior during construction; invoke
+it after construction completes. This is not a whole-program escape analysis.
+Generated Go omits the public `NewAbstractClass` factory but retains the internal
+base initializer. A Go-created zero-value abstract struct also panics if an
+unimplemented slot is invoked; external Go code can bypass frontend construction
+rules just as it can bypass ordinary class initializers.
+
+## Properties
 
 Getter/setter properties are also future work. If added, they must have explicit lowering and cannot hide arbitrary asynchronous or fallible behavior behind field-looking syntax.
 
@@ -321,12 +369,13 @@ Getter/setter properties are also future work. If added, they must have explicit
   checked/forced downcasts, multiple interfaces, and multi-level
   constructor/identity/dispatch tests are implemented.
 - Protected fields/methods and final classes/overrides are implemented.
+- Abstract classes/methods, explicit concrete implementation checks, and generic
+  abstract-base dependency injection are implemented on the development branch.
 
 ### Later candidates
 
 - Getter/setter properties.
 - Discriminated-union integration.
-- Abstract classes.
 
 ### Out of scope
 

@@ -401,7 +401,39 @@ const page: Page<string> = Page<string> { items: ["one", "two"] };
 
 Classes, structs, interfaces, and defined types may have type parameters. Named type positions require full explicit instantiation. Methods may use the enclosing parameters and introduce separate method-local parameters. Those methods lower to standalone Go helpers; they are excluded from virtual dispatch and Go interface method sets.
 
-Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Abstract declarations, property accessors, and static fields are not implemented.
+Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Property accessors and static fields are not implemented.
+
+### Abstract classes and dependency injection
+
+On the development branch, an abstract class can share state and concrete methods
+while requiring descendants to implement selected methods. It is also a type for
+parameters, fields, results, and dependency injection:
+
+<<< ../snippets/abstract-classes.km{ts}
+
+Abstract methods have no body and are implicitly virtual. They must be public or
+protected; implementations require `override` with the same visibility and full
+signature. Abstract intermediate classes may retain unresolved methods or use
+`abstract override` to require a new implementation. Class generics are supported,
+but virtual methods cannot have their own type parameters. Static/final abstract
+methods and final abstract classes are rejected.
+
+Every concrete class must implement all inherited abstract methods. Abstract
+classes cannot be instantiated, including those with no abstract methods:
+
+<<< ../snippets-invalid/abstract-instantiation.km{ts}
+
+Interfaces remain method-only contracts; abstract classes may additionally own
+state and behavior and use single class inheritance. An abstract class declaring
+`implements` must explicitly declare (or inherit) each required method signature.
+`super` cannot access an abstract method without a base implementation.
+
+Constructors keep phase-local virtual dispatch. Direct abstract-method access on
+`this` in a constructor is an error. Indirect access through a helper or callback
+to an unimplemented slot during construction panics; call abstract-dependent
+behavior after construction. Generated Go has no public constructor factory for
+abstract classes. Manually created zero-value Go structs do not establish source
+class invariants and also panic on unimplemented abstract slots.
 
 ## Multiple Go results
 

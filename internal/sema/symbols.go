@@ -63,6 +63,7 @@ type methodSymbol struct {
 	declarationSpan   source.Span
 	declaringClass    string
 	virtual           bool
+	abstract          bool
 	final             bool
 	virtualOwner      string
 }
@@ -83,6 +84,7 @@ type classSymbol struct {
 	ancestors           []string
 	ancestorTypes       []Type
 	final               bool
+	abstract            bool
 	goNamed             *gotypes.Named
 }
 

@@ -275,6 +275,9 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			result = append(result, info)
 		case *ast.ClassDecl:
 			detail := "class " + declaration.Name
+			if declaration.Abstract {
+				detail = "abstract " + detail
+			}
 			if len(declaration.TypeParameters) != 0 {
 				detail += formatTypeParameters(declaration.TypeParameters)
 			}
@@ -526,7 +529,11 @@ func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast
 	if !method.External && len(method.TypeParameters) != 0 {
 		name += formatTypeParameters(method.TypeParameters)
 	}
-	return functionDetail(name, parameters, result)
+	detail := functionDetail(name, parameters, result)
+	if method.Abstract {
+		detail = "abstract " + detail
+	}
+	return detail
 }
 
 func formatTypeParameters(parameters []ast.TypeParameter) string {

@@ -158,16 +158,30 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		start := p.previous()
 		function := p.parseFunction(start)
 		return p.externalMethodFromFunction(start, ast.Private, function, false)
-	case p.match(token.Final):
+	case p.match(token.Final, token.Abstract):
 		start := p.previous()
-		classToken, ok := p.expect(token.Class, "expected 'class' after 'final'")
+		final, abstract := start.Kind == token.Final, start.Kind == token.Abstract
+		for p.match(token.Final, token.Abstract) {
+			if p.previous().Kind == token.Final {
+				if final {
+					p.report(p.previous(), "duplicate final modifier")
+				}
+				final = true
+			} else {
+				if abstract {
+					p.report(p.previous(), "duplicate abstract modifier")
+				}
+				abstract = true
+			}
+		}
+		classToken, ok := p.expect(token.Class, "expected 'class' after class modifier")
 		if !ok {
 			p.synchronizeDeclaration()
 			return nil
 		}
 		decl := p.parseClass(classToken)
 		if decl != nil {
-			decl.Final = true
+			decl.Final, decl.Abstract = final, abstract
 			decl.Span = start.Span.Merge(decl.Span)
 		}
 		return decl
@@ -597,7 +611,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		} else {
 			p.match(token.Private)
 		}
-		static, virtual, override, final := false, false, false, false
+		static, virtual, override, final, abstract := false, false, false, false, false
 		for {
 			switch {
 			case p.match(token.Static):
@@ -620,6 +634,11 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 					p.report(p.previous(), "duplicate final modifier")
 				}
 				final = true
+			case p.match(token.Abstract):
+				if abstract {
+					p.report(p.previous(), "duplicate abstract modifier")
+				}
+				abstract = true
 			default:
 				goto modifiersComplete
 			}
@@ -627,8 +646,8 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 	modifiersComplete:
 		switch {
 		case p.match(token.Constructor):
-			if static || virtual || override || final {
-				p.report(p.previous(), "constructor cannot have static, virtual, override, or final modifiers")
+			if static || virtual || override || final || abstract {
+				p.report(p.previous(), "constructor cannot have static, virtual, override, final, or abstract modifiers")
 			}
 			constructor := p.parseConstructor(p.previous())
 			if class.Constructor != nil {
@@ -637,16 +656,21 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				class.Constructor = constructor
 			}
 		case p.match(token.Function):
-			function := p.parseFunction(p.previous())
+			var function *ast.FunctionDecl
+			if abstract {
+				function = p.parseAbstractMethod(p.previous())
+			} else {
+				function = p.parseFunction(p.previous())
+			}
 			if function != nil {
 				class.Methods = append(class.Methods, &ast.MethodDecl{
 					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
-					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Span: function.Span,
+					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Abstract: abstract, Span: function.Span,
 				})
 			}
 		case p.at(token.Identifier):
-			if static || virtual || override || final {
-				p.report(p.peek(), "fields cannot have static, virtual, override, or final modifiers")
+			if static || virtual || override || final || abstract {
+				p.report(p.peek(), "fields cannot have static, virtual, override, final, or abstract modifiers")
 			}
 			fieldName := p.advance()
 			if _, ok = p.expect(token.Colon, "expected ':' after field name"); !ok {
@@ -830,6 +854,10 @@ func (p *Parser) parseFunction(start token.Token) *ast.FunctionDecl {
 }
 
 func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDecl {
+	return p.parseFunctionTail(start, name, false)
+}
+
+func (p *Parser) parseFunctionTail(start, name token.Token, abstract bool) *ast.FunctionDecl {
 	typeParameters, typeParametersValid := p.parseTypeParameters("function")
 	if _, ok := p.expect(token.LeftParen, "expected '(' after function name"); !ok {
 		p.synchronizeDeclaration()
@@ -902,7 +930,21 @@ func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDe
 		p.synchronizeDeclaration()
 		return nil
 	}
-	body := p.parseBlock()
+	var body *ast.BlockStmt
+	if abstract && !p.at(token.LeftBrace) {
+		end, valid := p.expectTerminator("expected ';' after abstract method signature")
+		if !valid {
+			return nil
+		}
+		// Keep a nonnil empty body for AST visitors; Abstract distinguishes it
+		// from a concrete method with an empty implementation.
+		body = &ast.BlockStmt{Span: end.Span}
+	} else {
+		if abstract {
+			p.report(p.peek(), "abstract methods cannot have a body")
+		}
+		body = p.parseBlock()
+	}
 	if body == nil {
 		p.synchronizeDeclaration()
 		return nil
@@ -2836,7 +2878,7 @@ func (p *Parser) synchronizeDeclaration() {
 			return
 		}
 		switch p.peek().Kind {
-		case token.Import, token.Function, token.Public, token.Private, token.Protected, token.Final, token.Class, token.Struct, token.Interface, token.Const, token.Let:
+		case token.Import, token.Function, token.Public, token.Private, token.Protected, token.Final, token.Abstract, token.Class, token.Struct, token.Interface, token.Const, token.Let:
 			return
 		}
 		p.advance()
