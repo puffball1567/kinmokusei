@@ -101,6 +101,7 @@ type interfaceSymbol struct {
 	constraintResolving   bool
 	constraintValid       bool
 	constraintTermTypes   []Type
+	constraintComparable  bool
 	methods               map[string]methodSymbol
 	bases                 []Type
 	typeParameters        []Type

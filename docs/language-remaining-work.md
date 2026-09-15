@@ -39,7 +39,7 @@ feature work without mixing unrelated changes into its implementation.
 | 4 | Recursive arrows in three-clause loop initializers | Implemented with per-iteration bindings and explicit recursive signatures |
 | 5 | Function values returning Result | Implemented for bindings, callbacks, fields, collections, and native named function types |
 | 6 | Additional export forms, including re-exports and aliases | Implemented: named re-exports and export aliases |
-| 7 | Constraint intersections and interface composition | Source type sets and ordinary Go method interfaces can be intersected; native interface contracts and imported type-set operands remain |
+| 7 | Constraint intersections and interface composition | Source/imported Go type sets, Go method interfaces, and comparable requirements can be composed; native interface contracts remain |
 | 8 | Remaining numeric constant contexts | Queued |
 | 9 | Source anonymous-interface syntax | Queued |
 | 10 | Source-declared multiple results | Queued |
@@ -232,7 +232,7 @@ version metadata until v0.4 release preparation.
 
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
-| Source constraint composition | Source type-set unions/intersections and ordinary Go interface method requirements are implemented, including generic methods, inference, and linked export aliases | Add native source interface contracts and imported type-set operands; preserve source-only method argument shapes; extend parameter-dependent intersections beyond matching shapes |
+| Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, and linked export aliases | Add native source interface contracts; preserve source-only method argument shapes; extend parameter-dependent intersections beyond matching shapes |
 | Numeric constant contexts | Indices, slicing, collection/channel sizes, generic numeric arguments, and direct floating/complex constant references are supported; source `const` aliases may still lower to runtime bindings, and declared array lengths require integer literal syntax | Audit deferred nonconstant shifts, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs and inference; no source anonymous-interface literal syntax | Source callback annotations can use an imported Go alias; consider source syntax separately, and retain rejection of anonymous private method identities |
 | Source-declared multiple results | Raw Go multiple-result calls can be consumed; source callable results use a single type or `Result<T>` | Decide a source result-list syntax and propagation rules before expanding declarations |
@@ -247,6 +247,7 @@ an API classified as supported by the Go API audit has equivalent native syntax.
 |---|---|---|
 | Receiver-dependent field initializers | Module-scope defaults are implemented; `this`, `super`, and constructor parameters are intentionally unavailable in defaults | Any expansion needs read-before-initialization and receiver-escape rules; use the constructor today |
 | Go interface inheritance boundary | Exported runtime contracts are supported; private methods, type-set-only bases, and unsupported interop signatures are rejected | Expand anonymous interface interop independently; preserve package identity and unsafe policy |
+| Go 1.23 comparable-bound import order | Forward comparable-dependent bounds are semantically checked, but Go 1.23 vet can panic while importing their export data | Write comparable element parameters before dependent bounds when targeting Go 1.23 tooling |
 | Abstract classes/methods | Not implemented; deferred by OOP design | If adopted, forbid direct construction and enforce concrete implementations at instantiable subclasses |
 | Getter/setter properties | Not implemented; use explicit methods | Define assignment lowering, visibility, receiver evaluation, and restrictions on hidden effects |
 | Static fields/constants | Not implemented; use module constants or static methods | Define initialization, inheritance/name lookup, mutability, and public Go API shape |

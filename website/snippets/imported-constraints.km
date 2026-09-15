@@ -1,0 +1,17 @@
+import go { Ordered } from "cmp"
+import go fmt from "fmt"
+
+constraint Integer = Ordered & ~int
+constraint Key = comparable
+
+function twice<T extends Integer>(value: T): T {
+  return value * 2
+}
+
+function equal<T extends Key>(left: T, right: T): boolean {
+  return left === right
+}
+
+const main = (): void => {
+  fmt.Println(twice(21), equal("hello", "hello"))
+}

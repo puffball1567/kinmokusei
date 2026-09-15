@@ -14,6 +14,7 @@ type constraintOperand struct {
 	terms      []*gotypes.Term
 	shapes     []Type
 	methods    []*gotypes.Func
+	comparable bool // explicit comparable embedding, not implied by numeric terms
 	restricted bool
 	valid      bool
 }
@@ -21,6 +22,13 @@ type constraintOperand struct {
 func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOperand {
 	if operand, handled := c.sourceConstraintOperand(term); handled {
 		return operand
+	}
+	if ref := term.Type; ref.Name == "comparable" && ref.Qualifier == "" && !ref.Nullable && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
+		if term.Underlying {
+			c.report(term.Span, "underlying constraint terms must name concrete types, not interfaces")
+			return constraintOperand{}
+		}
+		return constraintOperand{comparable: true, valid: true}
 	}
 	resolved := c.resolveType(term.Type)
 	if resolved.Kind == Invalid {
@@ -35,12 +43,9 @@ func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOpera
 					c.report(term.Span, "underlying constraint terms must name concrete types, not interfaces")
 					return constraintOperand{}
 				}
-				if !contract.IsMethodSet() {
-					c.report(term.Span, "imported constraint operands must be ordinary Go interfaces; use imported type-set constraints directly after 'extends'")
-					return constraintOperand{}
-				}
+				var arguments []Type
 				if named, ok := gotypes.Unalias(goType).(*gotypes.Named); ok && len(term.Type.GenericArguments) != 0 {
-					arguments := make([]Type, len(term.Type.GenericArguments))
+					arguments = make([]Type, len(term.Type.GenericArguments))
 					for i, ref := range term.Type.GenericArguments {
 						arguments[i] = c.resolveType(ref)
 					}
@@ -48,7 +53,7 @@ func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOpera
 						return constraintOperand{}
 					}
 				}
-				return constraintOperand{methods: constraintMethods(contract), valid: true}
+				return c.importedConstraintOperand(goType, arguments, term.Span)
 			}
 		}
 	}

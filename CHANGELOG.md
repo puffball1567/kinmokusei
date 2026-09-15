@@ -6,6 +6,11 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Compose imported Go type-set constraints with source constraints, including
+  nested embeddings, unions, generic collection terms, and explicit
+  `comparable` requirements. Preserve source element shapes, method contracts,
+  inference, and linked export aliases. Diagnose empty sets and forbidden unions;
+  prevent dependent comparable inference from panicking on uninitialized bounds.
 - Enforce invariant interface and override method contracts, including nullable
   types nested in callbacks, collections, objects, and generic arguments.
   Reject conflicting inherited contracts and generic methods implementing

@@ -15,6 +15,10 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`import go cmp from "cmp"; constraint A=cmp.Ordered&~int; function twice<T extends A>(x:T):T{return x*2;} function use():int{return twice(21);}`,
+	`constraint Key=comparable; constraint A=~int|~int[]; constraint B=Key&A; function twice<T extends B>(x:T):T{return x*2;}`,
+	`constraint A=comparable&~int; constraint Bad=A|~string;`,
+	`constraint Pair<E>=comparable&~[2]E; function keep<T extends Pair<E>,E>(x:T):T{return x;} function bad(x:[2]int):[2]int{return keep(x);}`,
 	`class Leaf{} interface Reader{function read():Leaf;} class Bad implements Reader{public function read():Leaf|null{return null;}}`,
 	`class Leaf{} interface Reader<T>{function read():T;} interface A extends Reader<Leaf>{} interface B extends Reader<Leaf|null>{} interface Bad extends A,B{}`,
 	`class Leaf{} alias Maybe=Leaf|null; interface Reader{function read(callback:(value:Maybe)=>void):Maybe[];} class Good implements Reader{public function read(callback:(value:Maybe)=>void):Maybe[]{callback(null);return [null];}}`,

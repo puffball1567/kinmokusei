@@ -273,7 +273,7 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 			var union goast.Expr
 			methods := []*goast.Field{}
 			for _, term := range decl.Terms {
-				termType := goType(term.Type)
+				termType := goConstraintType(term.Type)
 				if term.Underlying {
 					termType = &goast.UnaryExpr{Op: token.TILDE, X: termType}
 				}
@@ -333,11 +333,7 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 func goTypeParameterField(parameter kinmokuseiAST.TypeParameter, inferredComparable bool) *goast.Field {
 	var constraint goast.Expr = goast.NewIdent("any")
 	if parameter.Constraint != nil {
-		if parameter.Constraint.Qualifier == "" && parameter.Constraint.Name == "comparable" {
-			constraint = goast.NewIdent("comparable")
-		} else {
-			constraint = goType(*parameter.Constraint)
-		}
+		constraint = goConstraintType(*parameter.Constraint)
 	}
 	if inferredComparable {
 		if parameter.Constraint == nil {
@@ -353,6 +349,13 @@ func goTypeParameterField(parameter kinmokuseiAST.TypeParameter, inferredCompara
 		Names: []*goast.Ident{goast.NewIdent(goName(parameter.Name))},
 		Type:  constraint,
 	}
+}
+
+func goConstraintType(ref kinmokuseiAST.TypeRef) goast.Expr {
+	if ref.Qualifier == "" && ref.Name == "comparable" {
+		return goast.NewIdent("comparable")
+	}
+	return goType(ref)
 }
 
 func comparableTypeParameters(ref kinmokuseiAST.TypeRef) map[string]bool {

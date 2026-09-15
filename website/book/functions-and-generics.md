@@ -348,8 +348,7 @@ called from Kinmokusei. An argument must satisfy all method requirements when
 the constraint is instantiated; declaring a constraint does not guarantee that
 an implementor exists.
 
-Native source interfaces and imported Go type-set interfaces are not declaration
-operands yet. Nullable or native-only arguments in Go method signatures are
+Nullable or native-only arguments in Go method signatures are
 diagnosed if conversion would lose source type information, including through
 later generic substitutions. Existing collection-only nullable inference is
 unchanged.
@@ -357,6 +356,27 @@ unchanged.
 Use `&`, not a union, to combine method contracts:
 
 <<< ../snippets-invalid/constraint-method-union.km{ts}
+
+### Reusing Go type sets
+
+You can narrow an imported constraint, then reuse it in functions and other
+constraints:
+
+<<< ../snippets/imported-constraints.km{ts}
+
+This prints `42 true`. Imported generic collection constraints also compose:
+`constraint Items<E> = api.Slice<E> & ~E[]`. The element type remains available
+for inference and null checks. Go method interfaces can be combined with these
+type sets using `&`.
+
+An explicit `comparable` requirement survives constraint reuse. It may be named
+on its own or combined with `&`, but cannot appear in a multi-term `|` union,
+including indirectly through an imported or source constraint. Empty
+intersections are errors. Native source interfaces are not constraint operands.
+
+For example, an ordered type cannot also have boolean as its underlying type:
+
+<<< ../snippets-invalid/imported-constraint-empty.km{ts}
 
 ## Generic named types
 
