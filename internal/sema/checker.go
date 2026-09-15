@@ -364,6 +364,10 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 				}
 			}
 			c.checkStatement(stmt.Initializer)
+			if variable, ok := stmt.Initializer.(*ast.VariableDecl); ok {
+				// Go for initializers always introduce iteration storage, even for const.
+				variable.GoConstant = false
+			}
 		}
 		entryFlow := c.snapshotNullableFlow()
 		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
@@ -545,16 +549,20 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		}
 		if symbol, ok := c.lookupSymbol(expr.Name, expr.Span); ok {
 			expr.ResolvedDeclaration = symbol.declarationSpan
+			expr.GoConstant = symbol.declaration != nil && symbol.declaration.GoConstant
 			if symbol.typeInfo.Kind == Task && c.taskOperandDepth == 0 {
 				c.report(expr.Span, "Task values may only be consumed by await or detach and cannot be copied or passed")
 			}
-			if symbol.constant && symbol.typeInfo.IsNumeric() && !symbol.typeInfo.IsInteger() {
+			if expr.GoConstant && symbol.typeInfo.IsNumeric() {
 				if info, known := c.checkedNumericConstant(expr, symbol.typeInfo); known {
 					if c.numericValues == nil {
 						c.numericValues = map[ast.Expression]gotypes.TypeAndValue{}
 					}
 					c.numericValues[expr] = info
 					if basic, ok := info.Type.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 {
+						if basic.Kind() == gotypes.UntypedInt {
+							return Type{Kind: UntypedInt, Name: "integer constant"}
+						}
 						return Type{Kind: GoBasic, Name: basic.Name(), GoType: basic}
 					}
 				}
@@ -592,9 +600,9 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		c.report(expr.Span, fmt.Sprintf("undefined name %q", expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	case *ast.UnaryExpr:
-		return c.checkUnary(expr)
+		return c.checkConstantOperation(expr, c.checkUnary(expr))
 	case *ast.BinaryExpr:
-		return c.checkBinary(expr)
+		return c.checkConstantOperation(expr, c.checkBinary(expr))
 	case *ast.GoTypeAssertionExpr:
 		return c.checkGoTypeAssertion(expr)
 	case *ast.TaskStartExpr:
@@ -605,7 +613,12 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		c.report(expr.Span, "result propagation may only be used as a variable initializer or as a void expression statement")
 		return c.checkPropagateExpression(expr)
 	case *ast.CallExpr:
-		return c.checkCall(expr)
+		diagnosticStart := len(c.diagnostics)
+		result := c.checkCall(expr)
+		if len(c.diagnostics) != diagnosticStart {
+			return result
+		}
+		return c.checkConstantOperation(expr, result)
 	case *ast.ArrowExpr:
 		return c.checkArrow(expr)
 	case *ast.ArrayLiteralExpr:

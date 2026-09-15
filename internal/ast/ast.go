@@ -324,6 +324,8 @@ func (*InterfaceDecl) declaration()           {}
 func (d *InterfaceDecl) GetSpan() source.Span { return d.Span }
 
 type VariableDecl struct {
+	// GoConstant marks numeric bindings that retain Go constant semantics.
+	GoConstant bool
 	// DiscardArity records the Go result count for a local blank binding.
 	DiscardArity int
 	// FunctionBinding marks a module-level const arrow with an unnamed function
@@ -688,6 +690,7 @@ func (*ChannelSendStmt) statement()             {}
 func (s *ChannelSendStmt) GetSpan() source.Span { return s.Span }
 
 type IdentifierExpr struct {
+	GoConstant          bool
 	Name                string
 	GoMember            *MemberExpr
 	ResolvedDeclaration source.Span

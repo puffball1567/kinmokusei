@@ -10,8 +10,8 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// Use only constants that really survive lowering as Go constants. A source
-// const initialized from another binding may instead lower to a Go variable.
+// Use only constants that survive lowering as Go constants. Immutable runtime
+// bindings, including three-clause loop variables, must not acquire constants.
 func (c *Checker) checkedNumericConstant(expr ast.Expression, actual Type) (gotypes.TypeAndValue, bool) {
 	if id, ok := expr.(*ast.IdentifierExpr); ok {
 		if symbol, found := c.lookupSymbol(id.Name, id.Span); found {

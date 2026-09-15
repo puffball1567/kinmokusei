@@ -38,6 +38,9 @@ func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOpera
 	// nullable-signature rules. Do not erase those rules into a Go method set.
 	if resolved.Kind != Interface && resolved.Kind != TypeParameter && resolved.Kind != Nullable {
 		if goType, ok := goTypeOf(resolved); ok {
+			if c.rejectIncompleteConstraintTerm(term, goType) {
+				return constraintOperand{}
+			}
 			if contract := underlyingGoInterface(goType); contract != nil {
 				if term.Underlying {
 					c.report(term.Span, "underlying constraint terms must name concrete types, not interfaces")

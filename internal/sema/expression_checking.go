@@ -20,14 +20,14 @@ func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Ty
 		return c.checkObjectLiteralExpected(object, expected)
 	}
 	actual := c.checkExpression(expr)
-	if !c.checkNumericMaterialization(expr, expected) {
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
 	if actual.Kind == UntypedInt && expected.IsInteger() {
 		if value, known := c.resolvedIntegerConstantValue(expr); known && !integerConstantFitsFixedType(value, expected) {
 			c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
+	}
+	if !c.checkNumericMaterialization(expr, expected) {
+		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	return actual
 }
@@ -265,7 +265,7 @@ func (c *Checker) isAddressableExpression(expression ast.Expression) bool {
 		symbol, ok := c.lookupSymbol(expression.Name, expression.Span)
 		if ok {
 			expression.ResolvedDeclaration = symbol.declarationSpan
-			if symbol.declaration != nil && symbol.declaration.FunctionBinding {
+			if symbol.declaration != nil && (symbol.declaration.FunctionBinding || symbol.declaration.GoConstant) {
 				return false
 			}
 		}

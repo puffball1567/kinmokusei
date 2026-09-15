@@ -22,6 +22,9 @@ func (c *Checker) resolveConstraintTerm(term ast.TypeSetTerm, resolved Type) ([]
 		return nil, nil, false
 	}
 	goType = gotypes.Unalias(goType)
+	if c.rejectIncompleteConstraintTerm(term, goType) {
+		return nil, nil, false
+	}
 	if underlyingGoInterface(goType) != nil {
 		c.report(term.Span, fmt.Sprintf("constraint term %s must be a concrete type, not an interface", formatTypeRefForDiagnostic(term.Type)))
 		return nil, nil, false

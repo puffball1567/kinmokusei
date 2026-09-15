@@ -6,6 +6,17 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Preserve numeric constant semantics through local and module reference chains,
+  arithmetic, source export aliases, and Go constant imports. Retain precision,
+  explicit types and rounding for integer contexts and narrow/generic arguments.
+  Diagnose typed constant arithmetic overflow and taking a numeric constant's
+  address; retain runtime storage for mutable values, call results, and loop
+  initializers.
+- Diagnose recursive comparable source type-set bounds that depend on unresolved
+  array/struct element constraints instead of hanging during Go type resolution.
+  Diagnose source struct constraint terms whose storage is not yet resolved
+  instead of panicking. Preserve supported recursive pointer and method constraints.
+
 - Support deliberate Result discard with local `const _ = call()`,
   `let _ = call()`, or `_ = call()`, preserving single evaluation and panics.
   Diagnose unused named local error bindings from Result splits instead of

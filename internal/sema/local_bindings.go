@@ -45,6 +45,7 @@ func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
 			c.checkNumericMaterialization(stmt.Value, declared)
 		}
 	}
+	stmt.GoConstant = stmt.Constant && value.IsNumeric() && numericInitializerEmitsConstant(stmt.Value)
 	if declared.Kind == Void {
 		c.report(stmt.Type.Span, "variables cannot have type void")
 	}

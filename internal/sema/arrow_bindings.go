@@ -107,6 +107,7 @@ func (c *Checker) checkGlobalBinding(decl *ast.VariableDecl) {
 		}
 	}
 	c.requireAssignable(declared, valueType, decl.Value.GetSpan())
+	decl.GoConstant = decl.Constant && valueType.IsNumeric() && numericInitializerEmitsConstant(decl.Value)
 	if declared.Kind == Void {
 		c.report(decl.GetSpan(), "variables cannot have type void")
 	}

@@ -120,7 +120,7 @@ func TestForwardArrowInferenceDiagnostics(t *testing.T) {
 		{`const f=()=>g();const g=(x)=>x;`, "cannot infer arrow parameter"},
 		{`const f=()=>g();const g=(b:boolean)=>{if(b){return 1;}};`, "may complete"},
 		{`const f=():string=>g();const g=()=>42;`, "cannot use"},
-		{`const small:byte=later;const later=256;`, "cannot use"},
+		{`const small:byte=later;const later=256;`, "cannot be represented as byte"},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "invalid.km")
