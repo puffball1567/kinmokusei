@@ -99,6 +99,9 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			return fieldType
 		}
 		if method, ok := class.methods[expr.Name]; ok {
+			if receiver, directThis := expr.Object.(*ast.IdentifierExpr); directThis && receiver.Name == "this" && c.inConstructor && method.abstract {
+				c.report(expr.Span, "cannot access an abstract method on this during construction")
+			}
 			if method.static {
 				c.report(expr.Span, fmt.Sprintf("static method %q cannot be called on an instance", expr.Name))
 			}
@@ -252,6 +255,9 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	if method.visibility == ast.Private {
 		c.report(expr.Span, fmt.Sprintf("method %q is private in base class %s", expr.Name, method.declaringClass))
 	}
+	if method.abstract {
+		c.report(expr.Span, fmt.Sprintf("super cannot access abstract method %q without an implementation", expr.Name))
+	}
 	if _, ok := c.lookupSymbol("this", expr.Span); !ok {
 		c.report(expr.Span, "super cannot be used in a static method")
 	}
@@ -289,6 +295,9 @@ func (c *Checker) checkNew(expr *ast.NewExpr) Type {
 	}
 	if expr.ClassName == "Exception" {
 		c.usesExceptions = true
+	}
+	if class.abstract {
+		c.report(expr.Span, fmt.Sprintf("cannot instantiate abstract class %s", expr.ClassName))
 	}
 	expr.ResolvedDeclaration = class.declarationSpan
 	classType := c.resolveNativeClassType(ast.TypeRef{Name: expr.ClassName, GenericArguments: expr.TypeArguments, Span: expr.Span}, class)

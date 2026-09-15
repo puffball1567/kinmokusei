@@ -1,7 +1,7 @@
 # Remaining language work: Go compatibility and OOP
 
 This is an implementation audit, not a claim of full Go compatibility. The
-98 runtime contract groups cover accepted features only. The baseline output
+99 runtime contract groups cover accepted features only. The baseline output
 remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
@@ -43,7 +43,7 @@ feature work without mixing unrelated changes into its implementation.
 | 8 | Remaining numeric constant contexts | Numeric constant reference chains now preserve precision and types; further contexts remain |
 | 9 | Source anonymous-interface syntax | Queued |
 | 10 | Source-declared multiple results | Queued |
-| 11 | Abstract classes and methods | Queued |
+| 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
 | 12 | Getter/setter properties | Queued |
 | 13 | Static fields and constants | Queued |
 | 14 | Receiver/constructor-dependent field initializers | Queued |
@@ -252,7 +252,7 @@ an API classified as supported by the Go API audit has equivalent native syntax.
 | Go 1.23 comparable-bound import order | Forward comparable-dependent bounds are semantically checked, but Go 1.23 vet can panic while importing their export data | Write comparable element parameters before dependent bounds when targeting Go 1.23 tooling |
 | Recursive comparable source bounds | Array/struct comparability that depends on a still-resolving parameter is diagnosed rather than allowed to deadlock Go type resolution; recursive pointer and method contracts remain supported | Break the dependency with an independently constrained element parameter; broader cyclic value-bound solving remains unsupported |
 | Source struct constraint terms | Terms requiring source struct value storage before it is finalized are diagnosed, including generic instances, instead of panicking | Coordinate constraint and source storage completion before enabling these terms; imported Go concrete types remain available |
-| Abstract classes/methods | Not implemented; deferred by OOP design | If adopted, forbid direct construction and enforce concrete implementations at instantiable subclasses |
+| Abstract classes/methods | Explicit abstract method declarations and concrete implementation checks are implemented; abstract classes cannot be constructed directly | Interface requirements must be declared explicitly; direct constructor access to abstract methods is rejected, while indirect access to an unimplemented construction-phase slot panics; method-level generics remain nonvirtual |
 | Getter/setter properties | Not implemented; use explicit methods | Define assignment lowering, visibility, receiver evaluation, and restrictions on hidden effects |
 | Static fields/constants | Not implemented; use module constants or static methods | Define initialization, inheritance/name lookup, mutability, and public Go API shape |
 

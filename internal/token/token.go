@@ -50,6 +50,7 @@ const (
 	Virtual     Kind = "virtual"
 	Override    Kind = "override"
 	Final       Kind = "final"
+	Abstract    Kind = "abstract"
 	Super       Kind = "super"
 	Go          Kind = "go"
 	Await       Kind = "await"
@@ -155,6 +156,7 @@ var keywords = map[string]Kind{
 	"virtual":     Virtual,
 	"override":    Override,
 	"final":       Final,
+	"abstract":    Abstract,
 	"super":       Super,
 	"go":          Go,
 	"await":       Await,

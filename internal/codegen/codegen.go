@@ -769,9 +769,11 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	}
 	constructorBody.List = append(constructorBody.List, &goast.ExprStmt{X: initializerCall})
 	constructorBody.List = append(constructorBody.List, &goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("this")}})
-	declarations = append(declarations, &goast.FuncDecl{
-		Name: goast.NewIdent("New" + class.Name), Type: constructorType, Body: constructorBody,
-	})
+	if !class.Abstract {
+		declarations = append(declarations, &goast.FuncDecl{
+			Name: goast.NewIdent("New" + class.Name), Type: constructorType, Body: constructorBody,
+		})
+	}
 
 	for _, method := range class.Methods {
 		parameters := make([]*goast.Field, 0, len(method.Parameters))
@@ -783,6 +785,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		body, err := generateBlock(method.Body)
 		if err != nil {
 			return nil, err
+		}
+		if method.Abstract {
+			body = abstractMethodBody(class.Name, method.Name)
 		}
 		name := method.GoName
 		if name == "" {

@@ -97,6 +97,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 	predeclared := c.classes[decl.Name]
 	symbol := &classSymbol{
 		fields: map[string]fieldSymbol{}, methods: map[string]methodSymbol{}, implements: map[string]bool{}, declarationSpan: decl.NameSpan, final: decl.Final,
+		abstract: decl.Abstract,
 	}
 	if predeclared != nil {
 		symbol.typeParameters = predeclared.typeParameters
@@ -104,6 +105,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		symbol.goNamed = predeclared.goNamed
 	}
 	c.classes[decl.Name] = symbol
+	if decl.Abstract && decl.Final {
+		c.report(decl.NameSpan, "a class cannot be both abstract and final")
+	}
 	c.pushTypeParameterScope(symbol.typeParamScope)
 	defer c.popTypeParameterScope()
 	if decl.Base != nil {
@@ -196,6 +200,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		symbol.constructorVariadic = hasVariadicParameter(decl.Constructor.Parameters)
 	}
 	for _, method := range decl.Methods {
+		c.declareAbstractMethod(decl, method)
 		c.validateLabels(method.Body)
 		for _, parameter := range method.TypeParameters {
 			if _, exists := symbol.typeParamScope[parameter.Name]; exists {
@@ -278,10 +283,11 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		symbol.methods[method.Name] = methodSymbol{
 			typeInfo: methodType, visibility: method.Visibility, static: method.Static, goName: method.GoName,
 			declarationSpan: method.NameSpan, declaringClass: decl.Name,
-			virtual: method.Virtual || method.Override, final: method.Final, virtualOwner: virtualOwner,
+			virtual: method.Virtual || method.Override, final: method.Final, abstract: method.Abstract, virtualOwner: virtualOwner,
 		}
 	}
 	owners := map[string]bool{}
+	c.checkConcreteClassMethods(decl, symbol)
 	for _, method := range symbol.methods {
 		if method.virtualOwner != "" {
 			owners[method.virtualOwner] = true
@@ -423,7 +429,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		previousControl := c.enterCallableControl()
 		c.result = c.resolveType(method.ReturnType)
 		c.checkBlock(method.Body, false)
-		if c.result.Kind != Void && !definitelyReturns(method.Body) {
+		if !method.Abstract && c.result.Kind != Void && !definitelyReturns(method.Body) {
 			c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))
 		}
 		c.callableControlState = previousControl

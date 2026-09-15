@@ -121,15 +121,17 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	var callable Type
 	var callableName string
 	if ok {
-		if fn, exists := c.functions[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
+		// Use the same lexical binding precedence as an ordinary identifier.
+		// A bound method or callback may shadow a top-level function.
+		if symbol, exists := c.lookupSymbol(name.Name, name.Span); exists {
+			name.ResolvedDeclaration = symbol.declarationSpan
+			callable = symbol.typeInfo
+			callableName = fmt.Sprintf("value %q", name.Name)
+		} else if fn, exists := c.functions[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
 			c.recordGlobalDependency(name.Name)
 			name.ResolvedDeclaration = fn.declarationSpan
 			callable = callableTypeForFunction(fn)
 			callableName = fmt.Sprintf("function %q", name.Name)
-		} else if symbol, exists := c.lookupSymbol(name.Name, name.Span); exists {
-			name.ResolvedDeclaration = symbol.declarationSpan
-			callable = symbol.typeInfo
-			callableName = fmt.Sprintf("value %q", name.Name)
 		} else if imported, exists := c.lookupNamedGoImport(name.Name, name.Span); exists {
 			callable = c.checkNamedGoIdentifier(name, imported)
 			callableName = fmt.Sprintf("Go member %q", name.Name)

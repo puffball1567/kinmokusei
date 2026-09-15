@@ -64,7 +64,9 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				c.checkOwnerTypeParameterNames(declaration.Name, method.TypeParameters)
 			}
 			claim(declaration.Name, declaration.Span)
-			claim("New"+declaration.Name, declaration.Span)
+			if !declaration.Abstract {
+				claim("New"+declaration.Name, declaration.Span)
+			}
 			claim("__kinmokuseiInit"+declaration.Name, declaration.Span)
 			for _, field := range declaration.Fields {
 				if field.Initializer != nil {

@@ -179,7 +179,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			candidates[item.Label] = item
 		}
 	}
-	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
+	for _, keyword := range []string{"abstract", "alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
 	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
@@ -218,6 +218,9 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			add(completionItem{Label: declaration.Name, Kind: 3, Detail: functionDeclarationDetail(declaration), SortText: "1_" + declaration.Name})
 		case *ast.ClassDecl:
 			detail := "class " + declaration.Name
+			if declaration.Abstract {
+				detail = "abstract " + detail
+			}
 			if len(declaration.TypeParameters) != 0 {
 				detail += formatTypeParameters(declaration.TypeParameters)
 			}
