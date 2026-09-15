@@ -60,6 +60,7 @@ type Checker struct {
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
 	checkingLocalArrow         *localArrowInference
+	resultErrorUses            map[*bool]resultErrorUse
 }
 
 type GoInteropPolicy struct {
@@ -95,6 +96,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
 		globalDependencies:     map[string]map[string]bool{},
 		numericValues:          map[ast.Expression]gotypes.TypeAndValue{},
+		resultErrorUses:        map[*bool]resultErrorUse{},
 	}
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
@@ -156,6 +158,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
+	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
 	return c.diagnostics
@@ -303,12 +306,16 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		}
 		value := c.checkExpression(stmt.Value)
 		if value.Kind == Result {
-			c.report(stmt.Span, "Result values must be consumed with ?, explicitly split, or returned")
+			c.report(stmt.Span, resultUsageMessage)
 		}
 		if !isAllowedExpressionStatement(stmt.Value) {
 			c.report(stmt.Span, "only function calls and Go channel receives may be used as expression statements")
 		}
 	case *ast.AssignmentStmt:
+		if target, ok := stmt.Target.(*ast.IdentifierExpr); ok && target.Name == "_" && (stmt.Operator == "" || stmt.Operator == "=") {
+			stmt.DiscardArity = c.checkDiscard(&stmt.Value, ast.TypeRef{}, false)
+			return
+		}
 		target := c.checkAssignmentTarget(stmt.Target)
 		if target.Kind == Task {
 			c.report(stmt.Target.GetSpan(), "Task bindings cannot be reassigned")

@@ -452,7 +452,9 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 	case *ast.LabeledStmt:
 		addStatementBindings(statement.Statement, add)
 	case *ast.VariableDecl:
-		add(variableDeclarationCompletion(statement))
+		if statement.Name != "_" {
+			add(variableDeclarationCompletion(statement))
+		}
 	case *ast.MultiVariableDecl:
 		for _, binding := range statement.Bindings {
 			if binding.Name != "_" {

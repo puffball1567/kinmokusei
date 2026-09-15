@@ -21,7 +21,7 @@ func (c *Checker) requireAssignable(target, value Type, span source.Span) {
 		return
 	}
 	if value.Kind == Result {
-		c.report(span, "Result values must be consumed with ?, explicitly split, or returned")
+		c.report(span, resultUsageMessage)
 		return
 	}
 	if !c.isAssignable(target, value) {
@@ -40,7 +40,7 @@ func (c *Checker) inferredVariableType(value Type, span source.Span) Type {
 		c.report(span, fmt.Sprintf("multiple values %s require destructuring", value.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	case Result:
-		c.report(span, "Result values must be consumed with ?, explicitly split, or returned")
+		c.report(span, resultUsageMessage)
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	default:
 		return defaultLiteralType(value)

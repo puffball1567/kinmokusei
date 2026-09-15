@@ -184,7 +184,9 @@ following additions target v0.4, not the currently released v0.3 syntax:
   Native aliases and defined/generic function types retain the return effect.
   Arrows need an explicit Result annotation or matching function context, plus
   a block body with explicit returns. Raw Result values remain non-storable;
-  calls require `?`, explicit split binding, or forwarding return. Explicit
+  calls require `?`, explicit split binding, forwarding return, or intentional
+  discard with `_`. Unused named local Result error bindings are diagnosed;
+  this is not per-write, alias, or path-sensitive recovery analysis. Explicit
   function annotations can expose ABI-compatible Go callbacks as Result without
   a runtime wrapper; ordinary Go multiple-result expressions remain unchanged.
   Pipeline, independent handwritten-Go runtime comparisons, negative checks,

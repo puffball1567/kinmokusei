@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function load():Result<int>{return ok(1);}function run():void{const _=load();_=load();const [_,err]=load();_=err;}`,
+	`function load():Result<int>{return ok(1);}function run():void{const [value,err]=load();}`,
+	`function run():Result<void>{const load=():Result<int>=>{return ok(1);};const _=load()?;return ok();}`,
+	`function run():void{const _=()=>1;const _=()=>2;for(const _:error=nil;false;){} }`,
+	`function run():void{const _=null;_=nil;}`,
 	`import go cmp from "cmp"; constraint A=cmp.Ordered&~int; function twice<T extends A>(x:T):T{return x*2;} function use():int{return twice(21);}`,
 	`constraint Key=comparable; constraint A=~int|~int[]; constraint B=Key&A; function twice<T extends B>(x:T):T{return x*2;}`,
 	`constraint A=comparable&~int; constraint Bad=A|~string;`,

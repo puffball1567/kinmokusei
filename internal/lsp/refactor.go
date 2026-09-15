@@ -515,7 +515,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		case *ast.BranchStmt:
 			add(statement.LabelSpan, statement.ResolvedDeclaration)
 		case *ast.VariableDecl:
-			declare(statement.NameSpan)
+			if statement.Name != "_" {
+				declare(statement.NameSpan)
+			}
 			walkType(&statement.Type)
 			walkExpression(statement.Value)
 		case *ast.MultiVariableDecl:

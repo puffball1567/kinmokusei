@@ -8,6 +8,10 @@ import (
 )
 
 func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
+	if stmt.Name == "_" {
+		stmt.DiscardArity = c.checkDiscard(&stmt.Value, stmt.Type, true)
+		return
+	}
 	if symbol := c.scopes[len(c.scopes)-1][stmt.Name]; symbol.declaration == stmt && symbol.localArrowInference != nil && symbol.localArrowInference != c.checkingLocalArrow {
 		c.finishLocalArrowBinding(symbol.localArrowInference)
 		return
@@ -90,6 +94,9 @@ func (c *Checker) recordLocalArrowReference(symbol valueSymbol, name string, spa
 func (c *Checker) predeclareLocalArrowGroup(group []*ast.VariableDecl) {
 	context := &localArrowGroupContext{}
 	for _, declaration := range group {
+		if declaration.Name == "_" {
+			continue
+		}
 		declared := Type{Kind: Invalid, Name: "<inferred>"}
 		if declaration.Type.IsSpecified() {
 			declared = c.resolveType(declaration.Type)

@@ -1,0 +1,25 @@
+import go { Println } from "fmt"
+import go errors from "errors"
+
+function load(): Result<int> {
+  return fail(errors.New("temporarily unavailable"))
+}
+
+function ignoreValue(): Result<void> {
+  const _ = load()? // Discard only success; propagate failure.
+  return ok()
+}
+
+function main(): void {
+  const [value, err] = load()
+  if (err != nil) {
+    Println(err.Error())
+  }
+
+  const _ = load() // Deliberately discard both success and failure.
+  _ = load()      // The assignment form does not declare a variable.
+  const [fallback, _] = load() // Deliberately discard only the error.
+
+  const [propagated] = ignoreValue()
+  _ = propagated // Explicitly discard an already-bound error.
+}

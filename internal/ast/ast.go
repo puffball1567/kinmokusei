@@ -324,6 +324,8 @@ func (*InterfaceDecl) declaration()           {}
 func (d *InterfaceDecl) GetSpan() source.Span { return d.Span }
 
 type VariableDecl struct {
+	// DiscardArity records the Go result count for a local blank binding.
+	DiscardArity int
 	// FunctionBinding marks a module-level const arrow with an unnamed function
 	// type. It is a callable declaration, not mutable function storage.
 	FunctionBinding bool
@@ -442,10 +444,11 @@ func (*ExpressionStmt) statement()             {}
 func (s *ExpressionStmt) GetSpan() source.Span { return s.Span }
 
 type AssignmentStmt struct {
-	Target   Expression
-	Operator string
-	Value    Expression
-	Span     source.Span
+	DiscardArity int
+	Target       Expression
+	Operator     string
+	Value        Expression
+	Span         source.Span
 }
 
 func (*AssignmentStmt) statement()             {}

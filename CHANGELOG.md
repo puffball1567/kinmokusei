@@ -6,6 +6,13 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support deliberate Result discard with local `const _ = call()`,
+  `let _ = call()`, or `_ = call()`, preserving single evaluation and panics.
+  Diagnose unused named local error bindings from Result splits instead of
+  silently suppressing them in generated Go. Keep explicit split blanks and
+  success-only discard with `const _ = call()?`; preserve type checks and Task
+  consumption rules. Blank bindings no longer appear as local editor symbols.
+
 - Compose imported Go type-set constraints with source constraints, including
   nested embeddings, unions, generic collection terms, and explicit
   `comparable` requirements. Preserve source element shapes, method contracts,
