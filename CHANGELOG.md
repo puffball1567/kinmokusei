@@ -6,6 +6,14 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support generic `clear` across slice/map type-set unions, and generic `delete`
+  across maps with a common key type even when value types differ. Preserve
+  source class identity and nullable keys, linked/imported constraints, generic
+  class methods, nil behavior, shared storage, and operand evaluation order.
+  Diagnose incompatible key types/qualifiers and numeric constant key overflow
+  or fractions, including ordinary maps. Add Go differential, editor, fuzz, and
+  executable documentation coverage.
+
 - Preserve `min`/`max` constant values, precision, explicit types, and rounding
   through reference chains, source exports, and Go imports. Apply Go's ordered
   operand rules to named types, generic constraints, and mixed typed/untyped

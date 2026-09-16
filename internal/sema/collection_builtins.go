@@ -199,6 +199,15 @@ func (c *Checker) checkCollectionDelete(expr *ast.CallExpr) Type {
 		return builtins["void"]
 	}
 	key, _, ok := c.mapCollectionTypes(values[0], expr.Arguments[0].GetSpan())
+	if target, hasGoType := goTypeOf(values[0]); hasGoType {
+		if parameter, generic := gotypes.Unalias(target).(*gotypes.TypeParam); generic {
+			key, ok = c.parameterDeleteKey(parameter)
+			if !ok {
+				c.report(expr.Arguments[0].GetSpan(), "delete requires map types with identical key types and compatible source nullability")
+				return builtins["void"]
+			}
+		}
+	}
 	if !ok {
 		if values[0].Kind != Invalid {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("delete requires a map as its first argument, got %s", values[0].String()))
@@ -206,6 +215,13 @@ func (c *Checker) checkCollectionDelete(expr *ast.CallExpr) Type {
 		return builtins["void"]
 	}
 	c.requireAssignable(key, values[1], expr.Arguments[1].GetSpan())
+	if info, known := c.checkedNumericConstant(expr.Arguments[1], values[1]); known && key.IsNumeric() {
+		if target, ok := goTypeOf(key); ok {
+			if err := checkNumericConstantAssignment(info, target); err != nil {
+				c.report(expr.Arguments[1].GetSpan(), err.Error())
+			}
+		}
+	}
 	return builtins["void"]
 }
 
@@ -441,6 +457,9 @@ func isClearCollection(value Type) bool {
 	if !ok {
 		return false
 	}
+	if _, parameter := gotypes.Unalias(goType).(*gotypes.TypeParam); parameter {
+		return genericCollectionOperation("clear", goType)
+	}
 	switch gotypes.Unalias(goType).Underlying().(type) {
 	case *gotypes.Slice, *gotypes.Map:
 		return true
@@ -455,7 +474,11 @@ func goCollectionAcceptsLenOrCap(value Type, allowLenOnly bool) bool {
 		return false
 	}
 	if _, parameter := gotypes.Unalias(goType).(*gotypes.TypeParam); parameter {
-		return typeParameterAcceptsLenOrCap(goType, allowLenOnly)
+		name := "cap"
+		if allowLenOnly {
+			name = "len"
+		}
+		return genericCollectionOperation(name, goType)
 	}
 	underlying := gotypes.Unalias(goType).Underlying()
 	switch collection := underlying.(type) {

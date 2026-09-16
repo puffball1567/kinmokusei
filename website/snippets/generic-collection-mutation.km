@@ -1,0 +1,31 @@
+import go { Println } from "fmt"
+
+constraint Resettable = ~int[] | ~Map<string, int>
+constraint Lookup = ~Map<string, int> | ~Map<string, string>
+
+function reset<T extends Resettable>(value: T): void {
+  clear(value)
+}
+
+class Cleaner {
+  public function remove<T extends Lookup>(value: T, key: string): void {
+    delete(value, key)
+  }
+}
+
+function main(): void {
+  const values = [1, 2, 3, 4]
+  const part = values[1:3]
+  reset(part)
+  Println(values, len(part), cap(part))
+
+  const counts = makeMap<string, int>()
+  counts["temporary"] = 1
+  const labels = makeMap<string, string>()
+  labels["temporary"] = "draft"
+  const cleaner = new Cleaner()
+  cleaner.remove(counts, "temporary")
+  cleaner.remove(labels, "temporary")
+  reset(counts)
+  Println(len(counts), len(labels))
+}

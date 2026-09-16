@@ -48,6 +48,7 @@ type Checker struct {
 	pendingBoundInstances      *[]boundInstance
 	nativeConstraintsReady     bool
 	parameterRangeShapes       map[*gotypes.TypeParam]Type
+	parameterDeleteKeys        map[*gotypes.TypeParam]Type
 	functionTypeParameters     map[*ast.FunctionDecl]map[string]Type
 	receiverTypeParameters     map[*ast.MethodDecl]map[string]Type
 	methodTypeParameters       map[*ast.MethodDecl]map[string]Type
