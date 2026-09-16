@@ -163,7 +163,7 @@ func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
 
 func (c *Checker) checkLoopCondition(expr ast.Expression) {
 	condition := c.checkExpression(expr)
-	if condition.Kind != Invalid && condition.Kind != Boolean {
+	if condition.Kind != Invalid && !condition.IsBoolean() {
 		c.report(expr.GetSpan(), fmt.Sprintf("loop condition must be boolean, got %s", condition.String()))
 	}
 }

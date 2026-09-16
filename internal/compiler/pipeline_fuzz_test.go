@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`type Text=distinct string;const a="温";const b=a+"泉";const n=len(b);function run():Text{return b;}`,
+	`type Flag=distinct boolean;const a:Flag=true;const b=!a;function run():Flag{return true&&b;}`,
+	`type Text=distinct string;function choose<T>(a:T,b:T):T{return a;}function run(v:Text):Text{const a="x";return choose(a,v);}`,
+	`const a="ab";const b=a;function run():string{return b[:3];}`,
+	`const a="abc";const n=len(a);function run():byte{return n;}`,
+	`function run():void{const a=true;const b=a;const pointer=&b;}`,
 	`abstract class Base<T>{public abstract function read():T;}class Leaf extends Base<int>{public override function read():int{return 1;}}function run():int{const base:Base<int>=new Leaf();return base.read();}`,
 	`abstract class Base{public abstract function read():int;}class Leaf extends Base{}`,
 	`abstract final class Base{private static abstract function read():int{return 1;}}`,

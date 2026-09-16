@@ -11,13 +11,17 @@ import (
 func (c *Checker) genericNumericArguments(arguments []ast.Expression, actuals []Type) []gotypes.TypeAndValue {
 	values := make([]gotypes.TypeAndValue, len(arguments))
 	for i, argument := range arguments {
-		if !actuals[i].IsNumeric() {
+		if !isScalarConstantType(actuals[i]) {
 			continue
 		}
 		if info, ok := c.checkedNumericConstant(argument, actuals[i]); ok {
 			values[i] = info
 			if basic, ok := info.Type.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 {
-				actuals[i] = Type{Kind: GoBasic, Name: basic.Name(), GoType: basic}
+				if basic.Kind() == gotypes.UntypedString || basic.Kind() == gotypes.UntypedBool {
+					actuals[i] = preserveUntypedScalar(actuals[i], basic)
+				} else {
+					actuals[i] = Type{Kind: GoBasic, Name: basic.Name(), GoType: basic}
+				}
 				if basic.Kind() == gotypes.UntypedInt {
 					actuals[i] = Type{Kind: UntypedInt, Name: "integer literal"}
 				}
@@ -33,6 +37,8 @@ func untypedNumericRank(info gotypes.TypeAndValue) int {
 		return 0
 	}
 	switch {
+	case basic.Info()&(gotypes.IsString|gotypes.IsBoolean) != 0:
+		return 1
 	case basic.Info()&gotypes.IsComplex != 0:
 		return 4
 	case basic.Info()&gotypes.IsFloat != 0:

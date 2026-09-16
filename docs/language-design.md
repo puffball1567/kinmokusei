@@ -127,11 +127,24 @@ module bindings, source exports/aliases, and numeric Go imports. An untyped
 integral floating constant remains usable in integer-only contexts. Typed
 constants preserve their original type and floating-point rounding.
 
+String and boolean constants follow the same reference-chain rules. Untyped
+values remain assignable to compatible named scalar types; explicit annotations
+remain typed. Concatenation, boolean logic, and unary `!` preserve named operand
+types as in Go. Named boolean values are valid conditions, with no truthiness
+conversion. Generic inference considers typed arguments before untyped string
+and boolean constants, so `pick("text", namedString)` retains the named type.
+
+`len` of a constant string is a constant of type `int`, measured in UTF-8 bytes,
+including through aliases and named string conversions. Narrower types require
+an explicit conversion such as `byte(len(text))`. Constant string index and
+slice bounds are checked against the known byte length. A string slice such as
+`text[:2]` is a runtime value, even when its operands are constants.
+
 Source `const` still means an immutable binding, not necessarily a Go compile-time
 constant. Function results, copies of mutable/runtime bindings, and three-clause
 loop variables remain runtime values. Their aliases cannot become untyped
 constants. Checked numeric constant operations also diagnose typed overflow;
-numeric compile-time constants cannot have their address taken. Use a `let`
+scalar compile-time constants cannot have their address taken. Use a `let`
 copy when addressable storage is needed.
 
 Explicit conversions use Go convertibility rules for representable source and

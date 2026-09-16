@@ -102,12 +102,12 @@ func (c *Checker) checkGlobalBinding(decl *ast.VariableDecl) {
 	valueType := c.checkExpressionExpectedSlot(&decl.Value, declared)
 	if !decl.Type.IsSpecified() {
 		declared = c.inferredVariableType(valueType, decl.Value.GetSpan())
-		if !decl.Constant || !numericInitializerEmitsConstant(decl.Value) {
+		if !decl.Constant || !initializerEmitsConstant(decl.Value) {
 			c.checkNumericMaterialization(decl.Value, declared)
 		}
 	}
 	c.requireAssignable(declared, valueType, decl.Value.GetSpan())
-	decl.GoConstant = decl.Constant && valueType.IsNumeric() && numericInitializerEmitsConstant(decl.Value)
+	decl.GoConstant = decl.Constant && isScalarConstantType(declared) && isScalarConstantType(valueType) && initializerEmitsConstant(decl.Value)
 	if declared.Kind == Void {
 		c.report(decl.GetSpan(), "variables cannot have type void")
 	}

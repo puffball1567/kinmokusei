@@ -2,24 +2,25 @@ package sema
 
 import (
 	goast "go/ast"
+	"go/constant"
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// Retain checked integer constant operations as well as float/complex ones.
+// Retain checked scalar constant operations, including comparisons and logic.
 // Evaluate from the children's resolved values in their original lexical
 // context, never by looking up initializer names again at a later use site.
 func (c *Checker) checkConstantOperation(expr ast.Expression, result Type) Type {
-	if !result.IsNumeric() {
+	if !isScalarConstantType(result) {
 		return result
 	}
-	if _, checked := c.numericValues[expr]; checked {
+	if _, checked := c.constantValues[expr]; checked {
 		return result
 	}
 	var pkg *gotypes.Package
 	operand := func(name string, expression ast.Expression) (goast.Expr, bool) {
-		info, known := c.numericConstant(expression)
+		info, known := c.scalarConstant(expression)
 		if !known {
 			return nil, false
 		}
@@ -39,7 +40,7 @@ func (c *Checker) checkConstantOperation(expr ast.Expression, result Type) Type 
 		}
 		node = &goast.BinaryExpr{X: left, Op: numericOperator(expr.Operator), Y: right}
 	case *ast.UnaryExpr:
-		if expr.Operator != "+" && expr.Operator != "-" && expr.Operator != "^" {
+		if expr.Operator != "+" && expr.Operator != "-" && expr.Operator != "^" && expr.Operator != "!" {
 			return result
 		}
 		value, known := operand("value", expr.Operand)
@@ -48,6 +49,15 @@ func (c *Checker) checkConstantOperation(expr ast.Expression, result Type) Type 
 		}
 		node = &goast.UnaryExpr{Op: numericOperator(expr.Operator), X: value}
 	case *ast.CallExpr:
+		if expr.Builtin == ast.LenCall && len(expr.Arguments) == 1 && !expr.Expanded {
+			info, known := c.scalarConstant(expr.Arguments[0])
+			if !known || info.Value.Kind() != constant.String {
+				return result
+			}
+			value, _ := operand("value", expr.Arguments[0])
+			node = &goast.CallExpr{Fun: goast.NewIdent("len"), Args: []goast.Expr{value}}
+			break
+		}
 		if !expr.Conversion || expr.Expanded || len(expr.Arguments) != 1 {
 			return result
 		}
@@ -68,7 +78,7 @@ func (c *Checker) checkConstantOperation(expr ast.Expression, result Type) Type 
 	default:
 		return result
 	}
-	if checked := c.finishNumeric(expr, pkg, node); checked.Kind == Invalid {
+	if checked := c.finishNumeric(expr, pkg, node); checked.Kind == Invalid || checked.IsString() || checked.IsBoolean() {
 		return checked
 	}
 	return result

@@ -326,7 +326,7 @@ func (*InterfaceDecl) declaration()           {}
 func (d *InterfaceDecl) GetSpan() source.Span { return d.Span }
 
 type VariableDecl struct {
-	// GoConstant marks numeric bindings that retain Go constant semantics.
+	// GoConstant marks scalar bindings that retain Go constant semantics.
 	GoConstant bool
 	// DiscardArity records the Go result count for a local blank binding.
 	DiscardArity int

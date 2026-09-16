@@ -1,7 +1,7 @@
 # Remaining language work: Go compatibility and OOP
 
 This is an implementation audit, not a claim of full Go compatibility. The
-99 runtime contract groups cover accepted features only. The baseline output
+100 runtime contract groups cover accepted features only. The baseline output
 remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
@@ -40,7 +40,7 @@ feature work without mixing unrelated changes into its implementation.
 | 5 | Function values returning Result | Implemented for bindings, callbacks, fields, collections, and native named function types |
 | 6 | Additional export forms, including re-exports and aliases | Implemented: named re-exports and export aliases |
 | 7 | Constraint intersections and interface composition | Source/imported Go type sets, Go method interfaces, and comparable requirements can be composed; native interface contracts remain |
-| 8 | Remaining numeric constant contexts | Numeric constant reference chains now preserve precision and types; further contexts remain |
+| 8 | Remaining constant contexts | Numeric, string, and boolean reference chains preserve values and types; constant-string `len` and bounds are checked; further contexts remain |
 | 9 | Source anonymous-interface syntax | Queued |
 | 10 | Source-declared multiple results | Queued |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
@@ -235,7 +235,7 @@ version metadata until v0.4 release preparation.
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, and linked export aliases | Add native source interface contracts; preserve source-only method argument shapes; extend parameter-dependent intersections beyond matching shapes |
-| Numeric constant contexts | Indices, slicing, collection/channel sizes, generic numeric arguments, and numeric constant reference chains are supported; runtime bindings remain nonconstant, and declared array lengths require integer literal syntax | Audit deferred nonconstant shifts, nonnumeric constant aliases, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
+| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, numeric/string/boolean reference chains, and constant-string `len` are supported; runtime bindings remain nonconstant, and declared array lengths require integer literal syntax | Audit deferred nonconstant shifts, array `len`/`cap`, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs and inference; no source anonymous-interface literal syntax | Source callback annotations can use an imported Go alias; consider source syntax separately, and retain rejection of anonymous private method identities |
 | Source-declared multiple results | Raw Go multiple-result calls can be consumed; source callable results use a single type or `Result<T>` | Decide a source result-list syntax and propagation rules before expanding declarations |
 

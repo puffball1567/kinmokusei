@@ -55,7 +55,7 @@ type Checker struct {
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
-	numericValues              map[ast.Expression]gotypes.TypeAndValue
+	constantValues             map[ast.Expression]gotypes.TypeAndValue
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
@@ -95,7 +95,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		validFallthrough:       map[*ast.BranchStmt]bool{},
 		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
 		globalDependencies:     map[string]map[string]bool{},
-		numericValues:          map[ast.Expression]gotypes.TypeAndValue{},
+		constantValues:         map[ast.Expression]gotypes.TypeAndValue{},
 		resultErrorUses:        map[*bool]resultErrorUse{},
 	}
 	c.installExceptionBuiltin()
@@ -264,7 +264,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.checkTryStatement(stmt)
 	case *ast.IfStmt:
 		condition := c.checkExpression(stmt.Condition)
-		if condition.Kind != Invalid && condition.Kind != Boolean {
+		if condition.Kind != Invalid && !condition.IsBoolean() {
 			c.report(stmt.Condition.GetSpan(), fmt.Sprintf("if condition must be boolean, got %s", condition.Name))
 		}
 		narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
@@ -532,11 +532,11 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		case ast.IntegerLiteral:
 			return Type{Kind: UntypedInt, Name: "integer literal"}
 		case ast.FloatLiteral, ast.ImaginaryLiteral:
-			return c.finishNumeric(expr, gotypes.NewPackage("kinmokusei.synthetic/literal", "literal"), numericLiteralTree(expr))
+			return c.finishNumeric(expr, gotypes.NewPackage("kinmokusei.synthetic/literal", "literal"), scalarLiteralTree(expr))
 		case ast.StringLiteral:
-			return builtins["string"]
+			return preserveUntypedScalar(builtins["string"], gotypes.Typ[gotypes.UntypedString])
 		case ast.BooleanLiteral:
-			return builtins["boolean"]
+			return preserveUntypedScalar(builtins["boolean"], gotypes.Typ[gotypes.UntypedBool])
 		case ast.NilLiteral:
 			return Type{Kind: Nil, Name: "nil"}
 		case ast.NullLiteral:
@@ -553,13 +553,16 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 			if symbol.typeInfo.Kind == Task && c.taskOperandDepth == 0 {
 				c.report(expr.Span, "Task values may only be consumed by await or detach and cannot be copied or passed")
 			}
-			if expr.GoConstant && symbol.typeInfo.IsNumeric() {
+			if expr.GoConstant && isScalarConstantType(symbol.typeInfo) {
 				if info, known := c.checkedNumericConstant(expr, symbol.typeInfo); known {
-					if c.numericValues == nil {
-						c.numericValues = map[ast.Expression]gotypes.TypeAndValue{}
+					if c.constantValues == nil {
+						c.constantValues = map[ast.Expression]gotypes.TypeAndValue{}
 					}
-					c.numericValues[expr] = info
+					c.constantValues[expr] = info
 					if basic, ok := info.Type.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 {
+						if basic.Kind() == gotypes.UntypedString || basic.Kind() == gotypes.UntypedBool {
+							return preserveUntypedScalar(symbol.typeInfo, basic)
+						}
 						if basic.Kind() == gotypes.UntypedInt {
 							return Type{Kind: UntypedInt, Name: "integer constant"}
 						}

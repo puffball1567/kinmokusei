@@ -699,7 +699,7 @@ func goTypeSetMask(goType gotypes.Type, visiting map[gotypes.Type]bool) uint64 {
 }
 
 func defaultLiteralType(t Type) Type {
-	if basic, ok := t.GoType.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 && basic.Info()&gotypes.IsNumeric != 0 {
+	if basic, ok := t.GoType.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 {
 		if converted, err := kinmokuseiTypeFromGo(gotypes.Default(basic)); err == nil {
 			return converted
 		}
