@@ -804,7 +804,7 @@ type CallExpr struct {
 	IntegerSizeArguments []bool
 	Expanded             bool
 	Conversion           bool
-	GoConstant           bool // Checked numeric calls/conversions that Go evaluates at compile time.
+	GoConstant           bool // Checked calls/conversions that Go evaluates at compile time.
 	ConversionType       *TypeRef
 	Builtin              BuiltinCallKind
 	Signature            *CallableSignature

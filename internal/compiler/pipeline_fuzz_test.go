@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function run(a:[3]int):int{const n=len(a);return a[n];}`,
+	`function run(a:*[3]int):void{const n=cap(a);const p=&n;}`,
+	`constraint A=~[3]int|~int[]|~string;function run<T extends A>(a:T):int{return len(a);}`,
+	`constraint A=~[3]int|~string;function run<T extends A>(a:T):int{return cap(a);}`,
+	`function run(c:GoChannel<[3]int>):int{return len(<-c);}`,
+	`function run(a:int[]):int{const n=len(copyArray[[3]int](a));return n;}`,
 	`type Text=distinct string;const a="温";const b=a+"泉";const n=len(b);function run():Text{return b;}`,
 	`type Flag=distinct boolean;const a:Flag=true;const b=!a;function run():Flag{return true&&b;}`,
 	`type Text=distinct string;function choose<T>(a:T,b:T):T{return a;}function run(v:Text):Text{const a="x";return choose(a,v);}`,

@@ -6,6 +6,13 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Preserve typed `int` constants from fixed-array and array-pointer `len`/`cap`,
+  including named/imported arrays, generic element types, reference chains, and
+  compile-time bounds/size checks. Keep Go's unevaluated-operand behavior without
+  suppressing function calls or channel receives. Support `len`/`cap` on generic
+  type sets when every member supports the operation; these remain runtime values.
+  Add Go differential tests, editor regressions, fuzz seeds, and executable docs.
+
 - Preserve string and boolean constants through reference chains, source
   imports/exports, and Go constant imports. Keep named scalar types in operations
   and prefer typed arguments during generic inference. Support named booleans in
