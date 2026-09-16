@@ -1,0 +1,5 @@
+function main(): void {
+  const values: [3]int = [10, 20, 30]
+  const count = len(values)
+  const invalid = values[count]
+}

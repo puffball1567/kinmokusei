@@ -90,6 +90,7 @@ func (c *Checker) checkCollectionLen(expr *ast.CallExpr) Type {
 		if value.Kind != Invalid && !isLenCollection(value) {
 			c.report(argument.GetSpan(), fmt.Sprintf("len requires a string, array, array pointer, slice, map, or channel, got %s", value.String()))
 		}
+		c.checkArrayLengthConstant(expr, value)
 	}
 	return builtins["int"]
 }
@@ -102,6 +103,7 @@ func (c *Checker) checkCollectionCap(expr *ast.CallExpr) Type {
 		if value.Kind != Invalid && !isCapCollection(value) {
 			c.report(argument.GetSpan(), fmt.Sprintf("cap requires an array, array pointer, slice, or channel, got %s", value.String()))
 		}
+		c.checkArrayLengthConstant(expr, value)
 	}
 	return builtins["int"]
 }
@@ -498,6 +500,9 @@ func goCollectionAcceptsLenOrCap(value Type, allowLenOnly bool) bool {
 	goType, ok := goTypeOf(value)
 	if !ok {
 		return false
+	}
+	if _, parameter := gotypes.Unalias(goType).(*gotypes.TypeParam); parameter {
+		return typeParameterAcceptsLenOrCap(goType, allowLenOnly)
 	}
 	underlying := gotypes.Unalias(goType).Underlying()
 	switch collection := underlying.(type) {

@@ -75,6 +75,26 @@ const pair: [2]int = [10, 20];
 
 `T[]` is a Go slice: assignment copies its header and shares backing storage. `[N]T` is a fixed value: length is part of its type and assignment copies all elements.
 
+On the development branch, `len` and `cap` of a fixed array or array pointer can
+be typed `int` constants even when the array is mutable. When the argument has
+no runtime calls or channel receives, it is not evaluated. In particular, a nil
+array pointer can supply its type's length without being dereferenced:
+
+<<< ../snippets/array-length-constants.km{ts}
+
+Constant length aliases participate in bounds checks:
+
+<<< ../snippets-invalid/array-length-bounds.km{ts}
+
+Calls and channel receives inside the argument keep it nonconstant. No user
+function is evaluated at compile time. Use `let size = len(array)` if the result
+needs addressable storage.
+
+Generic type sets can use `len` or `cap` when every member supports that operation.
+These calls remain runtime values, even for a constraint such as `~[3]int`.
+A concrete array shape `[3]T`, in contrast, has a constant length. Nullable
+array-pointer wrappers and some constant intrinsics remain further work.
+
 ```ts
 let copiedPair = pair;
 copiedPair[0] = 99; // pair[0] remains 10

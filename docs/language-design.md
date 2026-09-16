@@ -854,6 +854,17 @@ let [nextValue, nextPresent] = lookup["next"];
 
 - `len`: strings, arrays, array pointers, slices, maps, and channels.
 - `cap`: arrays, array pointers, slices, and channels.
+- `len`/`cap` also accept type parameters when every type-set member supports
+  the operation, even if the collection shapes differ. Calls on a type parameter
+  remain nonconstant; `[3]T` is a fixed array, while `T extends ~[3]int` is not.
+- On the development branch, `len`/`cap` of a fixed array or array pointer retain
+  typed `int` constant values when the operand contains no runtime calls or
+  channel receives. Such operands are not evaluated, including pointer
+  dereferences, indexing, and slice-to-array conversions. No user function is
+  run at compile time. Checked constant calls and uncalled arrow bodies do not
+  force evaluation. Aliases preserve the resulting constant for bounds/size
+  checks; taking its address is rejected. Nullable wrappers and constant
+  intrinsics not yet recognized by semantic analysis remain further work.
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
 - `delete`: removes a map key; missing keys and nil maps are no-ops.

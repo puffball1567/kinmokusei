@@ -119,6 +119,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"array-length-constants.test":         {implementedGoCompatibilityContracts[5], implementedGoCompatibilityContracts[8], implementedGoCompatibilityContracts[10], implementedGoCompatibilityContracts[96]},
 	"scalar-constants.test":               {implementedGoCompatibilityContracts[99]},
 	"constant-aliases.test":               {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[96], implementedGoCompatibilityContracts[97]},
 	"abstract-classes.test":               {implementedGoCompatibilityContracts[98]},
