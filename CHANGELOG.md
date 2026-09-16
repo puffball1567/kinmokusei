@@ -6,6 +6,15 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Preserve `min`/`max` constant values, precision, explicit types, and rounding
+  through reference chains, source exports, and Go imports. Apply Go's ordered
+  operand rules to named types, generic constraints, and mixed typed/untyped
+  arguments. Check constant bounds, sizes, fractional results, overflow, and
+  address-taking; retain runtime evaluation and storage for nonconstant inputs.
+  Preserve contextual nonconstant shifts without losing left-operand overflow
+  checks. Split ordered built-in analysis into its own file and add differential,
+  editor, fuzz, and executable documentation coverage.
+
 - Preserve typed `int` constants from fixed-array and array-pointer `len`/`cap`,
   including named/imported arrays, generic element types, reference chains, and
   compile-time bounds/size checks. Keep Go's unevaluated-operand behavior without

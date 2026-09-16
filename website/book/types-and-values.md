@@ -66,6 +66,26 @@ slice bounds are checked, including through aliases:
 String slices and `len` of runtime strings remain runtime values. Constant
 evaluation does not call user functions or read mutable storage.
 
+### Constant minimum and maximum
+
+On the development branch, `min` and `max` retain a constant result when all
+arguments are constants. Untyped results keep their precision until a concrete
+type is needed. Named types and explicitly typed constants keep their types;
+runtime arguments do not silently change width.
+
+<<< ../snippets/ordered-constants.km{ts}
+
+The operands must have a compatible ordered type, including inside constrained
+generic functions and classes. Typed operands require every untyped constant
+argument to fit that type, even if it would not be selected. The result must also
+fit its destination:
+
+<<< ../snippets-invalid/ordered-constant-overflow.km{ts}
+
+Calls containing runtime values remain nonconstant and evaluate every argument
+once in source order. `min` and `max` are not short-circuiting. Use a `let` copy
+when a compile-time result needs addressable storage.
+
 ## Slice and fixed array
 
 ```ts

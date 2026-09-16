@@ -879,6 +879,15 @@ let [nextValue, nextPresent] = lookup["next"];
 - `min`/`max`: require one or more operands of one ordered numeric or string
   type. Named Go ordered types, mixed typed/untyped numeric literals, NaN,
   signed zero, and left-to-right operand evaluation retain Go behavior.
+  On the development branch, all-constant operands produce a checked constant,
+  preserving precision, numeric-kind promotion, explicit types, and rounding.
+  The result can be reused in narrow assignments, indices, and collection sizes.
+  Every operand must be representable in the common type, even one that would
+  not be selected. Native named types and ordered type parameters retain their
+  identities; type-parameter values remain nonconstant. Untyped nonconstant
+  shifts inside these calls receive the peer operand's integer context, with
+  left-operand overflow checked before generation. These built-ins are not
+  short-circuiting and do not evaluate user functions at compile time.
 - `makeSlice`/`makeMap`: typed allocation with static negative/capacity diagnostics and Go dynamic panic behavior. `makeSlice` evaluates length before capacity exactly once; generated code fixes this order independently of Go toolchain intrinsic lowering.
 
 Visible user declarations may shadow compiler built-ins. Generated names remain deterministic and do not confuse a user call with a built-in lowering.

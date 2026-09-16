@@ -1,0 +1,4 @@
+function main(): void {
+  const largest = max(255, 256)
+  const narrow: byte = largest
+}

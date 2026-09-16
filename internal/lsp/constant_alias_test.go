@@ -37,6 +37,8 @@ func TestScalarConstantAliasEditor(t *testing.T) {
 		`const original="温泉";const alias=len(original);function use():int{return alias;}`,
 		`function use(original:[3]int):int{const alias=len(original);return alias;}`,
 		`function use(original:*[3]int):int{const alias=cap(original);return alias;}`,
+		`const original=255;const alias=min(original,256);function use():byte{return alias;}`,
+		`const original="温泉";const alias=max(original,"a");function use():string{return alias;}`,
 	} {
 		t.Run(input, func(t *testing.T) {
 			uri := fileURI(filepath.Join(t.TempDir(), "constants.km"))

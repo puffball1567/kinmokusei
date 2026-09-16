@@ -1,0 +1,16 @@
+import go { Println } from "fmt"
+
+constraint Ordered = ~int | ~float64 | ~string
+
+function clamp<T extends Ordered>(value: T, low: T, high: T): T {
+  return max(low, min(value, high))
+}
+
+function main(): void {
+  const limit = min(255, 256)
+  const narrow: byte = limit
+  const values: [3]int = [10, 20, 30]
+  const index = min(1.0, 2.0)
+  Println(narrow, values[index])
+  Println(clamp(42, 0, 10), clamp("z", "a", "m"))
+}
