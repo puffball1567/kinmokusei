@@ -13,6 +13,9 @@ generated APIs between minor versions.
   Diagnose incompatible key types/qualifiers and numeric constant key overflow
   or fractions, including ordinary maps. Add Go differential, editor, fuzz, and
   executable documentation coverage.
+  Isolate a Go 1.26/1.27 printf-vet crash on valid map-union deletion in the
+  affected differential fixture; retain runtime tests and all other vet checks,
+  and document the generated-module workaround.
 
 - Preserve `min`/`max` constant values, precision, explicit types, and rounding
   through reference chains, source exports, and Go imports. Apply Go's ordered

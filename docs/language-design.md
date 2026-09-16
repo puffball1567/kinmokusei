@@ -872,6 +872,11 @@ let [nextValue, nextPresent] = lookup["next"];
   same key type; value types may differ. Keys retain source class identity and
   nullability. Unions with incompatible source key nullability are rejected.
   Numeric constant keys must be representable, including through aliases.
+  Toolchain caveat: Go 1.26/1.27's `vet` printf analyzer can panic on a valid
+  `delete` over a common-key union with different map value types (also for
+  handwritten Go). Compilation is unaffected. For such generated modules,
+  run `go vet -printf=false ./...` and `go test -vet=off ./...` until that analyzer
+  is fixed; the differential test applies this workaround only to this fixture.
 - A two-name binding or reassignment from `map[key]` performs Go's checked
   lookup and yields `(value, present)`. Missing and nil maps produce the value
   type's zero value and `false`; a stored zero value produces `true`. The map

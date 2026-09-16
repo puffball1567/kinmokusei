@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -89,5 +90,16 @@ import("testing";"reflect";g "generic-collection-mutation.test";r "generic-colle
 func panics(f func())(yes bool){defer func(){yes=recover()!=nil}();f();return}
 func TestMutation(t *testing.T){for _,pair:=range [][2][]int{{g.Slice(),r.Slice()},{g.Maps(),r.Maps()},{g.Keys(),r.Keys()},{g.Order(),r.Order()}}{if !reflect.DeepEqual(pair[0],pair[1]){t.Fatalf("got %v want %v",pair[0],pair[1])}};if !reflect.DeepEqual(g.Strings(),r.Strings())||g.Shadow()!=r.Shadow(){t.Fatal("strings/shadow")};for _,n:=range []int{0,1,2,8,99}{if g.Constants(n)!=r.Constants(n){t.Fatal("keys")}};if !panics(g.Panic)||!panics(r.Panic)||!panics(func(){g.Constants(-1)})||!panics(func(){r.Constants(-1)}){t.Fatal("panic")}}
 `
-	runGeneratedGoDifferentialTest(t, root, "generic-collection-mutation.test", generated, reference, comparison)
+	// Go 1.26/1.27's printf analyzer calls satisfy.Finder.builtin, which
+	// asserts CoreType(m).(*types.Map) for delete. A legal common-key union
+	// with different value types has no CoreType, so both generated and
+	// handwritten Go panic inside vet. Keep runtime comparison and every
+	// other vet analyzer; confine this workaround to this one fixture.
+	// Remove it when the bundled satisfy finder handles these map unions.
+	runGeneratedGoDifferentialTestInExistingModule(t, root, "generic-collection-mutation.test", generated, reference, comparison, []string{"test", "-vet=off", "./..."}, nil)
+	command := exec.Command("go", "vet", "-p=2", "-printf=false", "./...")
+	command.Dir = root
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("collection mutation vet (except printf): %v\n%s", err, output)
+	}
 }
