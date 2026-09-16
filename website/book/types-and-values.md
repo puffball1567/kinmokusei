@@ -30,9 +30,9 @@ const total: int64 = int64(count);
 `imag(value)` to extract their components. Complex values support arithmetic
 and equality, but not ordering.
 
-### Numeric constant references
+### Scalar constant references
 
-On the development branch, numeric `const` references and constant arithmetic
+On the development branch, scalar `const` references and constant operations
 retain Go constant semantics through local/module bindings and source imports:
 
 <<< ../snippets/constant-aliases.km{ts}
@@ -46,8 +46,25 @@ Overflow is still rejected through a chain of constant references:
 
 `const` still means an immutable binding, not necessarily a compile-time value.
 Function results, copies of runtime variables, and three-clause loop bindings
-remain runtime values. No user function is evaluated at compile time. Numeric
+remain runtime values. No user function is evaluated at compile time. Scalar
 compile-time constants have no address; use a `let` copy when storage is needed.
+
+String and boolean aliases keep their constant values and explicit types too.
+Untyped constants can be assigned to compatible named types. Concatenation,
+boolean logic, and `!` preserve named operand types; named booleans can be used
+in conditions. Generic inference prefers typed arguments over untyped constants.
+
+<<< ../snippets/scalar-constants.km{ts}
+
+`len` of a constant string is a constant **of type `int`**, not an untyped
+integer. It counts UTF-8 bytes, so `len("温泉")` is `6`. Use an explicit
+conversion when a narrower integer type is needed. Constant string index and
+slice bounds are checked, including through aliases:
+
+<<< ../snippets-invalid/scalar-string-bounds.km{ts}
+
+String slices and `len` of runtime strings remain runtime values. Constant
+evaluation does not call user functions or read mutable storage.
 
 ## Slice and fixed array
 

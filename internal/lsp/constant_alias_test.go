@@ -28,3 +28,33 @@ func TestNumericConstantAliasEditor(t *testing.T) {
 		t.Fatalf("rename=%v", messages[4])
 	}
 }
+
+func TestScalarConstantAliasEditor(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{
+		`const original="ab";const alias=original+"c";function use():string{return alias;}`,
+		`const original=true;const alias=!original;function use():boolean{return alias;}`,
+		`const original="温泉";const alias=len(original);function use():int{return alias;}`,
+	} {
+		t.Run(input, func(t *testing.T) {
+			uri := fileURI(filepath.Join(t.TempDir(), "constants.km"))
+			at := positionOf(input, "alias;", 0)
+			messages := serveMessages(t, openDocument(uri, input),
+				requestAt("textDocument/hover", 2, uri, at, ""),
+				requestAt("textDocument/definition", 3, uri, at, ""),
+				requestAt("textDocument/rename", 4, uri, at, `"newName":"copied"`))
+			hover, ok := messages[2]["result"].(map[string]any)
+			if !ok || !strings.Contains(hover["contents"].(map[string]any)["value"].(string), "const alias") {
+				t.Fatalf("hover=%v", messages[2])
+			}
+			definition, ok := messages[3]["result"].(map[string]any)
+			if !ok || definition["range"].(map[string]any)["start"].(map[string]any)["character"] != float64(utf16Length(input[:strings.Index(input, "alias=")])) {
+				t.Fatalf("definition=%v", messages[3])
+			}
+			rename, ok := messages[4]["result"].(map[string]any)
+			if !ok || len(rename["changes"].(map[string]any)[uri].([]any)) != 2 {
+				t.Fatalf("rename=%v", messages[4])
+			}
+		})
+	}
+}

@@ -76,8 +76,8 @@ func (c *Checker) checkNamedGoIdentifier(identifier *ast.IdentifierExpr, importe
 	result := c.checkGoMember(member, imported.pack)
 	identifier.GoMember = member
 	identifier.ResolvedDeclaration = imported.span
-	if value, ok := c.numericValues[member]; ok {
-		c.numericValues[identifier] = value
+	if value, ok := c.constantValues[member]; ok {
+		c.constantValues[identifier] = value
 	}
 	return result
 }

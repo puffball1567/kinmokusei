@@ -27,32 +27,40 @@ func isUntypedGoNumeric(t Type) bool {
 }
 
 func numericOperator(op string) gotoken.Token {
+	if op == "!" {
+		return gotoken.NOT
+	}
 	return map[string]gotoken.Token{"+": gotoken.ADD, "-": gotoken.SUB, "*": gotoken.MUL, "/": gotoken.QUO, "%": gotoken.REM, "^": gotoken.XOR, "&": gotoken.AND, "|": gotoken.OR, "&^": gotoken.AND_NOT, "<<": gotoken.SHL, ">>": gotoken.SHR, "==": gotoken.EQL, "===": gotoken.EQL, "!=": gotoken.NEQ, "!==": gotoken.NEQ, "<": gotoken.LSS, "<=": gotoken.LEQ, ">": gotoken.GTR, ">=": gotoken.GEQ, "&&": gotoken.LAND, "||": gotoken.LOR}[op]
 }
 
-// Only literal numeric trees are rebuilt. Calls, variables, and imported
+// Only literal scalar trees are rebuilt. Calls, variables, and imported
 // objects are represented by checked types/values, never evaluated here.
-func numericLiteralTree(expr ast.Expression) goast.Expr {
+func scalarLiteralTree(expr ast.Expression) goast.Expr {
 	switch e := expr.(type) {
 	case *ast.LiteralExpr:
+		if e.Kind == ast.BooleanLiteral {
+			return goast.NewIdent(e.Text)
+		}
 		kind := gotoken.INT
 		if e.Kind == ast.FloatLiteral {
 			kind = gotoken.FLOAT
 		} else if e.Kind == ast.ImaginaryLiteral {
 			kind = gotoken.IMAG
+		} else if e.Kind == ast.StringLiteral {
+			kind = gotoken.STRING
 		} else if e.Kind != ast.IntegerLiteral {
 			return nil
 		}
 		return &goast.BasicLit{Kind: kind, Value: e.Text}
 	case *ast.UnaryExpr:
-		if e.Operator != "+" && e.Operator != "-" && e.Operator != "^" {
+		if e.Operator != "+" && e.Operator != "-" && e.Operator != "^" && e.Operator != "!" {
 			return nil
 		}
-		if operand := numericLiteralTree(e.Operand); operand != nil {
+		if operand := scalarLiteralTree(e.Operand); operand != nil {
 			return &goast.UnaryExpr{Op: numericOperator(e.Operator), X: operand}
 		}
 	case *ast.BinaryExpr:
-		left, right := numericLiteralTree(e.Left), numericLiteralTree(e.Right)
+		left, right := scalarLiteralTree(e.Left), scalarLiteralTree(e.Right)
 		if left != nil && right != nil && numericOperator(e.Operator) != gotoken.ILLEGAL {
 			return &goast.BinaryExpr{X: left, Op: numericOperator(e.Operator), Y: right}
 		}
@@ -62,10 +70,10 @@ func numericLiteralTree(expr ast.Expression) goast.Expr {
 			return nil
 		}
 		t, ok := LookupType(name.Name)
-		if !ok || !t.IsNumeric() {
+		if !ok || !isScalarConstantType(t) {
 			return nil
 		}
-		if arg := numericLiteralTree(e.Arguments[0]); arg != nil {
+		if arg := scalarLiteralTree(e.Arguments[0]); arg != nil {
 			goType, ok := goTypeOf(t)
 			if !ok {
 				return nil
@@ -82,13 +90,13 @@ func evalNumericGo(pkg *gotypes.Package, expr goast.Expr) (gotypes.TypeAndValue,
 	return info.Types[expr], err
 }
 
-func (c *Checker) numericConstant(expr ast.Expression) (gotypes.TypeAndValue, bool) {
+func (c *Checker) scalarConstant(expr ast.Expression) (gotypes.TypeAndValue, bool) {
 	if identifier, ok := expr.(*ast.IdentifierExpr); ok {
 		if value := c.namedGoConstant(identifier); value != nil {
 			return gotypes.TypeAndValue{Type: value.Type(), Value: value.Val()}, true
 		}
 	}
-	if value, ok := c.numericValues[expr]; ok && value.Value != nil {
+	if value, ok := c.constantValues[expr]; ok && value.Value != nil {
 		return value, true
 	}
 	if member, ok := expr.(*ast.MemberExpr); ok && member.Constant {
@@ -100,7 +108,7 @@ func (c *Checker) numericConstant(expr ast.Expression) (gotypes.TypeAndValue, bo
 			}
 		}
 	}
-	if tree := numericLiteralTree(expr); tree != nil {
+	if tree := scalarLiteralTree(expr); tree != nil {
 		value, err := evalNumericGo(nil, tree)
 		return value, err == nil && value.Value != nil
 	}
@@ -110,7 +118,7 @@ func (c *Checker) numericConstant(expr ast.Expression) (gotypes.TypeAndValue, bo
 // Validate when an untyped numeric expression is materialized into storage or
 // an expected parameter/result type, without prematurely rounding its children.
 func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) bool {
-	if info, ok := c.numericValues[expr]; ok && info.Value != nil && target.IsNumeric() {
+	if info, ok := c.constantValues[expr]; ok && info.Value != nil && target.IsNumeric() {
 		if gt, ok := goTypeOf(target); ok {
 			if err := checkNumericConstantAssignment(info, gt); err != nil {
 				c.report(expr.GetSpan(), err.Error())
@@ -121,20 +129,20 @@ func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) 
 	return true
 }
 
-// Only propagate values from numeric initializers that emit Go constants.
+// Only propagate values from scalar initializers that emit Go constants.
 // Identifiers carry the checked binding fact, not merely source immutability.
-func numericInitializerEmitsConstant(expr ast.Expression) bool {
+func initializerEmitsConstant(expr ast.Expression) bool {
 	switch e := expr.(type) {
 	case *ast.IdentifierExpr:
 		return e.GoConstant || e.GoMember != nil && e.GoMember.Constant
 	case *ast.LiteralExpr:
-		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral
+		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral || e.Kind == ast.StringLiteral || e.Kind == ast.BooleanLiteral
 	case *ast.UnaryExpr:
-		return numericInitializerEmitsConstant(e.Operand)
+		return initializerEmitsConstant(e.Operand)
 	case *ast.BinaryExpr:
-		return numericInitializerEmitsConstant(e.Left) && numericInitializerEmitsConstant(e.Right)
+		return initializerEmitsConstant(e.Left) && initializerEmitsConstant(e.Right)
 	case *ast.CallExpr:
-		return e.GoConstant || numericLiteralTree(e) != nil
+		return e.GoConstant || scalarLiteralTree(e) != nil
 	case *ast.MemberExpr:
 		return e.Constant
 	}
@@ -155,7 +163,7 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 		return nil, false
 	}
 	var value constant.Value
-	if info, known := c.numericConstant(expr); known {
+	if info, known := c.scalarConstant(expr); known {
 		gt, value = info.Type, info.Value
 	}
 	if id, ok := expr.(*ast.IdentifierExpr); ok {
@@ -163,7 +171,7 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 			gt, value = object.Type(), object.Val()
 		}
 		if symbol, found := c.lookupSymbol(id.Name, id.Span); found && symbol.declaration != nil && symbol.declaration.GoConstant {
-			if info, known := c.numericConstant(symbol.declaration.Value); known {
+			if info, known := c.scalarConstant(symbol.declaration.Value); known {
 				value = info.Value
 				if !symbol.declaration.Type.IsSpecified() {
 					gt = info.Type
@@ -203,10 +211,10 @@ func (c *Checker) finishNumeric(expr ast.Expression, pkg *gotypes.Package, node 
 		c.report(expr.GetSpan(), err.Error())
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	if c.numericValues == nil {
-		c.numericValues = map[ast.Expression]gotypes.TypeAndValue{}
+	if c.constantValues == nil {
+		c.constantValues = map[ast.Expression]gotypes.TypeAndValue{}
 	}
-	c.numericValues[expr] = info
+	c.constantValues[expr] = info
 	if call, ok := expr.(*ast.CallExpr); ok {
 		call.GoConstant = info.Value != nil
 	}
@@ -218,7 +226,7 @@ func (c *Checker) finishNumeric(expr ast.Expression, pkg *gotypes.Package, node 
 		c.report(expr.GetSpan(), err.Error())
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	return result
+	return preserveUntypedScalar(result, info.Type)
 }
 
 func (c *Checker) checkComplexBuiltin(expr *ast.CallExpr, name string) Type {
@@ -277,7 +285,7 @@ func (c *Checker) checkComplexConversion(expr *ast.CallExpr, target, actual Type
 	return target
 }
 
-func (c *Checker) checkComplexBinary(expr *ast.BinaryExpr, left, right Type) Type {
+func (c *Checker) checkGoBinary(expr *ast.BinaryExpr, left, right Type) Type {
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/numeric", "numeric")
 	x, xok := c.numericOperand(pkg, "left", expr.Left, left)
 	y, yok := c.numericOperand(pkg, "right", expr.Right, right)
@@ -288,7 +296,7 @@ func (c *Checker) checkComplexBinary(expr *ast.BinaryExpr, left, right Type) Typ
 	return c.finishNumeric(expr, pkg, &goast.BinaryExpr{X: x, Op: numericOperator(expr.Operator), Y: y})
 }
 
-func (c *Checker) checkComplexUnary(expr *ast.UnaryExpr, operand Type) Type {
+func (c *Checker) checkGoUnary(expr *ast.UnaryExpr, operand Type) Type {
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/numeric", "numeric")
 	x, ok := c.numericOperand(pkg, "value", expr.Operand, operand)
 	if !ok {

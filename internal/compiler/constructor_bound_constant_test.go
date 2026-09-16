@@ -125,10 +125,10 @@ function globalCount(): int { return new GlobalHolder().count(); }
 	}
 	for _, want := range []string{
 		"globalEnabled = 2*3 == 6",
-		"var enabled = !false && compared",
+		"const enabled = !false && compared",
 		"for enabled",
 		"var source = make([]int, count)",
-		`var globalText = globalPrefix + "泉"`,
+		`const globalText = globalPrefix + "泉"`,
 	} {
 		if !strings.Contains(string(generated), want) {
 			t.Fatalf("generated Go does not preserve %q:\n%s", want, generated)

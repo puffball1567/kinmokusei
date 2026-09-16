@@ -6,6 +6,14 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Preserve string and boolean constants through reference chains, source
+  imports/exports, and Go constant imports. Keep named scalar types in operations
+  and prefer typed arguments during generic inference. Support named booleans in
+  conditions and constant-string `len` (typed `int`, measured in bytes); diagnose
+  constant string index/slice bounds and taking a scalar constant's address.
+  Keep calls, mutable copies, string slices, and loop bindings as runtime values.
+  Add independent Go comparisons, editor regressions, and executable examples.
+
 - Add abstract classes and bodyless abstract methods with explicit concrete
   overrides, generic dependency-injection types, multi-level inheritance and
   re-abstraction. Preserve interface/method-value dispatch and hierarchy identity.

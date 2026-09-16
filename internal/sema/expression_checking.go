@@ -174,6 +174,9 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 		if operand.Kind != Invalid && !operand.IsBoolean() {
 			c.report(expr.Span, "operator ! requires a boolean operand")
 		}
+		if operand.IsBoolean() {
+			return c.checkGoUnary(expr, operand)
+		}
 		return builtins["boolean"]
 	case "*":
 		if operand.Kind == Invalid {
@@ -210,7 +213,7 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 			c.report(expr.Span, fmt.Sprintf("operator %s requires a numeric operand", expr.Operator))
 		}
 		if isComplexType(operand) || isUntypedGoNumeric(operand) {
-			return c.checkComplexUnary(expr, operand)
+			return c.checkGoUnary(expr, operand)
 		}
 		return operand
 	}
@@ -513,15 +516,16 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		return object
 	}
 	if object.Kind == Array {
-		c.checkSliceConstantBounds(expr, -1)
+		c.checkSliceConstantBounds(expr, -1, "fixed array")
 		return object
 	}
 	if object.Kind == String {
 		if expr.Full {
 			c.report(expr.Span, "3-index slice cannot be used with string")
 		}
-		c.checkSliceConstantBounds(expr, -1)
-		return object
+		c.checkSliceConstantBounds(expr, c.constantStringLength(expr.Object), "string")
+		// Slicing an untyped string produces a typed, nonconstant string value.
+		return defaultLiteralType(object)
 	}
 	goType, ok := goTypeOf(object)
 	if !ok {
@@ -538,7 +542,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		}
 		fixedLength = array.Len()
 		element := c.collectionElementType(array.Elem(), object, expr.Span)
-		c.checkSliceConstantBounds(expr, fixedLength)
+		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
 		return Type{Kind: Array, Name: "array", Element: &element}
 	}
 	switch collection := underlying.(type) {
@@ -548,17 +552,17 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		}
 		fixedLength = collection.Len()
 		element := c.collectionElementType(collection.Elem(), object, expr.Span)
-		c.checkSliceConstantBounds(expr, fixedLength)
+		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
 		return Type{Kind: Array, Name: "array", Element: &element}
 	case *gotypes.Slice:
-		c.checkSliceConstantBounds(expr, fixedLength)
+		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
 		return object
 	case *gotypes.Basic:
 		if collection.Info()&gotypes.IsString != 0 {
 			if expr.Full {
 				c.report(expr.Span, "3-index slice cannot be used with string")
 			}
-			c.checkSliceConstantBounds(expr, fixedLength)
+			c.checkSliceConstantBounds(expr, c.constantStringLength(expr.Object), "string")
 			return object
 		}
 	}
@@ -576,7 +580,7 @@ func (c *Checker) collectionElementType(goType gotypes.Type, owner Type, span so
 	return element
 }
 
-func (c *Checker) checkSliceConstantBounds(expr *ast.SliceExpr, fixedLength int64) {
+func (c *Checker) checkSliceConstantBounds(expr *ast.SliceExpr, fixedLength int64, collection string) {
 	constant := func(expression ast.Expression) (*big.Int, bool) {
 		if expression == nil {
 			return nil, false
@@ -603,7 +607,7 @@ func (c *Checker) checkSliceConstantBounds(expr *ast.SliceExpr, fixedLength int6
 		known bool
 	}{{"low", low, lowOK}, {"high", high, highOK}, {"max", max, maxOK}} {
 		if bound.known && bound.value.Cmp(limit) > 0 {
-			c.report(expr.Span, fmt.Sprintf("slice %s bound %s exceeds fixed array length %d", bound.name, bound.value.String(), fixedLength))
+			c.report(expr.Span, fmt.Sprintf("slice %s bound %s exceeds %s length %d", bound.name, bound.value.String(), collection, fixedLength))
 		}
 	}
 }
@@ -628,8 +632,11 @@ func (c *Checker) checkBinary(expr *ast.BinaryExpr) Type {
 }
 
 func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Type {
+	if scalarBinaryOperation(expr.Operator, left, right) {
+		return c.checkGoBinary(expr, left, right)
+	}
 	if isComplexType(left) || isComplexType(right) || isUntypedGoNumeric(left) || isUntypedGoNumeric(right) {
-		return c.checkComplexBinary(expr, left, right)
+		return c.checkGoBinary(expr, left, right)
 	}
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%":
@@ -727,7 +734,7 @@ func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Ty
 		}
 		return builtins["boolean"]
 	case "&&", "||":
-		if (left.Kind != Boolean || right.Kind != Boolean) && left.Kind != Invalid && right.Kind != Invalid {
+		if (!left.IsBoolean() || !right.IsBoolean()) && left.Kind != Invalid && right.Kind != Invalid {
 			c.report(expr.Span, fmt.Sprintf("operator %s requires boolean operands", expr.Operator))
 		}
 		return builtins["boolean"]

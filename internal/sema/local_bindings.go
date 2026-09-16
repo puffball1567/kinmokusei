@@ -41,11 +41,11 @@ func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
 	}
 	if !stmt.Type.IsSpecified() {
 		declared = c.inferredVariableType(value, stmt.Value.GetSpan())
-		if !stmt.Constant || !numericInitializerEmitsConstant(stmt.Value) {
+		if !stmt.Constant || !initializerEmitsConstant(stmt.Value) {
 			c.checkNumericMaterialization(stmt.Value, declared)
 		}
 	}
-	stmt.GoConstant = stmt.Constant && value.IsNumeric() && numericInitializerEmitsConstant(stmt.Value)
+	stmt.GoConstant = stmt.Constant && isScalarConstantType(declared) && isScalarConstantType(value) && initializerEmitsConstant(stmt.Value)
 	if declared.Kind == Void {
 		c.report(stmt.Type.Span, "variables cannot have type void")
 	}

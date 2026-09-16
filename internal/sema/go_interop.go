@@ -99,13 +99,14 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 	switch object := object.(type) {
 	case *gotypes.Const:
 		result, err = kinmokuseiTypeFromGo(object.Type())
+		result = preserveUntypedScalar(result, object.Type())
 		expression.Constant = true
 		if basic, ok := object.Type().(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 && basic.Info()&(gotypes.IsFloat|gotypes.IsComplex) != 0 {
 			result = Type{Kind: GoBasic, Name: basic.Name(), GoType: basic}
-			if c.numericValues == nil {
-				c.numericValues = map[ast.Expression]gotypes.TypeAndValue{}
+			if c.constantValues == nil {
+				c.constantValues = map[ast.Expression]gotypes.TypeAndValue{}
 			}
-			c.numericValues[expression] = gotypes.TypeAndValue{Type: object.Type(), Value: object.Val()}
+			c.constantValues[expression] = gotypes.TypeAndValue{Type: object.Type(), Value: object.Val()}
 		}
 	case *gotypes.Func:
 		result, err = kinmokuseiFunctionFromGo(object.Type().(*gotypes.Signature))

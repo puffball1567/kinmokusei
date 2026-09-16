@@ -26,6 +26,9 @@ func (c *Checker) expressionAlwaysTrue(expression ast.Expression) bool {
 }
 
 func (c *Checker) resolvedBooleanConstantValue(expression ast.Expression, seen map[source.Span]bool) (bool, bool) {
+	if info, known := c.scalarConstant(expression); known && info.Value.Kind() == constant.Bool {
+		return constant.BoolVal(info.Value), true
+	}
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
 		if value := c.namedGoConstantValue(expression); value != nil && value.Kind() == constant.Bool {
@@ -95,6 +98,9 @@ func (c *Checker) resolvedBooleanConstantValue(expression ast.Expression, seen m
 }
 
 func (c *Checker) resolvedStringConstantValue(expression ast.Expression, seen map[source.Span]bool) (string, bool) {
+	if info, known := c.scalarConstant(expression); known && info.Value.Kind() == constant.String {
+		return constant.StringVal(info.Value), true
+	}
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
 		if value := c.namedGoConstantValue(expression); value != nil && value.Kind() == constant.String {
