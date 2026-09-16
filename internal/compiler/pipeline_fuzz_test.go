@@ -15,6 +15,13 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`const a=min(255,256);const b=a;function run():byte{return b;}`,
+	`const a=max(1e400,2e400);function run():float{return a/1e400;}`,
+	`type Text=distinct string;function run(s:Text):Text{return min("a",s);}`,
+	`constraint Ordered=~int|~string;function run<T extends Ordered>(a:T,b:T):T{return max(a,b);}`,
+	`function run(n:int,v:byte):byte{return min(+(1<<n)+2,v);}`,
+	`function run(n:int,v:byte):byte{return max(300<<n,v);}`,
+	`function run():void{const n=max(1,2);const p=&n;}`,
 	`function run(a:[3]int):int{const n=len(a);return a[n];}`,
 	`function run(a:*[3]int):void{const n=cap(a);const p=&n;}`,
 	`constraint A=~[3]int|~int[]|~string;function run<T extends A>(a:T):int{return len(a);}`,

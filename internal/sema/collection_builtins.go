@@ -221,53 +221,6 @@ func (c *Checker) checkCollectionClear(expr *ast.CallExpr) Type {
 	return builtins["void"]
 }
 
-func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
-	if name == "min" {
-		expr.Builtin = ast.MinCall
-	} else {
-		expr.Builtin = ast.MaxCall
-	}
-	if len(expr.TypeArguments) != 0 {
-		c.report(expr.Span, fmt.Sprintf("%s does not accept type arguments", name))
-	}
-	if expr.Expanded {
-		c.report(expr.Span, fmt.Sprintf("%s does not accept spread arguments", name))
-	}
-	if len(expr.Arguments) == 0 {
-		c.report(expr.Span, fmt.Sprintf("%s expects at least 1 argument, got 0", name))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-
-	values := make([]Type, len(expr.Arguments))
-	result := Type{Kind: Invalid, Name: "<invalid>"}
-	for index, argument := range expr.Arguments {
-		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
-		values[index] = value
-		if value.Kind != Invalid && !value.IsOrdered() {
-			c.report(argument.GetSpan(), fmt.Sprintf("%s requires ordered operands, got %s", name, value.String()))
-		}
-		if result.Kind == Invalid || (result.Kind == UntypedInt && value.Kind != Invalid && value.Kind != UntypedInt) {
-			result = value
-		}
-	}
-	if result.Kind == Invalid {
-		return result
-	}
-	for index, value := range values {
-		if value.Kind == Invalid {
-			continue
-		}
-		if !sameType(result, value) {
-			c.report(expr.Arguments[index].GetSpan(), fmt.Sprintf("%s operands must have one ordered type; got %s and %s", name, result.String(), value.String()))
-			continue
-		}
-		if integer, known := c.resolvedIntegerConstantValue(expr.Arguments[index]); known && value.Kind == UntypedInt && !integerConstantFitsFixedType(integer, result) {
-			c.report(expr.Arguments[index].GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", integer.String(), result.String()))
-		}
-	}
-	return result
-}
-
 func (c *Checker) checkMakeSlice(expr *ast.CallExpr) Type {
 	expr.Builtin = ast.MakeSliceCall
 	if expr.Expanded {
