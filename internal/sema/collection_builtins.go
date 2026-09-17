@@ -140,19 +140,19 @@ func (c *Checker) checkCollectionAppend(expr *ast.CallExpr) Type {
 					if source.Kind != Invalid {
 						c.report(expr.Arguments[1].GetSpan(), fmt.Sprintf("expanded append source must be a compatible slice, got %s", source.String()))
 					}
-				} else if !identicalCollectionElement(element, sourceElement) {
+				} else if !c.identicalCollectionElement(element, sourceElement) {
 					c.report(expr.Arguments[1].GetSpan(), fmt.Sprintf("expanded append source element %s does not match destination element %s", sourceElement.String(), element.String()))
 				}
 			}
 		}
-		for _, argument := range expr.Arguments[2:] {
-			c.checkExpression(argument)
+		for index := 2; index < len(expr.Arguments); index++ {
+			c.checkExpression(expr.Arguments[index])
 		}
 		return destination
 	}
-	for _, argument := range expr.Arguments[1:] {
-		actual := c.checkExpressionExpected(argument, element)
-		c.requireAssignable(element, actual, argument.GetSpan())
+	for index := 1; index < len(expr.Arguments); index++ {
+		actual := c.checkExpressionExpectedSlot(&expr.Arguments[index], element)
+		c.requireAssignable(element, actual, expr.Arguments[index].GetSpan())
 	}
 	return destination
 }
@@ -182,7 +182,7 @@ func (c *Checker) checkCollectionCopy(expr *ast.CallExpr) Type {
 		if values[1].Kind != Invalid {
 			c.report(expr.Arguments[1].GetSpan(), fmt.Sprintf("copy source must be a compatible slice or string for byte destinations, got %s", values[1].String()))
 		}
-	} else if !identicalCollectionElement(destinationElement, sourceElement) {
+	} else if !c.identicalCollectionElement(destinationElement, sourceElement) {
 		c.report(expr.Arguments[1].GetSpan(), fmt.Sprintf("copy source element %s does not match destination element %s", sourceElement.String(), destinationElement.String()))
 	}
 	return builtins["int"]
@@ -397,6 +397,13 @@ func (c *Checker) sliceElementType(value Type, span source.Span) (Type, bool) {
 	if value.Kind == Array && value.Element != nil {
 		return *value.Element, true
 	}
+	if parameter, ok := value.GoType.(*gotypes.TypeParam); ok {
+		shape, valid := c.parameterRangeShape(parameter)
+		if !valid || shape.Kind != Array || shape.Element == nil {
+			return Type{}, false
+		}
+		return *shape.Element, true
+	}
 	goType, ok := goTypeOf(value)
 	if !ok {
 		return Type{}, false
@@ -501,16 +508,19 @@ func isBuiltinByte(value Type) bool {
 	return ok && gotypes.Identical(goType, gotypes.Typ[gotypes.Uint8])
 }
 
-func identicalCollectionElement(left, right Type) bool {
-	if left.Kind == Nullable || right.Kind == Nullable {
-		return left.Kind == Nullable && right.Kind == Nullable && left.Element != nil && right.Element != nil && identicalCollectionElement(*left.Element, *right.Element)
+func (c *Checker) identicalCollectionElement(left, right Type) bool {
+	// Slice copying is invariant: Go storage alone erases source nullability,
+	// while mutual assignability alone accepts distinct generic instantiations
+	// such as Box<int[]> and Box<NamedSlice>. Require both source and Go identity.
+	if !identicalMethodSignature(c.constraintArgumentShape(left), c.constraintArgumentShape(right)) {
+		return false
 	}
-	leftGo, leftOK := goTypeOf(left)
-	rightGo, rightOK := goTypeOf(right)
+	leftGo, leftOK := c.goTypeForNativeStorage(left)
+	rightGo, rightOK := c.goTypeForNativeStorage(right)
 	if leftOK && rightOK {
 		return gotypes.Identical(leftGo, rightGo)
 	}
-	return left.Kind == right.Kind && left.Name == right.Name && (left.Kind == Class || left.Kind == Interface || left.Kind == Object)
+	return exactType(left, right)
 }
 
 func isCollectionElementType(value Type) bool {

@@ -69,4 +69,27 @@ capacity; elements beyond its length remain untouched. Clearing a map removes
 every entry, including NaN keys. Nil maps/slices are safe. Deletion checks the
 key's type, source nullability and numeric constant range at compile time.
 
+## Generic append and copy
+
+On the development branch, a slice constraint also supports `append` and `copy`.
+`append` returns the destination's original type, including a named slice type.
+`copy` returns the number of elements copied and preserves the destination's
+length. Both work inside generic classes and methods.
+
+<<< ../snippets/generic-slice-builtins.km{ts}
+
+Expected output:
+
+```text
+1 3 [1 2 3]
+2 [1 2]
+12
+```
+
+Source and destination elements must match for copying or spread-append, including
+their nullability and generic arguments. Adding one derived-class value to a
+base-class slice is allowed and preserves virtual dispatch; copying a whole
+derived-class slice into a base-class slice is not. A byte-slice constraint also
+supports appending or copying bytes from a string-constrained source.
+
 See [Types and data](../guide/types-and-data) and [Type-system reference](../reference/types).

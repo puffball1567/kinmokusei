@@ -6,6 +6,15 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support `append` and `copy` with slice-constrained type parameters, including
+  dependent element types, named slices, imported/linked constraints, generic
+  class methods, contextual callbacks/objects, and byte/string operations.
+  Preserve the destination type and Go's aliasing, overlap, growth, nil, and
+  single-evaluation behavior. Insert required class upcasts for individual
+  appended elements; enforce invariant generic identity and nested nullability
+  for slice copies/spreads. Diagnose a missing spread-append source without
+  crashing the compiler. Add differential, editor, fuzz, and executable examples.
+
 - Support generic `clear` across slice/map type-set unions, and generic `delete`
   across maps with a common key type even when value types differ. Preserve
   source class identity and nullable keys, linked/imported constraints, generic
