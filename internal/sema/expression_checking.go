@@ -422,6 +422,9 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 	}
 	goType, ok := goTypeOf(object)
 	if !ok {
+		goType, ok = c.goTypeForNativeStorage(object)
+	}
+	if !ok {
 		c.report(expr.Object.GetSpan(), fmt.Sprintf("type %s cannot be indexed", object.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
@@ -431,7 +434,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 			c.checkSequenceIndex(expr.Index, index, array.Len(), "array")
 			expr.Addressable = true
 			expr.Assignable = true
-			return c.checkedIndexResult(expr, c.collectionElementType(array.Elem(), object, expr.Span), checked, false)
+			return c.checkedIndexResult(expr, c.fixedArrayElementType(array, object, expr.Span), checked, false)
 		}
 	}
 	switch collection := underlying.(type) {
@@ -439,10 +442,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 		c.checkSequenceIndex(expr.Index, index, collection.Len(), "array")
 		expr.Addressable = c.isAddressableExpression(expr.Object)
 		expr.Assignable = expr.Addressable
-		if object.Element != nil {
-			return c.checkedIndexResult(expr, *object.Element, checked, false)
-		}
-		return c.checkedIndexResult(expr, c.collectionElementType(collection.Elem(), object, expr.Span), checked, false)
+		return c.checkedIndexResult(expr, c.fixedArrayElementType(collection, object, expr.Span), checked, false)
 	case *gotypes.Slice:
 		c.checkSequenceIndex(expr.Index, index, -1, "array")
 		expr.Addressable = true
@@ -529,6 +529,9 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 	}
 	goType, ok := goTypeOf(object)
 	if !ok {
+		goType, ok = c.goTypeForNativeStorage(object)
+	}
+	if !ok {
 		c.report(expr.Object.GetSpan(), fmt.Sprintf("type %s cannot be sliced", object.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
@@ -541,7 +544,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		fixedLength = array.Len()
-		element := c.collectionElementType(array.Elem(), object, expr.Span)
+		element := c.fixedArrayElementType(array, object, expr.Span)
 		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
 		return Type{Kind: Array, Name: "array", Element: &element}
 	}
@@ -551,7 +554,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 			c.report(expr.Object.GetSpan(), fmt.Sprintf("slicing fixed array %s requires an addressable operand", object.String()))
 		}
 		fixedLength = collection.Len()
-		element := c.collectionElementType(collection.Elem(), object, expr.Span)
+		element := c.fixedArrayElementType(collection, object, expr.Span)
 		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
 		return Type{Kind: Array, Name: "array", Element: &element}
 	case *gotypes.Slice:

@@ -125,6 +125,23 @@ alias[0] = 99; // values[0] is now 99
 
 No implicit array/slice conversion exists. `copyArray[[N]T](slice)` copies into an independent fixed array; `viewArray[[N]T](slice)` returns a pointer view over shared storage.
 
+Both operations accept slice-constrained type parameters on the development
+branch. The target still needs a concrete array shape, possibly containing an
+element type parameter or using a named array type:
+
+<<< ../snippets/generic-array-conversion.km{ts}
+
+The copy is shallow: class references and nested slices/maps retain their shared
+objects, although replacing a copied array slot does not replace the source
+slot. A view shares the slots themselves. A source shorter than the target
+length panics even with spare capacity. A zero-length copy always succeeds;
+a zero-length view is nil exactly when the source slice is nil.
+
+Element types must match exactly, including nullable qualifiers; conversions do
+not implicitly upcast classes or remove null checks:
+
+<<< ../snippets-invalid/array-conversion-nullability.km{ts}
+
 ## Maps
 
 ```ts

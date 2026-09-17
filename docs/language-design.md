@@ -779,7 +779,32 @@ const copied: [3]int = copyArray[[3]int](values);
 const viewed: *[3]int = viewArray[[3]int](values);
 ```
 
-`copyArray` returns an independent value. `viewArray` shares backing storage. Both panic like Go when the source is too short.
+`copyArray` returns an independent array value. This is a shallow copy: class
+references, maps, and slice elements still share their referenced storage.
+`viewArray` shares the source's element slots. Both panic like Go when the
+source's **length** is too short, even if its capacity is sufficient. Conversion
+to `[0]T` always succeeds; conversion to `*[0]T` returns nil exactly when the
+source slice is nil.
+
+The source can be a slice-constrained type parameter, including named slice
+unions and imported constraints with a common element type:
+
+```ts
+constraint Slice<E> = ~E[];
+function pair<E, S extends Slice<E>>(values: S): [2]E {
+  return copyArray[[2]E](values);
+}
+function pairView<E, S extends Slice<E>>(values: S): *[2]E {
+  return viewArray[[2]E](values);
+}
+```
+
+The target must have a concrete fixed-array shape, such as `[2]E` or a named
+instantiation of it, not a bare array-constrained type parameter. Element types
+are invariant, including class identity and nested nullable qualifiers; these
+operations neither convert elements nor perform class upcasts. Indexing and
+reslicing preserve those source element contracts. Ordinary operands execute
+once; constant `len`/`cap` of a conversion retains Go's unevaluated-operand rules.
 
 ## Operators
 

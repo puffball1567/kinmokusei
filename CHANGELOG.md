@@ -6,6 +6,14 @@ generated APIs between minor versions.
 
 ## [Unreleased]
 
+- Support `copyArray` and `viewArray` with slice-constrained type parameters,
+  dependent elements, named slices/arrays, and generic class methods. Preserve
+  class/interface identity and nullable element contracts when indexing or
+  reslicing specialized arrays and pointer views. Keep Go's shallow copy,
+  shared-view, zero-length/nil, short-source panic, and evaluation semantics.
+  Add independent Go comparisons, diagnostics, editor tests, fuzz seeds, and
+  executable documentation.
+
 - Support `append` and `copy` with slice-constrained type parameters, including
   dependent element types, named slices, imported/linked constraints, generic
   class methods, contextual callbacks/objects, and byte/string operations.

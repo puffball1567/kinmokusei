@@ -241,8 +241,13 @@ direct slice-constrained type parameters, including dependent elements and
 generic class methods; `generic_slice_builtins_test.go` covers Go behavior and
 source OOP invariance. Operations requiring a common element shape reject
 conflicting source nullability; `delete` likewise rejects conflicting source key
-qualifiers. Slice-to-array conversions still need direct type-parameter sources;
-this is not a claim of complete generic collection support.
+qualifiers. `copyArray`/`viewArray` also accept slice-constrained parameters with
+common elements, including OOP elements and generic methods. Their targets must
+have a concrete fixed-array shape (`[2]E` or a named instantiation), not a bare
+array-constrained parameter. `generic_array_conversion_test.go` covers shallow
+copy versus shared slots, nil/zero length, short-source panics, evaluation, and
+preserved class/interface/nullability contracts after indexing and reslicing.
+This is not a claim of complete generic collection support.
 
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|

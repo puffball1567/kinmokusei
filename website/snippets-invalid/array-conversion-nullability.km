@@ -1,0 +1,9 @@
+class Item {
+  public value: int = 1
+}
+
+alias MaybeItem = Item | null
+
+function invalid(values: MaybeItem[]): *[2]Item {
+  return viewArray[[2]Item](values)
+}

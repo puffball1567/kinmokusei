@@ -327,18 +327,18 @@ func (c *Checker) checkSliceToArray(expr *ast.CallExpr, view bool) Type {
 		}
 	}
 	if len(expr.Arguments) == 1 && source.Kind != Invalid {
-		sourceGo, sourceOK := goTypeOf(source)
-		if sourceOK {
-			_, sourceOK = gotypes.Unalias(sourceGo).Underlying().(*gotypes.Slice)
-		}
-		if !sourceOK {
+		sourceGo, storageOK := c.goTypeForNativeStorage(source)
+		sourceElement, sourceOK := c.sliceElementType(source, expr.Arguments[0].GetSpan())
+		if !sourceOK || !storageOK {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a slice source, got %s", name, source.String()))
 		} else if targetOK {
 			conversionTarget := targetGo
 			if view {
 				conversionTarget = gotypes.NewPointer(targetGo)
 			}
-			if !gotypes.ConvertibleTo(sourceGo, conversionTarget) {
+			targetArray := gotypes.Unalias(targetGo).Underlying().(*gotypes.Array)
+			targetElement := c.fixedArrayElementType(targetArray, target, expr.TypeArguments[0].Span)
+			if !gotypes.ConvertibleTo(sourceGo, conversionTarget) || !c.identicalCollectionElement(targetElement, sourceElement) {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert slice %s to %s target %s", source.String(), name, target.String()))
 			}
 		}
@@ -394,15 +394,11 @@ func (c *Checker) sliceElementType(value Type, span source.Span) (Type, bool) {
 	if value.Kind == Nullable && value.Element != nil {
 		return c.sliceElementType(*value.Element, span)
 	}
-	if value.Kind == Array && value.Element != nil {
-		return *value.Element, true
-	}
-	if parameter, ok := value.GoType.(*gotypes.TypeParam); ok {
-		shape, valid := c.parameterRangeShape(parameter)
-		if !valid || shape.Kind != Array || shape.Element == nil {
-			return Type{}, false
-		}
-		return *shape.Element, true
+	shape := c.constraintArgumentShape(value)
+	if shape.Kind == Array && shape.Element != nil {
+		element := *shape.Element
+		inheritGoQualifier(&element, value)
+		return element, true
 	}
 	goType, ok := goTypeOf(value)
 	if !ok {
@@ -476,6 +472,9 @@ func isClearCollection(value Type) bool {
 }
 
 func goCollectionAcceptsLenOrCap(value Type, allowLenOnly bool) bool {
+	if value.Kind == GoPointer && value.Element != nil && value.Element.Kind == FixedArray {
+		return true
+	}
 	goType, ok := goTypeOf(value)
 	if !ok {
 		return false
