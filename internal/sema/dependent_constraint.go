@@ -63,6 +63,10 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 			return
 		}
 		bound, valid := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+		if valid && c.recursiveComparableConstraint(*parameter.Constraint, bound, scope, state) {
+			c.report(parameter.Constraint.Span, "recursive comparable type-set bound cannot be resolved; break the dependency with an independent type parameter")
+			valid = false
+		}
 		if !valid {
 			bound = gotypes.NewInterfaceType(nil, nil).Complete()
 		}
@@ -231,7 +235,9 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 	clones := make([]*gotypes.TypeParam, len(parameters))
 	replacements := map[gotypes.Type]gotypes.Type{}
 	for i, parameter := range parameters {
-		clones[i] = gotypes.NewTypeParam(gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil), nil)
+		// Substituting a bound can eagerly inspect another parameter's
+		// comparability. Give every clone a valid provisional constraint.
+		clones[i] = gotypes.NewTypeParam(gotypes.NewTypeName(gotoken.NoPos, nil, parameter.Name, nil), parameter.GoType.(*gotypes.TypeParam).Constraint())
 		replacements[parameter.GoType] = clones[i]
 	}
 	for i, parameter := range parameters {

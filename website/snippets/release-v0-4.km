@@ -1,0 +1,25 @@
+import go { Println } from "fmt"
+
+abstract class Greeting {
+  public abstract function text(): string
+}
+
+class Hello extends Greeting {
+  public override function text(): string { return "hello" }
+}
+
+constraint Slice<E> = ~E[]
+
+function pair<E, S extends Slice<E>>(values: S): [2]E {
+  return copyArray[[2]E](values)
+}
+
+const load = (): Result<int> => { return ok(5) }
+
+export const main = (): void => {
+  const greeting: Greeting = new Hello()
+  const values = pair([1, 2, 3])
+  const [value, err] = load()
+  if (err !== nil) { Println(err); return }
+  Println(greeting.text(), value, values[0], values[1])
+}

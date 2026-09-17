@@ -5,7 +5,7 @@ description: Learn Kinmokusei source structure, declarations, scope, visibility,
 
 # Declarations and control flow
 
-Kinmokusei uses braces, semicolons, typed declarations, and explicit control flow. The syntax is TypeScript-inspired; evaluation and generated behavior are deliberately Go-shaped.
+Kinmokusei uses braces, optional statement semicolons, typed declarations, and explicit control flow. The syntax is TypeScript-inspired; evaluation and generated behavior are deliberately Go-shaped.
 
 For a connected language treatment, read [Source text](../book/source-and-lexical), [Bindings and scope](../book/bindings-and-scope), and [Control flow](../book/control-flow) in the Language Manual.
 
@@ -21,7 +21,11 @@ Expected output:
 
 Source files use the `.km` extension and UTF-8 text. Line comments begin with `//`; block comments use `/* ... */`. Every file has an independent module scope.
 
-Semicolons terminate declarations and simple statements. Blocks, functions, classes, structs, interfaces, and `switch` clauses use braces.
+Semicolons terminate declarations and simple statements, but can be omitted at a completed line, before `}`, or at end of file. The two separators in a three-clause `for` remain required. Blocks, functions, classes, structs, interfaces, and `switch` clauses use braces. Keep a returned/thrown value on the keyword's line; see the [termination rules](../book/source-and-lexical#punctuation-and-semicolons) for multiline expressions.
+
+<<< ../snippets/optional-terminators.km{ts}
+
+Expected output: `42`.
 
 ## Bindings
 

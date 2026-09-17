@@ -1,0 +1,14 @@
+import go { Println } from "fmt"
+
+export const factorial = (value: int): int => {
+  if (value <= 1) { return 1 }
+  return value * factorial(value - 1)
+}
+
+const twice: (value: int) => int = (value) => {
+  return value * 2
+}
+
+const main = () => {
+  Println(factorial(5), twice(21))
+}

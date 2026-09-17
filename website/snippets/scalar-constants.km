@@ -1,0 +1,22 @@
+import go { Println } from "fmt"
+
+type Text = distinct string
+type Flag = distinct boolean
+
+function choose<T>(first: T, second: T): T {
+  return first
+}
+
+function main(): void {
+  const prefix = "温"
+  const greeting = prefix + "泉"
+  const named: Text = greeting
+  const selected = choose("Hello", named)
+  const ready: Flag = true
+  const enabled = ready && !false
+  const size = len(greeting)
+  const narrow = byte(size)
+  if (enabled) {
+    Println(selected, greeting, size, narrow)
+  }
+}

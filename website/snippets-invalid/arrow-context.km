@@ -1,0 +1,3 @@
+const twice: (value: int) => int = (value) => {
+  return "not an integer"
+}

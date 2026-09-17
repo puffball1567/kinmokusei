@@ -12,7 +12,7 @@ in differential tests.
 
 ## Pipeline
 
-The first compiler is implemented in Go to simplify single-binary distribution and integration with the generated Go toolchain.
+The compiler is implemented in Go to simplify single-binary distribution and integration with the generated Go toolchain.
 
 ```text
 Kinmokusei source
@@ -40,53 +40,31 @@ Go AST / source emission ----> outgoing C ABI gateway / checked incoming C FFI p
 
 ## Frontend
 
-### Planned KIR backend boundary
+### Go output boundary
 
-The intended replacement for direct Go lowering is a checked frontend feeding
-KIR (Kinmokusei intermediate representation). KIR is not a C++-only layer:
-the three primary backend routes are Go, C++, and Nim for C output.
-
-```text
-checked Kinmokusei semantics -> KIR -> Go
-                                   -> C++20
-                                   -> Go -> existing Go-to-Nim -> Nim -> C
-```
-
-This is an architectural target, not an implemented connection in this
-compiler. The existing Go emitter and handwritten-Go differential tests remain
-the executable baseline during migration. The Nim/C route retains the existing
-Go-to-Nim translator rather than requiring a new direct KIR-to-Nim emitter;
-each composed stage still needs its own support and equivalence checks.
+Kinmokusei targets Go exclusively. Checked source semantics lower directly to
+Go; language features and library APIs are designed around Go interoperability
+and the minimum supported Go toolchain. Go package imports are ordinary module
+dependencies, not dependencies that require a second backend implementation.
+Existing C ABI exports and checked C FFI remain Go-toolchain integration paths.
 
 Keep declaration identities, instantiated types and bounds, evaluation order,
-implicit conversions, class identity and dispatch, exceptions, cleanup, and
-ownership/lifetime requirements explicit before backend lowering. Do not make
-Go-specific generated helper shapes the sole definition of source semantics.
-Generic-bound checking is a compile-time contract; it does not require runtime
-type tests, boxing, or additional allocation. Current use of `go/types` is a
-semantic implementation tool, not a requirement for generated programs to use
-the Go runtime.
-
-Common language features should have a portable semantic contract. Backend-
-specific libraries may intentionally narrow the supported output targets.
-C++-only features belong behind a dedicated library/intrinsic boundary; they
-are not being implemented ahead of the KIR connection. C/C++ libraries can be
-used directly by the C++ backend, while Go output requires a supported C ABI
-bridge. Go modules can be used directly by the Go backend; another backend
-needs an explicitly supported translation or ABI bridge. Neither direction is
-automatically portable merely because the frontend can import a dependency.
-
-At integration time, track target capabilities and ABI requirements through
-transitive dependencies and diagnose the dependency that prevents the selected
-output. Never silently substitute different behavior or assume that common
-source syntax makes backend-specific dependencies portable. This capability
-model and native C++ library integration are planned, not present features.
+implicit conversions, class identity and dispatch, and exception/cleanup
+behavior explicit before lowering. Generated helper shapes are implementation
+details, not the sole definition of source semantics. Generic-bound checking
+is a compile-time contract and does not require runtime type tests, boxing, or
+additional allocation. Independent handwritten-Go tests define the behavioral
+baseline for accepted constructs with a Go equivalent.
 
 ### Lexing and parsing
 
 - Accept only syntax that Kinmokusei actually supports; do not parse all TypeScript and reject it later.
 - Recover after syntax errors so one malformed statement does not suppress the rest of the file.
 - Preserve source spans on every AST node.
+- Recognize optional semicolons at completed statement/declaration boundaries
+  in `parser/terminators.go`, not by inserting tokens in the lexer. Preserve
+  expression continuations, restricted return/throw/branch newlines, explicit
+  `for` separators, and source spans during speculative generic parsing.
 - Resolve lexical ambiguities in context. For example, `>>` is a shift in expressions and two generic closers in nested type syntax.
 - Treat `type`, `alias`, and `distinct` as contextual declaration words so ordinary identifier positions remain source-compatible.
 - Keep mutations as statements: compound assignment and `++`/`--` are not expressions.
@@ -99,11 +77,119 @@ model and native C++ library integration are planned, not present features.
 - Manage Go keywords, predeclared identifiers, and generated-name collisions through deterministic mangling.
 - Place relative imports and Go package aliases in the same file scope.
 - Do not expose transitive relative imports; every reference must resolve to a local declaration or explicit import.
+- Keep source export directives as AST metadata beside ordinary declarations.
+  Any source export, including an empty list, opts that file into explicit
+  visibility; files without source exports retain legacy importability. Capture
+  exported bindings before module link-name rewriting. Export lists resolve local
+  declarations or explicit source imports; export-from declarations load a
+  dependency without introducing local names. `module_exports.go` resolves each
+  public name to its original module/declaration before linking, retaining shared
+  storage and type identity across chains and diamonds. Mixed import/export
+  dependencies follow source order and initialize once. Preserve original source
+  spans for LSP navigation, signatures, and rename. Source exports do not change
+  Go capitalization or C ABI directives.
+- Export aliases keep public spelling, runtime declaration, and rename identity
+  separate. Public tables map multiple aliases to one original declaration;
+  each explicit alias introduces a new editor identity without a runtime binding.
+  `source_linker.go` handles lexical rewriting separately from module graph
+  linking. It records unimported original spellings by source span so the checker
+  cannot accidentally expose an alias's runtime target, while local names, type
+  parameters, and built-ins retain their own resolution. Qualified Go type names
+  do not participate in the source alias namespace.
+- Mark module-level const arrow declarations with unnamed function types as
+  callable bindings. Predeclare explicit signatures and check their bodies after
+  stored globals; retain variable/arrow AST identity for source tools. Go emission
+  uses function declarations, while named function storage and mutable bindings
+  retain their existing representation. Arrow return inference is callable-local,
+  and inferred try-return metadata is finalized after the result is known.
+- Resolve unknown global binding types on demand through lexical name lookup.
+  `global_inference.go` tracks visiting/completed declarations so each body is
+  checked once. Dependency checks share program symbols and expression metadata
+  but start with an empty lexical/control/flow context: they cannot capture the
+  requesting body's locals, receiver, type parameters, or return inference.
+  Explicit signatures break recursive inference dependencies. Keep the AST and
+  generated declaration order unchanged, and retain the separate dependency
+  graph check for runtime global initialization cycles.
+- A direct local arrow initializer sees its own binding during checking and
+  linking. Consecutive direct arrow declarations also see their peers, using
+  `ast.LocalArrowGroup` as the common syntactic boundary in checking, linking,
+  emission, and completion. Predeclare signatures, then finalize each same
+  symbol after checking its body. References during initialization set
+  `VariableDecl.RecursiveBinding`; Go block emission splits storage declaration
+  from closure assignment, placing forward-referenced storage before the group
+  without introducing another scope or private self variable. Arrow construction
+  does not execute the body, so no user code runs between peer initialization
+  steps. Ordinary statements (including non-arrow initializers and labels) end
+  a group; no runtime initialization is hoisted across them. Non-arrow
+  initializer scope is unchanged. Recursive three-clause loop initializers
+  retain a short declaration in the Go loop header, so each iteration has its
+  own binding. A private flag in an enclosing block initializes the closure once,
+  before evaluating the first source condition. Later iterations copy the
+  preceding binding before the post statement, as ordinary Go loops do.
+  Keep the original body in its own lexical block. `LabeledStmt.LoopBranchLabel`
+  records a collision-free branch label for loops also used as goto targets:
+  goto targets the enclosing initialization block, while labeled break/continue
+  target the actual Go loop. When both use
+  the same source label, the emitter gives the loop a private label, rewriting
+  only its matching break/continue references and skipping nested callables.
+- `local_arrow_inference.go` checks local peer dependencies on demand, caching
+  each result and its diagnostics once. A group captures its lexical environment
+  after predeclaration, including declaration identities, type parameters and
+  receiver access. Peer checks use this environment, not the requesting body's
+  locals, return state, task operand state, or capture stacks. Capture writes and
+  member mutations are collected separately and replayed at the source binding
+  position, including propagation to enclosing closures. Explicit signatures
+  break recursive inference cycles; parameters still need annotations or a
+  matching function-type context.
 - Resolve Go members from toolchain type information, never from spelling or documentation text.
 - Separate package loading from symbol support so one advanced unused export cannot reject an entire package.
 - Preserve package-path identity independently of source aliases and checkout paths.
+- Named Go imports retain file-local export bindings in semantic analysis.
+  Checked identifiers carry their resolved Go selector, while source spellings
+  and import-name spans remain available for diagnostics and editor navigation.
+  Type references retain source names and carry a qualified lowering form.
+  Module linking canonicalizes shared package paths; variables stay selectors
+  to the original storage, and constants retain Go constant values.
 
 ### Type checking
+
+Semantic analysis is organized within `internal/sema` by responsibility:
+
+- `checker.go` holds the checker's shared context, orders semantic passes, and
+  dispatches statements and expressions. It does not contain each feature's
+  implementation.
+- `symbols.go` defines declaration metadata; `scope_symbols.go` manages lookup
+  and binding. `generated_names.go` and `cabi.go` validate emitted boundaries.
+- `named_types.go`, `interfaces.go`, `classes.go`, and `structs.go` check named
+  declarations. `type_parameters.go` and `generic_inference.go` own bounds,
+  inference, and substitution; the smaller constraint helpers remain separate.
+- `type_resolution.go`, `type_refs.go`, and `assignability.go` resolve source
+  types, annotate the checked AST, and validate assignments. `go_interop.go`
+  and `go_type_conversion.go` preserve imported Go identities and method sets.
+- `expression_checking.go`, `member_checking.go`, `calls.go`, and the builtin
+  modules implement expression checks. Functions, assignments, range/switch
+  statements, exceptions, tasks, and Result effects have dedicated modules.
+- `constructor_initialization.go` connects class checking to an independent
+  constructor analyzer. The analyzer reads checked AST nodes and required-field
+  metadata, cloning branch-local initialization state rather than changing a
+  `Checker` or its symbol tables.
+- `constructor_range_proofs.go` derives non-empty collection facts keyed by
+  declaration identity; `constant_expressions.go` evaluates constant expressions
+  used by control-flow and numeric checks.
+- `label_validation.go`, `return_flow.go`, and `nullable_flow.go` contain label
+  resolution, termination predicates, and nullable/task-flow snapshot joins.
+  Nullable joins retain their existing checker integration; this extraction
+  does not introduce a second type system or a new control-flow representation.
+
+File extraction must preserve diagnostic ordering, AST metadata, and generated
+Go. Structural refactoring is reviewed separately from language extensions.
+Most feature checks still share `Checker` state; separating files does not by
+itself decouple those analyses. `callable_context.go` groups return, loop,
+breakable, and exception context into one saved/restored control state used by
+functions, constructors, methods, and arrows. Receiver access, lexical scopes,
+nullable facts, and capture tracking retain their separate lifetimes. Further
+refactoring should address those boundaries and responsibility-based parser
+and codegen decomposition without changing source semantics in the same patch.
 
 - Imported Go interface bases retain their checked package/type identities and
   exported method names. Source class methods satisfy them by emitted public Go
@@ -147,10 +233,20 @@ model and native C++ library integration are planned, not present features.
 
 ## Typed representation and lowering
 
-The compiler currently keeps typed AST metadata close to syntax nodes. Preserve
-that metadata as the semantic input to the planned KIR boundary above; introduce
-normalization only where it makes semantics explicit, not as a competing
-backend-specific definition of the language.
+Generic callback preparation defers direct arrow bodies until other arguments,
+explicit callback signature parts, or dependent bounds supply parameter types.
+Ready callbacks may infer result parameters used by another callback; numeric
+defaults are applied only when ready typed callbacks cannot make progress.
+Every argument expression is checked once and emitted in its original position.
+Arrow capture checks and call-side invalidation still apply before checking the
+next source statement. A Go signature projection supplies context only; the
+original Go signature and numeric constants remain authoritative for final
+inference and validation. Unresolved callback-input cycles require annotations.
+
+The compiler keeps typed AST metadata close to syntax nodes. Preserve that
+metadata as the semantic input to Go lowering; introduce normalization where
+it makes evaluation, conversions, and dispatch explicit without duplicating
+the type checker's decisions in the emitter.
 
 Required typed information includes:
 
@@ -168,6 +264,10 @@ Required typed information includes:
 - Native defined-type identity versus transparent alias identity, explicit conversion targets, finite recursive named-type graphs, cycle-safe Go type conversion, direct Go `TypeSpec` lowering, and Go 1.23-compatible use-site expansion of generic aliases.
 - Closure captures.
 - Multiple-result and `Result<T>` lowering metadata, including explicit split bindings and postfix `?` propagation.
+- Result storage checks distinguish raw Result values from ordinary functions
+  returning Result. Callable resolution preserves native defined/generic source
+  signatures before Go projection, including source nullable-result contracts;
+  native storage projection retains class identities in callback payloads.
 - Typed-exception boundaries, terminal-flow metadata, `finally` unwinding, and structural cross-package exception markers that leave ordinary Go panics untouched.
 - Structured task result shape, single-consumption state, and `await`/`detach` lowering metadata.
 - Deterministic anonymous struct shapes for object literals.

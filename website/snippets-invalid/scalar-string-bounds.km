@@ -1,0 +1,6 @@
+const original = "abc"
+const alias = original
+
+function main(): void {
+  const invalid = alias[:4]
+}

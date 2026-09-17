@@ -1,0 +1,17 @@
+import go { Println } from "fmt"
+
+constraint Sized = ~[3]int | ~int[] | ~string
+
+function size<T extends Sized>(value: T): int {
+  return len(value)
+}
+
+function main(): void {
+  let values: [3]int = [10, 20, 30]
+  const count = len(values)
+  const last = count - 1
+  const pointer: *[3]int = nil
+  const capacity = cap(pointer)
+  Println(count, capacity, values[last])
+  Println(size(values), size("温泉"))
+}

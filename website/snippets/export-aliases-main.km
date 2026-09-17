@@ -1,0 +1,7 @@
+import { Container, createBox } from "./export-aliases-library"
+import go { Println } from "fmt"
+
+function main(): void {
+  const box: Container = createBox(40)
+  Println(box.value)
+}

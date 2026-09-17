@@ -1,0 +1,5 @@
+function main(): void {
+  const first = () => second()
+  const second = () => first()
+  first()
+}

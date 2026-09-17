@@ -30,6 +30,62 @@ const total: int64 = int64(count);
 `imag(value)` to extract their components. Complex values support arithmetic
 and equality, but not ordering.
 
+### Scalar constant references
+
+Since v0.4.0, scalar `const` references and constant operations
+retain Go constant semantics through local/module bindings and source imports:
+
+<<< ../snippets/constant-aliases.km{ts}
+
+Untyped constants retain precision until a concrete type is needed. An explicit
+type annotation stays attached to the constant and its copies; a typed
+`float32` constant is not an integer index just because its value is integral.
+Overflow is still rejected through a chain of constant references:
+
+<<< ../snippets-invalid/constant-alias-overflow.km{ts}
+
+`const` still means an immutable binding, not necessarily a compile-time value.
+Function results, copies of runtime variables, and three-clause loop bindings
+remain runtime values. No user function is evaluated at compile time. Scalar
+compile-time constants have no address; use a `let` copy when storage is needed.
+
+String and boolean aliases keep their constant values and explicit types too.
+Untyped constants can be assigned to compatible named types. Concatenation,
+boolean logic, and `!` preserve named operand types; named booleans can be used
+in conditions. Generic inference prefers typed arguments over untyped constants.
+
+<<< ../snippets/scalar-constants.km{ts}
+
+`len` of a constant string is a constant **of type `int`**, not an untyped
+integer. It counts UTF-8 bytes, so `len("温泉")` is `6`. Use an explicit
+conversion when a narrower integer type is needed. Constant string index and
+slice bounds are checked, including through aliases:
+
+<<< ../snippets-invalid/scalar-string-bounds.km{ts}
+
+String slices and `len` of runtime strings remain runtime values. Constant
+evaluation does not call user functions or read mutable storage.
+
+### Constant minimum and maximum
+
+Since v0.4.0, `min` and `max` retain a constant result when all
+arguments are constants. Untyped results keep their precision until a concrete
+type is needed. Named types and explicitly typed constants keep their types;
+runtime arguments do not silently change width.
+
+<<< ../snippets/ordered-constants.km{ts}
+
+The operands must have a compatible ordered type, including inside constrained
+generic functions and classes. Typed operands require every untyped constant
+argument to fit that type, even if it would not be selected. The result must also
+fit its destination:
+
+<<< ../snippets-invalid/ordered-constant-overflow.km{ts}
+
+Calls containing runtime values remain nonconstant and evaluate every argument
+once in source order. `min` and `max` are not short-circuiting. Use a `let` copy
+when a compile-time result needs addressable storage.
+
 ## Slice and fixed array
 
 ```ts
@@ -38,6 +94,26 @@ const pair: [2]int = [10, 20];
 ```
 
 `T[]` is a Go slice: assignment copies its header and shares backing storage. `[N]T` is a fixed value: length is part of its type and assignment copies all elements.
+
+Since v0.4.0, `len` and `cap` of a fixed array or array pointer can
+be typed `int` constants even when the array is mutable. When the argument has
+no runtime calls or channel receives, it is not evaluated. In particular, a nil
+array pointer can supply its type's length without being dereferenced:
+
+<<< ../snippets/array-length-constants.km{ts}
+
+Constant length aliases participate in bounds checks:
+
+<<< ../snippets-invalid/array-length-bounds.km{ts}
+
+Calls and channel receives inside the argument keep it nonconstant. No user
+function is evaluated at compile time. Use `let size = len(array)` if the result
+needs addressable storage.
+
+Generic type sets can use `len` or `cap` when every member supports that operation.
+These calls remain runtime values, even for a constraint such as `~[3]int`.
+A concrete array shape `[3]T`, in contrast, has a constant length. Nullable
+array-pointer wrappers and some constant intrinsics remain further work.
 
 ```ts
 let copiedPair = pair;
@@ -48,6 +124,23 @@ alias[0] = 99; // values[0] is now 99
 ```
 
 No implicit array/slice conversion exists. `copyArray[[N]T](slice)` copies into an independent fixed array; `viewArray[[N]T](slice)` returns a pointer view over shared storage.
+
+Since v0.4.0, both operations accept slice-constrained type parameters.
+The target still needs a concrete array shape, possibly containing an
+element type parameter or using a named array type:
+
+<<< ../snippets/generic-array-conversion.km{ts}
+
+The copy is shallow: class references and nested slices/maps retain their shared
+objects, although replacing a copied array slot does not replace the source
+slot. A view shares the slots themselves. A source shorter than the target
+length panics even with spare capacity. A zero-length copy always succeeds;
+a zero-length view is nil exactly when the source slice is nil.
+
+Element types must match exactly, including nullable qualifiers; conversions do
+not implicitly upcast classes or remove null checks:
+
+<<< ../snippets-invalid/array-conversion-nullability.km{ts}
 
 ## Maps
 

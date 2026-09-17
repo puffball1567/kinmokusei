@@ -196,7 +196,7 @@ Arrow parameter types are explicit. The result annotation may be omitted when th
 
 ## Task expressions
 
-`go call()` without a semicolon context creates a structured task expression:
+`go call()` in expression position, such as a binding initializer, creates a structured task expression:
 
 ```ts
 const task: Task<int> = go calculate();

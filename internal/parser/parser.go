@@ -32,7 +32,14 @@ func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
 			}
 			continue
 		}
-		decl := p.parseDeclaration()
+		var decl ast.Declaration
+		if p.at(token.Export) && !p.atCABIExport() {
+			var exported ast.ExportDecl
+			exported, decl = p.parseSourceExport(p.advance())
+			program.Exports = append(program.Exports, exported)
+		} else {
+			decl = p.parseDeclaration()
+		}
 		if decl != nil {
 			program.Declarations = append(program.Declarations, decl)
 		}
@@ -89,7 +96,7 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 		p.report(pathToken, "invalid module path string")
 		path = ""
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after import")
+	end, ok := p.expectTerminator("expected ';' after import")
 	if !ok {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -98,6 +105,11 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 }
 
 func (p *Parser) parseGoImport(start token.Token) (ast.ImportDecl, bool) {
+	if p.at(token.LeftBrace) {
+		imported, ok := p.parseImport(start)
+		imported.Go = true
+		return imported, ok
+	}
 	alias, ok := p.expect(token.Identifier, "expected Go package alias after 'import go'")
 	if !ok {
 		p.synchronizeDeclaration()
@@ -117,7 +129,7 @@ func (p *Parser) parseGoImport(start token.Token) (ast.ImportDecl, bool) {
 		p.report(pathToken, "invalid Go import path string")
 		path = ""
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after Go import")
+	end, ok := p.expectTerminator("expected ';' after Go import")
 	if !ok {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -146,16 +158,30 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 		start := p.previous()
 		function := p.parseFunction(start)
 		return p.externalMethodFromFunction(start, ast.Private, function, false)
-	case p.match(token.Final):
+	case p.match(token.Final, token.Abstract):
 		start := p.previous()
-		classToken, ok := p.expect(token.Class, "expected 'class' after 'final'")
+		final, abstract := start.Kind == token.Final, start.Kind == token.Abstract
+		for p.match(token.Final, token.Abstract) {
+			if p.previous().Kind == token.Final {
+				if final {
+					p.report(p.previous(), "duplicate final modifier")
+				}
+				final = true
+			} else {
+				if abstract {
+					p.report(p.previous(), "duplicate abstract modifier")
+				}
+				abstract = true
+			}
+		}
+		classToken, ok := p.expect(token.Class, "expected 'class' after class modifier")
 		if !ok {
 			p.synchronizeDeclaration()
 			return nil
 		}
 		decl := p.parseClass(classToken)
 		if decl != nil {
-			decl.Final = true
+			decl.Final, decl.Abstract = final, abstract
 			decl.Span = start.Span.Merge(decl.Span)
 		}
 		return decl
@@ -225,6 +251,7 @@ func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
 		return nil
 	}
 	declaration := &ast.InterfaceDecl{Name: name.Lexeme, NameSpan: name.Span, Constraint: true, TypeParameters: parameters}
+	var separator token.Kind
 	for {
 		startTerm := p.peek()
 		underlying := p.match(token.Tilde)
@@ -238,16 +265,24 @@ func (p *Parser) parseConstraint(start token.Token) *ast.InterfaceDecl {
 			termSpan = startTerm.Span.Merge(term.Span)
 		}
 		declaration.Terms = append(declaration.Terms, ast.TypeSetTerm{Type: term, Underlying: underlying, Span: termSpan})
-		if !p.match(token.Pipe) {
+		if !p.match(token.Pipe, token.Ampersand) {
 			break
 		}
+		operator := p.previous()
+		if separator != "" && separator != operator.Kind {
+			p.report(operator, "cannot mix '|' and '&' in a constraint declaration; use named intermediate constraints")
+			p.synchronizeDeclaration()
+			return nil
+		}
+		separator = operator.Kind
+		declaration.Intersection = separator == token.Ampersand
 		if p.at(token.Semicolon) || p.at(token.EOF) {
-			p.report(p.peek(), "expected constraint term after '|'")
+			p.report(p.peek(), "expected constraint term after '"+operator.Lexeme+"'")
 			p.synchronizeDeclaration()
 			return nil
 		}
 	}
-	end, valid := p.expect(token.Semicolon, "expected ';' after constraint declaration")
+	end, valid := p.expectTerminator("expected ';' after constraint declaration")
 	if !valid {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -344,7 +379,7 @@ func (p *Parser) parseTypeDeclaration(start token.Token, alias bool) *ast.TypeDe
 		p.synchronizeDeclaration()
 		return nil
 	}
-	end, valid := p.expect(token.Semicolon, "expected ';' after type declaration")
+	end, valid := p.expectTerminator("expected ';' after type declaration")
 	if !valid {
 		p.synchronizeDeclaration()
 		end = p.previous()
@@ -450,7 +485,7 @@ func (p *Parser) parseCABIExport(start token.Token) ast.Declaration {
 		p.synchronizeDeclaration()
 		end = p.previous()
 	}
-	semicolon, valid := p.expect(token.Semicolon, "expected ';' after C ABI export list")
+	semicolon, valid := p.expectTerminator("expected ';' after C ABI export list")
 	if !valid {
 		p.synchronizeDeclaration()
 		semicolon = end
@@ -517,7 +552,7 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 			p.synchronizeStatement()
 			continue
 		}
-		end, valid := p.expect(token.Semicolon, "expected ';' after interface method")
+		end, valid := p.expectTerminator("expected ';' after interface method")
 		if !valid {
 			p.synchronizeStatement()
 			end = p.previous()
@@ -576,7 +611,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		} else {
 			p.match(token.Private)
 		}
-		static, virtual, override, final := false, false, false, false
+		static, virtual, override, final, abstract := false, false, false, false, false
 		for {
 			switch {
 			case p.match(token.Static):
@@ -599,6 +634,11 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 					p.report(p.previous(), "duplicate final modifier")
 				}
 				final = true
+			case p.match(token.Abstract):
+				if abstract {
+					p.report(p.previous(), "duplicate abstract modifier")
+				}
+				abstract = true
 			default:
 				goto modifiersComplete
 			}
@@ -606,8 +646,8 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 	modifiersComplete:
 		switch {
 		case p.match(token.Constructor):
-			if static || virtual || override || final {
-				p.report(p.previous(), "constructor cannot have static, virtual, override, or final modifiers")
+			if static || virtual || override || final || abstract {
+				p.report(p.previous(), "constructor cannot have static, virtual, override, final, or abstract modifiers")
 			}
 			constructor := p.parseConstructor(p.previous())
 			if class.Constructor != nil {
@@ -616,16 +656,21 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				class.Constructor = constructor
 			}
 		case p.match(token.Function):
-			function := p.parseFunction(p.previous())
+			var function *ast.FunctionDecl
+			if abstract {
+				function = p.parseAbstractMethod(p.previous())
+			} else {
+				function = p.parseFunction(p.previous())
+			}
 			if function != nil {
 				class.Methods = append(class.Methods, &ast.MethodDecl{
 					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
-					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Span: function.Span,
+					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Abstract: abstract, Span: function.Span,
 				})
 			}
 		case p.at(token.Identifier):
-			if static || virtual || override || final {
-				p.report(p.peek(), "fields cannot have static, virtual, override, or final modifiers")
+			if static || virtual || override || final || abstract {
+				p.report(p.peek(), "fields cannot have static, virtual, override, final, or abstract modifiers")
 			}
 			fieldName := p.advance()
 			if _, ok = p.expect(token.Colon, "expected ':' after field name"); !ok {
@@ -641,7 +686,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 			if p.match(token.Assign) {
 				initializer = p.parseExpression()
 			}
-			end, valid := p.expect(token.Semicolon, "expected ';' after field declaration")
+			end, valid := p.expectTerminator("expected ';' after field declaration")
 			if !valid {
 				p.synchronizeStatement()
 				end = p.previous()
@@ -714,7 +759,7 @@ func (p *Parser) parseStruct(start token.Token) *ast.StructDecl {
 			p.synchronizeStatement()
 			continue
 		}
-		end, valid := p.expect(token.Semicolon, "expected ';' after struct field declaration")
+		end, valid := p.expectTerminator("expected ';' after struct field declaration")
 		if !valid {
 			p.synchronizeStatement()
 			end = p.previous()
@@ -809,6 +854,10 @@ func (p *Parser) parseFunction(start token.Token) *ast.FunctionDecl {
 }
 
 func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDecl {
+	return p.parseFunctionTail(start, name, false)
+}
+
+func (p *Parser) parseFunctionTail(start, name token.Token, abstract bool) *ast.FunctionDecl {
 	typeParameters, typeParametersValid := p.parseTypeParameters("function")
 	if _, ok := p.expect(token.LeftParen, "expected '(' after function name"); !ok {
 		p.synchronizeDeclaration()
@@ -881,7 +930,21 @@ func (p *Parser) parseFunctionAfterName(start, name token.Token) *ast.FunctionDe
 		p.synchronizeDeclaration()
 		return nil
 	}
-	body := p.parseBlock()
+	var body *ast.BlockStmt
+	if abstract && !p.at(token.LeftBrace) {
+		end, valid := p.expectTerminator("expected ';' after abstract method signature")
+		if !valid {
+			return nil
+		}
+		// Keep a nonnil empty body for AST visitors; Abstract distinguishes it
+		// from a concrete method with an empty implementation.
+		body = &ast.BlockStmt{Span: end.Span}
+	} else {
+		if abstract {
+			p.report(p.peek(), "abstract methods cannot have a body")
+		}
+		body = p.parseBlock()
+	}
 	if body == nil {
 		p.synchronizeDeclaration()
 		return nil
@@ -1038,7 +1101,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		if !ok {
 			return ast.TypeRef{}, false
 		}
-		if _, ok = p.expect(token.FatArrow, "expected '=>' in function type"); !ok {
+		if _, ok = p.expectFatArrow("expected '=>' in function type"); !ok {
 			return ast.TypeRef{}, false
 		}
 		result, ok := p.parseType()
@@ -1111,6 +1174,10 @@ func (p *Parser) parseTypeSuffix(ref ast.TypeRef, allowNullable bool) (ast.TypeR
 }
 
 func (p *Parser) parseParameters(end token.Kind) ([]ast.Parameter, bool) {
+	return p.parseParametersWithInference(end, false)
+}
+
+func (p *Parser) parseParametersWithInference(end token.Kind, infer bool) ([]ast.Parameter, bool) {
 	var parameters []ast.Parameter
 	if p.at(end) {
 		return parameters, true
@@ -1121,18 +1188,25 @@ func (p *Parser) parseParameters(end token.Kind) ([]ast.Parameter, bool) {
 		if !ok {
 			return nil, false
 		}
-		if _, ok = p.expect(token.Colon, "expected ':' after parameter name"); !ok {
-			return nil, false
+		typeRef := ast.TypeRef{}
+		if !infer || p.at(token.Colon) {
+			if _, ok = p.expect(token.Colon, "expected ':' after parameter name"); !ok {
+				return nil, false
+			}
+			typeRef, ok = p.parseType()
+			if !ok {
+				return nil, false
+			}
 		}
-		typeRef, ok := p.parseType()
-		if !ok {
-			return nil, false
-		}
-		if variadic && !typeRef.IsSlice() {
+		if variadic && typeRef.IsSpecified() && !typeRef.IsSlice() {
 			p.report(name, "rest parameter type must be a slice")
 			return nil, false
 		}
-		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: name.Span.Merge(typeRef.Span)})
+		span := name.Span
+		if typeRef.IsSpecified() {
+			span = span.Merge(typeRef.Span)
+		}
+		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: span})
 		if !p.match(token.Comma) {
 			break
 		}
@@ -1170,7 +1244,7 @@ func (p *Parser) parseVariable(start token.Token, constant bool) *ast.VariableDe
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after variable declaration")
+	end, ok := p.expectTerminator("expected ';' after variable declaration")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1216,7 +1290,7 @@ func (p *Parser) parseMultiVariable(start token.Token, constant bool) *ast.Multi
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after variable declaration")
+	end, ok := p.expectTerminator("expected ';' after variable declaration")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1309,6 +1383,9 @@ func (p *Parser) parseStatement() ast.Statement {
 }
 
 func (p *Parser) parseThrow(start token.Token) ast.Statement {
+	if p.implicitTerminator() && !p.at(token.Semicolon) {
+		return &ast.ThrowStmt{Bare: true, Span: start.Span}
+	}
 	if p.match(token.Semicolon) {
 		return &ast.ThrowStmt{Bare: true, Span: start.Span.Merge(p.previous().Span)}
 	}
@@ -1317,7 +1394,7 @@ func (p *Parser) parseThrow(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after thrown error")
+	end, ok := p.expectTerminator("expected ';' after thrown error")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1379,6 +1456,9 @@ func (p *Parser) parseTry(start token.Token) ast.Statement {
 }
 
 func (p *Parser) parseReturn(start token.Token) ast.Statement {
+	if p.implicitTerminator() && !p.at(token.Semicolon) {
+		return &ast.ReturnStmt{Span: start.Span}
+	}
 	if p.match(token.Semicolon) {
 		return &ast.ReturnStmt{Span: start.Span.Merge(p.previous().Span)}
 	}
@@ -1387,7 +1467,7 @@ func (p *Parser) parseReturn(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after return value")
+	end, ok := p.expectTerminator("expected ';' after return value")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -1450,7 +1530,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 		}
 		end := sent.GetSpan()
 		if requireSemicolon {
-			tok, valid := p.expect(token.Semicolon, "expected ';' after channel send")
+			tok, valid := p.expectTerminator("expected ';' after channel send")
 			if !valid {
 				p.synchronizeStatement()
 			} else {
@@ -1486,7 +1566,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 			}
 			end := right.GetSpan()
 			if requireSemicolon {
-				tok, valid := p.expect(token.Semicolon, "expected ';' after assignment")
+				tok, valid := p.expectTerminator("expected ';' after assignment")
 				if !valid {
 					p.synchronizeStatement()
 				} else {
@@ -1506,7 +1586,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 		}
 		end := right.GetSpan()
 		if requireSemicolon {
-			tok, valid := p.expect(token.Semicolon, "expected ';' after assignment")
+			tok, valid := p.expectTerminator("expected ';' after assignment")
 			if !valid {
 				p.synchronizeStatement()
 			} else {
@@ -1524,7 +1604,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 		}
 		end := operator.Span
 		if requireSemicolon {
-			tok, valid := p.expect(token.Semicolon, "expected ';' after increment or decrement")
+			tok, valid := p.expectTerminator("expected ';' after increment or decrement")
 			if !valid {
 				p.synchronizeStatement()
 			} else {
@@ -1535,7 +1615,7 @@ func (p *Parser) parseSimpleStatement(requireSemicolon bool) ast.Statement {
 	}
 	end := value.GetSpan()
 	if requireSemicolon {
-		tok, ok := p.expect(token.Semicolon, "expected ';' after expression")
+		tok, ok := p.expectTerminator("expected ';' after expression")
 		if !ok {
 			p.synchronizeStatement()
 		} else {
@@ -1604,6 +1684,10 @@ func (p *Parser) parseFor(start token.Token) ast.Statement {
 		initializer = p.parseSimpleStatement(true)
 	}
 	var condition ast.Expression
+	if initializer != nil && p.previous().Kind != token.Semicolon {
+		p.report(p.peek(), "expected explicit ';' after for initializer")
+		return nil
+	}
 	if !p.at(token.Semicolon) {
 		condition = p.parseExpression()
 	}
@@ -1976,10 +2060,10 @@ func (p *Parser) parseBranch(start token.Token, kind ast.BranchKind) ast.Stateme
 			p.synchronizeStatement()
 			return nil
 		}
-	} else if kind != ast.FallthroughBranch && p.at(token.Identifier) {
+	} else if kind != ast.FallthroughBranch && !p.lineBreakBeforeNext() && p.at(token.Identifier) {
 		label = p.advance()
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after branch statement")
+	end, ok := p.expectTerminator("expected ';' after branch statement")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -2011,7 +2095,7 @@ func (p *Parser) parseCallControl(start token.Token, kind ast.CallControlKind) a
 		}
 		p.report(p.previous(), keyword+" requires a function or method call")
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after call")
+	end, ok := p.expectTerminator("expected ';' after call")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -2025,7 +2109,7 @@ func (p *Parser) parseDetach(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
-	end, ok := p.expect(token.Semicolon, "expected ';' after detached task")
+	end, ok := p.expectTerminator("expected ';' after detached task")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
@@ -2581,7 +2665,7 @@ func (p *Parser) looksLikeArrow() bool {
 
 func (p *Parser) parseArrow() ast.Expression {
 	start, _ := p.expect(token.LeftParen, "expected '('")
-	parameters, ok := p.parseParameters(token.RightParen)
+	parameters, ok := p.parseParametersWithInference(token.RightParen, true)
 	if !ok {
 		p.synchronizeStatement()
 		return nil
@@ -2597,7 +2681,7 @@ func (p *Parser) parseArrow() ast.Expression {
 		}
 		returnType = &parsed
 	}
-	if _, ok = p.expect(token.FatArrow, "expected '=>' after arrow signature"); !ok {
+	if _, ok = p.expectFatArrow("expected '=>' after arrow signature"); !ok {
 		return nil
 	}
 	arrow := &ast.ArrowExpr{Parameters: parameters, ReturnType: returnType}
@@ -2634,6 +2718,24 @@ func binaryPrecedence(kind token.Kind) int {
 	default:
 		return 0
 	}
+}
+
+// A generic closer can split the lexer token >= in Box<T>=> into > and =.
+// Rejoin that adjacent remainder with > only where an arrow is required.
+func (p *Parser) expectFatArrow(message string) (token.Token, bool) {
+	if p.at(token.Assign) && p.current+1 < len(p.tokens) {
+		next := p.tokens[p.current+1]
+		if next.Kind == token.Greater && p.peek().Span.End.Offset == next.Span.Start.Offset {
+			first := p.advance()
+			last := p.advance()
+			arrow := token.Token{Kind: token.FatArrow, Lexeme: "=>", Span: source.Span{
+				Path: first.Span.Path, Start: first.Span.Start, End: last.Span.End,
+			}}
+			p.previousToken = arrow
+			return arrow, true
+		}
+	}
+	return p.expect(token.FatArrow, message)
 }
 
 func (p *Parser) expect(kind token.Kind, message string) (token.Token, bool) {
@@ -2776,7 +2878,7 @@ func (p *Parser) synchronizeDeclaration() {
 			return
 		}
 		switch p.peek().Kind {
-		case token.Import, token.Function, token.Public, token.Private, token.Protected, token.Final, token.Class, token.Struct, token.Interface, token.Const, token.Let:
+		case token.Import, token.Function, token.Public, token.Private, token.Protected, token.Final, token.Abstract, token.Class, token.Struct, token.Interface, token.Const, token.Let:
 			return
 		}
 		p.advance()

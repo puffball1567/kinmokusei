@@ -1,10 +1,204 @@
 # Changelog
 
-All notable user-facing changes are recorded here. Kinmokusei uses semantic
-versioning; releases before 1.0 may intentionally change source syntax or
-generated APIs between minor versions.
+All notable user-facing changes are recorded here. During pre-1.0 development,
+Kinmokusei uses milestone-based minor versions. The v0.4.x series includes
+compatible feature additions and fixes in patch releases; v0.5 marks completion
+of the audited Go compatibility work. This differs from strict SemVer feature
+numbering. Intentional source or public API breaks require a minor release and
+migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
+
+## [0.4.0] - 2026-09-18
+
+- Share Result error-use tracking with lazy global arrow analysis, preventing
+  a crash on split bindings and retaining unused-error diagnostics across
+  forward dependencies and nested closures.
+
+- Support `copyArray` and `viewArray` with slice-constrained type parameters,
+  dependent elements, named slices/arrays, and generic class methods. Preserve
+  class/interface identity and nullable element contracts when indexing or
+  reslicing specialized arrays and pointer views. Keep Go's shallow copy,
+  shared-view, zero-length/nil, short-source panic, and evaluation semantics.
+  Add independent Go comparisons, diagnostics, editor tests, fuzz seeds, and
+  executable documentation.
+
+- Support `append` and `copy` with slice-constrained type parameters, including
+  dependent element types, named slices, imported/linked constraints, generic
+  class methods, contextual callbacks/objects, and byte/string operations.
+  Preserve the destination type and Go's aliasing, overlap, growth, nil, and
+  single-evaluation behavior. Insert required class upcasts for individual
+  appended elements; enforce invariant generic identity and nested nullability
+  for slice copies/spreads. Diagnose a missing spread-append source without
+  crashing the compiler. Add differential, editor, fuzz, and executable examples.
+
+- Support generic `clear` across slice/map type-set unions, and generic `delete`
+  across maps with a common key type even when value types differ. Preserve
+  source class identity and nullable keys, linked/imported constraints, generic
+  class methods, nil behavior, shared storage, and operand evaluation order.
+  Diagnose incompatible key types/qualifiers and numeric constant key overflow
+  or fractions, including ordinary maps. Add Go differential, editor, fuzz, and
+  executable documentation coverage.
+  Isolate a Go 1.26/1.27 printf-vet crash on valid map-union deletion in the
+  affected differential fixture; retain runtime tests and all other vet checks,
+  and document the generated-module workaround.
+
+- Preserve `min`/`max` constant values, precision, explicit types, and rounding
+  through reference chains, source exports, and Go imports. Apply Go's ordered
+  operand rules to named types, generic constraints, and mixed typed/untyped
+  arguments. Check constant bounds, sizes, fractional results, overflow, and
+  address-taking; retain runtime evaluation and storage for nonconstant inputs.
+  Preserve contextual nonconstant shifts without losing left-operand overflow
+  checks. Split ordered built-in analysis into its own file and add differential,
+  editor, fuzz, and executable documentation coverage.
+
+- Preserve typed `int` constants from fixed-array and array-pointer `len`/`cap`,
+  including named/imported arrays, generic element types, reference chains, and
+  compile-time bounds/size checks. Keep Go's unevaluated-operand behavior without
+  suppressing function calls or channel receives. Support `len`/`cap` on generic
+  type sets when every member supports the operation; these remain runtime values.
+  Add Go differential tests, editor regressions, fuzz seeds, and executable docs.
+
+- Preserve string and boolean constants through reference chains, source
+  imports/exports, and Go constant imports. Keep named scalar types in operations
+  and prefer typed arguments during generic inference. Support named booleans in
+  conditions and constant-string `len` (typed `int`, measured in bytes); diagnose
+  constant string index/slice bounds and taking a scalar constant's address.
+  Keep calls, mutable copies, string slices, and loop bindings as runtime values.
+  Add independent Go comparisons, editor regressions, and executable examples.
+
+- Add abstract classes and bodyless abstract methods with explicit concrete
+  overrides, generic dependency-injection types, multi-level inheritance and
+  re-abstraction. Preserve interface/method-value dispatch and hierarchy identity.
+  Diagnose direct construction, incomplete concrete classes, incompatible
+  modifiers/signatures, and abstract super access. Preserve construction-phase
+  dispatch with explicit panic on indirect unimplemented slots; omit abstract
+  Go constructor factories. Add editor details/completion, regressions, and docs.
+- Resolve local callable bindings before same-named top-level functions, so
+  extracted methods and callback parameters obey lexical shadowing.
+
+- Preserve numeric constant semantics through local and module reference chains,
+  arithmetic, source export aliases, and Go constant imports. Retain precision,
+  explicit types and rounding for integer contexts and narrow/generic arguments.
+  Diagnose typed constant arithmetic overflow and taking a numeric constant's
+  address; retain runtime storage for mutable values, call results, and loop
+  initializers.
+- Diagnose recursive comparable source type-set bounds that depend on unresolved
+  array/struct element constraints instead of hanging during Go type resolution.
+  Diagnose source struct constraint terms whose storage is not yet resolved
+  instead of panicking. Preserve supported recursive pointer and method constraints.
+
+- Support deliberate Result discard with local `const _ = call()`,
+  `let _ = call()`, or `_ = call()`, preserving single evaluation and panics.
+  Diagnose unused named local error bindings from Result splits instead of
+  silently suppressing them in generated Go. Keep explicit split blanks and
+  success-only discard with `const _ = call()?`; preserve type checks and Task
+  consumption rules. Blank bindings no longer appear as local editor symbols.
+
+- Compose imported Go type-set constraints with source constraints, including
+  nested embeddings, unions, generic collection terms, and explicit
+  `comparable` requirements. Preserve source element shapes, method contracts,
+  inference, and linked export aliases. Diagnose empty sets and forbidden unions;
+  prevent dependent comparable inference from panicking on uninitialized bounds.
+- Enforce invariant interface and override method contracts, including nullable
+  types nested in callbacks, collections, objects, and generic arguments.
+  Reject conflicting inherited contracts and generic methods implementing
+  non-generic requirements before Go generation. Preserve compatible source
+  `Result<T>` implementations of Go multiple-result methods. Share method
+  signature validation and separate interface declaration resolution.
+- Compose source constraints with ordinary Go interfaces, including generic
+  method contracts, method-only compositions, and type-set intersections.
+  Preserve method requirements through constraint reuse and export aliases,
+  diagnose conflicting signatures and lossy source type arguments, and offer
+  constrained-method completion for generic parameters.
+- Support source type-set intersections (`constraint Narrow = A & B`),
+  including exact/underlying terms, generic constraint references, inferred
+  collection elements, linked export aliases, and editor navigation. Emit Go
+  interface embeddings; diagnose empty intersections, erased-nullability
+  conflicts, and unmatched parameter-dependent terms before generation.
+- Support export aliases (`export { local as publicName }`), including imported
+  source bindings and export-from lists. Multiple public names retain one
+  declaration and shared storage. Keep implementation-name and public-alias
+  rename identities separate across chains, and prevent original names from
+  leaking through alias imports. Preserve qualified Go type names when a source
+  alias has the same spelling. Split source rewriting from module graph linking.
+- Support named source re-exports with `export { name } from "./module"` and
+  export lists selecting explicitly imported source bindings. Preserve original
+  declaration/type identity, shared mutable storage, dependency initialization
+  order, visibility, and editor navigation/refactoring across re-export chains.
+- Support function values returning `Result<T>` or `Result<void>` in bindings,
+  callbacks, returned closures, fields, collections, and channels. Preserve
+  recursive captures, native named/generic function signatures, nullable result
+  contracts, Go callback interoperability, and editor navigation/signatures.
+  Result calls still require propagation, explicit splitting, or return.
+- Support recursive arrows in three-clause loop initializers, preserving
+  per-iteration bindings, mutable captures, condition/post evaluation order,
+  labeled control flow, and editor navigation.
+- Align the architecture and roadmap with Go-only output and direct Go lowering.
+- Infer local arrow results through forward dependencies within consecutive
+  declaration groups. Check each body once in the group's lexical environment,
+  retain generic/receiver context, and preserve source-order capture effects.
+  Unresolved recursive result cycles still require annotations.
+- Diagnose uninstantiated Go generic functions used as values before Go
+  generation, for both qualified and named imports. Direct generic calls and
+  ordinary Go function values retain their existing behavior.
+- Support local mutual recursion and forward references within consecutive
+  direct arrow declarations.
+  Peer names shadow outer bindings throughout the group; ordinary statements
+  end the group. Preserve mutable storage, captures, initialization order, and
+  editor navigation/completion, and show inferred local types in hover.
+  Recursive/forward local storage that conflicts with a type, type parameter,
+  or Go package name is diagnosed at the source reference.
+- Infer module-level arrow results through forward declaration dependencies,
+  including later inferred globals and linked-module callables. Check each
+  dependency once in its own lexical context without changing runtime order;
+  require annotations for unresolved recursive inference cycles.
+- Diagnose raw NUL characters in source text, including strings and comments,
+  before Go generation. Escaped NUL bytes in string values remain supported.
+- Infer direct arrow callback types in native and imported Go generic calls,
+  including generic methods, partial type arguments, dependent collection
+  bounds, variadic callbacks, and callback-result inference. Resolve callback
+  dependencies without reordering runtime arguments; preserve numeric constant
+  checks, captures, and editor navigation for inferred parameters.
+- Support self-recursive local `const` and `let` arrows with an explicit result
+  or binding function type. Preserve lexical captures and mutable binding
+  identity across reassignment, source-module linking, and editor operations.
+  A direct arrow initializer now sees its own binding rather than an outer
+  binding of the same name; other initializer expressions retain their scope.
+- Accept an arrow immediately after a generic return type (`Box<int>=>`),
+  preserving generic type spans and ordinary comparison/shift tokenization.
+- Support arrow-style entry points (`const main = () => { ... }`) and emit
+  module-level const arrows with unnamed function types as Go functions.
+  Explicit signatures support recursion, mutual recursion, forward calls, and
+  references to later globals. These callable declarations are not addressable;
+  Go consumers now receive functions rather than assignable function variables.
+- Infer arrow parameter and result types from matching function contexts in
+  bindings, callbacks, returns, and fields. Infer block-body results when no
+  result context is present, including nested arrows and try/finally. Preserve
+  mutable function values and lexical captures, and improve arrow navigation,
+  rename, completion, and inferred-signature hover.
+- Diagnose cyclic global initialization through global/function references at
+  the source binding while preserving legitimate function recursion.
+- Add source-module exports: `export function`, `export class`, `export const`,
+  other named declarations, and `export { name }`. Files with source exports
+  expose only selected declarations; `export {}` exposes none. Files without
+  source exports retain legacy import behavior. Preserve Go naming and C ABI
+  rules, and support export-list navigation, references, and rename.
+- Add named Go imports such as `import go { Println } from "fmt"`, retaining
+  generic signatures, named types, constant precision, and variable identity.
+  Support file-local bindings, qualified-import coexistence, shadowing,
+  source diagnostics, editor navigation, completion, and signature help.
+- Preserve constructor parameters that share their class's name without hiding
+  the allocation type in generated Go, including generic and variadic calls.
+- Diagnose malformed UTF-8 at its source byte, including inside strings and
+  comments, instead of failing during generated Go validation. Unicode text
+  and escaped arbitrary string bytes remain supported.
+- Allow omitted statement/declaration semicolons at line breaks, before `}`,
+  and at end of file. Expressions can continue across lines; three-clause
+  `for` separators remain explicit. A newline immediately after `return` or
+  `throw` now ends that statement, and break/continue labels stay on the same
+  line. Keep a returned/thrown value on the keyword's line, or start a grouped
+  expression there, when migrating multiline code.
 
 ## [0.3.0] - 2026-09-09
 
@@ -158,7 +352,8 @@ generated APIs between minor versions.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/puffball1567/kinmokusei/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/puffball1567/kinmokusei/releases/tag/v0.1.0

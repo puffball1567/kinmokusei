@@ -1,0 +1,15 @@
+import go { Println } from "fmt"
+
+function apply(value: int, transform: (value: int) => Result<int>): Result<int> {
+  const transformed = transform(value)?
+  return ok(transformed)
+}
+
+function main(): void {
+  const [value, err] = apply(21, (n) => { return ok(n * 2) })
+  if (err !== nil) {
+    Println(err)
+    return
+  }
+  Println(value)
+}

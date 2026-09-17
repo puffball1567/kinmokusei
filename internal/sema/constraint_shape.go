@@ -35,6 +35,7 @@ func (c *Checker) parameterRangeShape(parameter *gotypes.TypeParam) (Type, bool)
 }
 
 func (c *Checker) recordParameterRangeShape(parameter *gotypes.TypeParam, ref ast.TypeRef) {
+	c.recordParameterDeleteKey(parameter, ref)
 	core := goRangeCoreType(parameter)
 	if core == nil {
 		c.setParameterRangeShape(parameter, Type{Kind: Invalid})

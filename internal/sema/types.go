@@ -205,6 +205,9 @@ func assignable(target, value Type) bool {
 	if target.Kind == Result || value.Kind == Result {
 		return target.Kind == Result && value.Kind == Result && target.Element != nil && value.Element != nil && sameType(*target.Element, *value.Element)
 	}
+	if !compatibleResultFunctionTypes(target, value) {
+		return false
+	}
 	if target.Kind == Task || value.Kind == Task {
 		return target.Kind == Task && value.Kind == Task && target.Element != nil && value.Element != nil && sameType(*target.Element, *value.Element)
 	}
@@ -243,7 +246,7 @@ func assignable(target, value Type) bool {
 		for _, required := range target.GoMethods {
 			found := false
 			for _, provided := range value.GoMethods {
-				if required.Name == provided.Name && identicalGoInterfaceSignature(required.Type, provided.Type) {
+				if required.Name == provided.Name && identicalMethodSignature(required.Type, provided.Type) {
 					found = true
 					break
 				}
@@ -326,37 +329,6 @@ func assignable(target, value Type) bool {
 
 func sameType(left, right Type) bool {
 	return assignable(left, right) || assignable(right, left)
-}
-
-// Imported interface method signatures are invariant, including source
-// qualifiers that cannot be recovered from their erased Go storage types.
-func identicalGoInterfaceSignature(left, right Type) bool {
-	if !sameConstraintNullability(left, right) {
-		return false
-	}
-	if left.Kind == Function && right.Kind == Function {
-		if left.Variadic != right.Variadic || len(left.Parameters) != len(right.Parameters) || left.Result == nil || right.Result == nil {
-			return false
-		}
-		for i := range left.Parameters {
-			if !identicalGoInterfaceSignature(left.Parameters[i], right.Parameters[i]) {
-				return false
-			}
-		}
-		return identicalGoInterfaceSignature(*left.Result, *right.Result)
-	}
-	if left.Kind == MultiValue && right.Kind == MultiValue {
-		if len(left.Results) != len(right.Results) {
-			return false
-		}
-		for i := range left.Results {
-			if !identicalGoInterfaceSignature(left.Results[i], right.Results[i]) {
-				return false
-			}
-		}
-		return true
-	}
-	return exactType(left, right)
 }
 
 func (t Type) String() string {
@@ -727,7 +699,7 @@ func goTypeSetMask(goType gotypes.Type, visiting map[gotypes.Type]bool) uint64 {
 }
 
 func defaultLiteralType(t Type) Type {
-	if basic, ok := t.GoType.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 && basic.Info()&gotypes.IsNumeric != 0 {
+	if basic, ok := t.GoType.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 {
 		if converted, err := kinmokuseiTypeFromGo(gotypes.Default(basic)); err == nil {
 			return converted
 		}

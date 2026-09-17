@@ -45,7 +45,7 @@ func TestDefinedTypeSyntaxFailureMatrix(t *testing.T) {
 		{"missing distinct", `type UserID = string;`, "defined type requires 'distinct'"},
 		{"distinct alias", `alias UserID = distinct string;`, "alias declarations are transparent"},
 		{"missing underlying", `type UserID = distinct;`, "expected type"},
-		{"missing semicolon", `alias UserID = string`, "expected ';' after type declaration"},
+		{"missing separator", `alias UserID = string const other = 1;`, "expected ';' after type declaration"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

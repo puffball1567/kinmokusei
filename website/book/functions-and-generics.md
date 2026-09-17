@@ -59,7 +59,142 @@ const clamp = (value: int): int => {
 };
 ```
 
-Arrows are ordinary function values. Parameter types remain explicit; the result annotation may be inferred where the body and expected context establish it. Captured bindings use lexical scope; captures do not create a JavaScript runtime or dynamic closure environment beyond the generated Go closure.
+Arrows have statically checked function types. Captured bindings use lexical
+scope; captures do not create a JavaScript runtime or dynamic closure environment
+beyond the generated Go closure.
+
+### Arrow definitions and main (development)
+
+Development builds support arrow-style entry points and function definitions:
+
+<<< ../snippets/arrow-functions.km{ts}
+
+Running this example prints `120 42`. A module-level `const` initialized directly
+with an arrow, with an inferred or unnamed function type, is a callable
+declaration. It emits an ordinary Go function and can be exported with
+`export const`. Its name follows the same Go capitalization rules as `function`.
+`main` must have no parameters and return `void`; `const main = () => { ... }`
+supplies that result context automatically.
+
+Calls to later module-level arrows infer their results by following declaration
+dependencies, including later inferred globals. Definition order does not change
+the inferred result or reorder runtime initialization:
+
+<<< ../snippets/forward-arrow-inference.km{ts}
+
+This prints `42 42`. Dependencies use their own module's lexical scope, not the
+locals of the function that references them. This also works for explicitly
+imported module-level arrows.
+
+Give a callable declaration an explicit result annotation, or a complete
+function-type annotation on the binding, to break a recursive result-inference
+cycle. Calls before a declaration do not otherwise require result annotations.
+Its body can refer to later globals. For example,
+`const twice: (n: int) => int = (n) => { return n * 2 }` declares the whole signature
+without repeating it on the arrow.
+
+Callable declarations cannot be reassigned or addressed with `&`. This is a
+development-version API change: Go consumers receive a function rather than an
+assignable function variable. `let` bindings remain function storage that can be
+reassigned. An explicit named Go function type retains its named storage/type
+contract; local arrows continue to be lexical function values.
+
+### Local recursive arrows (development)
+
+Local `const` and `let` arrows can call themselves when the binding has a complete
+function type or the arrow has explicit parameter and result types:
+
+<<< ../snippets/local-recursive-arrows.km{ts}
+
+This prints `120 11`. A recursive call reads the same binding as any other use:
+after a `let` is reassigned, even a previously saved closure sees the replacement
+through that name. `const` still rejects reassignment. Captures remain valid when
+a closure is returned from its enclosing function.
+
+A direct arrow initializer sees its own binding, shadowing an outer binding of
+the same name. An arrow parameter or inner local can shadow that name in turn.
+Other initializers keep their existing scope: `const n = n + 1` inside a nested
+block still reads an outer `n`.
+
+An inferred recursive result requires an annotation.
+
+### Recursive loop-initializer arrows (development)
+
+A three-clause `for` initializer can also declare a recursive arrow:
+
+<<< ../snippets/recursive-loop-arrows.km{ts}
+
+This prints `120`. The closure is created once before the first condition is
+evaluated. As in other three-clause loops, each iteration has its own binding;
+the next binding copies the previous value before the post statement runs.
+An escaped closure keeps the binding from the iteration where it was created.
+In particular, the initializer's self-reference retains the first iteration's
+binding; copying the function into later iterations does not rebuild it or
+retarget its captures. A `let` can be reassigned, while `const` remains immutable.
+The loop binding is not visible after the loop.
+
+### Local mutually recursive arrow groups (development)
+
+Consecutive direct arrow declarations form a group. Each arrow body can refer
+to any peer in the group, including later declarations:
+
+<<< ../snippets/local-arrow-groups.km{ts}
+
+This prints `true false 7`. Both `const` and `let` participate; a peer reference reads the same storage,
+so replacing a `let` also changes what earlier or escaped closures call.
+
+Group names shadow outer bindings throughout the group, including in earlier
+arrow bodies. Arrow parameters and inner locals can shadow a peer in turn.
+Recursive or forward-referenced local arrows must not share a name with a type,
+type parameter, or Go package namespace; rename the local binding if diagnosed.
+Closure storage is prepared before the group and closures are initialized in
+source order. Only direct arrow declarations participate: comments and blank
+lines do not break a group, but a call, assignment, ordinary variable initializer,
+label, or other statement does. A body cannot use this feature to capture a
+later ordinary local, and calls before a group do not see its declarations.
+
+Keep mutually recursive definitions together, and call or publish them after
+the group. This avoids exposing a not-yet-initialized peer.
+
+### Local forward result inference (development)
+
+Within a group, results can also be inferred through references to later peers:
+
+<<< ../snippets/local-arrow-result-inference.km{ts}
+
+This prints `43`. The later function captures the group's `offset`, not the
+earlier function's same-named parameter. Each body is checked once in that
+shared lexical environment; runtime initialization order does not change.
+Generic type parameters, receiver access, nested closures, and capture-write
+checks are preserved. Parameters still need annotations or a matching function
+type on the binding. A cycle whose result cannot be determined requires an
+explicit result or binding function type to break the inference dependency.
+
+### Contextual types and block results (development)
+
+When a binding, field, callback parameter, assignment, or return position supplies
+a matching function type, arrow parameters can omit their type annotations and
+the result annotation can be omitted for either body form:
+
+```ts
+function apply(value: int, transform: (n: int) => int): int {
+  return transform(value)
+}
+
+const result = apply(21, (n) => { return n * 2 })
+```
+
+The parameter count and rest-parameter shape must match the expected function
+type. Without such a context, parameter types are explicit. An explicit arrow
+annotation is still checked against the expected function type.
+
+Without a result context, a block arrow infers its result from its returns: the
+first return establishes the default value type and subsequent returns must be
+assignable to it. A block with no value returns is `void`. Mixed bare/value returns,
+incompatible results, and inference from `nil`/`null` require a correction or an
+explicit result annotation. Non-void arrows must return on every continuing path.
+Nested arrows have independent return inference; `try/finally` keeps the enclosing
+arrow's inferred result and cleanup behavior.
 
 ## Callbacks
 
@@ -70,6 +205,31 @@ function apply(value: int, transform: (value: int) => int): int {
 
 const result = apply(21, (value: int): int => value * 2);
 ```
+
+### Generic callback inference (development)
+
+Direct arrow arguments can also omit parameter types when a generic call supplies
+their context, including imported Go generic functions:
+
+<<< ../snippets/generic-callbacks.km{ts}
+
+This prints `42 1 3`. Other arguments, explicit type arguments, callback signature
+annotations, and dependent constraints supply the callback's input types. The
+callback may appear before the argument that determines its input type. An
+inferred callback result can determine another type parameter, including the
+input type of another callback in the same call. Generic methods and variadic
+callbacks use the same rules.
+
+Ready typed callbacks take precedence over defaulting untyped numeric constants.
+If a callback needs a numeric default to determine its input type, that default
+unlocks checking its body. Runtime argument order and single evaluation do not
+change; creating an arrow does not execute its body.
+
+Inference does not guess parameter types from operations inside a body. If no
+argument or annotation supplies an input type, or callbacks depend on each other
+without an initial type, add a parameter annotation or explicit type arguments.
+Constraint failures, incompatible results, numeric overflow, and unsafe nullable
+captures remain errors.
 
 Imported Go callbacks connect when the generated function shape is representable. Parameter/result types, variadic status, and named Go type identity must match.
 
@@ -136,6 +296,16 @@ function choose<T extends comparable>(value: T, fallback: T): T {
 
 `comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. A source declaration such as `constraint Numeric = ~int | ~float64` names a union of permitted types. Constraint references can be reused in other unions; overlapping terms and cycles are rejected.
 
+Constraint terms that need a source struct's value storage before it is finalized
+are currently diagnosed, including generic struct instances. Imported Go concrete
+types do not have this source declaration-order limitation.
+
+Recursive source bounds whose array/struct comparability depends on the same
+unresolved parameter are currently diagnosed. For example, with
+`constraint Pair<E> = comparable & ~[1]E`, avoid `T extends Pair<T>`; use an
+independent `E extends comparable` and `T extends Pair<E>` where appropriate.
+Recursive pointer terms and method contracts do not have this restriction.
+
 Generic constraints can describe collection element relationships:
 
 ```ts
@@ -149,7 +319,74 @@ function size<S extends Slice<E>, E>(values: S): int {
 
 Bounds may refer to later parameters. Calls infer dependent parameters from typed arguments and constraints before defaulting untyped numeric constants. Mixed untyped numeric arguments select a common numeric kind, while every actual constant must remain representable in the inferred type. `T(value)` explicitly converts to an in-scope type parameter when its bound permits the conversion.
 
-Constraints cannot be stored as runtime values. Source-written intersections and ordinary runtime-interface terms in source constraint unions remain unsupported.
+Intersect source type sets with `&` to accept only types satisfying both:
+
+<<< ../snippets/constraint-intersections.km{ts}
+
+The program prints `12`, `8`, and `3`. An exact term such as `Score` narrows
+`~int` to that one nominal type. Intersections emit separate Go interface
+embeddings, and can be reused through imports, re-exports, and export aliases.
+Matching generic collection terms retain element inference and nullable types.
+
+A declaration uses either `|` or `&`; name intermediate constraints to combine
+the operators. Empty intersections and conflicting nullable shapes are rejected.
+Unmatched terms containing type parameters are conservatively rejected because
+later substitution might make them overlap; instantiate the operands with
+concrete types first. The expanded union limit remains 100 terms, but repeated
+`&` operands do not consume that union limit. Constraints cannot be stored as
+runtime values.
+
+This intersection has no common types:
+
+<<< ../snippets-invalid/constraint-intersection-empty.km{ts}
+
+Ordinary Go interfaces can contribute methods to a constraint:
+
+<<< ../snippets/constraint-methods.km{ts}
+
+This prints `42`. Both the underlying integer type and the `String()` method
+are required. `constraint Stream = io.Reader & io.Closer` combines two method
+interfaces; `constraint Named = fmt.Stringer` names just a method contract.
+Generic Go interfaces can be composed too, for example
+`constraint Access<E> = api.Getter<E> & api.Setter<E>`. Calls retain Go's method
+capitalization, and method values and dependent type inference are supported.
+
+Repeated identical methods are valid; conflicting signatures are errors.
+Interfaces with methods cannot be operands of `|`, including via a named
+constraint. Go's private methods retain their package identity and cannot be
+called from Kinmokusei. An argument must satisfy all method requirements when
+the constraint is instantiated; declaring a constraint does not guarantee that
+an implementor exists.
+
+Nullable or native-only arguments in Go method signatures are
+diagnosed if conversion would lose source type information, including through
+later generic substitutions. Existing collection-only nullable inference is
+unchanged.
+
+Use `&`, not a union, to combine method contracts:
+
+<<< ../snippets-invalid/constraint-method-union.km{ts}
+
+### Reusing Go type sets
+
+You can narrow an imported constraint, then reuse it in functions and other
+constraints:
+
+<<< ../snippets/imported-constraints.km{ts}
+
+This prints `42 true`. Imported generic collection constraints also compose:
+`constraint Items<E> = api.Slice<E> & ~E[]`. The element type remains available
+for inference and null checks. Go method interfaces can be combined with these
+type sets using `&`.
+
+An explicit `comparable` requirement survives constraint reuse. It may be named
+on its own or combined with `&`, but cannot appear in a multi-term `|` union,
+including indirectly through an imported or source constraint. Empty
+intersections are errors. Native source interfaces are not constraint operands.
+
+For example, an ordered type cannot also have boolean as its underlying type:
+
+<<< ../snippets-invalid/imported-constraint-empty.km{ts}
 
 ## Generic named types
 
@@ -164,7 +401,39 @@ const page: Page<string> = Page<string> { items: ["one", "two"] };
 
 Classes, structs, interfaces, and defined types may have type parameters. Named type positions require full explicit instantiation. Methods may use the enclosing parameters and introduce separate method-local parameters. Those methods lower to standalone Go helpers; they are excluded from virtual dispatch and Go interface method sets.
 
-Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Abstract declarations, property accessors, and static fields are not implemented.
+Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Property accessors and static fields are not implemented.
+
+### Abstract classes and dependency injection
+
+Since v0.4.0, an abstract class can share state and concrete methods
+while requiring descendants to implement selected methods. It is also a type for
+parameters, fields, results, and dependency injection:
+
+<<< ../snippets/abstract-classes.km{ts}
+
+Abstract methods have no body and are implicitly virtual. They must be public or
+protected; implementations require `override` with the same visibility and full
+signature. Abstract intermediate classes may retain unresolved methods or use
+`abstract override` to require a new implementation. Class generics are supported,
+but virtual methods cannot have their own type parameters. Static/final abstract
+methods and final abstract classes are rejected.
+
+Every concrete class must implement all inherited abstract methods. Abstract
+classes cannot be instantiated, including those with no abstract methods:
+
+<<< ../snippets-invalid/abstract-instantiation.km{ts}
+
+Interfaces remain method-only contracts; abstract classes may additionally own
+state and behavior and use single class inheritance. An abstract class declaring
+`implements` must explicitly declare (or inherit) each required method signature.
+`super` cannot access an abstract method without a base implementation.
+
+Constructors keep phase-local virtual dispatch. Direct abstract-method access on
+`this` in a constructor is an error. Indirect access through a helper or callback
+to an unimplemented slot during construction panics; call abstract-dependent
+behavior after construction. Generated Go has no public constructor factory for
+abstract classes. Manually created zero-value Go structs do not establish source
+class invariants and also panic on unimplemented abstract slots.
 
 ## Multiple Go results
 
@@ -178,7 +447,7 @@ There is no hidden error discard and no tuple wrapper. Bind every result or use 
 
 ## Result functions
 
-`Result<T>` is a return effect, lowering to `(T, error)`; `Result<void>` lowers to `error`. It cannot be stored, nested, or used as a field/parameter. `ok`, `fail`, and `?` make the result paths explicit.
+`Result<T>` is a return effect, lowering to `(T, error)`; `Result<void>` lowers to `error`. The Result itself cannot be stored, nested, or used as a field/parameter. `ok`, `fail`, and `?` make the result paths explicit.
 
 A result-producing function therefore advertises the effect at the boundary:
 
@@ -190,6 +459,27 @@ function validatePort(value: int): Result<int> {
   return ok(value);
 }
 ```
+
+### Result-returning function values
+
+Since v0.4.0, a function returning Result is an
+ordinary value. Store it in a binding, pass it as a callback, return a closure,
+or use it in fields and collections. The callback's type keeps the error path
+visible to its callers:
+
+<<< ../snippets/result-function-values.km{ts}
+
+The matching callback context supplies the arrow's parameter and Result types.
+Without such a context, write an explicit return annotation, such as
+`(value: int): Result<int> => { return ok(value); }`. Result arrows require a
+block body and explicit returns; their call results must still be propagated
+with `?`, split into value/error bindings, or forwarded by `return`.
+
+Native aliases and defined function types can carry this signature, including
+generic payloads. Explicitly annotating an ABI-compatible Go function also works:
+`const parse: (text: string) => Result<int> = strconv.Atoi;`. This adds no wrapper
+and forwards the original Go values and error. An unannotated Go function keeps
+its raw Go result list.
 
 ## Methods as functions with receivers
 

@@ -174,6 +174,22 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 	if signature, ok := s.sourceSignature(result.Program, doc.Path, context); ok {
 		return signature, true
 	}
+	if context.Qualifier == "" {
+		for _, imported := range result.Program.Imports {
+			if !imported.Go || !samePath(imported.Span.Path, doc.Path) {
+				continue
+			}
+			for _, name := range imported.Names {
+				if name != context.Name {
+					continue
+				}
+				signature, found, err := result.GoPackageFunctionSignature(imported.Path, name)
+				if err == nil && found {
+					return ast.CallableSignature{ParameterNames: signature.ParameterNames, ParameterTypes: signature.ParameterTypes, Result: signature.Result, Variadic: signature.Variadic}, true
+				}
+			}
+		}
+	}
 	if context.Qualifier != "" {
 		if signature, ok := s.goValueMethodSignature(result, doc, context); ok {
 			return signature, true
@@ -259,9 +275,10 @@ func (s *Server) sourceSignature(program *ast.Program, path string, context call
 			if name != context.Name {
 				continue
 			}
+			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, nil)
 			for _, declaration := range program.Declarations {
 				function, ok := declaration.(*ast.FunctionDecl)
-				if ok && samePath(function.Span.Path, imported.ResolvedPath) && s.sourceText(function.NameSpan) == name {
+				if ok && found && sameSourceSpan(function.NameSpan, target) {
 					return signatureFromFunction(function), true
 				}
 			}
@@ -312,9 +329,10 @@ func sourceClassDeclaration(s *Server, program *ast.Program, path, name string) 
 			if importedName != name {
 				continue
 			}
+			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, nil)
 			for _, declaration := range program.Declarations {
 				class, ok := declaration.(*ast.ClassDecl)
-				if ok && samePath(class.Span.Path, imported.ResolvedPath) && s.sourceText(class.NameSpan) == name {
+				if ok && found && sameSourceSpan(class.NameSpan, target) {
 					return class
 				}
 			}

@@ -45,7 +45,35 @@ class UserController {
 
 The core `Result`, postfix `?`, and nil-backed nullable constructs in this example are implemented. The referenced application libraries remain design direction.
 
+## Statement termination
+
+Semicolons are optional after a complete declaration or simple statement when
+the next token is on a later line, is `}`, or is end of file. This includes
+imports, bindings, fields, interface signatures, type/constraint declarations,
+returns, assignments, updates, branches, sends, and call/effect statements.
+Same-line statements still require a separator; three-clause `for` headers
+always require their two `;` separators. Braced declarations and control-flow
+bodies retain their existing syntax.
+
+Newlines do not split incomplete expressions or types. Calls, indexing,
+selectors, and binary operations may continue onto the next line. If the next
+line begins with `(` or `[`, it can continue the preceding expression; use an
+explicit `;` to separate the statements in that case. Newlines inside comments
+count as line breaks.
+
+A newline immediately after `return` ends a bare return; after `throw`, it
+ends a bare rethrow (valid only within a catch). Optional break/continue labels
+must be on the keyword's line. A value-returning function rejects a bare return
+at the source location. Keep a return/throw operand on the keyword's line, or
+start its grouping parenthesis there, to express a multiline value. This
+restricted-newline rule also applies to code that uses explicit semicolons.
+
 ## Types
+
+Source files must contain valid UTF-8, including string literals and comments.
+Malformed bytes are diagnosed at their source location. String values may
+still contain arbitrary bytes through escapes such as `"\xFF"`; this does not
+make the source encoding invalid.
 
 ### Built-in types
 
@@ -92,11 +120,32 @@ with an integer value, including `2.0` and `2+0i`. Explicitly typed floating or
 complex constants and variables are not integer indices. Constant negative,
 oversized, or out-of-bounds indices and invalid size/bound ordering are rejected.
 Target-dependent `int` width remains subject to generated Go validation.
-Direct references to floating/complex Go-emittable constants retain their
-constant precision and representability checks. Source `const` means an
-immutable binding, not necessarily a Go compile-time constant: an alias such as
-`const copy = original` currently lowers to a variable and cannot supply an
-untyped floating constant to an integer-only context.
+Since v0.4.0, references to numeric Go-emittable constants retain
+precision, explicit types, and representability checks through chains such as
+`const copy = original` and `const next = copy + 1`. This includes local and
+module bindings, source exports/aliases, and numeric Go imports. An untyped
+integral floating constant remains usable in integer-only contexts. Typed
+constants preserve their original type and floating-point rounding.
+
+String and boolean constants follow the same reference-chain rules. Untyped
+values remain assignable to compatible named scalar types; explicit annotations
+remain typed. Concatenation, boolean logic, and unary `!` preserve named operand
+types as in Go. Named boolean values are valid conditions, with no truthiness
+conversion. Generic inference considers typed arguments before untyped string
+and boolean constants, so `pick("text", namedString)` retains the named type.
+
+`len` of a constant string is a constant of type `int`, measured in UTF-8 bytes,
+including through aliases and named string conversions. Narrower types require
+an explicit conversion such as `byte(len(text))`. Constant string index and
+slice bounds are checked against the known byte length. A string slice such as
+`text[:2]` is a runtime value, even when its operands are constants.
+
+Source `const` still means an immutable binding, not necessarily a Go compile-time
+constant. Function results, copies of mutable/runtime bindings, and three-clause
+loop variables remain runtime values. Their aliases cannot become untyped
+constants. Checked numeric constant operations also diagnose typed overflow;
+scalar compile-time constants cannot have their address taken. Use a `let`
+copy when addressable storage is needed.
 
 Explicit conversions use Go convertibility rules for representable source and
 target types. In particular, `string(bytes)`, `string(runes)`, and conversions
@@ -106,6 +155,17 @@ does; it is not decimal formatting. Fixed arrays do not convert directly to
 strings.
 
 ### Go interop types
+
+Go exports may be imported by package alias (`import go time from "time"`) or
+by name (`import go { Duration, Second } from "time"`). Named imports retain
+the original Go type, constant, function, or variable identity. They are scoped
+to the importing file; duplicate bindings and conflicts with top-level
+declarations are errors. Locals may shadow imported values and type parameters
+may shadow imported types. Both forms can share a package import. Generated Go
+always qualifies imported exports; it does not copy imported variables or
+introduce runtime wrappers. Names must match exported Go declarations exactly.
+Named lists support trailing commas and the ordinary optional-semicolon rules.
+
 
 Complex numbers use `complex64` (two float32 components) or `complex128` (two
 float64 components). Construct them with `complex(realPart, imaginaryPart)` and
@@ -303,7 +363,7 @@ as `~int` also accepts nominal Kinmokusei or Go types whose underlying type is
 `int`, so `Score` satisfies `Integer`. Terms lower to the corresponding Go
 constraint interface and may be used by generic functions, classes, structs,
 interfaces, and defined types, including across relative imports. Overlapping
-terms, `~` applied to a named type, and ordinary interface terms are rejected before Go
+union terms, `~` applied to a named type, and native source interface terms are rejected before Go
 generation; a single declaration follows the Go toolchain limit of at most 100
 union terms. A declared constraint is not a runtime value type and cannot be
 used for fields, parameters, variables, or `implements`.
@@ -329,9 +389,9 @@ function elements<S extends Slice<E>, E>(values: S): E[] {
 
 `Slice<E>` emits a Go `interface { ~[]E }` with the corresponding type
 parameters. The declaration remains compile-time-only: it does not introduce
-a runtime wrapper, boxing, or ownership policy. Its source type-set terms and
-parameter identities are the semantic contract for future KIR lowering; a Go
-module is not needed merely to define the constraint.
+a runtime wrapper or boxing. Its source type-set terms and parameter identities
+are preserved through checking and Go emission; importing a Go package is not
+needed merely to define the constraint.
 
 Type arguments to a constraint are explicit and must satisfy its own bounds.
 As with generic functions, all names in its parameter list are in scope in
@@ -346,8 +406,77 @@ generic instances: `constraint Values<E> = Slice<E>` and
 `constraint Number = Signed | Unsigned`. References may be forward-declared or
 imported. Validation expands these references, checks disjoint concrete terms,
 and applies the 100-term limit to the expanded union as well. Go output retains
-the named references. Applying `~` to a constraint is invalid. Ordinary source
-or imported interface terms and explicit intersections remain unsupported.
+the named references. Applying `~` to a constraint is invalid.
+
+Use `&` to intersect source type sets: `constraint Narrow = Number & Scalar`
+accepts only types in both operands. Exact terms narrow overlapping underlying
+terms, so `constraint OnlyScore = ~int & Score` accepts `Score`, not plain `int`.
+Repeated intersection operands are valid. Each operand becomes a separate Go
+interface embedding, without a runtime wrapper. Intersections can themselves
+be referenced in unions or other intersections, including through export aliases.
+Generic operands with matching parameterized terms are supported, for example
+`constraint Values<E> = Slice<E> & ~E[]`; inference retains the element type.
+An unmatched term containing type parameters is conservatively rejected because
+substitution could change whether it overlaps another operand. Instantiate the
+operands with concrete types before intersecting them in that case.
+Empty intersections and overlapping terms with incompatible source nullability
+are diagnosed. A declaration uses either `|` or `&`, not both; name intermediate
+constraints to combine the operators. The normalized union still has a 100-term
+limit; the count of `&` operands alone is not subject to that union limit.
+Ordinary Go interfaces can contribute method requirements:
+
+```ts
+import go fmt from "fmt";
+import go io from "io";
+constraint Printable = ~int & fmt.Stringer;
+constraint ReadClosable = io.Reader & io.Closer;
+function show<T extends Printable>(value: T): string {
+  return (value + value).String();
+}
+```
+
+Method-only declarations (`constraint Named = fmt.Stringer`) and generic Go
+interfaces (`constraint Access<E> = api.Getter<E> & api.Setter<E>`) are supported.
+Calls use the original Go method spelling, including capitalization. Method
+values, dependent inference, generic owners, and linked constraint references
+retain the checked method contracts. Duplicate identical signatures coalesce;
+conflicting signatures are rejected. Unexported methods retain Go package
+identity for satisfaction checks and are not exposed as callable members or
+editor completions. Concrete type arguments must satisfy both the finite type
+set, when present, and every required method; declaration alone need not prove
+that an implementor exists. A nullable value cannot satisfy a method-bearing
+bound without first being narrowed.
+
+An operand carrying method requirements cannot appear in a `|` union, even
+through an intermediate source constraint; combine it using `&` instead.
+Imported Go type-set interfaces can also be operands. For example,
+`constraint Integer = cmp.Ordered & ~int` narrows an imported numeric contract.
+Nested interface embeddings remain intersections; imported interface union
+alternatives are normalized even when their type sets overlap legally in Go.
+Generic collection terms retain source element shapes through substitution,
+so `constraint Items<E> = api.Slice<E>` supports nullable element inference.
+The existing conservative rule for unmatched parameter-dependent intersections
+also applies to imported terms.
+
+`comparable` can be named or intersected directly, and its explicit requirement
+is preserved through imported constraints, source references, and export aliases.
+Concrete non-strictly-comparable terms are removed from its type set; an empty
+intersection is diagnosed. Interfaces embedding `comparable` cannot be operands
+of a multi-term union, even when another operand already restricts them to
+integers. A numeric type set without an explicit `comparable` embedding can
+still participate in a union. Type argument satisfaction retains Go's rules,
+including its exception for comparable interface values; dynamic equality can
+still panic when those values contain non-comparable data.
+Native source interface operands remain unavailable.
+When targeting Go 1.23 tooling, put a comparable element parameter before a
+parameter whose bound combines that element with `comparable` (for example,
+`<E extends comparable, T extends Pair<E>>`). The compiler checks forward bounds,
+but Go 1.23's export-data importer can panic on the reversed order during vet.
+Go method arguments must round-trip without losing source type information:
+nullable or native-only shapes in method signatures are diagnosed, including
+when supplied through a later generic substitution. Collection-only parameters
+retain their existing nullable inference support.
+
 Nullable qualifiers in collection elements are retained through constraint
 inference, range bindings, and concrete generic method owners. Matching Go
 storage types alone is insufficient: `Leaf[]` and a slice of `Leaf | null`
@@ -650,7 +779,32 @@ const copied: [3]int = copyArray[[3]int](values);
 const viewed: *[3]int = viewArray[[3]int](values);
 ```
 
-`copyArray` returns an independent value. `viewArray` shares backing storage. Both panic like Go when the source is too short.
+`copyArray` returns an independent array value. This is a shallow copy: class
+references, maps, and slice elements still share their referenced storage.
+`viewArray` shares the source's element slots. Both panic like Go when the
+source's **length** is too short, even if its capacity is sufficient. Conversion
+to `[0]T` always succeeds; conversion to `*[0]T` returns nil exactly when the
+source slice is nil.
+
+The source can be a slice-constrained type parameter, including named slice
+unions and imported constraints with a common element type:
+
+```ts
+constraint Slice<E> = ~E[];
+function pair<E, S extends Slice<E>>(values: S): [2]E {
+  return copyArray[[2]E](values);
+}
+function pairView<E, S extends Slice<E>>(values: S): *[2]E {
+  return viewArray[[2]E](values);
+}
+```
+
+The target must have a concrete fixed-array shape, such as `[2]E` or a named
+instantiation of it, not a bare array-constrained type parameter. Element types
+are invariant, including class identity and nested nullable qualifiers; these
+operations neither convert elements nor perform class upcasts. Indexing and
+reslicing preserve those source element contracts. Ordinary operands execute
+once; constant `len`/`cap` of a conversion retains Go's unevaluated-operand rules.
 
 ## Operators
 
@@ -725,9 +879,39 @@ let [nextValue, nextPresent] = lookup["next"];
 
 - `len`: strings, arrays, array pointers, slices, maps, and channels.
 - `cap`: arrays, array pointers, slices, and channels.
+- `len`/`cap` also accept type parameters when every type-set member supports
+  the operation, even if the collection shapes differ. Calls on a type parameter
+  remain nonconstant; `[3]T` is a fixed array, while `T extends ~[3]int` is not.
+- Since v0.4.0, `len`/`cap` of a fixed array or array pointer retain
+  typed `int` constant values when the operand contains no runtime calls or
+  channel receives. Such operands are not evaluated, including pointer
+  dereferences, indexing, and slice-to-array conversions. No user function is
+  run at compile time. Checked constant calls and uncalled arrow bodies do not
+  force evaluation. Aliases preserve the resulting constant for bounds/size
+  checks; taking its address is rejected. Nullable wrappers and constant
+  intrinsics not yet recognized by semantic analysis remain further work.
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
+- `append`/`copy` accept type parameters with one common underlying slice type,
+  including dependent element parameters and unions of distinct named slices.
+  `append` retains its destination's type; different source/destination slice
+  names are allowed when element types are identical. Copying or spread-append
+  never widens element types: generic identity and nested source nullability
+  must match. Individual appended class values may upcast to a base class,
+  preserving virtual dispatch and identity. A byte-slice destination also
+  accepts string-constrained source parameters (`...` for append). Nil slices,
+  overlapping storage, slice growth, and operand evaluation follow Go; adding
+  elements does not silently update the caller's original slice descriptor.
 - `delete`: removes a map key; missing keys and nil maps are no-ops.
+  Type parameters are accepted when all type-set members are maps with the
+  same key type; value types may differ. Keys retain source class identity and
+  nullability. Unions with incompatible source key nullability are rejected.
+  Numeric constant keys must be representable, including through aliases.
+  Toolchain caveat: Go 1.26/1.27's `vet` printf analyzer can panic on a valid
+  `delete` over a common-key union with different map value types (also for
+  handwritten Go). Compilation is unaffected. For such generated modules,
+  run `go vet -printf=false ./...` and `go test -vet=off ./...` until that analyzer
+  is fixed; the differential test applies this workaround only to this fixture.
 - A two-name binding or reassignment from `map[key]` performs Go's checked
   lookup and yields `(value, present)`. Missing and nil maps produce the value
   type's zero value and `false`; a stored zero value produces `true`. The map
@@ -736,9 +920,23 @@ let [nextValue, nextPresent] = lookup["next"];
   slices, or strings.
 - `clear`: zeroes every slice element or removes every map entry, including
   named Go collections; nil slices/maps remain safe exactly as in Go.
+  Type parameters are accepted when every member is a slice or map, even with
+  different element/key types or a mixture of slices and maps. Slice length and
+  capacity are unchanged; only elements within the length are zeroed, and aliases
+  observe the changes. Map clearing also removes NaN keys. These operations are
+  available in generic functions and class methods and evaluate arguments once.
 - `min`/`max`: require one or more operands of one ordered numeric or string
   type. Named Go ordered types, mixed typed/untyped numeric literals, NaN,
   signed zero, and left-to-right operand evaluation retain Go behavior.
+  Since v0.4.0, all-constant operands produce a checked constant,
+  preserving precision, numeric-kind promotion, explicit types, and rounding.
+  The result can be reused in narrow assignments, indices, and collection sizes.
+  Every operand must be representable in the common type, even one that would
+  not be selected. Native named types and ordered type parameters retain their
+  identities; type-parameter values remain nonconstant. Untyped nonconstant
+  shifts inside these calls receive the peer operand's integer context, with
+  left-operand overflow checked before generation. These built-ins are not
+  short-circuiting and do not evaluate user functions at compile time.
 - `makeSlice`/`makeMap`: typed allocation with static negative/capacity diagnostics and Go dynamic panic behavior. `makeSlice` evaluates length before capacity exactly once; generated code fixes this order independently of Go toolchain intrinsic lowering.
 
 Visible user declarations may shadow compiler built-ins. Generated names remain deterministic and do not confuse a user call with a built-in lowering.
@@ -988,7 +1186,7 @@ initializer of one variable; a void result may be an expression statement.
 `?` is not accepted in a nested expression or a `for` initializer, so its
 control-flow boundary remains visible.
 
-Raw Go multiple results never convert implicitly. For example,
+Raw Go multiple-result expressions never convert implicitly. For example,
 `return strconv.Atoi(text);` is rejected in a `Result<int>` function; use
 `const value = strconv.Atoi(text)?; return ok(value);`. Explicit split binding
 remains available when the caller wants to inspect the `error` without
@@ -1001,6 +1199,45 @@ const [cleanupErr] = cleanup();
 
 This is direct multiple-result binding, not object destructuring. A real object
 is generated only when the called API actually returns an object.
+
+Since v0.4.0, named local error bindings populated by a source
+Result split must be read somewhere in source code. An unused error is a
+compile error; generated Go unused-variable cleanup does not count as handling.
+Checking, returning, passing, or explicitly discarding the error counts as use.
+This is binding-level validation, not path-sensitive recovery or per-write
+analysis. It does not follow aliases or prove that closures reading an error
+are invoked. Raw imported Go errors retain their existing policy.
+
+Explicit discard remains available: `const [value, _] = operation()` keeps
+the success value, while local `const _ = operation()`, `let _ = operation()`,
+and `_ = operation()` discard all results. These forms evaluate the expression
+once without declaring a local named `_`, and preserve side effects and panics.
+`const _ = operation()?` discards success but propagates failure. Type annotations
+on blank bindings still require assignment compatibility. `Task` cannot be
+discarded; it still requires `await` or `detach`.
+
+Since v0.4.0, a function returning Result is an ordinary function
+value: `(text: string) => Result<int>` can be a variable, callback parameter,
+field, collection/channel element, or another function's success payload.
+Only the Result itself is non-storable. Aliases and native defined function
+types, including generic instantiations, retain this source return effect and
+their nominal identity. Result success nullability remains part of the source
+function contract even when Go signatures have the same representation.
+
+Result arrows require an explicit result annotation or a matching function
+context, and a block body with explicit `return ok(...)`, `return fail(...)`, or
+forwarding return. The outer function's Result context does not leak into a
+nested arrow. Calls through function values have the same handling requirements
+as declared Result functions.
+
+An explicit function annotation can establish a Result contract for an
+ABI-compatible Go function, for example
+`const parse: (text: string) => Result<int> = strconv.Atoi;`. Calling `parse`
+then has the source return effect. No wrapper is introduced: forwarding keeps
+both Go results exactly, including a nonzero value returned alongside an error.
+Source Result functions also pass to compatible Go callbacks directly. Function
+types inferred from imported Go APIs remain Go signatures; annotate a returned
+callback explicitly to establish its Result contract.
 
 ## Typed exceptions
 

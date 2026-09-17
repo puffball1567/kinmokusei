@@ -71,7 +71,7 @@ func TestExceptionParserFailureMatrix(t *testing.T) {
 		{"catch without type", `function run(): void { try {} catch (err) {} }`},
 		{"catch without body", `function run(): void { try {} catch (err: error) }`},
 		{"finally without body", `function run(): void { try {} finally }`},
-		{"throw without semicolon", `function run(err: error): void { throw err }`},
+		{"throw without separator", `function run(err: error): void { throw err return; }`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			_, diagnosticCount := parseSource(t, test.source)

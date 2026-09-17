@@ -18,7 +18,6 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/product"
 	"github.com/puffball1567/kinmokusei/internal/project"
 	"github.com/puffball1567/kinmokusei/internal/sema"
-	"github.com/puffball1567/kinmokusei/stdlib"
 )
 
 type Result struct {
@@ -468,6 +467,7 @@ func goImporterForProgram(program *ast.Program, rootPaths []string, lockedRoot s
 }
 
 type moduleLoader struct {
+	exports     map[string]map[string]sourceExportBinding
 	states      map[string]int
 	programs    map[string]*ast.Program
 	paths       map[string]string
@@ -520,53 +520,15 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 	l.programs[key] = program
 	l.paths[key] = path
 
-	for i := range program.Imports {
-		imported := &program.Imports[i]
-		if imported.Go {
-			continue
-		}
-		if !strings.HasPrefix(imported.Path, ".") {
-			standardSource, found := stdlib.Lookup(imported.Path)
-			if !found {
-				message := "package imports are not supported in this compiler stage"
-				if strings.HasPrefix(imported.Path, "kinmokusei/") {
-					message = fmt.Sprintf("standard package %q is not available", imported.Path)
-				}
-				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: message, Span: imported.PathSpan})
-				continue
-			}
-			standardKey := filepath.FromSlash(standardSource.VirtualPath)
-			imported.ResolvedPath = standardKey
-			if err := l.loadSource(standardKey, filepath.FromSlash(standardSource.VirtualPath), standardSource.Contents, imported, true); err != nil {
-				return err
-			}
-			l.validateImport(*imported, l.programs[standardKey])
-			continue
-		}
-		if embedded {
-			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
-				Message: fmt.Sprintf("compiler-managed module %q cannot use relative import %q", path, imported.Path), Span: imported.PathSpan,
-			})
-			continue
-		}
-		target := filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(imported.Path)))
-		if filepath.Ext(target) == "" {
-			target = sourcePathWithMigrationFallback(target)
-		}
-		targetAbsolute, err := filepath.Abs(target)
-		if err != nil {
-			return err
-		}
-		imported.ResolvedPath = filepath.Clean(targetAbsolute)
-		if err := l.load(target, imported); err != nil {
-			return err
-		}
-		l.validateImport(*imported, l.programs[filepath.Clean(targetAbsolute)])
+	if err := l.loadSourceDependencies(path, program, embedded); err != nil {
+		return err
 	}
 
+	l.resolveSourceExports(key, program)
 	l.states[key] = 2
 	l.merged.Imports = append(l.merged.Imports, program.Imports...)
 	l.merged.Declarations = append(l.merged.Declarations, program.Declarations...)
+	l.merged.Exports = append(l.merged.Exports, program.Exports...)
 	return nil
 }
 
@@ -589,26 +551,17 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 		return
 	}
 	available := map[string]bool{}
+	exported := map[string]bool{}
 	for _, declaration := range target.Declarations {
-		switch declaration := declaration.(type) {
-		case *ast.FunctionDecl:
-			available[declaration.Name] = true
-		case *ast.VariableDecl:
-			available[declaration.Name] = true
-		case *ast.ClassDecl:
-			available[declaration.Name] = true
-		case *ast.StructDecl:
-			available[declaration.Name] = true
-		case *ast.TypeDecl:
-			available[declaration.Name] = true
-		case *ast.EnumDecl:
-			available[declaration.Name] = true
-		case *ast.InterfaceDecl:
-			available[declaration.Name] = true
+		if name := topLevelName(declaration); name != "" {
+			available[name] = true
 		}
 	}
+	for name := range l.exports[imported.ResolvedPath] {
+		available[name], exported[name] = true, true
+	}
 	seen := map[string]bool{}
-	for _, name := range imported.Names {
+	for index, name := range imported.Names {
 		if seen[name] {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate imported name %q", name), Span: imported.Span})
 			continue
@@ -617,6 +570,14 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 		if !available[name] {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
 				Message: fmt.Sprintf("module %q does not declare %q", imported.Path, name), Span: imported.Span,
+			})
+		} else if !exported[name] {
+			span := imported.Span
+			if index < len(imported.NameSpans) {
+				span = imported.NameSpans[index]
+			}
+			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
+				Message: fmt.Sprintf("module %q does not export %q", imported.Path, name), Span: span,
 			})
 		}
 	}

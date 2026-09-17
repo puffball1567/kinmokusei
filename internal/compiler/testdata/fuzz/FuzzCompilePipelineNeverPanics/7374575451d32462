@@ -1,0 +1,2 @@
+go test fuzz v1
+string("class A{value:string;constructor(values:int[]){switch(len(values)){default{{this.value=\"\x8c\"}}}}}")

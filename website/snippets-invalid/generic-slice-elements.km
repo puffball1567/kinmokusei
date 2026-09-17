@@ -1,0 +1,6 @@
+constraint Ints = ~int[]
+constraint Texts = ~string[]
+
+function transfer<D extends Ints, S extends Texts>(destination: D, source: S): int {
+  return copy(destination, source)
+}

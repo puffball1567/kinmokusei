@@ -49,4 +49,47 @@ Missing and nil maps return the value type's zero value plus `false`. Map iterat
 
 Both array-conversion forms panic if the source is shorter than `N`. The view also carries ordinary pointer aliasing: keep it only while shared mutation is intentional and the backing storage remains valid.
 
+## Generic clearing and deletion
+
+Since v0.4.0, `clear` accepts a type parameter whose possible types
+are all slices or maps. `delete` requires map types with the same key type, but
+their value types may differ. Both are available in generic class methods too.
+
+<<< ../snippets/generic-collection-mutation.km{ts}
+
+Expected output:
+
+```text
+[1 0 0 4] 2 3
+0 0
+```
+
+Clearing a slice changes its shared backing elements without changing length or
+capacity; elements beyond its length remain untouched. Clearing a map removes
+every entry, including NaN keys. Nil maps/slices are safe. Deletion checks the
+key's type, source nullability and numeric constant range at compile time.
+
+## Generic append and copy
+
+Since v0.4.0, a slice constraint also supports `append` and `copy`.
+`append` returns the destination's original type, including a named slice type.
+`copy` returns the number of elements copied and preserves the destination's
+length. Both work inside generic classes and methods.
+
+<<< ../snippets/generic-slice-builtins.km{ts}
+
+Expected output:
+
+```text
+1 3 [1 2 3]
+2 [1 2]
+12
+```
+
+Source and destination elements must match for copying or spread-append, including
+their nullability and generic arguments. Adding one derived-class value to a
+base-class slice is allowed and preserves virtual dispatch; copying a whole
+derived-class slice into a base-class slice is not. A byte-slice constraint also
+supports appending or copying bytes from a string-constrained source.
+
 See [Types and data](../guide/types-and-data) and [Type-system reference](../reference/types).

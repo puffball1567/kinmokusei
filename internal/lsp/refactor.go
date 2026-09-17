@@ -75,7 +75,7 @@ func (s *Server) prepareRename(id json.RawMessage, raw json.RawMessage) error {
 	program := s.analyze(doc)
 	occurrences := s.symbolOccurrences(program)
 	target, ok := occurrenceAt(occurrences, doc.Path, offset)
-	if !ok || !hasDeclarationOccurrence(occurrences, target.Declaration) || fixedReceiverDeclaration(program, target.Declaration) {
+	if !ok || !hasDeclarationOccurrence(occurrences, target.Declaration) || fixedReceiverDeclaration(program, target.Declaration) || namedGoImportDeclaration(program, target.Declaration) {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	result := map[string]any{"range": s.protocolRangeFor(target.Span.Path, target.Span), "placeholder": target.Name}
@@ -109,6 +109,9 @@ func (s *Server) rename(id json.RawMessage, raw json.RawMessage) error {
 	}
 	if fixedReceiverDeclaration(program, target.Declaration) {
 		return s.renameError(id, "external method receiver 'this' is fixed syntax and cannot be renamed")
+	}
+	if namedGoImportDeclaration(program, target.Declaration) {
+		return s.renameError(id, "imported Go export names are read-only")
 	}
 	if params.NewName == target.Name {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: map[string]any{"changes": map[string][]textEdit{}}})
@@ -342,25 +345,54 @@ func (s *Server) symbolOccurrences(program *ast.Program) []symbolOccurrence {
 
 func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[string]string) []symbolOccurrence {
 	var result []symbolOccurrence
-	add := func(span, declaration source.Span) {
+	addResolved := func(span, declaration source.Span) {
 		if span.Path == "" || declaration.Path == "" {
 			return
 		}
 		result = append(result, symbolOccurrence{Name: s.sourceTextWithOverlay(span, textByPath), Span: span, Declaration: declaration})
 	}
-	declare := func(span source.Span) { add(span, span) }
+	aliases := s.importedExportAliases(program)
+	add := func(span, declaration source.Span) {
+		if span.Path == "" || declaration.Path == "" {
+			return
+		}
+		key := exportAliasReference{cleanPath(span.Path), s.sourceTextWithOverlay(span, textByPath), spanKey(declaration)}
+		if alias, ok := aliases[key]; ok && !sameSourceSpan(span, declaration) {
+			declaration = alias
+		}
+		addResolved(span, declaration)
+	}
+	declare := func(span source.Span) { addResolved(span, span) }
 
 	for _, imported := range program.Imports {
 		if imported.Go {
 			declare(imported.AliasSpan)
+			for _, span := range imported.NameSpans {
+				declare(span)
+			}
 			continue
 		}
 		for index, nameSpan := range imported.NameSpans {
 			if index >= len(imported.Names) {
 				continue
 			}
-			if target, ok := s.topLevelDeclarationSpan(program, imported.ResolvedPath, imported.Names[index], textByPath); ok {
-				add(nameSpan, target)
+			if target, ok := s.publicDeclarationSpan(program, imported.ResolvedPath, imported.Names[index], textByPath); ok {
+				addResolved(nameSpan, target)
+			}
+		}
+	}
+
+	for _, exported := range program.Exports {
+		if !exported.Inline {
+			for _, name := range exported.Names {
+				target := name.ReferencedDeclaration
+				if target.Path == "" {
+					target = name.ResolvedDeclaration
+				}
+				addResolved(name.NameSpan, target)
+				if name.Alias != "" {
+					declare(name.AliasSpan)
+				}
 			}
 		}
 	}
@@ -483,7 +515,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		case *ast.BranchStmt:
 			add(statement.LabelSpan, statement.ResolvedDeclaration)
 		case *ast.VariableDecl:
-			declare(statement.NameSpan)
+			if statement.Name != "_" {
+				declare(statement.NameSpan)
+			}
 			walkType(&statement.Type)
 			walkExpression(statement.Value)
 		case *ast.MultiVariableDecl:
@@ -735,6 +769,21 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 }
 
 func (s *Server) topLevelDeclarationSpan(program *ast.Program, path, name string, textByPath map[string]string) (source.Span, bool) {
+	explicit := false
+	for _, exported := range program.Exports {
+		if !samePath(exported.Span.Path, path) {
+			continue
+		}
+		explicit = true
+		for _, selected := range exported.Names {
+			if selected.PublicName() == name && selected.ResolvedDeclaration.Path != "" {
+				return selected.ResolvedDeclaration, true
+			}
+		}
+	}
+	if explicit {
+		return source.Span{}, false
+	}
 	for _, declaration := range program.Declarations {
 		var span source.Span
 		switch declaration := declaration.(type) {
@@ -755,7 +804,7 @@ func (s *Server) topLevelDeclarationSpan(program *ast.Program, path, name string
 		default:
 			continue
 		}
-		if samePath(span.Path, path) && s.sourceTextWithOverlay(span, textByPath) == name {
+		if samePath(span.Path, path) && ast.SourceExported(program, declaration) && s.sourceTextWithOverlay(span, textByPath) == name {
 			return span, true
 		}
 	}

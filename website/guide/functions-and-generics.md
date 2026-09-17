@@ -35,6 +35,12 @@ const transform: (value: string) => string = (text: string): string => text;
 
 Call targets, receiver expressions, and arguments evaluate once in source order at the boundaries where order affects behavior.
 
+In development builds you can also use `const main = () => { ... }`, omit arrow
+parameter/result annotations when a matching callback type supplies them, and
+infer block-body results. The [Manual's arrow section](../book/functions-and-generics#arrow-functions)
+explains callable declarations, recursion, mutable bindings, and the generated-Go
+API change.
+
 ## Rest parameters
 
 Rest parameters use a TypeScript-shaped slice annotation and lower to Go variadics:
@@ -67,6 +73,10 @@ const partial = second<int>(1, goShaped);
 
 Calls may infer all arguments or provide a leading partial/full list with `<T>` or `[T]`. Repeated parameter uses must infer the same type, and every uninferred type parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
 
+Development builds also infer direct arrow callback parameters in native and Go
+generic calls. See [generic callback inference](../book/functions-and-generics#generic-callback-inference-development)
+for examples and inference boundaries.
+
 ## Constraints
 
 `extends comparable` maps to Go's `comparable` constraint:
@@ -78,6 +88,15 @@ function equal<T extends comparable>(left: T, right: T): boolean {
 ```
 
 Slices, maps, and functions do not satisfy it. Source constraints can also name exact and underlying type sets, for example `constraint Integer = int | ~int64`. Generic constraints such as `constraint Slice<E> = ~E[]` support dependent bounds and inference. Constraint declarations are compile-time contracts, not runtime interface values.
+
+`constraint Narrow = A & B` restricts a type parameter to types shared by both
+source type sets. Use named intermediate constraints to combine unions and
+intersections; a single declaration cannot mix `|` and `&`.
+
+Ordinary Go interfaces can add method requirements:
+`constraint Printable = ~int & fmt.Stringer`. Generic code can then use both
+integer operators and `value.String()`. `constraint Stream = io.Reader & io.Closer`
+combines method contracts without restricting the underlying type.
 
 ## Generic named types
 

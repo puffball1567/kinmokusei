@@ -178,6 +178,9 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 		return declarationInfo{}, false
 	}
 	if occurrence, ok := occurrenceAt(s.symbolOccurrences(program), doc.Path, offset); ok {
+		if alias, found := s.exportAliasInfo(program, occurrence.Declaration); found {
+			return alias, true
+		}
 		for _, declaration := range flattenDeclarations(collectDeclarations(program)) {
 			if sameSourceSpan(declaration.Selection, occurrence.Declaration) {
 				if displayName := s.sourceText(declaration.Selection); displayName != "" && displayName != declaration.Name {
@@ -188,6 +191,13 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 			}
 		}
 		for _, imported := range program.Imports {
+			if imported.Go {
+				for i, span := range imported.NameSpans {
+					if i < len(imported.Names) && sameSourceSpan(span, occurrence.Declaration) {
+						return declarationInfo{Name: imported.Names[i], Detail: fmt.Sprintf("import go { %s } from %q", imported.Names[i], imported.Path), Kind: 13, Span: imported.Span, Selection: span}, true
+					}
+				}
+			}
 			if imported.Go && sameSourceSpan(imported.AliasSpan, occurrence.Declaration) {
 				return declarationInfo{
 					Name: imported.Alias, Detail: fmt.Sprintf("import go %s from %q", imported.Alias, imported.Path), Kind: 2,
@@ -265,6 +275,9 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			result = append(result, info)
 		case *ast.ClassDecl:
 			detail := "class " + declaration.Name
+			if declaration.Abstract {
+				detail = "abstract " + detail
+			}
 			if len(declaration.TypeParameters) != 0 {
 				detail += formatTypeParameters(declaration.TypeParameters)
 			}
@@ -354,10 +367,13 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			detail := prefix + declaration.Name
 			if declaration.Type.IsSpecified() {
 				detail += ": " + formatTypeRef(declaration.Type)
+			} else if declaration.FunctionBinding && declaration.ResolvedType.IsSpecified() {
+				detail += ": " + formatTypeRef(declaration.ResolvedType)
 			}
 			result = append(result, declarationInfo{Name: declaration.Name, Detail: detail, Kind: kind, Span: declaration.Span, Selection: declaration.NameSpan})
 		}
 	}
+	addArrowDeclarations(program, result)
 	return result
 }
 
@@ -371,6 +387,9 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 			*result = append(*result, declarationInfo{Name: statement.Label, Detail: "label " + statement.Label, Kind: 20, Span: statement.Span, Selection: statement.LabelSpan})
 			collectBlockDeclarations(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, result)
 		case *ast.VariableDecl:
+			if statement.Name == "_" {
+				continue
+			}
 			kind, prefix := 13, "let "
 			if statement.Constant {
 				kind, prefix = 14, "const "
@@ -378,6 +397,8 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 			detail := prefix + statement.Name
 			if statement.Type.IsSpecified() {
 				detail += ": " + formatTypeRef(statement.Type)
+			} else if statement.ResolvedType.IsSpecified() && statement.ResolvedType.Name != "<invalid>" {
+				detail += ": " + formatTypeRef(statement.ResolvedType)
 			}
 			*result = append(*result, declarationInfo{Name: statement.Name, Detail: detail, Kind: kind, Span: statement.Span, Selection: statement.NameSpan})
 		case *ast.MultiVariableDecl:
@@ -508,7 +529,11 @@ func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast
 	if !method.External && len(method.TypeParameters) != 0 {
 		name += formatTypeParameters(method.TypeParameters)
 	}
-	return functionDetail(name, parameters, result)
+	detail := functionDetail(name, parameters, result)
+	if method.Abstract {
+		detail = "abstract " + detail
+	}
+	return detail
 }
 
 func formatTypeParameters(parameters []ast.TypeParameter) string {
@@ -549,7 +574,11 @@ func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
 	if len(declaration.TypeParameters) != 0 {
 		name += formatTypeParameters(declaration.TypeParameters)
 	}
-	return "constraint " + name + " = " + strings.Join(terms, " | ")
+	separator := " | "
+	if declaration.Intersection {
+		separator = " & "
+	}
+	return "constraint " + name + " = " + strings.Join(terms, separator)
 }
 
 func formatTypeRef(ref ast.TypeRef) string {

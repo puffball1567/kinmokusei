@@ -1,0 +1,11 @@
+class Leaf {}
+
+interface Reader {
+  function read(): Leaf;
+}
+
+class InvalidReader implements Reader {
+  public function read(): Leaf | null {
+    return null;
+  }
+}

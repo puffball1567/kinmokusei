@@ -1,0 +1,15 @@
+export class Box {
+  constructor(public value: int) {}
+}
+
+export const offset = 2
+
+function normalize(value: int): int {
+  return value + offset
+}
+
+function makeBox(value: int): Box {
+  return new Box(normalize(value))
+}
+
+export { makeBox }

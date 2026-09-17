@@ -5,13 +5,12 @@ import (
 	"go/constant"
 	gotypes "go/types"
 	"math/big"
-	"strconv"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// Use only constants that really survive lowering as Go constants. A source
-// const initialized from another binding may instead lower to a Go variable.
+// Use only constants that survive lowering as Go constants. Immutable runtime
+// bindings, including three-clause loop variables, must not acquire constants.
 func (c *Checker) checkedNumericConstant(expr ast.Expression, actual Type) (gotypes.TypeAndValue, bool) {
 	if id, ok := expr.(*ast.IdentifierExpr); ok {
 		if symbol, found := c.lookupSymbol(id.Name, id.Span); found {
@@ -30,15 +29,8 @@ func (c *Checker) checkedNumericConstant(expr ast.Expression, actual Type) (goty
 }
 
 func (c *Checker) constantStringLength(expr ast.Expression) int64 {
-	if id, ok := expr.(*ast.IdentifierExpr); ok {
-		if symbol, found := c.lookupSymbol(id.Name, id.Span); found && symbol.constant && symbol.declaration != nil {
-			expr = symbol.declaration.Value
-		}
-	}
-	if literal, ok := expr.(*ast.LiteralExpr); ok && literal.Kind == ast.StringLiteral {
-		if value, err := strconv.Unquote(literal.Text); err == nil {
-			return int64(len(value))
-		}
+	if info, known := c.scalarConstant(expr); known && info.Value.Kind() == constant.String {
+		return int64(len(constant.StringVal(info.Value)))
 	}
 	return -1
 }

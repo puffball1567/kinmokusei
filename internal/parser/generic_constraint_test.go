@@ -79,7 +79,7 @@ func TestSourceTypeSetConstraintSyntaxFailures(t *testing.T) {
 		{`constraint Integer ~int;`, "expected '=' after constraint name"},
 		{`constraint Integer = ;`, "expected type name"},
 		{`constraint Integer = ~int |;`, "expected constraint term after '|'"},
-		{`constraint Integer = ~int`, "expected ';' after constraint declaration"},
+		{`constraint Integer = ~int const other = 1;`, "expected ';' after constraint declaration"},
 	}
 	for _, test := range tests {
 		tokens, lexDiagnostics := lexer.Lex("constraint_failure.km", test.source)

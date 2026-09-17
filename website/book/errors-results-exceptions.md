@@ -44,6 +44,39 @@ The return effect lowers directly to Go `(T, error)`. `Result<void>` lowers to o
 
 `Result` is not a storable sum object. It cannot be a field, parameter, local value, collection element, or nested result.
 
+Since v0.4.0, [functions returning Result](./functions-and-generics#result-returning-function-values)
+are ordinary values and can occupy those storage positions. Calling one still
+requires handling its Result; simply discarding the call is an error:
+
+<<< ../snippets-invalid/unhandled-result-function.km{ts}
+
+### Handling and deliberate discard
+
+Since v0.4.0, splitting a Result into a named local error and
+never using that binding is also a compile error:
+
+<<< ../snippets-invalid/unused-result-error.km{ts}
+
+Inspect the error, return it, or pass it to another function. When ignoring
+failure is intentional, use `_` explicitly:
+
+<<< ../snippets/result-discard.km{ts}
+
+Inside functions, `const _ = operation()`, `let _ = operation()`, and
+`_ = operation()` discard every returned value. The operation still runs
+exactly once, including side effects and panics. `_` introduces no variable.
+`const [value, _] = operation()` keeps the value while explicitly dropping the
+error. `const _ = operation()?` instead drops only the success value and
+**propagates** failure from the enclosing Result function.
+
+This is a binding-use check, not a proof of correct recovery on every path.
+It also covers Result assignment into existing local bindings, but does not
+track individual writes, aliases, or whether a captured closure is called.
+Passing the error onward counts as use. Ordinary imported Go `error` results
+keep their existing policy; annotate a function value with `Result<T>` to
+establish the checked source contract. `Task` values still require `await` or
+`detach` and cannot be discarded with `_`.
+
 ## Propagating Go operations
 
 Postfix `?` works on a compatible Go `(T, error)` or single `error` call inside a `Result` function:

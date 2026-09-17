@@ -1,0 +1,5 @@
+function inspect<T>(callback: (value: T) => T): void {}
+
+const main = () => {
+  inspect((value) => value)
+}

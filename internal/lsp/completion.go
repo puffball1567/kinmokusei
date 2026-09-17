@@ -72,6 +72,9 @@ func goCompletionType(ref ast.TypeRef) bool {
 }
 
 func goCompletionTypeInfo(ref ast.TypeRef) (ast.TypeRef, bool, bool) {
+	if ref.LoweredType != nil {
+		ref = *ref.LoweredType
+	}
 	pointer := false
 	if ref.Nullable {
 		ref.Nullable = false
@@ -79,6 +82,9 @@ func goCompletionTypeInfo(ref ast.TypeRef) (ast.TypeRef, bool, bool) {
 	if ref.IsPointer() && ref.Pointee != nil {
 		pointer = true
 		ref = *ref.Pointee
+		if ref.LoweredType != nil {
+			ref = *ref.LoweredType
+		}
 	}
 	return ref, pointer, ref.Go && ref.Qualifier != "" && ref.Name != ""
 }
@@ -113,7 +119,7 @@ func goValueMemberCompletions(result compiler.Result, program *ast.Program, path
 
 func goImportPathForQualifier(program *ast.Program, path, qualifier string) string {
 	for _, imported := range program.Imports {
-		if imported.Go && imported.Alias == qualifier && samePath(imported.Span.Path, path) {
+		if imported.Go && (imported.Alias == qualifier || imported.ResolvedAlias == qualifier) && samePath(imported.Span.Path, path) {
 			return imported.Path
 		}
 	}
@@ -173,7 +179,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			candidates[item.Label] = item
 		}
 	}
-	for _, keyword := range []string{"alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
+	for _, keyword := range []string{"abstract", "alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
 	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
@@ -187,10 +193,19 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			continue
 		}
 		if imported.Go {
-			add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
+			if len(imported.Names) == 0 {
+				add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
+			} else {
+				for _, name := range imported.Names {
+					add(completionItem{Label: name, Kind: 9, Detail: "Go export from " + imported.Path, SortText: "1_" + name})
+				}
+			}
 			continue
 		}
 		for _, name := range imported.Names {
+			if !sourceImportVisible(program, imported.ResolvedPath, name) {
+				continue
+			}
 			add(completionItem{Label: name, Kind: 9, Detail: "imported from " + imported.Path, SortText: "1_" + name})
 		}
 	}
@@ -203,6 +218,9 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			add(completionItem{Label: declaration.Name, Kind: 3, Detail: functionDeclarationDetail(declaration), SortText: "1_" + declaration.Name})
 		case *ast.ClassDecl:
 			detail := "class " + declaration.Name
+			if declaration.Abstract {
+				detail = "abstract " + detail
+			}
 			if len(declaration.TypeParameters) != 0 {
 				detail += formatTypeParameters(declaration.TypeParameters)
 			}
@@ -246,6 +264,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 }
 
 func addLocalCompletions(program *ast.Program, path string, offset int, add func(completionItem)) {
+	defer addArrowCompletions(program, path, offset, add)
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
 			continue
@@ -328,7 +347,7 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 	if block == nil || !spanContains(block.Span, path, offset) {
 		return
 	}
-	for _, statement := range block.Statements {
+	for index, statement := range block.Statements {
 		span := statement.GetSpan()
 		if span.Start.Offset >= offset {
 			return
@@ -338,6 +357,12 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 			continue
 		}
 		switch statement := statement.(type) {
+		case *ast.VariableDecl:
+			if arrow, ok := statement.Value.(*ast.ArrowExpr); ok && spanContains(arrow.Span, path, offset) {
+				for _, peer := range ast.LocalArrowGroup(block.Statements[index:]) {
+					addStatementBindings(peer, add)
+				}
+			}
 		case *ast.LabeledStmt:
 			addVisibleBlock(&ast.BlockStmt{Statements: []ast.Statement{statement.Statement}, Span: statement.Span}, path, offset, add)
 		case *ast.BlockStmt:
@@ -372,6 +397,10 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 		case *ast.ForStmt:
 			if statement.Initializer != nil && statement.Initializer.GetSpan().End.Offset <= offset {
 				addStatementBindings(statement.Initializer, add)
+			} else if variable, ok := statement.Initializer.(*ast.VariableDecl); ok {
+				if arrow, ok := variable.Value.(*ast.ArrowExpr); ok && spanContains(arrow.Span, path, offset) {
+					addStatementBindings(variable, add)
+				}
 			}
 			addVisibleBlock(statement.Body, path, offset, add)
 		case *ast.ForRangeStmt:
@@ -426,7 +455,9 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 	case *ast.LabeledStmt:
 		addStatementBindings(statement.Statement, add)
 	case *ast.VariableDecl:
-		add(variableDeclarationCompletion(statement))
+		if statement.Name != "_" {
+			add(variableDeclarationCompletion(statement))
+		}
 	case *ast.MultiVariableDecl:
 		for _, binding := range statement.Bindings {
 			if binding.Name != "_" {

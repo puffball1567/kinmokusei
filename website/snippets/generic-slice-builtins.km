@@ -1,0 +1,42 @@
+import go { Println } from "fmt"
+
+constraint Slice<E> = ~E[]
+type Numbers = distinct int[]
+
+function extend<E, S extends Slice<E>>(values: S, extra: E[]): S {
+  return append(values, extra...)
+}
+
+class Copier<E> {
+  public function copy<D extends Slice<E>, S extends Slice<E>>(destination: D, source: S): int {
+    return copy(destination, source)
+  }
+}
+
+class Base {
+  constructor(public value: int) {}
+  public virtual function read(): int { return this.value }
+}
+
+class Twice extends Base {
+  constructor(value: int) { super(value) }
+  public override function read(): int { return this.value * 2 }
+}
+
+function addDerived<S extends Slice<Base>>(values: S): S {
+  return append(values, new Twice(6))
+}
+
+function main(): void {
+  const original = Numbers([1])
+  const extended = extend(original, [2, 3])
+  Println(len(original), len(extended), extended)
+
+  const destination = makeSlice<int>(2)
+  const copied = new Copier<int>().copy(destination, extended)
+  Println(copied, destination)
+
+  const objects: Base[] = []
+  const result = addDerived(objects)
+  Println(result[0].read())
+}

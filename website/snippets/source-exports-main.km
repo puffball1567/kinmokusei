@@ -1,0 +1,7 @@
+import { Box, makeBox } from "./source-exports-library"
+import go { Println } from "fmt"
+
+function main(): void {
+  const box: Box = makeBox(40)
+  Println(box.value)
+}

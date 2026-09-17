@@ -27,7 +27,7 @@ Import selected declarations with braces:
 import { User, findUser } from "./users";
 ```
 
-The path resolves relative to the importing file. The `.km` extension may be omitted or written explicitly. The list cannot be empty, duplicate a name, or request a declaration the target does not contain.
+The path resolves relative to the importing file. The `.km` extension may be omitted or written explicitly. The list cannot be empty, duplicate a name, or request a declaration the target does not contain or export.
 
 Every imported name becomes one binding in the caller's module scope. It may refer to a function, class, struct, interface, enum, defined type, alias, or top-level value supported by the compiler.
 
@@ -45,13 +45,98 @@ function load(id: string): User | null {
 
 Calling `normalizeID` without importing it is an undefined-name diagnostic. This is module encapsulation by explicit binding, not by filename naming convention.
 
+## Explicit source exports (development)
+
+Development builds let a module choose its public declarations. Prefix a named
+top-level declaration with `export`, or select local declarations in a list:
+
+<<< ../snippets/source-exports-library.km{ts}
+
+The list can appear before or after the declarations. Functions, classes,
+structs, interfaces, constraints, enums, defined types, aliases, and `const`/`let`
+bindings all support declaration exports. Export lists may select local
+declarations or explicitly imported Kinmokusei bindings, and each name can be
+exported only once. Lists allow a trailing comma and
+follow the ordinary semicolon-omission rules.
+
+Once a file contains any source export, only its selected declarations can be
+imported. Its functions and methods can still use its private helpers. Write
+`export {}` to keep every declaration private to that source module.
+
+For compatibility, a file with **no source exports** keeps the earlier behavior:
+all its top-level declarations can be selected by an import. Adding the first
+source export therefore changes that file's public surface; list every name its
+callers still need. This choice is per file, including when compiling several
+root files together. `export c(...)` alone does not change source visibility.
+
+A caller can use the checked example above like this:
+
+<<< ../snippets/source-exports-main.km{ts}
+
+Running it prints `42`. Editor definition/hover, references, and rename include
+named export lists and their imported uses.
+
+### Named re-exports
+
+A public entry module can gather selected names from other modules:
+
+<<< ../snippets/named-reexports-library.km{ts}
+
+`export { Box } from "./source-exports-library"` makes `Box` available to callers
+without introducing `Box` into this module's local scope. Import a name first
+when this module also needs to use it. Both forms retain the original function,
+type, or variable: a re-export does not copy mutable state or wrap a function.
+
+<<< ../snippets/named-reexports-main.km{ts}
+
+Running this prints `42`. Re-export chains and multiple paths to the same module
+retain declaration identity. Import and export-from dependencies are visited in
+source order, with each module initialized once. Cycles remain errors, and
+re-exporting a private or nonexistent name is rejected:
+
+<<< ../snippets-invalid/private-reexport.km{ts}
+
+Imports alone are not re-exported. Each public name must be selected explicitly;
+two export declarations cannot publish the same name, even from the same origin.
+
+### Export aliases
+
+Use `as` to choose a public name independently of the implementation name:
+
+<<< ../snippets/export-aliases-library.km{ts}
+
+The same syntax works for local declarations: `export { local as publicName }`.
+An export alias creates a public name, not a new local variable or type. It keeps
+the original declaration's identity; two aliases of one mutable variable share
+the same storage, and two aliases of one defined type remain the same type.
+
+<<< ../snippets/export-aliases-main.km{ts}
+
+This prints `42`. Callers import the selected public names; selecting an alias
+does not also make the original name available. Public names must be unique:
+
+<<< ../snippets-invalid/duplicate-export-alias.km{ts}
+
+Editor rename treats both sides of `as` independently. Renaming the implementation
+updates the left side without changing the public name. Renaming a public alias
+updates uses of that name in the analyzed dependency graph, stopping at the next
+explicit alias boundary. Definition on an imported alias leads to its export
+clause; the left side leads to the selected declaration or upstream alias.
+
+Aliases do not rename generated Go declarations or C ABI symbols.
+
 ## Source imports versus Go exports
 
-Relative Kinmokusei imports select a declaration by its written name, regardless of whether that name begins with a lower- or uppercase letter. The named import list controls the source-module boundary.
+Relative Kinmokusei imports select an available declaration by its written name, regardless of whether that name begins with a lower- or uppercase letter. Source exports control availability; named imports select the caller's bindings.
 
 An emitted Go package follows Go's export rule instead: a top-level function, type, or value whose written name begins with an uppercase Unicode letter is visible to external Go packages. For example, `function Add(...)` emits exported `Add`, while `function add(...)` remains package-local. Class/struct member visibility is separate—write `public` for a member that belongs to the public source and generated-Go contract.
 
 Choose uppercase top-level names only for the API you intend Go consumers to use, then test that package from an external or same-package Go test. The [testing guide](../guide/testing) provides a checked example.
+
+Source `export` does not change the emitted Go name: `export function add(...)`
+is available to Kinmokusei importers but stays package-local in Go. Conversely,
+an uppercase declaration remains Go-exported even if a source export list omits
+it. Source-module privacy is not a separate access barrier for Go consumers.
 
 ## Imports are not transitive
 
@@ -99,7 +184,40 @@ function main(): void {
 
 The alias is the qualifier for exported Go declarations. Kinmokusei loads the package for the locked/effective target and retains its original named types, functions, constants, variables, methods, interfaces, and generic information where supported.
 
-Go imports are never unqualified and cannot use a built-in type or existing module binding as their alias.
+An alias cannot use a built-in type or an existing module binding.
+
+### Named Go imports
+
+Development builds also allow selected Go exports without a source qualifier:
+
+```ts
+import go { Println } from "fmt"
+import go { Compare } from "cmp"
+import go { Duration, Second } from "time"
+
+function main(): void {
+  const delay: Duration = Duration(2) * Second
+  Println(delay, Compare(3, 1))
+}
+```
+
+The names must be exported Go functions, types, constants, variables, or
+supported compiler-recognized Go built-ins. Their original signatures,
+generic constraints, constant values, and storage identities are retained.
+Generated Go uses ordinary qualified references, not copied variables,
+dot imports, or wrapper functions. Package initialization is unchanged.
+
+Named lists may have trailing commas and may accompany a package-qualified
+import of the same path. Each name is visible only in its importing file;
+duplicate import bindings and conflicts with module declarations are rejected.
+Local bindings can shadow an imported value. Type parameters can shadow an
+imported type. Go package variables remain assignable and addressable; Go
+constants and function declarations do not become assignable.
+
+The checked example is `website/snippets/named-go-imports.km` in the repository.
+Editor navigation leads to the import binding, and Go export names are read-only
+for rename. Dependency locking and unsafe interop policies apply identically
+to both import forms.
 
 ## Compiler-managed standard modules
 

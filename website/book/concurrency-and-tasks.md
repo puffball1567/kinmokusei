@@ -13,7 +13,7 @@ Kinmokusei exposes Go's low-level concurrency and adds a local structured task c
 go refreshCache();
 ```
 
-The trailing semicolon makes this the raw statement form. It starts an ordinary Go goroutine, stores no result, enforces no join, and leaves panic/lifetime behavior unmanaged.
+Statement position makes this the raw goroutine form; an omitted semicolon does not turn it into a task expression. It starts an ordinary Go goroutine, stores no result, enforces no join, and leaves panic/lifetime behavior unmanaged.
 
 Use it only when the application deliberately owns the goroutine lifetime by another protocol.
 

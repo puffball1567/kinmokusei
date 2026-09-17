@@ -88,7 +88,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"duplicate constructors", `class Broken { constructor() {} constructor() {} }`},
 		{"static constructor", `class Broken { static constructor() {} }`},
 		{"static field", `class Broken { static value: int; }`},
-		{"interface missing semicolon", `interface Broken { function value(): int }`},
+		{"interface missing separator", `interface Broken { function value(): int function other(): int; }`},
 		{"interface method body", `interface Broken { function value(): int {} }`},
 		{"implements missing type", `class Broken implements {}`},
 		{"Go import missing alias", `import go from "strings"; function recovered(): void {}`},
@@ -146,7 +146,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"type switch default missing body", `function broken(value: error): void { switch (value) { default } }`},
 		{"value switch missing case value", `function broken(value: int): void { switch (value) { case {} } }`},
 		{"value switch trailing case comma", `function broken(value: int): void { switch (value) { case 1, {} } }`},
-		{"C ABI export missing boundary", `export function recovered(): void {}`},
+		{"export missing declaration", `export 42;`},
 		{"C ABI export unknown boundary", `export wasm("value") function recovered(): void {}`},
 		{"C ABI export missing open parenthesis", `export c "value") function recovered(): void {}`},
 		{"C ABI export missing symbol", `export c() function recovered(): void {}`},
@@ -195,7 +195,15 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	for _, seed := range []string{`const main=()=>{};`, `const f=(n)=>n;`, `const f=(...values)=>{};`, `const f=(a,b:int)=>{return b;};`} {
+		f.Add(seed)
+	}
+	for _, seed := range []string{`export {};`, `export { value, }; const value=1;`, `export function f():void{}`, `export type`, `export export {}`} {
+		f.Add(seed)
+	}
 	for _, seed := range []string{
+		`import go { Println, Sprint, } from "fmt"`,
+		`import go { Println,`,
 		"", "function main(): void {}", `export c("kinmokusei_value") function value(input: int32): int32 { return input; }`, "const fn = (value: int) => value + 1;", "function f(): Result<int> { const task: Task<Result<int>> = go load(); const value = await task?; detach go notify(); return ok(value); }", "function f(err: error): void { try { throw err; } catch (caught: error) { throw caught; } finally {} }", "class C implements I {", "for (((", "select { case const [value, open] = <-channel {", "switch (value) { case const typed as", "function f(value: [2][3]int): [0]byte { return []; }", "function f(value: [999999999999999999999]int): void {", "function f(values: int[]): int[] { return values[1:2:3]; }", "function f(values: int[]): int[] { return values[1::]; }", "function f(): void { makeSlice[int](1, 2); makeMap[string, int](); append([1], [2]...); }", "function f(values: int[]): void { copyArray[[2]int](values); viewArray[[2]int](values); }", "function f(values: int[]): void { copyArray[[2]int](values...); viewArray[](values); }", "function f(): void { makeSlice[](1); makeMap[string,](1); }", "interface I { function f(): int; }", `import go strings from "strings";`, `function f(): void { const [value, err] = call(); [value, err] = call(); }`, `function f(values: int[]): void { call(values...); }`, `function f(value: error): void { const [typed, ok] = value as? error; }`, `function f(value: int): int { return ^value & 7 | value &^ 3 << 2 >> 1; }`, `function f(value: int, items: int[]): void { value += 1; items[0] &^= value; for (; value < 3; value++) {} value--; }`, `function f(value: Outer<Middle<Inner<int>>>): void {}`, `struct Point { public x: int; } public function move(this: *Point, delta: int): void { this.x += delta; }`,
 	} {
 		f.Add(seed)

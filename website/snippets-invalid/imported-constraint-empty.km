@@ -1,0 +1,3 @@
+import go cmp from "cmp"
+
+constraint Invalid = cmp.Ordered & ~boolean

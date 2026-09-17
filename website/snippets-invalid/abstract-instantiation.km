@@ -1,0 +1,7 @@
+abstract class Repository {
+  public abstract function find(id: int): string
+}
+
+function main(): void {
+  const repository = new Repository()
+}

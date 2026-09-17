@@ -5,11 +5,18 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 type Node interface{ GetSpan() source.Span }
 
 type Program struct {
-	Imports        []ImportDecl
-	Declarations   []Declaration
-	CABIExports    []CABIExport
-	UsesTasks      bool
-	UsesExceptions bool
+	// TypeParameterMethods is checked editor metadata keyed by parameter
+	// declaration identity. It does not participate in source syntax or emission.
+	TypeParameterMethods map[source.Span][]ObjectTypeField
+	// UnimportedReferences prevents aliases from exposing their runtime target's
+	// original source spelling after modules are flattened.
+	UnimportedReferences map[source.Span]bool
+	Imports              []ImportDecl
+	Exports              []ExportDecl
+	Declarations         []Declaration
+	CABIExports          []CABIExport
+	UsesTasks            bool
+	UsesExceptions       bool
 }
 
 type ImportDecl struct {
@@ -194,6 +201,7 @@ type MethodDecl struct {
 	Virtual        bool
 	Override       bool
 	Final          bool
+	Abstract       bool
 	VirtualOwner   string
 	// PointerReceiver is used by native value structs. Class instance methods
 	// always retain their existing implicit pointer receiver.
@@ -212,6 +220,7 @@ func (*MethodDecl) declaration()           {}
 func (d *MethodDecl) GetSpan() source.Span { return d.Span }
 
 type ClassDecl struct {
+	Abstract       bool
 	Name           string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
@@ -299,10 +308,12 @@ type InterfaceDecl struct {
 	// or emitted methods. Go bases are emitted as interface embeddings.
 	InheritedGoMethods []InterfaceMethod
 	// Constraint distinguishes compile-time-only type-set interfaces from
-	// ordinary value interfaces. Terms lower directly to a Go interface union.
+	// ordinary value interfaces.
 	Constraint bool
-	Terms      []TypeSetTerm
-	Span       source.Span
+	// Intersection embeds each term separately instead of forming a union.
+	Intersection bool
+	Terms        []TypeSetTerm
+	Span         source.Span
 }
 
 type TypeSetTerm struct {
@@ -315,14 +326,24 @@ func (*InterfaceDecl) declaration()           {}
 func (d *InterfaceDecl) GetSpan() source.Span { return d.Span }
 
 type VariableDecl struct {
-	Constant     bool
-	Name         string
-	NameSpan     source.Span
-	Type         TypeRef
-	ResolvedType TypeRef
-	Value        Expression
-	Used         bool
-	Span         source.Span
+	// GoConstant marks scalar bindings that retain Go constant semantics.
+	GoConstant bool
+	// DiscardArity records the Go result count for a local blank binding.
+	DiscardArity int
+	// FunctionBinding marks a module-level const arrow with an unnamed function
+	// type. It is a callable declaration, not mutable function storage.
+	FunctionBinding bool
+	// RecursiveBinding marks local arrow storage referenced by its own or an
+	// earlier peer's initializer. Backends create that storage before the group.
+	RecursiveBinding bool
+	Constant         bool
+	Name             string
+	NameSpan         source.Span
+	Type             TypeRef
+	ResolvedType     TypeRef
+	Value            Expression
+	Used             bool
+	Span             source.Span
 }
 
 func (*VariableDecl) declaration()           {}
@@ -331,6 +352,7 @@ func (d *VariableDecl) GetSpan() source.Span { return d.Span }
 
 type Binding struct {
 	Name                string
+	GoMember            *MemberExpr
 	Used                bool
 	ResolvedDeclaration source.Span
 	ResolvedType        TypeRef
@@ -426,10 +448,11 @@ func (*ExpressionStmt) statement()             {}
 func (s *ExpressionStmt) GetSpan() source.Span { return s.Span }
 
 type AssignmentStmt struct {
-	Target   Expression
-	Operator string
-	Value    Expression
-	Span     source.Span
+	DiscardArity int
+	Target       Expression
+	Operator     string
+	Value        Expression
+	Span         source.Span
 }
 
 func (*AssignmentStmt) statement()             {}
@@ -614,10 +637,13 @@ func (*BranchStmt) statement()             {}
 func (s *BranchStmt) GetSpan() source.Span { return s.Span }
 
 type LabeledStmt struct {
-	Label     string
-	LabelSpan source.Span
-	Statement Statement
-	Span      source.Span
+	// LoopBranchLabel is a collision-free internal label for a for-loop also
+	// targeted by goto, when lowering must separate loop entry from branches.
+	LoopBranchLabel string
+	Label           string
+	LabelSpan       source.Span
+	Statement       Statement
+	Span            source.Span
 }
 
 func (*LabeledStmt) statement()             {}
@@ -666,7 +692,9 @@ func (*ChannelSendStmt) statement()             {}
 func (s *ChannelSendStmt) GetSpan() source.Span { return s.Span }
 
 type IdentifierExpr struct {
+	GoConstant          bool
 	Name                string
+	GoMember            *MemberExpr
 	ResolvedDeclaration source.Span
 	Span                source.Span
 }
@@ -776,7 +804,7 @@ type CallExpr struct {
 	IntegerSizeArguments []bool
 	Expanded             bool
 	Conversion           bool
-	GoConstant           bool // Checked numeric calls/conversions that Go evaluates at compile time.
+	GoConstant           bool // Checked calls/conversions that Go evaluates at compile time.
 	ConversionType       *TypeRef
 	Builtin              BuiltinCallKind
 	Signature            *CallableSignature

@@ -171,6 +171,13 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 		if err != nil {
 			return nil, err
 		}
+		if decl.FunctionBinding {
+			function, ok := value.(*goast.FuncLit)
+			if !ok {
+				return nil, fmt.Errorf("function binding %q does not contain an arrow", decl.Name)
+			}
+			return []goast.Decl{&goast.FuncDecl{Name: goast.NewIdent(goName(decl.Name)), Type: function.Type, Body: function.Body}}, nil
+		}
 		tok := token.VAR
 		if decl.Constant && isGoConstant(decl.Value) {
 			tok = token.CONST
@@ -264,10 +271,15 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 	case *kinmokuseiAST.InterfaceDecl:
 		if decl.Constraint {
 			var union goast.Expr
+			methods := []*goast.Field{}
 			for _, term := range decl.Terms {
-				termType := goType(term.Type)
+				termType := goConstraintType(term.Type)
 				if term.Underlying {
 					termType = &goast.UnaryExpr{Op: token.TILDE, X: termType}
+				}
+				if decl.Intersection {
+					methods = append(methods, &goast.Field{Type: termType})
+					continue
 				}
 				if union == nil {
 					union = termType
@@ -275,7 +287,6 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 					union = &goast.BinaryExpr{X: union, Op: token.OR, Y: termType}
 				}
 			}
-			methods := []*goast.Field{}
 			if union != nil {
 				methods = append(methods, &goast.Field{Type: union})
 			}
@@ -322,11 +333,7 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 func goTypeParameterField(parameter kinmokuseiAST.TypeParameter, inferredComparable bool) *goast.Field {
 	var constraint goast.Expr = goast.NewIdent("any")
 	if parameter.Constraint != nil {
-		if parameter.Constraint.Qualifier == "" && parameter.Constraint.Name == "comparable" {
-			constraint = goast.NewIdent("comparable")
-		} else {
-			constraint = goType(*parameter.Constraint)
-		}
+		constraint = goConstraintType(*parameter.Constraint)
 	}
 	if inferredComparable {
 		if parameter.Constraint == nil {
@@ -342,6 +349,13 @@ func goTypeParameterField(parameter kinmokuseiAST.TypeParameter, inferredCompara
 		Names: []*goast.Ident{goast.NewIdent(goName(parameter.Name))},
 		Type:  constraint,
 	}
+}
+
+func goConstraintType(ref kinmokuseiAST.TypeRef) goast.Expr {
+	if ref.Qualifier == "" && ref.Name == "comparable" {
+		return goast.NewIdent("comparable")
+	}
+	return goType(ref)
 }
 
 func comparableTypeParameters(ref kinmokuseiAST.TypeRef) map[string]bool {
@@ -651,8 +665,10 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	if class.Constructor != nil {
 		constructorParameters = class.Constructor.Parameters
 	}
-	for _, parameter := range constructorParameters {
+	factoryParameterNames := constructorFactoryParameterNames(class, constructorParameters)
+	for i, parameter := range constructorParameters {
 		field := goParameterField(parameter)
+		field.Names = []*goast.Ident{goast.NewIdent(factoryParameterNames[i])}
 		constructorType.Params.List = append(constructorType.Params.List, field)
 		initializerType.Params.List = append(initializerType.Params.List, goParameterField(parameter))
 	}
@@ -744,8 +760,8 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		Rhs: []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.CompositeLit{Type: classType}}},
 	})
 	initializerArguments := []goast.Expr{goast.NewIdent("this")}
-	for _, parameter := range constructorParameters {
-		initializerArguments = append(initializerArguments, goast.NewIdent(goName(parameter.Name)))
+	for _, name := range factoryParameterNames {
+		initializerArguments = append(initializerArguments, goast.NewIdent(name))
 	}
 	initializerCall := &goast.CallExpr{Fun: goast.NewIdent(initializerName(class.Name)), Args: initializerArguments}
 	if len(constructorParameters) != 0 && constructorParameters[len(constructorParameters)-1].Variadic {
@@ -753,9 +769,11 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	}
 	constructorBody.List = append(constructorBody.List, &goast.ExprStmt{X: initializerCall})
 	constructorBody.List = append(constructorBody.List, &goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("this")}})
-	declarations = append(declarations, &goast.FuncDecl{
-		Name: goast.NewIdent("New" + class.Name), Type: constructorType, Body: constructorBody,
-	})
+	if !class.Abstract {
+		declarations = append(declarations, &goast.FuncDecl{
+			Name: goast.NewIdent("New" + class.Name), Type: constructorType, Body: constructorBody,
+		})
+	}
 
 	for _, method := range class.Methods {
 		parameters := make([]*goast.Field, 0, len(method.Parameters))
@@ -767,6 +785,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		body, err := generateBlock(method.Body)
 		if err != nil {
 			return nil, err
+		}
+		if method.Abstract {
+			body = abstractMethodBody(class.Name, method.Name)
 		}
 		name := method.GoName
 		if name == "" {
@@ -926,7 +947,22 @@ func generateConversionWrapper(name, implementation string, source, target kinmo
 
 func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 	result := &goast.BlockStmt{}
-	for _, stmt := range block.Statements {
+	groupEnd := 0
+	for index, stmt := range block.Statements {
+		if index >= groupEnd {
+			group := kinmokuseiAST.LocalArrowGroup(block.Statements[index:])
+			groupEnd = index + len(group)
+			for _, variable := range group {
+				if !variable.RecursiveBinding {
+					continue
+				}
+				declaration, err := generateLocalArrowStorage(variable)
+				if err != nil {
+					return nil, err
+				}
+				result.List = append(result.List, declaration)
+			}
+		}
 		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
 			if propagated, ok := variable.Value.(*kinmokuseiAST.PropagateExpr); ok {
 				generated, err := generatePropagationStatements(propagated, variable)
@@ -934,7 +970,7 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 					return nil, err
 				}
 				result.List = append(result.List, generated...)
-				if !variable.Used {
+				if variable.Name != "_" && !variable.Used {
 					result.List = append(result.List, &goast.AssignStmt{
 						Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN,
 						Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
@@ -958,7 +994,7 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 			return nil, err
 		}
 		result.List = append(result.List, generated)
-		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && !variable.Used {
+		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok && variable.Name != "_" && !variable.Used {
 			result.List = append(result.List, &goast.AssignStmt{
 				Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN,
 				Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
@@ -1173,9 +1209,18 @@ func zeroValue(ref kinmokuseiAST.TypeRef) goast.Expr {
 func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 	switch stmt := stmt.(type) {
 	case *kinmokuseiAST.VariableDecl:
+		if stmt.DiscardArity > 0 {
+			return generateDiscard(stmt.Value, stmt.DiscardArity, stmt.Type)
+		}
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
+		}
+		if stmt.RecursiveBinding {
+			return &goast.AssignStmt{
+				Lhs: []goast.Expr{goast.NewIdent(goName(stmt.Name))}, Tok: token.ASSIGN,
+				Rhs: []goast.Expr{value},
+			}, nil
 		}
 		tok := token.VAR
 		if stmt.Constant && isGoConstant(stmt.Value) {
@@ -1255,6 +1300,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.ExprStmt{X: value}, nil
 	case *kinmokuseiAST.AssignmentStmt:
+		if stmt.DiscardArity > 0 {
+			return generateDiscard(stmt.Value, stmt.DiscardArity, kinmokuseiAST.TypeRef{})
+		}
 		target, err := generateExpression(stmt.Target)
 		if err != nil {
 			return nil, err
@@ -1282,6 +1330,12 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		targets := make([]goast.Expr, len(stmt.Bindings))
 		for i, binding := range stmt.Bindings {
 			targets[i] = goast.NewIdent(goName(binding.Name))
+			if binding.GoMember != nil {
+				targets[i], err = generateExpression(binding.GoMember)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.WhileStmt:
@@ -1295,31 +1349,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.ForStmt{Cond: condition, Body: body}, nil
 	case *kinmokuseiAST.ForStmt:
-		result := &goast.ForStmt{}
-		var err error
-		if stmt.Initializer != nil {
-			result.Init, err = generateForClause(stmt.Initializer, true)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if stmt.Condition != nil {
-			result.Cond, err = generateExpression(stmt.Condition)
-			if err != nil {
-				return nil, err
-			}
-		}
-		if stmt.Post != nil {
-			result.Post, err = generateForClause(stmt.Post, false)
-			if err != nil {
-				return nil, err
-			}
-		}
-		result.Body, err = generateBlock(stmt.Body)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
+		return generateForStatement(stmt)
 	case *kinmokuseiAST.ForRangeStmt:
 		source, err := generateExpression(stmt.Source)
 		if err != nil {
@@ -1432,11 +1462,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return generated, nil
 	case *kinmokuseiAST.LabeledStmt:
-		statement, err := generateStatement(stmt.Statement)
-		if err != nil {
-			return nil, err
-		}
-		return &goast.LabeledStmt{Label: goast.NewIdent(stmt.Label), Stmt: statement}, nil
+		return generateLabeledStatement(stmt)
 	case *kinmokuseiAST.CallControlStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
@@ -1798,6 +1824,9 @@ func generateTypeSwitchCase(clause *kinmokuseiAST.TypeSwitchCase, guardName stri
 
 func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.Stmt, error) {
 	if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
+		if variable.DiscardArity > 0 {
+			return generateDiscard(variable.Value, variable.DiscardArity, variable.Type)
+		}
 		value, err := generateExpression(variable.Value)
 		if err != nil {
 			return nil, err
@@ -1856,6 +1885,9 @@ func rangeBindingNeeded(binding kinmokuseiAST.RangeBinding) bool {
 func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
 	case *kinmokuseiAST.IdentifierExpr:
+		if expr.GoMember != nil {
+			return generateExpression(expr.GoMember)
+		}
 		return goast.NewIdent(goName(expr.Name)), nil
 	case *kinmokuseiAST.LiteralExpr:
 		if expr.Kind == kinmokuseiAST.NilLiteral || expr.Kind == kinmokuseiAST.NullLiteral {
@@ -2659,6 +2691,8 @@ func goAssignmentToken(operator string) token.Token {
 
 func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	switch expr := expr.(type) {
+	case *kinmokuseiAST.IdentifierExpr:
+		return expr.GoConstant || expr.GoMember != nil && expr.GoMember.Constant
 	case *kinmokuseiAST.LiteralExpr:
 		return expr.Kind != kinmokuseiAST.NilLiteral && expr.Kind != kinmokuseiAST.NullLiteral
 	case *kinmokuseiAST.UnaryExpr:

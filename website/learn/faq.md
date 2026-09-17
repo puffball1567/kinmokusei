@@ -5,7 +5,7 @@ description: Short answers about Kinmokusei's relationship to TypeScript and Go,
 
 # Frequently asked questions
 
-These answers describe Kinmokusei v0.3. Follow each link when you need the complete contract or an executable example.
+These answers describe Kinmokusei v0.4. Follow each link when you need the complete contract or an executable example.
 
 ## What does the name mean, and how is it pronounced?
 
@@ -79,9 +79,14 @@ Current project dependency commands manage exact Go module versions. They write 
 
 Source-only Kinmokusei package distribution is planned rather than implemented. See [Modules and projects](../guide/projects-and-cli) for the current workflow.
 
-## What compatibility does v0.3 promise?
+## What compatibility does v0.4 promise?
 
-v0.3 is a documented pre-1.0 release, not a promise of 1.0-level stability. Source, generated API, manifest, and CLI compatibility may still change deliberately in a later minor release; such changes belong in release notes and a migration guide. Use the documentation matching your installed compiler.
+v0.4 is a documented pre-1.0 release, not a promise of 1.0-level stability.
+The v0.4.x series adds compatible features and fixes in patch releases. Intentional
+source or public API breaks require a minor release and migration notes; fixes
+may diagnose previously accepted invalid programs. v0.5 is the audited Go
+compatibility completion milestone. See [release policy](../project/releases#version-policy)
+and use documentation matching your installed compiler.
 
 Use [Releases and compatibility](../project/releases) to match documentation, compiler, editor extension, and published artifacts.
 

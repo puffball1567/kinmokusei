@@ -195,7 +195,7 @@ func TestVSCodeGrammarCoversLanguageVocabulary(t *testing.T) {
 		"function", "const", "let", "return", "if", "else", "true", "false",
 		"import", "from", "while", "for", "of", "select", "switch", "case",
 		"default", "break", "continue", "goto", "fallthrough", "new", "class", "struct", "constructor", "public",
-		"private", "static", "pointer", "this", "interface", "implements", "extends", "virtual", "override", "super", "go", "defer",
+		"private", "static", "pointer", "this", "interface", "implements", "extends", "virtual", "override", "abstract", "super", "go", "defer",
 		"nil", "null", "as", "export", "try", "catch", "finally", "throw", "enum", "type", "alias", "distinct",
 	}
 	builtins := []string{

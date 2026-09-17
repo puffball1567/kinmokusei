@@ -1,0 +1,20 @@
+import go fmt from "fmt"
+
+abstract class Repository<T> {
+  public abstract function find(id: int): T
+  public function first(): T { return this.find(0) }
+}
+
+class Names extends Repository<string> {
+  public override function find(id: int): string { return "Kinmokusei" }
+}
+
+class Service {
+  constructor(private repository: Repository<string>) {}
+  public function run(): string { return this.repository.first() }
+}
+
+function main(): void {
+  const service = new Service(new Names())
+  fmt.Println(service.run())
+}

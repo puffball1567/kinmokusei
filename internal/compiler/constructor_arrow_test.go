@@ -15,7 +15,7 @@ class Holder {
   private callback: () => int;
   private value: int;
   constructor(seed: int) {
-    const [parsed, failure] = ((): Result<int> => { return ok(seed); })();
+    const [parsed, _] = ((): Result<int> => { return ok(seed); })();
     this.value = parsed;
     const step = (): int => {
       const increment = (): int => { return 2; };

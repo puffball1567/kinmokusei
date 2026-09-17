@@ -22,7 +22,9 @@ const label = "hello\nたまご";
 
 String escapes and decimal integer/float literals are validated lexically. Numeric separators and base prefixes are not implemented. A malformed escape, unterminated comment/string, invalid UTF-8 byte, or overflowing constant is reported against the original source span.
 
-Semicolons terminate imports, bindings, returns, expression statements, assignments, updates, branches, `throw`, `defer`, and C export blocks where shown. Braced declaration/control-flow bodies do not take a trailing semicolon.
+Semicolons terminate imports, bindings, fields, type declarations, interface signatures, returns, expression statements, assignments, updates, branches, `throw`, `defer`, and grouped C exports. They may be omitted after a complete statement when the next token is on a later line, is `}`, or is end of file. Three-clause `for` separators remain explicit. Braced declaration/control-flow bodies do not take a trailing semicolon.
+
+Calls, indexing, selectors, operators, and unfinished expressions/types can continue across newlines. Use `;` if a new statement beginning with `(` or `[` could otherwise continue the previous expression. Newlines inside comments count. Immediately after `return` or `throw`, a newline instead ends a bare return/rethrow; optional break/continue labels must stay on the keyword's line. These newline rules apply with or without explicit semicolons elsewhere.
 
 ## Top-level declaration inventory
 
@@ -30,6 +32,8 @@ Semicolons terminate imports, bindings, returns, expression statements, assignme
 | --- | --- |
 | Relative import | `import { A, functionName } from "./module";` |
 | Go import | `import go alias from "package/path";` |
+| Named Go import (development) | `import go { Name, Other } from "package/path"` |
+| Source export (development) | `export function name(): T { ... }`, `export const name = value`, `export { name as publicName }`, `export { name } from "./module"` |
 | Binding | `const name: T = value;`, `let name = value;` |
 | Function | `function name<T>(value: T): T { ... }` |
 | Class | `class Name extends Base implements Contract { ... }` |
@@ -45,11 +49,19 @@ Declarations may refer to later types in supported finite shapes. Duplicate sour
 
 Relative source imports are explicit and do not infer visibility from capitalization. In emitted Go, top-level identifiers preserve their written case: an initial uppercase Unicode letter makes the declaration exported under Go rules. Class and struct members instead use the documented `public`/`protected`/`private` contract before their Go names are generated.
 
+In development builds, any source export opts its file into explicit visibility:
+only selected local declarations or explicitly re-exported source bindings can be imported, and `export {}`
+exports none. Without a source export, all top-level declarations retain legacy
+selective importability. Export lists can precede declarations, cannot repeat
+names, and support trailing commas and omitted semicolons. C ABI `export c(...)`
+does not opt into this mode. See [modules and imports](../book/modules-and-imports).
+
 ## Files and imports
 
 ```ts
 import { Name, functionName } from "./relative-module";
 import go alias from "go/package/path";
+import go { Name, Other } from "go/package/path";
 ```
 
 Files use `.km`, have independent scopes, and expose no transitive imports. `kinmokusei/http` is the implemented compiler-managed standard module.
@@ -68,6 +80,15 @@ function variadic(prefix: int, ...values: int[]): int { return prefix; }
 ```
 
 `const`/`let` apply to bindings. Functions, arrows, function types, methods, interfaces, and constructors support final rest parameters. Generic calls accept inference, `<T>`, or `[T]` type arguments.
+
+Development builds emit module-level const arrows with inferred/unnamed function
+types as callable declarations, including `const main = () => { ... }`. Explicit
+signatures enable recursion and forward calls. Callable declarations are not
+addressable or reassignable; `let` retains mutable function storage. Expected
+function types can supply omitted arrow parameter/result annotations. Without a
+result context, block arrows infer a default result from their first return and
+check the remaining returns against it; no value returns means `void`.
+See [arrow semantics](../book/functions-and-generics#arrow-functions).
 
 Destructuring is limited to compiler-known multiple results:
 
