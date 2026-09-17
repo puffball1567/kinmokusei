@@ -41,6 +41,7 @@ func (c *Checker) ensureGlobalBindingChecked(decl *ast.VariableDecl) {
 		constantValues:          c.constantValues,
 		globalDependencies:      c.globalDependencies,
 		globalBindingChecks:     c.globalBindingChecks,
+		resultErrorUses:         c.resultErrorUses,
 		memberFlow:              map[memberFlowKey]memberFlowState{},
 		memberTypes:             map[memberFlowKey]Type{},
 	}

@@ -6,12 +6,11 @@ remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
 
-## v0.4 development sequence
+## v0.4 baseline and v0.5 milestone
 
-The next minor release will combine internal refactoring with additional
-language features. Start with behavior-preserving semantic-analysis boundaries;
-keep feature additions in separate changes with their own compatibility tests.
-The first refactoring slice separates named/OOP declarations, generic inference,
+v0.4.0 combines internal refactoring with additional language features.
+Keep further feature additions in separate changes with their own compatibility
+tests. The first refactoring slice separates named/OOP declarations, generic inference,
 type resolution, Go interop, expressions, builtins, and control/effect analysis
 from the central checker. Constructor analysis consumes checked AST metadata
 and explicit field facts without owning mutable checker state.
@@ -19,15 +18,21 @@ and explicit field facts without owning mutable checker state.
 Callable return/control-transfer state now has a shared entry and restoration
 boundary, with nested-callable regression coverage. Lexical/capture/nullable
 state and the large parser/codegen files still need further decomposition.
-Select the feature additions from the audited Go
-and OOP gaps below; no additional syntax is promised by this refactoring.
-Keep published package and documentation versions at v0.3.0 until v0.4.0 release
-preparation.
+Select further additions from the audited Go and OOP gaps below. Compatible
+features and fixes ship in v0.4.x patch releases, with matching compiler/editor
+versions and documented diagnostics. Intentional source/public API breaks
+require a minor release and migration notes.
+
+v0.5 marks completion of the audited Go language compatibility work. Close or
+explicitly classify each Go contract, test accepted behavior against independent
+Go programs, and document deliberate source-language differences. Neither the
+100 existing runtime contract groups nor statement coverage alone establishes
+that milestone. OOP work continues alongside Go compatibility.
 
 ## Approved implementation queue
 
 These are ordered work areas, not equal-size tasks or a promise that every area
-must ship in v0.4. Each needs semantic checks, runtime comparisons, editor support
+is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
 where applicable, and documentation. Refactoring can accompany the relevant
 feature work without mixing unrelated changes into its implementation.
 
@@ -91,12 +96,6 @@ feature work without mixing unrelated changes into its implementation.
   inherited class implementation checks, ancestor assignment, generic inference
   from explicitly implemented contracts, and editor navigation/refactoring.
   Differential coverage: `interface_inheritance_test.go`.
-- Invariant source method contracts across implementations, overrides, and
-  inherited conflicts, including nested nullable types and linked re-exports.
-  Compatible nullable dispatch and source `Result<T>` implementations of Go
-  multiple-result methods retain runtime behavior. Differential coverage:
-  `method_contract_test.go`. This hardens the prerequisite contract checks;
-  native source interfaces as constraint operands/bounds remain pending.
 - Type-parameter conversions such as `T(0)` and `T(value)`, including type-set
   convertibility, constant bounds, numeric/collection conversions, generic
   constructors and methods, and editor navigation. Differential coverage:
@@ -136,22 +135,28 @@ single inheritance, virtual/override/final methods, construction-phase dispatch,
 identity-preserving class upcasts/downcasts, and public generated Go APIs.
 Abstract classes are not necessary to use these features.
 
-## Queued v0.4 syntax work
+## Syntax and contract additions in v0.4.0
 
-Semantic refactoring and the source-encoding fix have landed on devel. The
-following additions target v0.4, not the currently released v0.3 syntax:
+Semantic refactoring and source-encoding diagnostics accompany these additions
+relative to v0.3.0:
 
-- **Optional semicolons (implemented on the development branch):** newline,
+- **Invariant method contracts:** implementations, overrides, and inherited
+  conflicts retain nested nullable and generic qualifiers through linked
+  re-exports. Compatible source `Result<T>` implementations of Go multiple-result
+  methods retain runtime behavior. Covered by `method_contract_test.go`;
+  source interfaces as constraint operands remain further work.
+
+- **Optional semicolons (implemented in v0.4.0):** newline,
   end-of-block, and end-of-file termination with multiline expressions,
   comments, restricted return/throw/branch boundaries, and explicit loop-header
   separators. Parser matrices, linked-module handwritten-Go differential tests,
   and editor navigation cover the addition. Existing multiline return/throw
   code must follow the documented restricted-newline rule.
-- **Named Go imports (implemented on the development branch):** support `import go { Println } from "fmt"` alongside
+- **Named Go imports (implemented in v0.4.0):** support `import go { Println } from "fmt"` alongside
   package-qualified imports. Preserve Go export identity, generic signatures,
   type/value namespaces, collision diagnostics, and ordinary qualified Go
   output without runtime wrappers. Include linked-module and editor coverage.
-- **Arrow-function bindings and inference (implemented on the development branch):**
+- **Arrow-function bindings and inference (implemented in v0.4.0):**
   module-level const arrows with unnamed function types become callable
   declarations, including `main`. Explicit signatures support recursion, mutual
   recursion, forward calls, and later globals. Matching function contexts infer
@@ -178,7 +183,7 @@ following additions target v0.4, not the currently released v0.3 syntax:
   closure initialization, condition/post order, labels, and escaped captures;
   see `recursive_loop_arrows_test.go`. Nonconsecutive local forward bindings
   remain further work.
-- **Result-returning function values (implemented on the development branch):**
+- **Result-returning function values (implemented in v0.4.0):**
   `Result<T>` and `Result<void>` are supported in stored function signatures,
   callback parameters, returned closures, fields, collections, and channels.
   Native aliases and defined/generic function types retain the return effect.
@@ -192,7 +197,7 @@ following additions target v0.4, not the currently released v0.3 syntax:
   Pipeline, independent handwritten-Go runtime comparisons, negative checks,
   editor tests, and fuzz seeds cover these boundaries in
   `result_function_values_test.go` and `result_function_runtime_test.go`.
-- **Generic callback inference (implemented on the development branch):**
+- **Generic callback inference (implemented in v0.4.0):**
   direct arrow arguments use contexts inferred from other arguments, explicit
   callback annotations, and dependent constraints. Callback results can infer
   remaining parameters and unlock other callbacks. Native functions/methods and
@@ -200,7 +205,7 @@ following additions target v0.4, not the currently released v0.3 syntax:
   and Go checkers retain final compatibility/constraint checks. Numeric defaults
   wait for ready typed callbacks. Cyclic or insufficient context still requires
   annotations. Covered by `generic_callbacks_test.go` and editor tests.
-- **Source module exports (implemented on the development branch):** declaration
+- **Source module exports (implemented in v0.4.0):** declaration
   exports (`export function`, `export class`, `export const`, and other named
   declarations) and named lists (`export { name }`) selecting local declarations
   or explicitly imported source bindings. Named re-exports also support
@@ -227,8 +232,8 @@ following additions target v0.4, not the currently released v0.3 syntax:
 The intended combined spelling includes named Go imports, omitted semicolons,
 and `const main = (): void => { ... }`.
 
-Keep feature work separate from refactoring and bug fixes, and retain v0.3.0
-version metadata until v0.4 release preparation.
+Keep feature work separate from refactoring and bug fixes; advance matching
+compiler/editor version metadata when preparing each v0.4.x release.
 
 ## Confirmed Go-facing gaps
 

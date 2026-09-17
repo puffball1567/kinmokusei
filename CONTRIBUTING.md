@@ -36,6 +36,16 @@ identical to that verified head.
 
 ## Quality requirements
 
+- During pre-1.0 development, v0.4.x patch releases may contain compatible
+  feature additions as well as fixes. This is a milestone-based policy, not
+  strict SemVer feature numbering. Document diagnostics that newly reject
+  invalid programs; reserve intentional source/public API breaks for a minor
+  release with migration notes.
+- v0.5 is the Go compatibility completion milestone. Audit remaining supported
+  Go language contracts with positive, negative, and independent runtime tests;
+  document deliberate language differences. Statement coverage or importable
+  package counts alone do not establish completion. OOP improvements continue
+  alongside that work.
 - Add focused positive, negative, boundary, and alternate-form tests for new
   syntax or compiler behavior.
 - Every implemented Go-equivalent runtime contract must compare against an

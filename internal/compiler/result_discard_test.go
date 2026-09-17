@@ -17,6 +17,7 @@ export function load(failNow:boolean):Result<int>{if(failNow){return fail(errors
 export function notify(failNow:boolean):Result<void>{if(failNow){return fail(errors.New("failed"));}return ok();}`,
 		"entry.km": `import {load,notify} from "./load";
 import go strconv from "strconv";
+export const Arrow = (failNow:boolean):int=>{const [value,err]=load(failNow);if(err!==nil){return -1;}return value;};
 export function Discard(failNow:boolean):int{
  let calls=0;
  const operation=():Result<int>=>{calls++;return load(failNow);};
@@ -58,6 +59,7 @@ export function Panic():void{const f=():Result<int>=>{let zero=0;return ok(1/zer
 import "errors"
 func load(reject bool)(int,error){if reject{return 0,errors.New("failed")};return 7,nil}
 func notify(reject bool)error{if reject{return errors.New("failed")};return nil}
+func Arrow(reject bool)int{value,err:=load(reject);if err!=nil{return -1};return value}
 func Discard(reject bool)int{
  calls:=0;operation:=func()(int,error){calls++;return load(reject)};signal:=func()error{calls++;return notify(reject)}
  _,_=operation();_=signal();_,_=operation();_=signal();_,_=operation();_=signal();value,err:=operation();_=err
@@ -69,6 +71,7 @@ func Panic(){zero:=0;_=1/zero}
 	comparison := `package resultdiscard_test
 import("testing";"fmt";g "result-discard.test";r "result-discard.test/reference")
 func capture(f func())(value any){defer func(){value=recover()}();f();return}
+func TestArrow(t *testing.T){for _,reject:=range []bool{false,true}{if got,want:=g.Arrow(reject),r.Arrow(reject);got!=want{t.Fatalf("got %d want %d",got,want)}}}
 func TestContracts(t *testing.T){for _,reject:=range []bool{false,true}{if got,want:=g.Discard(reject),r.Discard(reject);got!=want{t.Errorf("Discard(%v)=%d want %d",reject,got,want)};gv,ge:=g.Propagate(reject);rv,re:=r.Propagate(reject);if gv!=rv||fmt.Sprint(ge)!=fmt.Sprint(re){t.Errorf("Propagate(%v)=(%d,%v) want (%d,%v)",reject,gv,ge,rv,re)}};if got,want:=capture(g.Panic),capture(r.Panic);got!=want{t.Errorf("panic=%v want %v",got,want)}}
 `
 	runGeneratedGoDifferentialTest(t, root, "result-discard.test", generated, reference, comparison)

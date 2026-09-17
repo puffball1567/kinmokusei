@@ -51,7 +51,7 @@ Both array-conversion forms panic if the source is shorter than `N`. The view al
 
 ## Generic clearing and deletion
 
-On the development branch, `clear` accepts a type parameter whose possible types
+Since v0.4.0, `clear` accepts a type parameter whose possible types
 are all slices or maps. `delete` requires map types with the same key type, but
 their value types may differ. Both are available in generic class methods too.
 
@@ -71,7 +71,7 @@ key's type, source nullability and numeric constant range at compile time.
 
 ## Generic append and copy
 
-On the development branch, a slice constraint also supports `append` and `copy`.
+Since v0.4.0, a slice constraint also supports `append` and `copy`.
 `append` returns the destination's original type, including a named slice type.
 `copy` returns the number of elements copied and preserves the destination's
 length. Both work inside generic classes and methods.

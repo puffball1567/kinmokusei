@@ -44,7 +44,7 @@ The return effect lowers directly to Go `(T, error)`. `Result<void>` lowers to o
 
 `Result` is not a storable sum object. It cannot be a field, parameter, local value, collection element, or nested result.
 
-On the development branch, [functions returning Result](./functions-and-generics#result-returning-function-values)
+Since v0.4.0, [functions returning Result](./functions-and-generics#result-returning-function-values)
 are ordinary values and can occupy those storage positions. Calling one still
 requires handling its Result; simply discarding the call is an error:
 
@@ -52,7 +52,7 @@ requires handling its Result; simply discarding the call is an error:
 
 ### Handling and deliberate discard
 
-On the development branch, splitting a Result into a named local error and
+Since v0.4.0, splitting a Result into a named local error and
 never using that binding is also a compile error:
 
 <<< ../snippets-invalid/unused-result-error.km{ts}

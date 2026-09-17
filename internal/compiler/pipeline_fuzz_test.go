@@ -15,6 +15,8 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`const load=():Result<int>=>{return ok(1);};const main=():void=>{const [value,err]=load();if(err!==nil){return;}};`,
+	`function load():Result<int>{return ok(1);}const first=()=>second();const second=()=>{const [value,err]=load();return value;};`,
 	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):[2]E{return copyArray[[2]E](v);}`,
 	`constraint S=~int[]|~string[];function f<T extends S>(v:T):*[2]int{return viewArray[[2]int](v);}`,
 	`class C{}alias Maybe=C|null;function pair<E>(v:E[]):*[1]E{return viewArray[[1]E](v);}function f(v:Maybe[]):C{return pair(v)[0];}`,
