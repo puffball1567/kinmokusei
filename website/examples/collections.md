@@ -7,6 +7,27 @@ description: Use slices, fixed arrays, shared array views, maps, range, allocati
 
 This recipe follows storage through a slice, an independent fixed-array copy, a pointer view, an allocated destination slice, and a map. It also exercises the collection built-ins that mutate or inspect those values.
 
+## Generic indexing and slicing
+
+On the development branch after v0.4.0, a common underlying collection shape
+allows direct indexing and slicing inside generic functions. Returning a slice
+of `S` retains `S`, including named slice types; writing through that slice
+updates the original backing array. A full slice can restrict its capacity:
+
+<<< ../snippets/generic-index-slice.km{ts}
+
+The same rules cover fixed arrays, array pointers, strings, and map indexing
+with an optional presence result. Arrays retain value-copy semantics; array
+pointers share their array. Class/interface elements retain their source types
+and required null checks. A map slot is writable but not addressable, and a
+string byte cannot be assigned:
+
+<<< ../snippets-invalid/generic-string-index-write.km{ts}
+
+Mixed underlying shapes remain unsupported, including unions of arrays with
+slices or strings with byte slices. Dynamic index/slice bounds retain Go panics;
+constant bounds and unrepresentable numeric map keys are checked before emission.
+
 ## Project tree
 
 ```text

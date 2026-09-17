@@ -1,0 +1,5 @@
+constraint Text = ~string
+
+function invalid<S extends Text>(value: S): void {
+  value[0] = 65
+}

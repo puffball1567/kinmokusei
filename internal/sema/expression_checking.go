@@ -395,6 +395,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 		}
 		object = *object.Element
 	}
+	object = c.collectionOperandShape(object)
 	index := c.singleValue(c.checkExpression(expr.Index), expr.Index.GetSpan())
 	if object.Kind == Invalid {
 		return object
@@ -410,8 +411,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 	case Map:
 		expr.Assignable = true
 		if object.Key != nil {
-			c.checkNumericMaterialization(expr.Index, *object.Key)
-			c.requireAssignable(*object.Key, index, expr.Index.GetSpan())
+			c.checkMapIndex(expr, *object.Key, index)
 		}
 		if object.Element != nil {
 			return c.checkedIndexResult(expr, *object.Element, checked, true)
@@ -457,8 +457,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 		if object.Key != nil {
 			key = *object.Key
 		}
-		c.checkNumericMaterialization(expr.Index, key)
-		c.requireAssignable(key, index, expr.Index.GetSpan())
+		c.checkMapIndex(expr, key, index)
 		if object.Element != nil {
 			return c.checkedIndexResult(expr, *object.Element, checked, true)
 		}
@@ -493,6 +492,8 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		}
 		object = *object.Element
 	}
+	resultType := object
+	object = c.collectionOperandShape(object)
 	for _, bound := range []struct {
 		name       string
 		expression ast.Expression
@@ -517,7 +518,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 	}
 	if object.Kind == Array {
 		c.checkSliceConstantBounds(expr, -1, "fixed array")
-		return object
+		return resultType
 	}
 	if object.Kind == String {
 		if expr.Full {
@@ -525,7 +526,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		}
 		c.checkSliceConstantBounds(expr, c.constantStringLength(expr.Object), "string")
 		// Slicing an untyped string produces a typed, nonconstant string value.
-		return defaultLiteralType(object)
+		return defaultLiteralType(resultType)
 	}
 	goType, ok := goTypeOf(object)
 	if !ok {

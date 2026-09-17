@@ -772,6 +772,27 @@ const limited = values[low:high:max];
 
 Bounds are evaluated once. Statically known negative, reversed, or fixed-array-out-of-range bounds are diagnosed early. Dynamic violations retain Go panic behavior. String bounds are byte offsets.
 
+On the development branch after v0.4.0, these operations also accept a type
+parameter whose constraint has a common underlying collection shape. Indexing
+supports slices, fixed arrays, array pointers, maps (including checked lookups),
+and strings; slicing supports the same shapes except maps. A slice/string result
+retains the operand's type parameter, while an array/array-pointer slice returns
+`E[]`. Source class/interface identities and nullable element qualifiers survive
+indexing and slicing. Fixed-array operands must be addressable to slice or write
+an element; map elements are writable but not addressable, and strings are
+read-only. Numeric constant map keys must be representable by the key type.
+
+```ts
+constraint Slice<E> = ~E[];
+function first<E, S extends Slice<E>>(values: S): E { return values[0]; }
+function tail<E, S extends Slice<E>>(values: S): S { return values[1:]; }
+```
+
+Constraints mixing different underlying shapes, such as slices with arrays or
+strings with byte slices, remain unsupported here even where Go permits the
+operation. This is distinct from mixed-shape support in `clear`, `delete`, and
+`len`/`cap`.
+
 Explicit reverse conversion distinguishes copy and alias:
 
 ```ts

@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):E{return v[0];}`,
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):T{return v[0:1:2];}`,
+	`constraint A<E>=~*[2]E;function f<E,T extends A<E>>(v:T):E[]{return v[:];}`,
+	`constraint M=~Map<byte,int>;function f<T extends M>(v:T):int{v[256]=1;const [value,ok]=v[1];return value;}`,
+	`class C{public value:int=1;}alias Maybe=C|null;constraint S=~Maybe[];function f<T extends S>(v:T):int{return v[:][0].value;}`,
+	`constraint S=~byte[]|~string;function f<T extends S>(v:T):T{return v[:];}`,
 	`const load=():Result<int>=>{return ok(1);};const main=():void=>{const [value,err]=load();if(err!==nil){return;}};`,
 	`function load():Result<int>{return ok(1);}const first=()=>second();const second=()=>{const [value,err]=load();return value;};`,
 	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):[2]E{return copyArray[[2]E](v);}`,
