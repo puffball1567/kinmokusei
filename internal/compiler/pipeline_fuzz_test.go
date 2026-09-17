@@ -15,6 +15,13 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T,e:E):T{return append(v,e);}`,
+	`constraint S=~byte[];constraint Text=~string;function f<T extends S,U extends Text>(v:T,s:U):T{copy(v,s);return append(v,s...);}`,
+	`constraint S=~int[]|~string[];function f<T extends S>(v:T):T{return append(v);}`,
+	`class Base{}class Child extends Base{}constraint S=~Base[];function f<T extends S>(v:T):T{return append(v,new Child());}`,
+	`class Base{}alias Maybe=Base|null;type A<E>=distinct E[];type B<E>=distinct E[];constraint S=A<Maybe>|B<Base>;function f<T extends S>(v:T):T{return append(v,null);}`,
+	`type Items=distinct int[];class Box<E>{constructor(public value:E){}}function f(v:Box<int[]>[],s:Box<Items>[]):int{return copy(v,s);}`,
+	`alias Maybe=int[]|null;function f(v:Maybe[],s:int[][]):int{return copy(v,s);}`,
 	`constraint C=~int[]|~Map<string,int>;function f<T extends C>(v:T):void{clear(v);}`,
 	`constraint C=~int[]|~int;function f<T extends C>(v:T):void{clear(v);}`,
 	`constraint C<K extends comparable>=~Map<K,int>|~Map<K,string>;function f<K extends comparable,T extends C<K>>(v:T,k:K):void{delete(v,k);}`,

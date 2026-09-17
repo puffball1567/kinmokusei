@@ -867,6 +867,16 @@ let [nextValue, nextPresent] = lookup["next"];
   intrinsics not yet recognized by semantic analysis remain further work.
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
+- `append`/`copy` accept type parameters with one common underlying slice type,
+  including dependent element parameters and unions of distinct named slices.
+  `append` retains its destination's type; different source/destination slice
+  names are allowed when element types are identical. Copying or spread-append
+  never widens element types: generic identity and nested source nullability
+  must match. Individual appended class values may upcast to a base class,
+  preserving virtual dispatch and identity. A byte-slice destination also
+  accepts string-constrained source parameters (`...` for append). Nil slices,
+  overlapping storage, slice growth, and operand evaluation follow Go; adding
+  elements does not silently update the caller's original slice descriptor.
 - `delete`: removes a map key; missing keys and nil maps are no-ops.
   Type parameters are accepted when all type-set members are maps with the
   same key type; value types may differ. Keys retain source class identity and

@@ -236,9 +236,13 @@ Generic collection mutation now accepts mixed slice/map type sets for `clear`
 and common-key map type sets for `delete`, including differing map value types,
 source nullable/class keys, imported constraints and generic class methods.
 `generic_collection_mutation_test.go` compares generated behavior against Go in
-the existing collection/OOP contract groups. This does not imply all generic
-collection operations are complete: `append`/`copy` still need direct
-type-parameter operands, and `delete` rejects conflicting source key qualifiers.
+the existing collection/OOP contract groups. `append`/`copy` now also accept
+direct slice-constrained type parameters, including dependent elements and
+generic class methods; `generic_slice_builtins_test.go` covers Go behavior and
+source OOP invariance. Operations requiring a common element shape reject
+conflicting source nullability; `delete` likewise rejects conflicting source key
+qualifiers. Slice-to-array conversions still need direct type-parameter sources;
+this is not a claim of complete generic collection support.
 
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
