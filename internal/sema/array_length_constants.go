@@ -1,26 +1,11 @@
 package sema
 
 import (
-	goast "go/ast"
 	"go/constant"
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
-
-// Delegate type-set validation to Go: every term must support the operation,
-// but unlike range, len/cap do not require one common collection shape.
-func typeParameterAcceptsLenOrCap(value gotypes.Type, allowLenOnly bool) bool {
-	name := "cap"
-	if allowLenOnly {
-		name = "len"
-	}
-	pkg := gotypes.NewPackage("kinmokusei.synthetic/length", "length")
-	pkg.Scope().Insert(gotypes.NewVar(0, pkg, "value", value))
-	pkg.MarkComplete()
-	_, err := evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: []goast.Expr{goast.NewIdent("value")}})
-	return err == nil
-}
 
 // len/cap of an array (or array pointer) is a typed int constant when Go
 // does not evaluate the operand. An immutable binding is not required.

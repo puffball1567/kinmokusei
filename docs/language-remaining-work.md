@@ -232,6 +232,14 @@ version metadata until v0.4 release preparation.
 
 ## Confirmed Go-facing gaps
 
+Generic collection mutation now accepts mixed slice/map type sets for `clear`
+and common-key map type sets for `delete`, including differing map value types,
+source nullable/class keys, imported constraints and generic class methods.
+`generic_collection_mutation_test.go` compares generated behavior against Go in
+the existing collection/OOP contract groups. This does not imply all generic
+collection operations are complete: `append`/`copy` still need direct
+type-parameter operands, and `delete` rejects conflicting source key qualifiers.
+
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, and linked export aliases | Add native source interface contracts; preserve source-only method argument shapes; extend parameter-dependent intersections beyond matching shapes |

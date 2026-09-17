@@ -15,6 +15,13 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint C=~int[]|~Map<string,int>;function f<T extends C>(v:T):void{clear(v);}`,
+	`constraint C=~int[]|~int;function f<T extends C>(v:T):void{clear(v);}`,
+	`constraint C<K extends comparable>=~Map<K,int>|~Map<K,string>;function f<K extends comparable,T extends C<K>>(v:T,k:K):void{delete(v,k);}`,
+	`constraint C=~Map<byte,int>;function f<T extends C>(v:T):void{delete(v,256);}`,
+	`constraint C=~Map<string,int>|~Map<int,int>;function f<T extends C>(v:T):void{delete(v,"x");}`,
+	`class Key{}constraint C=~Map<Key|null,int>|~Map<Key|null,string>;function f<T extends C>(v:T):void{delete(v,null);}`,
+	`class Key{}constraint C=~Map<Key,int>|~Map<Key|null,string>;function f<T extends C>(v:T,k:Key):void{delete(v,k);}`,
 	`const a=min(255,256);const b=a;function run():byte{return b;}`,
 	`const a=max(1e400,2e400);function run():float{return a/1e400;}`,
 	`type Text=distinct string;function run(s:Text):Text{return min("a",s);}`,

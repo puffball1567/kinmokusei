@@ -1,0 +1,5 @@
+constraint Lookup = ~Map<string, int> | ~Map<int, int>
+
+function remove<T extends Lookup>(value: T): void {
+  delete(value, "temporary")
+}

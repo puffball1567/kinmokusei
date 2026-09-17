@@ -33,6 +33,7 @@ func (c *Checker) ensureGlobalBindingChecked(decl *ast.VariableDecl) {
 		structGoTypesFinalized:  c.structGoTypesFinalized,
 		deferredParameterBounds: c.deferredParameterBounds,
 		parameterRangeShapes:    c.parameterRangeShapes,
+		parameterDeleteKeys:     c.parameterDeleteKeys,
 		functionTypeParameters:  c.functionTypeParameters,
 		receiverTypeParameters:  c.receiverTypeParameters,
 		methodTypeParameters:    c.methodTypeParameters,

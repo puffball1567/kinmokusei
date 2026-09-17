@@ -49,4 +49,24 @@ Missing and nil maps return the value type's zero value plus `false`. Map iterat
 
 Both array-conversion forms panic if the source is shorter than `N`. The view also carries ordinary pointer aliasing: keep it only while shared mutation is intentional and the backing storage remains valid.
 
+## Generic clearing and deletion
+
+On the development branch, `clear` accepts a type parameter whose possible types
+are all slices or maps. `delete` requires map types with the same key type, but
+their value types may differ. Both are available in generic class methods too.
+
+<<< ../snippets/generic-collection-mutation.km{ts}
+
+Expected output:
+
+```text
+[1 0 0 4] 2 3
+0 0
+```
+
+Clearing a slice changes its shared backing elements without changing length or
+capacity; elements beyond its length remain untouched. Clearing a map removes
+every entry, including NaN keys. Nil maps/slices are safe. Deletion checks the
+key's type, source nullability and numeric constant range at compile time.
+
 See [Types and data](../guide/types-and-data) and [Type-system reference](../reference/types).

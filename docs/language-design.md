@@ -868,6 +868,15 @@ let [nextValue, nextPresent] = lookup["next"];
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
 - `delete`: removes a map key; missing keys and nil maps are no-ops.
+  Type parameters are accepted when all type-set members are maps with the
+  same key type; value types may differ. Keys retain source class identity and
+  nullability. Unions with incompatible source key nullability are rejected.
+  Numeric constant keys must be representable, including through aliases.
+  Toolchain caveat: Go 1.26/1.27's `vet` printf analyzer can panic on a valid
+  `delete` over a common-key union with different map value types (also for
+  handwritten Go). Compilation is unaffected. For such generated modules,
+  run `go vet -printf=false ./...` and `go test -vet=off ./...` until that analyzer
+  is fixed; the differential test applies this workaround only to this fixture.
 - A two-name binding or reassignment from `map[key]` performs Go's checked
   lookup and yields `(value, present)`. Missing and nil maps produce the value
   type's zero value and `false`; a stored zero value produces `true`. The map
@@ -876,6 +885,11 @@ let [nextValue, nextPresent] = lookup["next"];
   slices, or strings.
 - `clear`: zeroes every slice element or removes every map entry, including
   named Go collections; nil slices/maps remain safe exactly as in Go.
+  Type parameters are accepted when every member is a slice or map, even with
+  different element/key types or a mixture of slices and maps. Slice length and
+  capacity are unchanged; only elements within the length are zeroed, and aliases
+  observe the changes. Map clearing also removes NaN keys. These operations are
+  available in generic functions and class methods and evaluate arguments once.
 - `min`/`max`: require one or more operands of one ordered numeric or string
   type. Named Go ordered types, mixed typed/untyped numeric literals, NaN,
   signed zero, and left-to-right operand evaluation retain Go behavior.
