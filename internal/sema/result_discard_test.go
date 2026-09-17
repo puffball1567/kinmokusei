@@ -25,6 +25,11 @@ func TestExplicitResultDiscard(t *testing.T) {
 		`function use(): Result<void> { const _ = load()?; const _ = notify()?; return ok(); }`,
 		`function use(): void { const _ = 1; const _: int = 2; _ = "ignored"; const _ = (): int => 3; const _ = (): int => 4; }`,
 		`function use(): void { const first = ()=>second(); const second = ()=>{ const [_, err] = load(); return err; }; _ = first(); }`,
+		`const use = (): error => { const [_, err] = load(); return err; };`,
+		`const use = () => { const [_, err] = load(); return err; };`,
+		`const first = () => second(); const second = () => { const [_, err] = load(); return err; };`,
+		`const make = (): ()=>error => { const [_, err] = load(); return () => err; };`,
+		`let use = (): void => { let value=0; let err:error=nil; [value,err]=load(); _=err; };`,
 		`function use(): void { for (const _ = load(); false; _ = notify()) {} }`,
 		`import go strconv from "strconv"; function use(): void { _ = strconv.Atoi("1"); const _ = strconv.Atoi("2"); }`,
 		// Raw Go errors retain their existing policy; this check targets Result bindings.
@@ -51,6 +56,11 @@ func TestRejectUnusedResultErrors(t *testing.T) {
 		`function use(): void { const first = ()=>second(); const second = ()=>{ const [_, err] = load(); return 1; }; }`,
 		`function use(): void { for (const [_, err] = load(); false;) {} }`,
 		`class Loader { public function use(): void { const [_, err] = load(); } }`,
+		`const use = (): int => { const [value, err] = load(); return value; };`,
+		`const use = () => { const [value, err] = load(); return value; };`,
+		`const first = () => second(); const second = () => { const [value, err] = load(); return value; };`,
+		`const use = (): void => { const nested = () => { const [_, err] = load(); }; };`,
+		`let use = (): void => { let value=0; let err:error=nil; [value,err]=load(); };`,
 	}
 	for _, input := range tests {
 		t.Run(input, func(t *testing.T) {
