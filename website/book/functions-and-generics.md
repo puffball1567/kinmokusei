@@ -405,7 +405,7 @@ Generic class inheritance, virtual methods using class parameters, static method
 
 ### Abstract classes and dependency injection
 
-On the development branch, an abstract class can share state and concrete methods
+Since v0.4.0, an abstract class can share state and concrete methods
 while requiring descendants to implement selected methods. It is also a type for
 parameters, fields, results, and dependency injection:
 
@@ -462,7 +462,7 @@ function validatePort(value: int): Result<int> {
 
 ### Result-returning function values
 
-On the development branch (targeting v0.4), a function returning Result is an
+Since v0.4.0, a function returning Result is an
 ordinary value. Store it in a binding, pass it as a callback, return a closure,
 or use it in fields and collections. The callback's type keeps the error path
 visible to its callers:

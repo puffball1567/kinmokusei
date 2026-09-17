@@ -9,7 +9,7 @@ Kinmokusei is currently pre-1.0. Released behavior is tested and documented, but
 
 ## Documentation version and release tag
 
-The navigation label **v0.3** identifies the language version described by this site. Published compiler and editor artifacts are identified by a matching release tag; use the release list to confirm which artifacts are available before installing.
+The navigation label **v0.4** identifies the language version described by this site. Published compiler and editor artifacts are identified by a matching release tag; use the release list to confirm which artifacts are available before installing.
 
 When a version is tagged, use these sources for different questions:
 
@@ -21,6 +21,62 @@ When a version is tagged, use these sources for different questions:
 | Is a generated C boundary compatible? | The prior manifest plus `keika abi check` |
 
 A migration requirement exists when the release notes identify a source, lock, CLI, generated-API, or boundary change. The documentation version alone does not replace those notes.
+
+## Version policy
+
+The pre-1.0 v0.4.x series delivers compatible feature additions and fixes in
+patch releases. This project policy differs from strict SemVer feature numbering.
+Intentional source or public API breaks require a minor release and migration
+notes; compiler fixes may newly reject invalid programs and are documented.
+
+v0.5 is the milestone for completing the audited Go language compatibility work,
+with independent runtime comparisons and documented deliberate language
+differences. Statement coverage and package import counts are not measures of
+complete language compatibility. OOP improvements continue during v0.4.x.
+
+## v0.4.0 highlights
+
+- Optional semicolons, named Go imports, arrow-style functions and entry points,
+  contextual/forward inference, and recursive local arrow groups.
+- Source exports, re-exports, and aliases retaining declaration identity and
+  shared storage through module chains.
+- Abstract classes and methods, generic dependency-injection contracts, and
+  stricter interface/override signature checks.
+- Result-returning function values, explicit Result discard, and diagnostics
+  for unused named local error bindings.
+- Constraint intersections, imported Go type sets and method interfaces,
+  generic callback inference, and generic collection built-ins/conversions.
+- Preserved scalar, ordered-operation, and array-length constants, with
+  stronger bounds, overflow, initialization, and source-encoding diagnostics.
+- Semantic-analysis refactoring, editor integration, executable documentation,
+  and independent Go comparisons across 100 covered runtime contract groups.
+
+This example combines the new source syntax, abstract dependency injection,
+generic array copies, and explicit Result handling:
+
+<<< ../snippets/release-v0-4.km{ts}
+
+It prints `hello 5 1 2`.
+
+### Migrating from v0.3.0
+
+- Keep a returned/thrown value on the `return`/`throw` line, or open its grouped
+  expression there. A newline directly after the keyword now ends the statement.
+  `break`/`continue` labels must also stay on the keyword line.
+- A module-level `const` arrow with an unnamed function type now emits a Go
+  function rather than an assignable variable. Use a mutable binding where
+  reassignment or addressable function storage is required.
+- A directly initialized local arrow sees its own binding; consecutive local
+  arrows see peer bindings throughout their group. Rename accidental shadowing.
+  Unresolved recursive result types still need annotations.
+- A file using source exports exposes only its selected declarations. Export
+  every name that other source modules need; `export {}` exposes none.
+- Use, propagate, return, or explicitly discard Result errors. Numeric overflow,
+  incompatible nullable/generic method contracts, cyclic global initialization,
+  and uninstantiated Go generic function values are checked more precisely.
+- Scalar and eligible `len`/`cap` bindings may now be real Go constants and are
+  not addressable. Use `let` when runtime storage is needed; do not rely on side
+  effects inside unevaluated constant array-length operands.
 
 ## v0.3.0 highlights
 
@@ -35,8 +91,7 @@ A migration requirement exists when the release notes identify a source, lock, C
 - Editor support for the new constructs, stronger constructor initialization
   checks, bounded parallel differential tests, and 98 covered runtime contracts.
 
-Kinmokusei targets Go. Abstract classes, property accessors, and static fields
-are not part of this release.
+Kinmokusei targets Go. Abstract classes were added later, in v0.4.0.
 
 When upgrading from v0.2.0, recheck code that relied on permissive numeric or
 generic assignment diagnostics. Overflow, fractional integer contexts, and

@@ -32,7 +32,7 @@ and equality, but not ordering.
 
 ### Scalar constant references
 
-On the development branch, scalar `const` references and constant operations
+Since v0.4.0, scalar `const` references and constant operations
 retain Go constant semantics through local/module bindings and source imports:
 
 <<< ../snippets/constant-aliases.km{ts}
@@ -68,7 +68,7 @@ evaluation does not call user functions or read mutable storage.
 
 ### Constant minimum and maximum
 
-On the development branch, `min` and `max` retain a constant result when all
+Since v0.4.0, `min` and `max` retain a constant result when all
 arguments are constants. Untyped results keep their precision until a concrete
 type is needed. Named types and explicitly typed constants keep their types;
 runtime arguments do not silently change width.
@@ -95,7 +95,7 @@ const pair: [2]int = [10, 20];
 
 `T[]` is a Go slice: assignment copies its header and shares backing storage. `[N]T` is a fixed value: length is part of its type and assignment copies all elements.
 
-On the development branch, `len` and `cap` of a fixed array or array pointer can
+Since v0.4.0, `len` and `cap` of a fixed array or array pointer can
 be typed `int` constants even when the array is mutable. When the argument has
 no runtime calls or channel receives, it is not evaluated. In particular, a nil
 array pointer can supply its type's length without being dereferenced:
@@ -125,8 +125,8 @@ alias[0] = 99; // values[0] is now 99
 
 No implicit array/slice conversion exists. `copyArray[[N]T](slice)` copies into an independent fixed array; `viewArray[[N]T](slice)` returns a pointer view over shared storage.
 
-Both operations accept slice-constrained type parameters on the development
-branch. The target still needs a concrete array shape, possibly containing an
+Since v0.4.0, both operations accept slice-constrained type parameters.
+The target still needs a concrete array shape, possibly containing an
 element type parameter or using a named array type:
 
 <<< ../snippets/generic-array-conversion.km{ts}

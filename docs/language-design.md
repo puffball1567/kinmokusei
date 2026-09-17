@@ -120,7 +120,7 @@ with an integer value, including `2.0` and `2+0i`. Explicitly typed floating or
 complex constants and variables are not integer indices. Constant negative,
 oversized, or out-of-bounds indices and invalid size/bound ordering are rejected.
 Target-dependent `int` width remains subject to generated Go validation.
-On the development branch, references to numeric Go-emittable constants retain
+Since v0.4.0, references to numeric Go-emittable constants retain
 precision, explicit types, and representability checks through chains such as
 `const copy = original` and `const next = copy + 1`. This includes local and
 module bindings, source exports/aliases, and numeric Go imports. An untyped
@@ -882,7 +882,7 @@ let [nextValue, nextPresent] = lookup["next"];
 - `len`/`cap` also accept type parameters when every type-set member supports
   the operation, even if the collection shapes differ. Calls on a type parameter
   remain nonconstant; `[3]T` is a fixed array, while `T extends ~[3]int` is not.
-- On the development branch, `len`/`cap` of a fixed array or array pointer retain
+- Since v0.4.0, `len`/`cap` of a fixed array or array pointer retain
   typed `int` constant values when the operand contains no runtime calls or
   channel receives. Such operands are not evaluated, including pointer
   dereferences, indexing, and slice-to-array conversions. No user function is
@@ -928,7 +928,7 @@ let [nextValue, nextPresent] = lookup["next"];
 - `min`/`max`: require one or more operands of one ordered numeric or string
   type. Named Go ordered types, mixed typed/untyped numeric literals, NaN,
   signed zero, and left-to-right operand evaluation retain Go behavior.
-  On the development branch, all-constant operands produce a checked constant,
+  Since v0.4.0, all-constant operands produce a checked constant,
   preserving precision, numeric-kind promotion, explicit types, and rounding.
   The result can be reused in narrow assignments, indices, and collection sizes.
   Every operand must be representable in the common type, even one that would
@@ -1200,7 +1200,7 @@ const [cleanupErr] = cleanup();
 This is direct multiple-result binding, not object destructuring. A real object
 is generated only when the called API actually returns an object.
 
-On the development branch, named local error bindings populated by a source
+Since v0.4.0, named local error bindings populated by a source
 Result split must be read somewhere in source code. An unused error is a
 compile error; generated Go unused-variable cleanup does not count as handling.
 Checking, returning, passing, or explicitly discarding the error counts as use.
@@ -1216,7 +1216,7 @@ once without declaring a local named `_`, and preserve side effects and panics.
 on blank bindings still require assignment compatibility. `Task` cannot be
 discarded; it still requires `await` or `detach`.
 
-On the development branch, a function returning Result is an ordinary function
+Since v0.4.0, a function returning Result is an ordinary function
 value: `(text: string) => Result<int>` can be a variable, callback parameter,
 field, collection/channel element, or another function's success payload.
 Only the Result itself is non-storable. Aliases and native defined function

@@ -301,7 +301,7 @@ define allocation-time initialization when a type needs that behavior.
 
 ## Abstract classes
 
-On the development branch, an `abstract class` combines a nominal contract with
+Since v0.4.0, an `abstract class` combines a nominal contract with
 shared fields, constructors, and concrete methods. It can be a parameter, field,
 return type, collection element, or dependency-injection type. A concrete
 descendant is implicitly assignable to that base type, retaining identity and
@@ -370,7 +370,7 @@ Getter/setter properties are also future work. If added, they must have explicit
   constructor/identity/dispatch tests are implemented.
 - Protected fields/methods and final classes/overrides are implemented.
 - Abstract classes/methods, explicit concrete implementation checks, and generic
-  abstract-base dependency injection are implemented on the development branch.
+  abstract-base dependency injection are implemented in v0.4.0.
 
 ### Later candidates
 

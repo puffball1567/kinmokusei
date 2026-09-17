@@ -1,10 +1,19 @@
 # Changelog
 
-All notable user-facing changes are recorded here. Kinmokusei uses semantic
-versioning; releases before 1.0 may intentionally change source syntax or
-generated APIs between minor versions.
+All notable user-facing changes are recorded here. During pre-1.0 development,
+Kinmokusei uses milestone-based minor versions. The v0.4.x series includes
+compatible feature additions and fixes in patch releases; v0.5 marks completion
+of the audited Go compatibility work. This differs from strict SemVer feature
+numbering. Intentional source or public API breaks require a minor release and
+migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
+
+## [0.4.0] - 2026-09-18
+
+- Share Result error-use tracking with lazy global arrow analysis, preventing
+  a crash on split bindings and retaining unused-error diagnostics across
+  forward dependencies and nested closures.
 
 - Support `copyArray` and `viewArray` with slice-constrained type parameters,
   dependent elements, named slices/arrays, and generic class methods. Preserve
@@ -343,7 +352,8 @@ generated APIs between minor versions.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/puffball1567/kinmokusei/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/puffball1567/kinmokusei/releases/tag/v0.1.0
