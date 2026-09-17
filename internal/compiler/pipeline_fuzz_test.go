@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):[2]E{return copyArray[[2]E](v);}`,
+	`constraint S=~int[]|~string[];function f<T extends S>(v:T):*[2]int{return viewArray[[2]int](v);}`,
+	`class C{}alias Maybe=C|null;function pair<E>(v:E[]):*[1]E{return viewArray[[1]E](v);}function f(v:Maybe[]):C{return pair(v)[0];}`,
+	`class C{public value:int=1;}function pair<E>(v:E[]):[1]E{return copyArray[[1]E](v);}function f(v:C[]):int{const a=pair(v);return a[:][0].value;}`,
+	`type Pair<E>=distinct [2]E;constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):Pair<E>{return copyArray[Pair<E>](v);}`,
+	`class C{}function f(v:C[]):void{const a=viewArray[[2]C](v);const n=cap(a);const p=&n;}`,
 	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T,e:E):T{return append(v,e);}`,
 	`constraint S=~byte[];constraint Text=~string;function f<T extends S,U extends Text>(v:T,s:U):T{copy(v,s);return append(v,s...);}`,
 	`constraint S=~int[]|~string[];function f<T extends S>(v:T):T{return append(v);}`,

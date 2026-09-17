@@ -1,0 +1,22 @@
+import go { Println } from "fmt"
+
+constraint Slice<E> = ~E[]
+
+function pair<E, S extends Slice<E>>(values: S): [2]E {
+  return copyArray[[2]E](values)
+}
+
+function pairView<E, S extends Slice<E>>(values: S): *[2]E {
+  return viewArray[[2]E](values)
+}
+
+type Numbers = distinct int[]
+
+function main(): void {
+  const values = Numbers([1, 2, 3])
+  let copied = pair(values)
+  const viewed = pairView(values)
+  copied[0] = 9
+  viewed[1] = 8
+  Println(values[0], values[1], copied[0], copied[1])
+}

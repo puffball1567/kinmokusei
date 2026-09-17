@@ -16,6 +16,8 @@ func (c *Checker) checkArrayLengthConstant(call *ast.CallExpr, value Type) {
 	length := int64(-1)
 	if value.Kind == FixedArray {
 		length = value.Length
+	} else if value.Kind == GoPointer && value.Element != nil && value.Element.Kind == FixedArray {
+		length = value.Element.Length
 	} else if target, ok := goTypeOf(value); ok {
 		underlying := gotypes.Unalias(target).Underlying()
 		if pointer, ok := underlying.(*gotypes.Pointer); ok {

@@ -438,6 +438,7 @@ func substituteNativeTypeParametersSeen(value Type, bindings nativeTypeBindings,
 		result.GoType = nil
 	}
 	if value.Kind == GoPointer && result.Element != nil {
+		result.Name = "*" + result.Element.String()
 		result.GoType = nil
 		if element, ok := goTypeOf(*result.Element); ok {
 			result.GoType = gotypes.NewPointer(element)
