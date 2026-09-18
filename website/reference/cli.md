@@ -53,8 +53,11 @@ All source arguments form one generated package. Relative imports may load addit
 | Command | Purpose |
 | --- | --- |
 | `keika install --go-module [--offline] [--replace path] <module>@<version> [project]` | Add an exact Go module transactionally |
-| `keika deps add [--offline] [--replace path] <module>@<version> [project]` | Lower-level spelling of exact add |
+| `keika deps add [--offline] [--replace path] <module>@<version> [project]` | Add a source package when its manifest declares `[package]`, otherwise a Go module |
 | `keika deps update [--offline] <module>@<version> [project]` | Update one declared module to an exact version |
+| `keika deps update [--offline] [module] [project]` | Select the latest version of one or all direct source packages |
+| `keika deps list [project]` | Print locked source and Go dependencies |
+| `keika deps fetch [--offline] [project]` | Restore exact locked packages and Go module files without relocking |
 | `keika deps remove [--offline] <module> [project]` | Remove one declared module |
 | `keika deps lock [--offline] [project]` | Resolve and write canonical lock/internal module state |
 | `keika deps check [project]` | Validate manifest, lock, generated module files, and license hashes |
@@ -62,6 +65,11 @@ All source arguments form one generated package. Relative imports may load addit
 | `keika target [project]` | Print locked `GOOS`, `GOARCH`, `CGO_ENABLED`, and tags |
 
 The optional project argument defaults to the current directory. Complete versions, including complete pseudo-versions, are required. Add/update/remove/lock preserve prior state on failure.
+
+Source packages currently require tagged versions matching their manifest; the
+pseudo-version allowance above applies to Go dependencies. Source-free `check`,
+`build`, `run`, and `emit-go` commands select the project's `main.km`, or a
+library's declared package entry. See [external source packages](../guide/external-packages).
 
 ## Go interoperability audit
 

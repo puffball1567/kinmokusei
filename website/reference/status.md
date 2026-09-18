@@ -14,6 +14,6 @@ Kinmokusei is a pre-1.0 public language. The following areas are implemented and
 - Direct standard-library and external Go module interoperability
 - Generated Go, C ABI export, checked incoming C FFI, projects, locks, target builds, LSP, and VS Code packaging
 
-Known future work includes broader Kinmokusei package distribution, automatic task cancellation/context inheritance, broader constructor cardinality proofs, and remaining advanced FFI ownership cases.
+The development branch adds [external Kinmokusei packages](/guide/external-packages) with tagged acquisition, locked imports and local replacements. Known future work includes automatic task cancellation/context inheritance, broader constructor cardinality proofs, and remaining advanced FFI ownership cases.
 
 The detailed [quality policy](https://github.com/puffball1567/kinmokusei/blob/main/docs/quality-and-go-compatibility.md) explains the difference between statement coverage and the independently handwritten-Go runtime contract gate.

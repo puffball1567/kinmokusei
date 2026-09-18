@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
-	"github.com/puffball1567/kinmokusei/internal/compiler"
 	"github.com/puffball1567/kinmokusei/internal/lexer"
 	"github.com/puffball1567/kinmokusei/internal/source"
 	"github.com/puffball1567/kinmokusei/internal/token"
@@ -297,7 +296,7 @@ func (s *Server) analyzeForRename(doc document, additional map[string]string) (*
 	for path, text := range additional {
 		overlay[path] = text
 	}
-	result, err := compiler.CheckFilesWithOverlay([]string{doc.Path}, overlay)
+	result, err := s.checkDocument(doc, overlay)
 	if err != nil {
 		return nil, nil, err
 	}

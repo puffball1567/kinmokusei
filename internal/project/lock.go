@@ -16,7 +16,7 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
-const LockVersion = 3
+const LockVersion = 4
 
 type LockedLicenseFile struct {
 	Path   string `json:"path"`
@@ -33,13 +33,16 @@ type LockedModule struct {
 }
 
 type Lock struct {
-	LockVersion  int            `json:"lockVersion"`
-	ManifestHash string         `json:"manifestHash"`
-	GoVersion    string         `json:"goVersion"`
-	Target       BuildTarget    `json:"target"`
-	GoModHash    string         `json:"goModHash"`
-	GoSumHash    string         `json:"goSumHash"`
-	Modules      []LockedModule `json:"modules"`
+	LockVersion  int             `json:"lockVersion"`
+	ManifestHash string          `json:"manifestHash"`
+	GoVersion    string          `json:"goVersion"`
+	Target       BuildTarget     `json:"target"`
+	GoModHash    string          `json:"goModHash"`
+	GoSumHash    string          `json:"goSumHash"`
+	Modules      []LockedModule  `json:"modules"`
+	Packages     []LockedPackage `json:"packages,omitempty"`
+	GoMod        string          `json:"goMod,omitempty"`
+	GoSum        string          `json:"goSum,omitempty"`
 }
 
 func Hash(contents []byte) string {
@@ -63,6 +66,7 @@ func (m Manifest) NewLock(goMod, goSum []byte, target BuildTarget, modules []Loc
 	return Lock{
 		LockVersion: LockVersion, ManifestHash: Hash(m.Contents), GoVersion: m.Project.GoVersion, Target: target,
 		GoModHash: Hash(goMod), GoSumHash: Hash(goSum), Modules: modules,
+		GoMod: string(goMod), GoSum: string(goSum),
 	}
 }
 
@@ -89,7 +93,7 @@ func ReadLock(root string) (Lock, error) {
 }
 
 func (l Lock) Validate() error {
-	if l.LockVersion != LockVersion {
+	if l.LockVersion != LockVersion && !(l.LockVersion == 3 && len(l.Packages) == 0) {
 		return fmt.Errorf("unsupported lockVersion %d; expected %d", l.LockVersion, LockVersion)
 	}
 	if !goVersionPattern.MatchString(l.GoVersion) {
@@ -97,6 +101,17 @@ func (l Lock) Validate() error {
 	}
 	if err := l.Target.Validate(); err != nil {
 		return err
+	}
+	for i, pkg := range l.Packages {
+		if !canonicalPackageSubpath(pkg.Path) || !goModuleVersionPattern.MatchString(pkg.Version) || !validSHA256(pkg.Hash) || !validSHA256(pkg.ManifestHash) || pkg.License == "" || pkg.Dependencies == nil || pkg.GoDependencies == nil {
+			return fmt.Errorf("invalid locked Kinmokusei package %q", pkg.Path)
+		}
+		if i > 0 && l.Packages[i-1].Path >= pkg.Path {
+			return fmt.Errorf("packages must be uniquely sorted by path")
+		}
+		if isPortableAbsolutePath(pkg.ReplacePath) || strings.ContainsAny(pkg.ReplacePath, "\\\x00\r\n") {
+			return fmt.Errorf("invalid locked package replacement %q", pkg.ReplacePath)
+		}
 	}
 	for name, value := range map[string]string{"manifestHash": l.ManifestHash, "goModHash": l.GoModHash, "goSumHash": l.GoSumHash} {
 		if len(value) != len("sha256:")+sha256.Size*2 || value[:len("sha256:")] != "sha256:" {

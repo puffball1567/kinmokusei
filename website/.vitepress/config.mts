@@ -46,6 +46,7 @@ const sidebar = [
       { text: "Errors & nullability", link: "/guide/errors-and-nullability" },
       { text: "Concurrency", link: "/guide/concurrency" },
       { text: "Modules & projects", link: "/guide/projects-and-cli" },
+      { text: "External source packages", link: "/guide/external-packages" },
     ],
   },
   {

@@ -77,12 +77,12 @@ func (i *moduleGoImporter) load(path string) error {
 	}
 	command := exec.Command("go", arguments...)
 	command.Dir = i.directory
-	command.Env = environmentWith("GOPROXY", "off")
+	command.Env = project.OfflineEnvironment(environmentWith("GOPROXY", "off"))
 	if i.target != nil {
 		arguments = append([]string{"list"}, append(i.target.GoBuildFlags(), arguments[1:]...)...)
 		command = exec.Command("go", arguments...)
 		command.Dir = i.directory
-		command.Env = i.target.Environment(environmentWith("GOPROXY", "off"))
+		command.Env = i.target.Environment(project.OfflineEnvironment(environmentWith("GOPROXY", "off")))
 	}
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
@@ -150,7 +150,7 @@ func (i *moduleGoImporter) packageHasIgnoredCgoFile(path string, listed *listedG
 	arguments = append([]string{"list"}, append(i.target.GoBuildFlags(), arguments[1:]...)...)
 	command := exec.Command("go", arguments...)
 	command.Dir = i.directory
-	command.Env = i.target.Environment(environmentWith("GOPROXY", "off"))
+	command.Env = i.target.Environment(project.OfflineEnvironment(environmentWith("GOPROXY", "off")))
 	output, err := command.Output()
 	if err != nil {
 		return false

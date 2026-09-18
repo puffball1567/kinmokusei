@@ -52,7 +52,7 @@ func (s *Server) signatureHelp(id json.RawMessage, raw json.RawMessage) error {
 	if !ok {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
-	result, err := compiler.CheckFilesWithOverlay([]string{doc.Path}, s.documentOverlay())
+	result, err := s.checkDocument(doc, s.documentOverlay())
 	if err != nil || result.Program == nil {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
@@ -60,7 +60,7 @@ func (s *Server) signatureHelp(id json.RawMessage, raw json.RawMessage) error {
 	if !found && context.Qualifier != "" {
 		overlay := s.documentOverlay()
 		overlay[doc.Path] = qualifiedCallAnalysisText(doc.Text, offset, context)
-		if recovered, recoveryErr := compiler.CheckFilesWithOverlay([]string{doc.Path}, overlay); recoveryErr == nil && recovered.Program != nil {
+		if recovered, recoveryErr := s.checkDocument(doc, overlay); recoveryErr == nil && recovered.Program != nil {
 			signature, found = s.goValueMethodSignature(recovered, doc, context)
 		}
 	}

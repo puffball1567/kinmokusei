@@ -60,6 +60,13 @@ Omitted GOOS/GOARCH resolve to compiler-host values, not ambient process overrid
 
 ## Dependencies and replacements
 
+For external `.km` libraries, `[package]` declares the public entry, minimum
+Kinmokusei version, backend and license identifier; `[exports]` maps named
+submodules to source files. `[dependencies]` records exact source-package versions
+and `[replace]` declares consumer-owned local overrides, including sibling paths.
+These are separate from the existing Go dependency/replacement sections below.
+See [external source packages](../guide/external-packages) for the format and workflow.
+
 Dependencies require complete versions, including complete pseudo-versions. Initial replacements are project-relative local paths inside the project root and must correspond to declared dependencies.
 
 Only explicit dependency commands may resolve or mutate the graph. Normal compilation validates the lock and uses the graph read-only/offline.
@@ -76,6 +83,11 @@ The canonical lock records:
 - recognized root license-file paths and hashes.
 
 It contains no machine-specific absolute paths. Modified or missing generated module/lock/license files are validation errors.
+
+Schema 4 additionally records source-package edges, hashes and license identifiers,
+and includes the Go module file contents needed by `deps fetch`. Existing Go-only
+schema 3 locks remain readable. Fetch verifies and restores the locked graph;
+it does not re-resolve versions or modify the lock.
 
 ## License inventory
 

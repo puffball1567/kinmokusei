@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
-	"github.com/puffball1567/kinmokusei/internal/compiler"
 	"github.com/puffball1567/kinmokusei/internal/lexer"
 	"github.com/puffball1567/kinmokusei/internal/source"
 	"github.com/puffball1567/kinmokusei/internal/token"
@@ -241,7 +240,7 @@ func (s *Server) analyze(doc document) *ast.Program {
 	for _, open := range s.documents {
 		overlay[open.Path] = open.Text
 	}
-	result, err := compiler.CheckFilesWithOverlay([]string{doc.Path}, overlay)
+	result, err := s.checkDocument(doc, overlay)
 	if err != nil || result.Program == nil {
 		return &ast.Program{}
 	}
