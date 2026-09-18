@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Retain external-package editor context from workspace folders, including legacy
+  initialization roots, without requiring an open consumer document. Handle
+  workspace additions/removals with refreshed diagnostics and stale-request
+  suppression. Restore definition, hover and document symbols for fields declared
+  through constructor parameters, including generic classes.
+
 - Resolve external libraries' Go imports from their public source graph rather
   than every file in the checkout. Follow imports, re-exports and public
   submodules; ignore unrelated samples and unfinished tests. Diagnose reachable

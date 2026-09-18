@@ -136,6 +136,9 @@ contents requires the same checkouts.
 The compiler and LSP use the same resolver. Diagnostics, completion and
 definition navigation retain external source locations, while generated symbol
 identities use module-relative names rather than machine-specific cache paths.
+The consuming project can supply this context as an editor workspace folder;
+its source files do not need to stay open. Workspace changes refresh diagnostics
+without acquiring dependencies. See [editor setup](editor).
 
 ## Update, inspect and restore
 

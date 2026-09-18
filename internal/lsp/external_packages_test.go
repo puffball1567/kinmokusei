@@ -75,7 +75,12 @@ func TestExternalPackageEditor(t *testing.T) {
 
 func serveExternalPackageMessages(t *testing.T, requests ...string) map[float64]map[string]any {
 	t.Helper()
-	requests = append([]string{`{"jsonrpc":"2.0","id":1,"method":"initialize"}`}, requests...)
+	return serveExternalPackageMessagesInitialized(t, `{"jsonrpc":"2.0","id":1,"method":"initialize"}`, requests...)
+}
+
+func serveExternalPackageMessagesInitialized(t *testing.T, initialize string, requests ...string) map[float64]map[string]any {
+	t.Helper()
+	requests = append([]string{initialize}, requests...)
 	requests = append(requests, `{"jsonrpc":"2.0","id":900,"method":"shutdown"}`, `{"jsonrpc":"2.0","method":"exit"}`)
 	var output bytes.Buffer
 	if err := Serve(strings.NewReader(framed(requests...)), &output); err != nil {
