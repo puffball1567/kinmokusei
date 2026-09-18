@@ -9,6 +9,15 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support indexing and slicing type parameters with a common underlying slice,
+  array, array-pointer, map, or string shape. Preserve named/parameter slice and
+  string results, source OOP/nullability contracts, addressability, checked map
+  lookups, bounds diagnostics, and Go runtime aliasing/panic/evaluation behavior.
+  Diagnose overflowing or fractional constant map keys before Go generation,
+  including ordinary and named maps. Add independent Go comparisons, editor
+  tests, fuzz seeds, and executable documentation. Mixed underlying collection
+  shapes remain unsupported for these operations.
+
 ## [0.4.0] - 2026-09-18
 
 - Share Result error-use tracking with lazy global arrow analysis, preventing
