@@ -15,8 +15,16 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   lookups, bounds diagnostics, and Go runtime aliasing/panic/evaluation behavior.
   Diagnose overflowing or fractional constant map keys before Go generation,
   including ordinary and named maps. Add independent Go comparisons, editor
-  tests, fuzz seeds, and executable documentation. Mixed underlying collection
-  shapes remain unsupported for these operations.
+  tests, fuzz seeds, and executable documentation.
+
+- Extend generic indexing to mixed array lengths, slices, and array pointers
+  with identical element types. Support read-only byte indexing and two-index
+  slicing over string/byte-slice unions, preserving the operand type. Check
+  bounds against every possible array length and retain source nullability
+  through generic method specialization and constraint argument validation.
+  Reject incompatible nullable fields nested in object element contracts,
+  including common-shape constraints.
+  Add independent Go runtime comparisons, editor tests, and executable examples.
 
 ## [0.4.0] - 2026-09-18
 

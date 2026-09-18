@@ -258,9 +258,14 @@ After v0.4.0, common-underlying-shape type parameters also support direct
 indexing and slicing, including writes, checked map lookup, source OOP/nullable
 elements, and named slice/string result identity. Runtime aliasing, bounds,
 evaluation order and nil behavior are compared with Go in
-`generic_index_slice_test.go`. Mixed underlying shapes that Go may permit for
-indexing or slicing still need separate operation-specific analysis; the common
-range shape is not sufficient for those cases.
+`generic_index_slice_test.go`. Operation-specific analysis now also supports
+indexing unions of arrays, slices, and array pointers with identical elements,
+plus read-only byte indexing and two-index slicing of string/byte-slice unions.
+`mixed_generic_collections_test.go` compares array copy versus pointer/slice
+mutation, OOP elements, named text results, evaluation order, bounds and nil
+panics with Go. Array/slice unions are still not sliceable under Go 1.23;
+different element contracts and map/non-map indexing remain rejected. This
+does not broaden range, append, or copy to those mixed shapes.
 
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|

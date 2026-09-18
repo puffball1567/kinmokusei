@@ -24,9 +24,21 @@ string byte cannot be assigned:
 
 <<< ../snippets-invalid/generic-string-index-write.km{ts}
 
-Mixed underlying shapes remain unsupported, including unions of arrays with
-slices or strings with byte slices. Dynamic index/slice bounds retain Go panics;
-constant bounds and unrepresentable numeric map keys are checked before emission.
+Indexing also accepts unions of arrays (including different lengths), slices,
+and array pointers with identical element types. String/byte-slice unions
+support read-only byte indexing and two-index slicing that retains the input
+type. Array/slice unions cannot be sliced under the Go 1.23 baseline:
+
+<<< ../snippets/mixed-generic-collections.km{ts}
+
+A constraint containing strings cannot support writes or three-index slicing:
+
+<<< ../snippets-invalid/mixed-text-full-slice.km{ts}
+
+Dynamic index/slice bounds retain Go panics; constant bounds are checked against
+every array alternative. Unrepresentable numeric map keys and mismatched nullable
+element contracts are checked before emission. Specify generic arguments where
+the mixed constraint cannot infer the element type.
 
 ## Project tree
 
