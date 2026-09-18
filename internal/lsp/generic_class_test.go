@@ -31,6 +31,8 @@ function use(value: string): string {
 		requestAt("textDocument/rename", 5, uri, positionOf(text, "T", 2), `"newName":"Value"`),
 		requestAt("textDocument/definition", 6, uri, positionOf(text, "Box", 1), ""),
 		symbolsRequest,
+		requestAt("textDocument/definition", 8, uri, positionOf(text, "value;", 0), ""),
+		requestAt("textDocument/hover", 9, uri, positionOf(text, "value;", 0), ""),
 	)
 	hover := messages[2]["result"].(map[string]any)["contents"].(map[string]any)["value"].(string)
 	if !strings.Contains(hover, "class Box<T>") {
@@ -53,8 +55,20 @@ function use(value: string): string {
 	}
 	symbols := messages[7]["result"].([]any)
 	boxSymbol := symbols[0].(map[string]any)
-	if boxSymbol["detail"] != "class Box<T>" || len(boxSymbol["children"].([]any)) != 4 {
+	if boxSymbol["detail"] != "class Box<T>" || len(boxSymbol["children"].([]any)) != 5 {
 		t.Fatalf("generic class symbol = %#v", boxSymbol)
+	}
+	field := boxSymbol["children"].([]any)[1].(map[string]any)
+	if field["name"] != "value" || field["kind"] != float64(8) || field["detail"] != "value: T" {
+		t.Fatalf("constructor parameter field symbol=%v", field)
+	}
+	fieldDefinition := messages[8]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if fieldDefinition["line"] != float64(1) || fieldDefinition["character"] != float64(21) {
+		t.Fatalf("constructor parameter field definition=%v", fieldDefinition)
+	}
+	fieldHover := messages[9]["result"].(map[string]any)["contents"].(map[string]any)["value"].(string)
+	if !strings.Contains(fieldHover, "value: T") {
+		t.Fatalf("constructor parameter field hover=%s", fieldHover)
 	}
 
 	completionText := strings.Replace(text, "box.set(value);", "box.;", 1)

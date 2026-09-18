@@ -5,17 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
-	"github.com/puffball1567/kinmokusei/internal/lexer"
-	"github.com/puffball1567/kinmokusei/internal/parser"
 	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
@@ -176,67 +172,6 @@ func ValidateLockedFiles(root string) (Manifest, Lock, error) {
 		return Manifest{}, Lock{}, fmt.Errorf("locked go.sum was modified; run %s deps lock", product.CommandName)
 	}
 	return manifest, lock, nil
-}
-
-func writeDependencyProbe(root, directory string, graphs ...*PackageGraph) error {
-	imports := map[string]bool{}
-	roots := []string{root}
-	var graph *PackageGraph
-	if len(graphs) != 0 {
-		graph = graphs[0]
-		roots = append(roots, graph.SourceDirectories()...)
-	}
-	for _, root := range roots {
-		err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			if entry.IsDir() {
-				if path != root && entry.Name() == product.StateDirectoryName {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !product.IsSourceExtension(filepath.Ext(path)) {
-				return nil
-			}
-			contents, readErr := os.ReadFile(path)
-			if readErr != nil {
-				return readErr
-			}
-			tokens, _ := lexer.Lex(path, string(contents))
-			program, _ := parser.Parse(tokens)
-			for _, imported := range program.Imports {
-				if imported.Go {
-					if graph != nil {
-						if err := graph.ValidateGoImport(path, imported.Path); err != nil {
-							return err
-						}
-					}
-					imports[imported.Path] = true
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-	paths := make([]string, 0, len(imports))
-	for path := range imports {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	var source strings.Builder
-	source.WriteString("package kinmokuseidependencies\n")
-	if len(paths) != 0 {
-		source.WriteString("\nimport (\n")
-		for _, path := range paths {
-			fmt.Fprintf(&source, "\t_ %s\n", strconv.Quote(path))
-		}
-		source.WriteString(")\n")
-	}
-	return os.WriteFile(filepath.Join(directory, "kinmokusei_dependencies.go"), []byte(source.String()), 0o644)
 }
 
 func readGoModRequirements(directory string, target BuildTarget) (map[string]string, error) {

@@ -161,15 +161,6 @@ func mapValues(values map[string]string) []string {
 	return result
 }
 
-func (g *PackageGraph) SourceDirectories() []string {
-	var result []string
-	for _, pkg := range g.Packages {
-		result = append(result, pkg.Directory)
-	}
-	sort.Strings(result)
-	return result
-}
-
 func (g *PackageGraph) GoManifest() (Manifest, error) {
 	result := g.Root
 	result.Dependencies = map[string]string{}

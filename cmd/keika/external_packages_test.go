@@ -14,12 +14,13 @@ func TestExternalPackageCLIWorkflow(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "app")
 	files := map[string]string{
-		"app/kinmokusei.toml":     "[project]\nname = \"app\"\nversion = \"0.1.0\"\ngo-module = \"app.test/main\"\ngo-version = \"1.23\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n[go.replacements]\n\"go.test/helper\" = \"./helper\"\n",
-		"app/helper/go.mod":       "module go.test/helper\n\ngo 1.23\n",
-		"app/helper/helper.go":    "package helper\nfunc Message()string{return \"external command works\"}\n",
-		"app/main.km":             `import {Command} from "pkg.test/command";import go {Println} from "fmt";function main():void{Println(new Command().run());}`,
-		"command/kinmokusei.toml": "[project]\nname = \"command\"\nversion = \"0.1.0\"\ngo-module = \"pkg.test/command\"\ngo-version = \"1.23\"\n[package]\nentry = \"index.km\"\nmin-kinmokusei = \"0.4.0\"\nbackend = \"go\"\nlicense = \"MIT\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n",
-		"command/index.km":        `import go helper from "go.test/helper";export class Command{public function run():string{return helper.Message();}}`,
+		"app/kinmokusei.toml":              "[project]\nname = \"app\"\nversion = \"0.1.0\"\ngo-module = \"app.test/main\"\ngo-version = \"1.23\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n[go.replacements]\n\"go.test/helper\" = \"./helper\"\n",
+		"app/helper/go.mod":                "module go.test/helper\n\ngo 1.23\n",
+		"app/helper/helper.go":             "package helper\nfunc Message()string{return \"external command works\"}\n",
+		"app/main.km":                      `import {Command} from "pkg.test/command";import go {Println} from "fmt";function main():void{Println(new Command().run());}`,
+		"command/kinmokusei.toml":          "[project]\nname = \"command\"\nversion = \"0.1.0\"\ngo-module = \"pkg.test/command\"\ngo-version = \"1.23\"\n[package]\nentry = \"index.km\"\nmin-kinmokusei = \"0.4.0\"\nbackend = \"go\"\nlicense = \"MIT\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n",
+		"command/index.km":                 `import go helper from "go.test/helper";export class Command{public function run():string{return helper.Message();}}`,
+		"command/examples/unconfigured.km": `import go sample from "missing.test/sample";`,
 	}
 	for name, contents := range files {
 		file := filepath.Join(base, filepath.FromSlash(name))
