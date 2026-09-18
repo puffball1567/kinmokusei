@@ -382,13 +382,23 @@ func CheckFiles(paths []string) (Result, error) {
 // source text for matching files. Overlay keys may be relative or absolute and
 // are normalized in the same way as module paths.
 func CheckFilesWithOverlay(paths []string, overlay map[string]string) (Result, error) {
+	return CheckFilesWithOverlayInProject(paths, overlay, "")
+}
+
+// CheckFilesWithOverlayInProject lets editor analysis retain the consuming
+// project's lock/target when navigating into a dependency's source document.
+func CheckFilesWithOverlayInProject(paths []string, overlay map[string]string, projectRoot string) (Result, error) {
 	ordered := append([]string(nil), paths...)
 	sort.Strings(ordered)
 	var lockedRoot string
 	var lockedTarget *project.BuildTarget
+	var packages *project.PackageGraph
 	allowUnsafeGo := false
 	if len(ordered) != 0 {
 		root, found, rootErr := project.FindRoot(ordered[0])
+		if projectRoot != "" {
+			root, found, rootErr = projectRoot, true, nil
+		}
 		if rootErr != nil {
 			return Result{}, rootErr
 		}
@@ -401,6 +411,10 @@ func CheckFilesWithOverlay(paths []string, overlay map[string]string) (Result, e
 			target := lock.Target
 			lockedTarget = &target
 			allowUnsafeGo = manifest.AllowsUnsafeGoInterop()
+			packages, lockErr = project.ReadPackageGraph(manifest, lock)
+			if lockErr != nil {
+				return Result{}, lockErr
+			}
 		}
 	}
 	normalizedOverlay := make(map[string]string, len(overlay))
@@ -424,6 +438,7 @@ func CheckFilesWithOverlay(paths []string, overlay map[string]string) (Result, e
 		merged:   &ast.Program{},
 		linkBase: linkBase,
 		overlay:  normalizedOverlay,
+		packages: packages,
 	}
 	for _, path := range ordered {
 		if err := loader.load(filepath.Clean(path), nil); err != nil {
@@ -475,6 +490,7 @@ type moduleLoader struct {
 	diagnostics []diagnostic.Diagnostic
 	linkBase    string
 	overlay     map[string]string
+	packages    *project.PackageGraph
 }
 
 func (l *moduleLoader) load(path string, importedBy *ast.ImportDecl) error {

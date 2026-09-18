@@ -32,7 +32,7 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	if member {
 		overlay[doc.Path] = memberCompletionAnalysisText(doc.Text, offset, prefix)
 	}
-	result, err := compiler.CheckFilesWithOverlay([]string{doc.Path}, overlay)
+	result, err := s.checkDocument(doc, overlay)
 	if err != nil || result.Program == nil {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: []completionItem{}})
 	}

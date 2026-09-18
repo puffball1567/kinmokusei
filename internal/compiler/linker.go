@@ -250,7 +250,9 @@ func topLevelName(declaration ast.Declaration) string {
 
 func (l *moduleLoader) linkedModuleName(path, name string) string {
 	stablePath := path
-	if l.linkBase != "" {
+	if l.packages != nil && l.packages.SourceIdentity(path) != "" {
+		stablePath = l.packages.SourceIdentity(path)
+	} else if l.linkBase != "" {
 		if relative, err := filepath.Rel(l.linkBase, path); err == nil {
 			stablePath = relative
 		}

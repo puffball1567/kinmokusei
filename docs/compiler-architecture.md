@@ -71,6 +71,14 @@ baseline for accepted constructs with a Go equivalent.
 
 ### Name resolution
 
+- External source package graphs live in `internal/project/package_*.go`, separate
+  from Go dependency resolution. Dependency operations acquire immutable tagged
+  sources; compilation and LSP only validate/read their lock. The module loader
+  resolves declared package entries and submodules through the same source-export
+  machinery as relative imports. Consumer-owned local overrides are explicit;
+  dependency manifests cannot authorize sibling filesystem access. Link identities
+  use the public module path plus source-relative path, never absolute cache paths.
+
 - Distinguish files, modules, and packages.
 - Reject relative import cycles.
 - Resolve public/private names before mapping them to Go capitalization.

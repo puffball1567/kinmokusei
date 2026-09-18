@@ -54,6 +54,14 @@ func LockDependencies(root string, offline bool) (Lock, error) {
 	if err != nil {
 		return Lock{}, err
 	}
+	packages, err := ResolvePackageGraph(manifest, target, offline)
+	if err != nil {
+		return Lock{}, err
+	}
+	goManifest, err := packages.GoManifest()
+	if err != nil {
+		return Lock{}, err
+	}
 	stateDirectory := filepath.Join(manifest.Root, product.StateDirectoryName)
 	if err = os.MkdirAll(stateDirectory, 0o755); err != nil {
 		return Lock{}, fmt.Errorf("cannot create dependency state directory: %w", err)
@@ -63,14 +71,14 @@ func LockDependencies(root string, offline bool) (Lock, error) {
 		return Lock{}, err
 	}
 	defer os.RemoveAll(temporary)
-	goMod, err := RenderGoMod(manifest, temporary)
+	goMod, err := RenderGoMod(goManifest, temporary)
 	if err != nil {
 		return Lock{}, err
 	}
 	if err = os.WriteFile(filepath.Join(temporary, "go.mod"), goMod, 0o644); err != nil {
 		return Lock{}, err
 	}
-	if err = writeDependencyProbe(manifest.Root, temporary); err != nil {
+	if err = writeDependencyProbe(manifest.Root, temporary, packages); err != nil {
 		return Lock{}, fmt.Errorf("cannot inspect project Go imports: %w", err)
 	}
 	if err = runGo(temporary, offline, target, "mod", "tidy"); err != nil {
@@ -80,7 +88,7 @@ func LockDependencies(root string, offline bool) (Lock, error) {
 	if err != nil {
 		return Lock{}, fmt.Errorf("cannot read resolved Go requirements: %w", err)
 	}
-	goMod, err = RenderResolvedGoMod(manifest, requirements, temporary)
+	goMod, err = RenderResolvedGoMod(goManifest, requirements, temporary)
 	if err != nil {
 		return Lock{}, err
 	}
@@ -98,7 +106,7 @@ func LockDependencies(root string, offline bool) (Lock, error) {
 	if err != nil {
 		return Lock{}, err
 	}
-	if err = validateDirectDependencies(manifest, locked); err != nil {
+	if err = validateDirectDependencies(goManifest, locked); err != nil {
 		return Lock{}, err
 	}
 	goMod, err = os.ReadFile(filepath.Join(temporary, "go.mod"))
@@ -110,6 +118,7 @@ func LockDependencies(root string, offline bool) (Lock, error) {
 		return Lock{}, err
 	}
 	lock := manifest.NewLock(goMod, goSum, target, locked)
+	lock.Packages = packages.LockedPackages()
 	dependencyDirectory := product.DependencyDirectory(manifest.Root)
 	if err = os.MkdirAll(dependencyDirectory, 0o755); err != nil {
 		return Lock{}, err
@@ -169,36 +178,49 @@ func ValidateLockedFiles(root string) (Manifest, Lock, error) {
 	return manifest, lock, nil
 }
 
-func writeDependencyProbe(root, directory string) error {
+func writeDependencyProbe(root, directory string, graphs ...*PackageGraph) error {
 	imports := map[string]bool{}
-	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if path != root && entry.Name() == product.StateDirectoryName {
-				return filepath.SkipDir
+	roots := []string{root}
+	var graph *PackageGraph
+	if len(graphs) != 0 {
+		graph = graphs[0]
+		roots = append(roots, graph.SourceDirectories()...)
+	}
+	for _, root := range roots {
+		err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if path != root && entry.Name() == product.StateDirectoryName {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !product.IsSourceExtension(filepath.Ext(path)) {
+				return nil
+			}
+			contents, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			tokens, _ := lexer.Lex(path, string(contents))
+			program, _ := parser.Parse(tokens)
+			for _, imported := range program.Imports {
+				if imported.Go {
+					if graph != nil {
+						if err := graph.ValidateGoImport(path, imported.Path); err != nil {
+							return err
+						}
+					}
+					imports[imported.Path] = true
+				}
 			}
 			return nil
+		})
+		if err != nil {
+			return err
 		}
-		if !product.IsSourceExtension(filepath.Ext(path)) {
-			return nil
-		}
-		contents, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		tokens, _ := lexer.Lex(path, string(contents))
-		program, _ := parser.Parse(tokens)
-		for _, imported := range program.Imports {
-			if imported.Go {
-				imports[imported.Path] = true
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 	paths := make([]string, 0, len(imports))
 	for path := range imports {
@@ -241,6 +263,9 @@ func CheckDependencies(root string) error {
 	if err != nil {
 		return err
 	}
+	if _, err := ReadPackageGraph(manifest, lock); err != nil {
+		return err
+	}
 	modules, err := listModules(product.DependencyDirectory(manifest.Root), true, lock.Target)
 	if err != nil {
 		return fmt.Errorf("locked Go module graph is unavailable offline: %w", err)
@@ -262,7 +287,7 @@ func listModules(directory string, offline bool, target BuildTarget) ([]listedMo
 	command.Dir = directory
 	command.Env = target.Environment(command.Environ())
 	if offline {
-		command.Env = environmentWith(command.Env, "GOPROXY", "off")
+		command.Env = OfflineEnvironment(command.Env)
 	}
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
@@ -420,7 +445,7 @@ func runGo(directory string, offline bool, target BuildTarget, arguments ...stri
 	command.Dir = directory
 	command.Env = target.Environment(command.Environ())
 	if offline {
-		command.Env = environmentWith(command.Env, "GOPROXY", "off")
+		command.Env = OfflineEnvironment(command.Env)
 	}
 	output, err := command.CombinedOutput()
 	if err != nil {

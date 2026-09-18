@@ -125,10 +125,47 @@ func runTarget(args []string) int {
 
 func runDeps(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "deps requires a subcommand: lock, check, add, remove, update or licenses")
+		fmt.Fprintln(os.Stderr, "deps requires a subcommand: lock, fetch, check, list, add, remove, update or licenses")
 		return 2
 	}
 	switch args[0] {
+	case "fetch":
+		flags := flag.NewFlagSet("deps fetch", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		offline := flags.Bool("offline", false, "restore only from cached packages")
+		if err := flags.Parse(args[1:]); err != nil {
+			return 2
+		}
+		root, ok := dependencyRoot(flags.Args())
+		if !ok {
+			return 2
+		}
+		if err := project.FetchDependencies(root, *offline); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
+	case "list":
+		root, ok := dependencyRoot(args[1:])
+		if !ok {
+			return 2
+		}
+		if err := project.CheckDependencies(root); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		lock, err := project.ReadLock(root)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		for _, pkg := range lock.Packages {
+			fmt.Fprintf(os.Stdout, "kinmokusei\t%s\t%s\n", pkg.Path, pkg.Version)
+		}
+		for _, module := range lock.Modules {
+			fmt.Fprintf(os.Stdout, "go\t%s\t%s\n", module.Path, module.Version)
+		}
+		return 0
 	case "lock":
 		flags := flag.NewFlagSet("deps lock", flag.ContinueOnError)
 		flags.SetOutput(os.Stderr)
@@ -177,7 +214,7 @@ func runDeps(args []string) int {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		if err = project.AddDependency(root, path, version, *replacement, *offline); err != nil {
+		if err = project.AddAutoDependency(root, path, version, *replacement, *offline); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -204,6 +241,23 @@ func runDeps(args []string) int {
 		offline := flags.Bool("offline", false, "resolve only from the existing Go module cache")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 2
+		}
+		if flags.NArg() == 0 || !strings.Contains(flags.Arg(0), "@") {
+			selected := ""
+			rootArgs := []string{}
+			if flags.NArg() > 0 {
+				selected = flags.Arg(0)
+				rootArgs = flags.Args()[1:]
+			}
+			root, ok := dependencyRoot(rootArgs)
+			if !ok {
+				return 2
+			}
+			if err := project.UpdateSourcePackages(root, selected, *offline); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			return 0
 		}
 		dependency, root, ok := dependencyAndRoot("update", flags.Args())
 		if !ok {
@@ -256,7 +310,7 @@ func runDeps(args []string) int {
 		}
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown deps subcommand %q; expected lock, check, add, remove, update or licenses\n", args[0])
+		fmt.Fprintf(os.Stderr, "unknown deps subcommand %q; expected lock, fetch, check, list, add, remove, update or licenses\n", args[0])
 		return 2
 	}
 }
@@ -318,16 +372,21 @@ func runBuild(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
-	if flags.NArg() == 0 {
+	sources, sourceErr := projectSources(flags.Args())
+	if sourceErr != nil {
+		fmt.Fprintln(os.Stderr, sourceErr)
+		return 1
+	}
+	if len(sources) == 0 {
 		fmt.Fprintf(os.Stderr, "build requires at least one %s source file\n", product.SourceExtension)
 		return 2
 	}
-	target, hasTarget, err := lockedTargetForSources(flags.Args())
+	target, hasTarget, err := lockedTargetForSources(sources)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	generatedDirectory, diagnostics, err := compiler.WriteGeneratedModule(flags.Args(), "main")
+	generatedDirectory, diagnostics, err := compiler.WriteGeneratedModule(sources, "main")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -348,6 +407,7 @@ func runBuild(args []string) int {
 	arguments = append(arguments, "-mod=readonly", "-buildvcs=false", "-o", absoluteOutput, ".")
 	command := exec.Command("go", arguments...)
 	command.Dir = generatedDirectory
+	command.Env = project.OfflineEnvironment(command.Environ())
 	if hasTarget {
 		command.Env = target.Environment(command.Environ())
 	}
@@ -365,11 +425,16 @@ func runGenerated(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
-	if flags.NArg() == 0 {
+	sources, sourceErr := projectSources(flags.Args())
+	if sourceErr != nil {
+		fmt.Fprintln(os.Stderr, sourceErr)
+		return 1
+	}
+	if len(sources) == 0 {
 		fmt.Fprintf(os.Stderr, "run requires at least one %s source file\n", product.SourceExtension)
 		return 2
 	}
-	target, hasTarget, err := lockedTargetForSources(flags.Args())
+	target, hasTarget, err := lockedTargetForSources(sources)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -378,7 +443,7 @@ func runGenerated(args []string) int {
 		fmt.Fprintf(os.Stderr, "cannot run cross target %s/%s on this host; use build instead\n", target.GOOS, target.GOARCH)
 		return 1
 	}
-	generatedDirectory, diagnostics, err := compiler.WriteGeneratedModule(flags.Args(), "main")
+	generatedDirectory, diagnostics, err := compiler.WriteGeneratedModule(sources, "main")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -394,6 +459,7 @@ func runGenerated(args []string) int {
 	arguments = append(arguments, "-mod=readonly", "-buildvcs=false", ".")
 	command := exec.Command("go", arguments...)
 	command.Dir = generatedDirectory
+	command.Env = project.OfflineEnvironment(command.Environ())
 	if hasTarget {
 		command.Env = target.Environment(command.Environ())
 	}
@@ -413,14 +479,18 @@ func runCheck(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
-	if flags.NArg() == 0 {
+	sources, sourceErr := projectSources(flags.Args())
+	if sourceErr != nil {
+		return finishCheck(*jsonOutput, nil, sourceErr)
+	}
+	if len(sources) == 0 {
 		fmt.Fprintf(os.Stderr, "check requires at least one %s source file\n", product.SourceExtension)
 		return 2
 	}
-	if err := validateProjectDependencies(flags.Args()); err != nil {
+	if err := validateProjectDependencies(sources); err != nil {
 		return finishCheck(*jsonOutput, nil, err)
 	}
-	result, err := compiler.CheckFiles(flags.Args())
+	result, err := compiler.CheckFiles(sources)
 	if err != nil {
 		return finishCheck(*jsonOutput, nil, err)
 	}
@@ -500,15 +570,20 @@ func runEmitGo(args []string) int {
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
-	if flags.NArg() == 0 {
+	sources, sourceErr := projectSources(flags.Args())
+	if sourceErr != nil {
+		fmt.Fprintln(os.Stderr, sourceErr)
+		return 1
+	}
+	if len(sources) == 0 {
 		fmt.Fprintf(os.Stderr, "emit-go requires at least one %s source file\n", product.SourceExtension)
 		return 2
 	}
-	if err := validateProjectDependencies(flags.Args()); err != nil {
+	if err := validateProjectDependencies(sources); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	generated, diagnostics, err := compiler.EmitGo(flags.Args(), *packageName)
+	generated, diagnostics, err := compiler.EmitGo(sources, *packageName)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

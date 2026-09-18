@@ -23,6 +23,22 @@ func RenderManifest(manifest Manifest) ([]byte, error) {
 	fmt.Fprintf(&result, "version = %s\n", strconv.Quote(manifest.Project.Version))
 	fmt.Fprintf(&result, "go-module = %s\n", strconv.Quote(manifest.Project.GoModule))
 	fmt.Fprintf(&result, "go-version = %s\n", strconv.Quote(manifest.Project.GoVersion))
+	if manifest.Package.Entry != "" {
+		result.WriteString("\n[package]\n")
+		fmt.Fprintf(&result, "entry = %q\nmin-kinmokusei = %q\nbackend = %q\nlicense = %q\n", manifest.Package.Entry, manifest.Package.MinimumVersion, manifest.Package.Backend, manifest.Package.License)
+	}
+	for _, section := range []struct {
+		name   string
+		values map[string]string
+	}{{"exports", manifest.Exports}, {"dependencies", manifest.Packages}, {"replace", manifest.PackageReplacements}} {
+		if len(section.values) == 0 {
+			continue
+		}
+		fmt.Fprintf(&result, "\n[%s]\n", section.name)
+		for _, key := range sortedKeys(section.values) {
+			fmt.Fprintf(&result, "%q = %q\n", key, section.values[key])
+		}
+	}
 	if manifest.Target.GOOS != "" || manifest.Target.GOARCH != "" || manifest.Target.CGO != "" || len(manifest.Target.Tags) != 0 {
 		result.WriteString("\n[target]\n")
 		if manifest.Target.GOOS != "" {
@@ -94,6 +110,11 @@ func RemoveDependency(root, path string, offline bool) error {
 	if err != nil {
 		return err
 	}
+	if _, exists := manifest.Packages[path]; exists {
+		delete(manifest.Packages, path)
+		delete(manifest.PackageReplacements, path)
+		return commitManifestAndLock(manifest, offline)
+	}
 	if _, exists := manifest.Dependencies[path]; !exists {
 		return fmt.Errorf("Go dependency %q is not declared", path)
 	}
@@ -106,6 +127,10 @@ func UpdateDependency(root, path, version string, offline bool) error {
 	manifest, err := ReadManifest(root)
 	if err != nil {
 		return err
+	}
+	if _, exists := manifest.Packages[path]; exists {
+		manifest.Packages[path] = version
+		return commitManifestAndLock(manifest, offline)
 	}
 	current, exists := manifest.Dependencies[path]
 	if !exists {

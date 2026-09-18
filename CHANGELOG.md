@@ -9,6 +9,16 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add external Kinmokusei source packages with package metadata, explicit entry
+  and submodule exports, exact direct/transitive dependencies, consumer-owned
+  sibling replacements, tagged Go-module acquisition, and locked content hashes.
+  Integrate ordinary imports with checking, Go emission, builds, execution and
+  LSP completion/navigation. Keep local source edits live and generated names
+  independent of checkout/cache locations. Add dependency listing, source-package
+  updates and lock-preserving fetch; default project commands to their entry.
+  Schema 4 locks retain readable Go-only schema 3 compatibility. Normal builds
+  and editor analysis disable private VCS and automatic toolchain downloads too.
+
 - Support indexing and slicing type parameters with a common underlying slice,
   array, array-pointer, map, or string shape. Preserve named/parameter slice and
   string results, source OOP/nullability contracts, addressability, checked map

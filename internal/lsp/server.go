@@ -17,7 +17,6 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/puffball1567/kinmokusei/internal/compiler"
 	"github.com/puffball1567/kinmokusei/internal/diagnostic"
 	"github.com/puffball1567/kinmokusei/internal/product"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -606,7 +605,7 @@ func (s *Server) publishFor(rootURI string) error {
 	for _, doc := range s.documents {
 		overlay[doc.Path] = doc.Text
 	}
-	result, checkErr := compiler.CheckFilesWithOverlay([]string{root.Path}, overlay)
+	result, checkErr := s.checkDocument(root, overlay)
 	grouped := map[string][]protocolDiagnostic{}
 	if checkErr != nil {
 		grouped[rootURI] = []protocolDiagnostic{{Range: protocolRange{}, Severity: 1, Source: product.CommandName, Message: checkErr.Error()}}
