@@ -34,14 +34,15 @@ func TestExternalSourcePackagesMatchIndependentGo(t *testing.T) {
 		}
 		root := filepath.Join(base, "app")
 		files := map[string]string{
-			"app/kinmokusei.toml":    externalManifest("external-source-packages.test", false) + "[dependencies]\n\"pkg.test/first\" = \"v0.1.0\"\n\"pkg.test/second\" = \"v0.1.0\"\n[replace]\n\"pkg.test/first\" = \"../first\"\n\"pkg.test/second\" = \"../second\"\n",
-			"first/kinmokusei.toml":  externalManifest("pkg.test/first", true) + "[exports]\n\"api\" = \"src/api.km\"\n",
-			"first/index.km":         `export {Box} from "./src/api";`,
-			"first/src/api.km":       `import {value} from "./value";export class Box{public function read():int{return value();}}`,
-			"first/src/value.km":     `export function value():int{return 20;}`,
-			"second/kinmokusei.toml": externalManifest("pkg.test/second", true),
-			"second/index.km":        `function value():int{return 22;}export function second():int{return value();}`,
-			"app/main.km":            `import {Box} from "pkg.test/first/api";import {second} from "pkg.test/second";export function Answer():int{return new Box().read()+second();}`,
+			"app/kinmokusei.toml":            externalManifest("external-source-packages.test", false) + "[dependencies]\n\"pkg.test/first\" = \"v0.1.0\"\n\"pkg.test/second\" = \"v0.1.0\"\n[replace]\n\"pkg.test/first\" = \"../first\"\n\"pkg.test/second\" = \"../second\"\n",
+			"first/kinmokusei.toml":          externalManifest("pkg.test/first", true) + "[exports]\n\"api\" = \"src/api.km\"\n",
+			"first/index.km":                 `export {Box} from "./src/api";`,
+			"first/src/api.km":               `import {value} from "./value";export class Box{public function read():int{return value();}}`,
+			"first/src/value.km":             `export function value():int{return 20;}`,
+			"first/examples/unconfigured.km": `import go sample from "missing.test/sample";`,
+			"second/kinmokusei.toml":         externalManifest("pkg.test/second", true),
+			"second/index.km":                `function value():int{return 22;}export function second():int{return value();}`,
+			"app/main.km":                    `import {Box} from "pkg.test/first/api";import {second} from "pkg.test/second";export function Answer():int{return new Box().read()+second();}`,
 		}
 		for name, source := range files {
 			file := filepath.Join(base, filepath.FromSlash(name))

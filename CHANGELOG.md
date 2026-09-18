@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Resolve external libraries' Go imports from their public source graph rather
+  than every file in the checkout. Follow imports, re-exports and public
+  submodules; ignore unrelated samples and unfinished tests. Diagnose reachable
+  source errors transactionally. Preserve shared local replacements when removing
+  direct dependencies and prune replacements that become unreachable.
+
 - Add external Kinmokusei source packages with package metadata, explicit entry
   and submodule exports, exact direct/transitive dependencies, consumer-owned
   sibling replacements, tagged Go-module acquisition, and locked content hashes.

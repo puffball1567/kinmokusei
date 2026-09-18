@@ -41,6 +41,14 @@ Internal files use relative imports. They are not automatically public:
 rejected. Relative imports cannot leave the library root, including through
 symlinks. Each library must declare its own external dependencies.
 
+Dependency operations inspect the library entry and every declared public
+submodule, following relative imports, source re-exports and declared source
+dependencies. Unreferenced examples, tests and nested projects do not contribute
+Go imports to the consuming build, including for replacements inside the
+application directory. Reachable missing files, import cycles and syntax errors
+are diagnosed before the new lock is written. Declared manifest dependencies
+remain part of the graph even when no public source imports them.
+
 For tagged distribution, include a `go.mod` with the same module path:
 
 ```go
@@ -145,6 +153,12 @@ package. Omitting the module updates all direct source dependencies. An exact
 version supports either upgrade or downgrade and remains the update form for
 Go dependencies. `--offline` requires cached exact versions; it does not discover
 the latest remote version.
+
+Removing a direct source dependency retains its local replacement if another
+dependency still needs it. With a matching lock, replacements for packages that
+become unreachable are removed together, without requiring their old checkouts
+to remain available. A failed dependency change restores the previous manifest
+and lock.
 
 `deps fetch` restores the graph recorded in the lock, including its Go module
 files, without changing the manifest or lock. This is the command to use after

@@ -112,7 +112,9 @@ func RemoveDependency(root, path string, offline bool) error {
 	}
 	if _, exists := manifest.Packages[path]; exists {
 		delete(manifest.Packages, path)
-		delete(manifest.PackageReplacements, path)
+		if !pruneRemovedPackageReplacements(&manifest) {
+			delete(manifest.PackageReplacements, path)
+		}
 		return commitManifestAndLock(manifest, offline)
 	}
 	if _, exists := manifest.Dependencies[path]; !exists {
@@ -261,7 +263,7 @@ func (snapshot dependencyStateSnapshot) restore() error {
 	return errors.Join(restoreErrors...)
 }
 
-func sortedKeys(values map[string]string) []string {
+func sortedKeys[V any](values map[string]V) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)

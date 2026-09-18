@@ -78,6 +78,11 @@ baseline for accepted constructs with a Go equivalent.
   machinery as relative imports. Consumer-owned local overrides are explicit;
   dependency manifests cannot authorize sibling filesystem access. Link identities
   use the public module path plus source-relative path, never absolute cache paths.
+  `dependency_probe.go` discovers external Go imports through public entries,
+  submodule exports and reachable source edges, not unrestricted directory scans.
+  Application-wide discovery remains separate. Dependency removal uses matching
+  locked edges to retain shared overrides and prune unreachable ones without
+  reading removed checkouts.
 
 - Distinguish files, modules, and packages.
 - Reject relative import cycles.
