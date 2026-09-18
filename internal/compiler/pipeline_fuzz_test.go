@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint S<E>=~E[]|~[2]E|~*[3]E;function f<E,T extends S<E>>(v:T,e:E):E{const p=&v[0];*p=e;return v[1];}`,
+	`constraint S=~string|~byte[];function f<T extends S>(v:T):T{const b:byte=v[0];return v[1:];}`,
+	`constraint S=~string|~byte[];function f<T extends S>(v:T):void{v[0]=1;}`,
+	`constraint S=~string|~byte[];function f<T extends S>(v:T):T{return v[0:1:2];}`,
+	`class C{}alias M=C|null;constraint S=~C[]|~[2]C;function f<T extends S>(v:T):C{return v[0];}const bad=(v:M[]):C=>f(v);`,
+	`class C{}alias M=C|null;constraint S<E>=~E[]|~[2]E;class A<E>{public function f<T extends S<E>>(v:T):E{return v[0];}}function f(v:M[]):M{return new A<M>().f<M[]>(v);}`,
 	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):E{return v[0];}`,
 	`constraint S<E>=~E[];function f<E,T extends S<E>>(v:T):T{return v[0:1:2];}`,
 	`constraint A<E>=~*[2]E;function f<E,T extends A<E>>(v:T):E[]{return v[:];}`,

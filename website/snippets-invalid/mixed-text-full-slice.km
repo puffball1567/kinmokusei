@@ -1,0 +1,5 @@
+constraint Text = ~string | ~byte[]
+
+function limit<T extends Text>(value: T): T {
+  return value[0:1:1]
+}

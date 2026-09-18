@@ -788,10 +788,27 @@ function first<E, S extends Slice<E>>(values: S): E { return values[0]; }
 function tail<E, S extends Slice<E>>(values: S): S { return values[1:]; }
 ```
 
-Constraints mixing different underlying shapes, such as slices with arrays or
-strings with byte slices, remain unsupported here even where Go permits the
-operation. This is distinct from mixed-shape support in `clear`, `delete`, and
-`len`/`cap`.
+Indexing also accepts unions of different array lengths, slices, and array
+pointers when every alternative has the identical element type. String terms
+can join byte collections, but then indexing is read-only and not addressable.
+An array alternative requires an addressable operand for writes; constant
+indices must fit every array alternative. Map and non-map terms cannot mix.
+
+```ts
+constraint Sequence<E> = ~E[] | ~[2]E | ~*[3]E;
+function head<E, S extends Sequence<E>>(values: S): E { return values[0]; }
+constraint Text = ~string | ~byte[];
+function suffix<T extends Text>(value: T): T { return value[1:]; }
+```
+
+Two-index slicing specially supports string/byte-slice unions and retains `T`.
+Three-index slicing is forbidden whenever the constraint includes strings.
+Other mixed shapes (such as array/slice unions) are not sliceable under the
+Go 1.23 baseline. All alternatives and supplied type arguments must preserve
+source element nullability; Go storage compatibility alone is insufficient.
+Mixed-shape indexing does not imply the same constraint supports range,
+append, copy, or slicing. Specify type arguments when inference cannot resolve
+the dependent element from the union.
 
 Explicit reverse conversion distinguishes copy and alias:
 

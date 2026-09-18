@@ -26,6 +26,8 @@ type ReverseOverlap interface{Ints|Exact}
 type AnyUnion interface{int|any}
 type Nothing interface{int;string}
 type Slice[E any] interface{~[]E}
+type Sequence[E any] interface{~[]E|~[2]E|~*[3]E}
+type Text interface{~string|~[]byte}
 type Pair[E any] interface{~[2]E}
 type IntSlice[E any] interface{~[]E;~[]int}
 type Lookup[K comparable,V any] interface{~map[K]V}
@@ -49,6 +51,10 @@ type Any = any
 		t.Fatal(err)
 	}
 	for _, test := range []struct{ name, source, want string }{
+		{"mixed imported sequence", `function f<E,T extends c.Sequence<E>>(v:T):E{return v[0];}`, ""},
+		{"mixed imported text", `function f<T extends c.Text>(v:T):T{const b:byte=v[0];return v[1:];}`, ""},
+		{"mixed wrapped nullable", `class C{public value:int=1;}constraint S<E>=c.Sequence<E>;function f<T extends S<C|null>>(v:T):int{return v[0].value;}`, "nullable"},
+		{"mixed wrapped nullable call", `class C{}alias M=C|null;constraint S<E>=c.Sequence<E>;function f<T extends S<C>>(v:T):C{return v[0];}function bad(v:M[]):C{return f(v);}`, "nullable type information"},
 		{"nested intersections", `constraint A=c.Nested&~int; function double<T extends A>(x:T):T{return x*2;} function use():int{return double(3);}`, ""},
 		{"excluded argument", `constraint A=c.Nested; function keep<T extends A>(x:T):T{return x;} function bad(x:int64):int64{return keep(x);}`, "does not satisfy"},
 		{"Go alias", `constraint A=c.Alias; function double<T extends A>(x:T):T{return x*2;}`, ""},

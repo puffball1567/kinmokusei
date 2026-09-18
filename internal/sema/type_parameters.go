@@ -210,7 +210,9 @@ func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs
 					valid = false
 					continue
 				}
-				if shape, ok := c.parameterRangeShape(parameter); ok && !sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index])) {
+				shape, hasShape := c.parameterRangeShape(parameter)
+				matchesShape := !hasShape || sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index]))
+				if !matchesShape || !c.collectionArgumentNullabilityMatches(parameter, arguments[index], nativeBindings) {
 					span := fallback
 					if index < len(refs) {
 						span = refs[index].Span

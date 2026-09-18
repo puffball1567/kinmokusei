@@ -400,6 +400,9 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 	if object.Kind == Invalid {
 		return object
 	}
+	if result, ok := c.checkMixedSequenceIndex(expr, object, index, checked); ok {
+		return result
+	}
 	switch object.Kind {
 	case Array:
 		c.checkSequenceIndex(expr.Index, index, -1, "array")
@@ -515,6 +518,9 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 	}
 	if object.Kind == Invalid {
 		return object
+	}
+	if c.checkMixedTextSlice(expr, object) {
+		return resultType
 	}
 	if object.Kind == Array {
 		c.checkSliceConstantBounds(expr, -1, "fixed array")
