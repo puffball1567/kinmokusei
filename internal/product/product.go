@@ -27,7 +27,7 @@ const (
 	DefaultExecutable   = CommandName + ".out"
 	// DevelopmentCompatibilityVersion is the minimum released language contract
 	// provided by an unversioned source build, for package requirements.
-	DevelopmentCompatibilityVersion = "0.4.0"
+	DevelopmentCompatibilityVersion = "0.4.1"
 )
 
 // LegacySourceExtensions lists source suffixes accepted for migration from

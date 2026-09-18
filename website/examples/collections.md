@@ -9,7 +9,7 @@ This recipe follows storage through a slice, an independent fixed-array copy, a 
 
 ## Generic indexing and slicing
 
-On the development branch after v0.4.0, a common underlying collection shape
+Since v0.4.1, a common underlying collection shape
 allows direct indexing and slicing inside generic functions. Returning a slice
 of `S` retains `S`, including named slice types; writing through that slice
 updates the original backing array. A full slice can restrict its capacity:
