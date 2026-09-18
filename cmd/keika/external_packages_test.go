@@ -108,6 +108,10 @@ func TestExternalPackageDefaultSources(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.Chdir(old)
+	root, err = os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	sources, err := projectSources(nil)
 	if err != nil || len(sources) != 1 || sources[0] != filepath.Join(root, "src", "index.km") {
 		t.Fatalf("sources=%v err=%v", sources, err)

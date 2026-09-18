@@ -53,7 +53,11 @@ func TestSourcePackageSymlinkBoundary(t *testing.T) {
 	if _, err := packageSourceFile(library, "escape.km"); err == nil || !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("export escape=%v", err)
 	}
-	graph := &PackageGraph{Packages: map[string]*SourcePackage{"pkg.test/lib": {Directory: library}}}
+	canonical, err := filepath.EvalSymlinks(library)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph := &PackageGraph{Packages: map[string]*SourcePackage{"pkg.test/lib": {Directory: canonical}}}
 	if err := graph.ValidateRelativeImport(filepath.Join(library, "index.km"), link); err == nil {
 		t.Fatal("relative symlink escape accepted")
 	}

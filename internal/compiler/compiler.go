@@ -424,6 +424,14 @@ func CheckFilesWithOverlayInProject(paths []string, overlay map[string]string, p
 			return Result{}, err
 		}
 		normalizedOverlay[filepath.Clean(absolute)] = input
+		// Package resolution returns canonical paths, while editors can open
+		// an alias (macOS /var, Windows short names, or a linked checkout).
+		// Retain the original key for spans and add its resolved alias too.
+		if resolved, err := filepath.EvalSymlinks(absolute); err == nil {
+			normalizedOverlay[resolved] = input
+		} else if parent, err := filepath.EvalSymlinks(filepath.Dir(absolute)); err == nil {
+			normalizedOverlay[filepath.Join(parent, filepath.Base(absolute))] = input
+		}
 	}
 	linkBase := ""
 	if len(ordered) != 0 {

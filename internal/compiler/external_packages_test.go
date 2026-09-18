@@ -24,6 +24,14 @@ func TestExternalSourcePackagesMatchIndependentGo(t *testing.T) {
 	var previous []byte
 	for attempt := 0; attempt < 2; attempt++ {
 		base := t.TempDir()
+		if attempt == 1 {
+			alias := filepath.Join(t.TempDir(), "checkout")
+			if err := os.Symlink(base, alias); err == nil {
+				base = alias
+			} else {
+				t.Logf("checkout symlink unavailable: %v", err)
+			}
+		}
 		root := filepath.Join(base, "app")
 		files := map[string]string{
 			"app/kinmokusei.toml":    externalManifest("external-source-packages.test", false) + "[dependencies]\n\"pkg.test/first\" = \"v0.1.0\"\n\"pkg.test/second\" = \"v0.1.0\"\n[replace]\n\"pkg.test/first\" = \"../first\"\n\"pkg.test/second\" = \"../second\"\n",
