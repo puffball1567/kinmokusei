@@ -50,6 +50,33 @@ All source arguments form one generated package. Relative imports may load addit
 
 ## Dependencies and projects
 
+### Project creation
+
+```text
+keika new app [--name name] [--module path] <directory>
+keika new library [--name name] [--module path] [--license identifier] <directory>
+```
+
+Available since v0.4.1. Options follow `app` or `library` and precede the
+destination. The project name defaults to the destination's basename and the
+module path to `example.com/<name>`. Both templates start at version `0.1.0`
+with Go `1.23` as their minimum. The library template also records the supported
+Kinmokusei version, Go backend, public entry and license metadata.
+
+Creation requires an installed Go toolchain and initializes the lock and local
+dependency state offline. It never downloads dependencies, initializes Git, or
+overwrites an existing destination, including empty directories and symlinks.
+The parent directory must exist. Preparation failures leave the destination
+absent; a failure during final publication reports and retains partial output.
+Success prints the created project location to stdout.
+
+Both templates write `kinmokusei.toml`, `kinmokusei.lock`, `.gitignore`, a README
+and `.kinmokusei/deps/` state. Apps include `main.km`; libraries include
+`index.km` and `go.mod`. `--license` is library-only and defaults to `UNLICENSED`;
+it records metadata without generating license text.
+
+### Dependency operations
+
 | Command | Purpose |
 | --- | --- |
 | `keika install --go-module [--offline] [--replace path] <module>@<version> [project]` | Add an exact Go module transactionally |

@@ -21,6 +21,27 @@ Each source file has its own scope. Only local declarations and explicitly impor
 
 ## Project layout
 
+Create a ready-to-run project (available since v0.4.1):
+
+```sh
+keika new app myapp
+cd myapp
+keika check
+keika run
+keika build
+```
+
+`new app` creates `main.km`, a manifest, an initial lock, a README and a
+`.gitignore`. It uses the installed Go toolchain without accessing the network.
+The destination must not exist, and its parent directory must already exist.
+
+For a reusable library, use `keika new library mylib`. It creates an exported
+`greet` function in `index.km`, package metadata and a matching `go.mod`.
+Choose a publishing module path with
+`keika new library --module example.com/greeting mylib`. Options go between the
+template name and the destination. See [external source packages](./external-packages)
+for local replacement and publication.
+
 ```text
 hello-api/
 ├── kinmokusei.toml
@@ -29,7 +50,7 @@ hello-api/
 └── users.km
 ```
 
-`kinmokusei.lock` and the internal `.kinmokusei/deps/` state are created by explicit dependency operations. `.kinmokusei/gen/` is compiler-managed build output and should not be committed.
+`kinmokusei.lock` and the internal `.kinmokusei/deps/` state are created by explicit dependency operations or `keika new`. Commit the lock, but not `.kinmokusei/`, which contains disposable dependency and build state. After cloning on the same target, restore that state with `keika deps fetch --offline`; after changing the manifest or target, explicitly run `keika deps lock --offline` (omit `--offline` when dependency acquisition is needed).
 
 ## Manifest
 

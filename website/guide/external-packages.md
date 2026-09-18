@@ -5,11 +5,25 @@ description: Define, acquire, lock, replace, and consume source packages through
 
 # Use external Kinmokusei packages
 
-This feature is available on the development branch after v0.4.0. Source
+This feature is available since v0.4.1. Source
 packages use ordinary imports; Go packages continue to use `import go`.
 Both are checked and compiled into the application's Go output.
 
 ## Define a library
+
+Generate a minimal library with:
+
+```sh
+keika new library --module example.com/greeting --license MIT greeting
+cd greeting
+keika check
+keika emit-go -package greeting
+```
+
+This creates an exported `greet` function, matching source/Go manifests and an
+offline initial lock. Set `--module` to your real repository path before
+publishing. `--license` only records metadata; provide the appropriate license
+text yourself. Without that option the generated library uses `UNLICENSED`.
 
 A library has a `kinmokusei.toml` at its root:
 
@@ -22,7 +36,7 @@ go-version = "1.23"
 
 [package]
 entry = "index.km"
-min-kinmokusei = "0.4.0"
+min-kinmokusei = "0.4.1"
 backend = "go"
 license = "MIT"
 
@@ -185,7 +199,7 @@ Published source packages are checked against their locked full-content hash.
 Changed cache content is an error, not a reason to silently update the lock.
 Library minimum Kinmokusei/Go versions and declared OS, architecture, CGO and
 build-tag requirements are checked against the consumer's target. Unversioned
-development binaries currently use the compatibility floor `0.4.0`.
+development binaries currently use the compatibility floor `0.4.1`.
 
 The initial source graph selects one exact version per module. Conflicting
 direct/transitive source requirements are diagnosed with both versions instead

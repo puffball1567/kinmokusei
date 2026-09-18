@@ -9,6 +9,14 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-19
+
+- Add `keika new app` and `keika new library` with runnable/exported arrow-function
+  samples, manifests, offline initial locks, README and ignore files. Support
+  custom names, module paths and library license metadata. Refuse existing
+  destinations and prepare toolchain-dependent state before publishing output.
+  Verify generated libraries can be consumed through local replacements.
+
 - Retain external-package editor context from workspace folders, including legacy
   initialization roots, without requiring an open consumer document. Handle
   workspace additions/removals with refreshed diagnostics and stale-request
@@ -391,7 +399,8 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/puffball1567/kinmokusei/compare/v0.1.0...v0.2.0

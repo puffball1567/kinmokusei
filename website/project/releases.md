@@ -34,6 +34,27 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.1 highlights
+
+- External `.km` libraries with tagged acquisition, direct/transitive dependencies,
+  locked content hashes, public submodules and local development replacements.
+- Shared compiler/LSP package resolution, including editor workspace context
+  without an open consumer document.
+- `keika new app` and `keika new library` with offline initial locks and usable
+  samples; library templates declare Kinmokusei `0.4.1` as their minimum.
+- Generic collection indexing/slicing, mixed array/slice bounds and string/byte
+  slice operations with preserved Go behavior and source type contracts.
+
+### Migrating from v0.4.0
+
+Existing Go-only schema 3 locks remain readable. Explicit dependency operations
+write schema 4; commit the updated lock and use `keika deps fetch` to restore
+locked state after cloning. Normal compilation never downloads packages or
+rewrites the graph. External package authors should declare
+`min-kinmokusei = "0.4.1"`, a public entry and matching module/version metadata before tagging.
+See [external packages](../guide/external-packages) for the package format and
+current exact-version selection rules.
+
 ## v0.4.0 highlights
 
 - Optional semicolons, named Go imports, arrow-style functions and entry points,
