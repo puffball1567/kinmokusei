@@ -254,6 +254,19 @@ copy versus shared slots, nil/zero length, short-source panics, evaluation, and
 preserved class/interface/nullability contracts after indexing and reslicing.
 This is not a claim of complete generic collection support.
 
+After v0.4.0, common-underlying-shape type parameters also support direct
+indexing and slicing, including writes, checked map lookup, source OOP/nullable
+elements, and named slice/string result identity. Runtime aliasing, bounds,
+evaluation order and nil behavior are compared with Go in
+`generic_index_slice_test.go`. Operation-specific analysis now also supports
+indexing unions of arrays, slices, and array pointers with identical elements,
+plus read-only byte indexing and two-index slicing of string/byte-slice unions.
+`mixed_generic_collections_test.go` compares array copy versus pointer/slice
+mutation, OOP elements, named text results, evaluation order, bounds and nil
+panics with Go. Array/slice unions are still not sliceable under Go 1.23;
+different element contracts and map/non-map indexing remain rejected. This
+does not broaden range, append, or copy to those mixed shapes.
+
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, and linked export aliases | Add native source interface contracts; preserve source-only method argument shapes; extend parameter-dependent intersections beyond matching shapes |

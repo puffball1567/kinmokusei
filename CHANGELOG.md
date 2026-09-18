@@ -9,6 +9,53 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-19
+
+- Add `keika new app` and `keika new library` with runnable/exported arrow-function
+  samples, manifests, offline initial locks, README and ignore files. Support
+  custom names, module paths and library license metadata. Refuse existing
+  destinations and prepare toolchain-dependent state before publishing output.
+  Verify generated libraries can be consumed through local replacements.
+
+- Retain external-package editor context from workspace folders, including legacy
+  initialization roots, without requiring an open consumer document. Handle
+  workspace additions/removals with refreshed diagnostics and stale-request
+  suppression. Restore definition, hover and document symbols for fields declared
+  through constructor parameters, including generic classes.
+
+- Resolve external libraries' Go imports from their public source graph rather
+  than every file in the checkout. Follow imports, re-exports and public
+  submodules; ignore unrelated samples and unfinished tests. Diagnose reachable
+  source errors transactionally. Preserve shared local replacements when removing
+  direct dependencies and prune replacements that become unreachable.
+
+- Add external Kinmokusei source packages with package metadata, explicit entry
+  and submodule exports, exact direct/transitive dependencies, consumer-owned
+  sibling replacements, tagged Go-module acquisition, and locked content hashes.
+  Integrate ordinary imports with checking, Go emission, builds, execution and
+  LSP completion/navigation. Keep local source edits live and generated names
+  independent of checkout/cache locations. Add dependency listing, source-package
+  updates and lock-preserving fetch; default project commands to their entry.
+  Schema 4 locks retain readable Go-only schema 3 compatibility. Normal builds
+  and editor analysis disable private VCS and automatic toolchain downloads too.
+
+- Support indexing and slicing type parameters with a common underlying slice,
+  array, array-pointer, map, or string shape. Preserve named/parameter slice and
+  string results, source OOP/nullability contracts, addressability, checked map
+  lookups, bounds diagnostics, and Go runtime aliasing/panic/evaluation behavior.
+  Diagnose overflowing or fractional constant map keys before Go generation,
+  including ordinary and named maps. Add independent Go comparisons, editor
+  tests, fuzz seeds, and executable documentation.
+
+- Extend generic indexing to mixed array lengths, slices, and array pointers
+  with identical element types. Support read-only byte indexing and two-index
+  slicing over string/byte-slice unions, preserving the operand type. Check
+  bounds against every possible array length and retain source nullability
+  through generic method specialization and constraint argument validation.
+  Reject incompatible nullable fields nested in object element contracts,
+  including common-shape constraints.
+  Add independent Go runtime comparisons, editor tests, and executable examples.
+
 ## [0.4.0] - 2026-09-18
 
 - Share Result error-use tracking with lazy global arrow analysis, preventing
@@ -352,7 +399,8 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/puffball1567/kinmokusei/compare/v0.1.0...v0.2.0

@@ -356,6 +356,11 @@ func (c *Checker) substituteNativeMethodOwnerTypeParameters(value Type, bindings
 			if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 				c.setParameterRangeShape(methodParameters[i].GoType.(*gotypes.TypeParam), substituteNativeTypeParameters(shape, native))
 			}
+			var terms []Type
+			for _, term := range c.collectionTerms(parameter.GoType.(*gotypes.TypeParam)) {
+				terms = append(terms, substituteNativeTypeParameters(term, native))
+			}
+			c.setParameterCollectionTerms(methodParameters[i].GoType.(*gotypes.TypeParam), terms)
 		}
 		bindings = native
 	}

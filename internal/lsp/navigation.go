@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
-	"github.com/puffball1567/kinmokusei/internal/compiler"
 	"github.com/puffball1567/kinmokusei/internal/lexer"
 	"github.com/puffball1567/kinmokusei/internal/source"
 	"github.com/puffball1567/kinmokusei/internal/token"
@@ -241,7 +240,7 @@ func (s *Server) analyze(doc document) *ast.Program {
 	for _, open := range s.documents {
 		overlay[open.Path] = open.Text
 	}
-	result, err := compiler.CheckFilesWithOverlay([]string{doc.Path}, overlay)
+	result, err := s.checkDocument(doc, overlay)
 	if err != nil || result.Program == nil {
 		return &ast.Program{}
 	}
@@ -287,6 +286,13 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			for _, field := range declaration.Fields {
 				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
+			}
+			if declaration.Constructor != nil {
+				for _, parameter := range declaration.Constructor.Parameters {
+					if parameter.IsField {
+						info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 8, Span: parameter.Span, Selection: parameterNameSpan(parameter)})
+					}
+				}
 			}
 			for _, method := range declaration.Methods {
 				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}

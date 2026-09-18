@@ -35,6 +35,7 @@ func (c *Checker) parameterRangeShape(parameter *gotypes.TypeParam) (Type, bool)
 }
 
 func (c *Checker) recordParameterRangeShape(parameter *gotypes.TypeParam, ref ast.TypeRef) {
+	c.recordParameterCollectionTerms(parameter, ref)
 	c.recordParameterDeleteKey(parameter, ref)
 	core := goRangeCoreType(parameter)
 	if core == nil {
@@ -115,6 +116,13 @@ func sameConstraintNullability(expected, actual Type) bool {
 				if !sameConstraintNullability(pair[0][i], pair[1][i]) {
 					return false
 				}
+			}
+		}
+	}
+	if expected.Kind == Object {
+		for name, field := range expected.Fields {
+			if other, ok := actual.Fields[name]; ok && !sameConstraintNullability(field, other) {
+				return false
 			}
 		}
 	}

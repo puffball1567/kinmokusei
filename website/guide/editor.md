@@ -37,6 +37,16 @@ Any editor that supports the Language Server Protocol can launch `keika lsp --st
 
 The LSP never acquires dependencies, changes the manifest, or mutates the module graph implicitly.
 
+Since v0.4.1, clients can send `workspaceFolders` at initialization
+(or the legacy `rootUri` / `rootPath`). The server uses those project roots to
+resolve [external source packages](external-packages), even when no consumer
+source is open. Open the consuming project as a workspace folder; the server
+does not recursively search a parent directory for arbitrary child projects.
+Adding or removing workspace folders refreshes open-document diagnostics and
+invalidates requests using the previous context. Only local file URIs are used.
+Without workspace roots, open consumer documents still provide dependency
+context. External library checkouts do not need a separate lock for this use.
+
 ## Command-line diagnostics
 
 Plain checking is silent on success and writes source-positioned diagnostics to standard error on failure:

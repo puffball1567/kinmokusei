@@ -17,7 +17,6 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"github.com/puffball1567/kinmokusei/internal/compiler"
 	"github.com/puffball1567/kinmokusei/internal/diagnostic"
 	"github.com/puffball1567/kinmokusei/internal/product"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -111,13 +110,14 @@ type pendingRequest struct {
 }
 
 type Server struct {
-	reader      *bufio.Reader
-	writer      io.Writer
-	writeMu     sync.Mutex
-	documents   map[string]document
-	diagnostics map[string]map[string][]protocolDiagnostic
-	initialized bool
-	shutdown    bool
+	reader         *bufio.Reader
+	writer         io.Writer
+	writeMu        sync.Mutex
+	documents      map[string]document
+	diagnostics    map[string]map[string][]protocolDiagnostic
+	workspaceRoots []string
+	initialized    bool
+	shutdown       bool
 
 	requestMu       sync.Mutex
 	pendingRequests map[string]*pendingRequest
@@ -220,6 +220,9 @@ func (s *Server) handle(message request) (bool, error) {
 			}
 			return false, nil
 		}
+		if err := s.initializeWorkspace(message.Params); err != nil {
+			return false, s.writeResponse(response{JSONRPC: "2.0", ID: message.ID, Error: &responseError{Code: -32602, Message: err.Error()}})
+		}
 		s.initialized = true
 		result := map[string]any{
 			"capabilities": map[string]any{
@@ -232,6 +235,7 @@ func (s *Server) handle(message request) (bool, error) {
 				"signatureHelpProvider":  map[string]any{"triggerCharacters": []string{"(", ","}, "retriggerCharacters": []string{","}},
 				"documentSymbolProvider": true,
 				"completionProvider":     map[string]any{"resolveProvider": false, "triggerCharacters": []string{"."}},
+				"workspace":              map[string]any{"workspaceFolders": map[string]any{"supported": true, "changeNotifications": true}},
 			},
 			"serverInfo": map[string]any{"name": product.DisplayName},
 		}
@@ -259,6 +263,11 @@ func (s *Server) handle(message request) (bool, error) {
 		return false, s.didChange(message.Params)
 	case "textDocument/didClose":
 		return false, s.didClose(message.Params)
+	case "workspace/didChangeWorkspaceFolders":
+		if isRequest {
+			return false, s.writeResponse(response{JSONRPC: "2.0", ID: message.ID, Error: &responseError{Code: -32600, Message: "workspace/didChangeWorkspaceFolders must be a notification"}})
+		}
+		return false, s.didChangeWorkspaceFolders(message.Params)
 	case "textDocument/hover":
 		if isRequest {
 			return false, s.startRequest(message)
@@ -443,7 +452,8 @@ func (s *Server) requestSnapshot() *Server {
 	}
 	return &Server{
 		documents: documents, diagnostics: diagnostics,
-		initialized: s.initialized, shutdown: s.shutdown,
+		workspaceRoots: append([]string(nil), s.workspaceRoots...),
+		initialized:    s.initialized, shutdown: s.shutdown,
 		pendingRequests: map[string]*pendingRequest{},
 	}
 }
@@ -606,7 +616,7 @@ func (s *Server) publishFor(rootURI string) error {
 	for _, doc := range s.documents {
 		overlay[doc.Path] = doc.Text
 	}
-	result, checkErr := compiler.CheckFilesWithOverlay([]string{root.Path}, overlay)
+	result, checkErr := s.checkDocument(root, overlay)
 	grouped := map[string][]protocolDiagnostic{}
 	if checkErr != nil {
 		grouped[rootURI] = []protocolDiagnostic{{Range: protocolRange{}, Severity: 1, Source: product.CommandName, Message: checkErr.Error()}}

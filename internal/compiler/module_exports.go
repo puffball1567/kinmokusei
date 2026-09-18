@@ -79,6 +79,11 @@ func (l *moduleLoader) loadSourceDependencies(path string, program *ast.Program,
 	for i := range program.Imports {
 		if !program.Imports[i].Go {
 			dependencies = append(dependencies, dependency{imported: &program.Imports[i]})
+		} else if l.packages != nil && !embedded {
+			imported := program.Imports[i]
+			if err := l.packages.ValidateGoImport(path, imported.Path); err != nil {
+				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: err.Error(), Span: imported.PathSpan})
+			}
 		}
 	}
 	for i := range program.Exports {
@@ -122,6 +127,21 @@ func (l *moduleLoader) loadSourceDependency(path string, imported *ast.ImportDec
 	if !strings.HasPrefix(imported.Path, ".") {
 		standardSource, found := stdlib.Lookup(imported.Path)
 		if !found {
+			if l.packages != nil && !strings.HasPrefix(imported.Path, "kinmokusei/") {
+				target, err := l.packages.ResolveImport(path, imported.Path)
+				if err != nil {
+					l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: err.Error(), Span: imported.PathSpan})
+					return nil
+				}
+				imported.ResolvedPath = target
+				if err := l.load(target, imported); err != nil {
+					return err
+				}
+				if l.states[target] == 2 {
+					l.validateImport(*imported, l.programs[target])
+				}
+				return nil
+			}
 			message := "package imports are not supported in this compiler stage"
 			if strings.HasPrefix(imported.Path, "kinmokusei/") {
 				message = fmt.Sprintf("standard package %q is not available", imported.Path)
@@ -149,6 +169,12 @@ func (l *moduleLoader) loadSourceDependency(path string, imported *ast.ImportDec
 			return err
 		}
 		imported.ResolvedPath = filepath.Clean(absolute)
+		if l.packages != nil {
+			if err := l.packages.ValidateRelativeImport(path, imported.ResolvedPath); err != nil {
+				l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: err.Error(), Span: imported.PathSpan})
+				return nil
+			}
+		}
 		if err := l.load(target, imported); err != nil {
 			return err
 		}

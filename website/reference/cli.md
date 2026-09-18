@@ -50,11 +50,41 @@ All source arguments form one generated package. Relative imports may load addit
 
 ## Dependencies and projects
 
+### Project creation
+
+```text
+keika new app [--name name] [--module path] <directory>
+keika new library [--name name] [--module path] [--license identifier] <directory>
+```
+
+Available since v0.4.1. Options follow `app` or `library` and precede the
+destination. The project name defaults to the destination's basename and the
+module path to `example.com/<name>`. Both templates start at version `0.1.0`
+with Go `1.23` as their minimum. The library template also records the supported
+Kinmokusei version, Go backend, public entry and license metadata.
+
+Creation requires an installed Go toolchain and initializes the lock and local
+dependency state offline. It never downloads dependencies, initializes Git, or
+overwrites an existing destination, including empty directories and symlinks.
+The parent directory must exist. Preparation failures leave the destination
+absent; a failure during final publication reports and retains partial output.
+Success prints the created project location to stdout.
+
+Both templates write `kinmokusei.toml`, `kinmokusei.lock`, `.gitignore`, a README
+and `.kinmokusei/deps/` state. Apps include `main.km`; libraries include
+`index.km` and `go.mod`. `--license` is library-only and defaults to `UNLICENSED`;
+it records metadata without generating license text.
+
+### Dependency operations
+
 | Command | Purpose |
 | --- | --- |
 | `keika install --go-module [--offline] [--replace path] <module>@<version> [project]` | Add an exact Go module transactionally |
-| `keika deps add [--offline] [--replace path] <module>@<version> [project]` | Lower-level spelling of exact add |
+| `keika deps add [--offline] [--replace path] <module>@<version> [project]` | Add a source package when its manifest declares `[package]`, otherwise a Go module |
 | `keika deps update [--offline] <module>@<version> [project]` | Update one declared module to an exact version |
+| `keika deps update [--offline] [module] [project]` | Select the latest version of one or all direct source packages |
+| `keika deps list [project]` | Print locked source and Go dependencies |
+| `keika deps fetch [--offline] [project]` | Restore exact locked packages and Go module files without relocking |
 | `keika deps remove [--offline] <module> [project]` | Remove one declared module |
 | `keika deps lock [--offline] [project]` | Resolve and write canonical lock/internal module state |
 | `keika deps check [project]` | Validate manifest, lock, generated module files, and license hashes |
@@ -62,6 +92,11 @@ All source arguments form one generated package. Relative imports may load addit
 | `keika target [project]` | Print locked `GOOS`, `GOARCH`, `CGO_ENABLED`, and tags |
 
 The optional project argument defaults to the current directory. Complete versions, including complete pseudo-versions, are required. Add/update/remove/lock preserve prior state on failure.
+
+Source packages currently require tagged versions matching their manifest; the
+pseudo-version allowance above applies to Go dependencies. Source-free `check`,
+`build`, `run`, and `emit-go` commands select the project's `main.km`, or a
+library's declared package entry. See [external source packages](../guide/external-packages).
 
 ## Go interoperability audit
 

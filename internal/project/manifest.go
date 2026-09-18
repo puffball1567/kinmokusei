@@ -32,14 +32,18 @@ type GoInteropConfig struct {
 }
 
 type Manifest struct {
-	Root         string
-	Path         string
-	Contents     []byte
-	Project      Project
-	Target       TargetConfig
-	GoInterop    GoInteropConfig
-	Dependencies map[string]string
-	Replacements map[string]string
+	Root                string
+	Path                string
+	Contents            []byte
+	Project             Project
+	Target              TargetConfig
+	GoInterop           GoInteropConfig
+	Dependencies        map[string]string
+	Replacements        map[string]string
+	Package             PackageConfig
+	Packages            map[string]string
+	PackageReplacements map[string]string
+	Exports             map[string]string
 }
 
 var (
@@ -90,12 +94,14 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 	manifest := Manifest{
 		Root: filepath.Dir(absolute), Path: absolute, Contents: append([]byte(nil), contents...),
 		Dependencies: map[string]string{}, Replacements: map[string]string{},
+		Packages: map[string]string{}, PackageReplacements: map[string]string{}, Exports: map[string]string{},
 	}
 	section := ""
 	seenSections := map[string]bool{}
 	seenProject := map[string]bool{}
 	seenTarget := map[string]bool{}
 	seenGoInterop := map[string]bool{}
+	seenPackage := map[string]bool{}
 	scanner := bufio.NewScanner(strings.NewReader(string(contents)))
 	for line := 1; scanner.Scan(); line++ {
 		text, stripErr := stripComment(scanner.Text())
@@ -111,7 +117,7 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 				return Manifest{}, manifestError(path, line, "malformed section header")
 			}
 			section = strings.TrimSpace(text[1 : len(text)-1])
-			if section != "project" && section != "target" && section != "go.interop" && section != "go.dependencies" && section != "go.replacements" {
+			if section != "project" && section != "target" && section != "go.interop" && section != "go.dependencies" && section != "go.replacements" && section != "package" && section != "dependencies" && section != "replace" && section != "exports" {
 				return Manifest{}, manifestError(path, line, fmt.Sprintf("unknown section %q", section))
 			}
 			if seenSections[section] {
@@ -132,6 +138,31 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 			return Manifest{}, manifestError(path, line, valueErr.Error())
 		}
 		switch section {
+		case "package":
+			key := strings.TrimSpace(keyText)
+			if seenPackage[key] {
+				return Manifest{}, manifestError(path, line, fmt.Sprintf("duplicate package key %q", key))
+			}
+			seenPackage[key] = true
+			if err := manifest.Package.set(key, value); err != nil {
+				return Manifest{}, manifestError(path, line, err.Error())
+			}
+		case "dependencies", "replace", "exports":
+			key, keyErr := quotedString(keyText)
+			if keyErr != nil {
+				return Manifest{}, manifestError(path, line, "package paths must be quoted strings")
+			}
+			target := manifest.Packages
+			if section == "replace" {
+				target = manifest.PackageReplacements
+			}
+			if section == "exports" {
+				target = manifest.Exports
+			}
+			if _, exists := target[key]; exists {
+				return Manifest{}, manifestError(path, line, fmt.Sprintf("duplicate package path %q in [%s]", key, section))
+			}
+			target[key] = value
 		case "project":
 			key := strings.TrimSpace(keyText)
 			if seenProject[key] {
@@ -201,6 +232,9 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 	if err := scanner.Err(); err != nil {
 		return Manifest{}, fmt.Errorf("cannot read project manifest %s: %w", path, err)
 	}
+	if seenSections["package"] && manifest.Package.Entry == "" {
+		return Manifest{}, fmt.Errorf("invalid project manifest %s: [package] requires entry", path)
+	}
 	if err := manifest.Validate(); err != nil {
 		return Manifest{}, fmt.Errorf("invalid project manifest %s: %w", path, err)
 	}
@@ -259,7 +293,7 @@ func (m Manifest) Validate() error {
 			return fmt.Errorf("replacement %q escapes the project root", path)
 		}
 	}
-	return nil
+	return m.validatePackageConfig()
 }
 
 func isPortableAbsolutePath(value string) bool {
