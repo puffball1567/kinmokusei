@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Extend scalar constant checking for value switches: default the subject's
+  type, reject overflowing subjects/cases, recognize constant expression and
+  re-export chains, and account for floating-point rounding and interface
+  dynamic-type identity when checking duplicates. Preserve Go's first-match
+  behavior for repeated boolean/complex cases and runtime bindings. Separate
+  value-switch and constant-case checks from channel/type-switch checking.
+
 - Preserve contextual types for nonconstant shifts in assignments, returns,
   conversions, operators and generic calls. Diagnose overflowing left operands
   and floating-point shift contexts before Go generation, while accepting

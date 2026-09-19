@@ -311,6 +311,14 @@ These entries come from the parser, `internal/sema/checker.go`,
 `internal/sema/types.go`, and `internal/sema/go_audit.go`; they do not imply that
 an API classified as supported by the Go API audit has equivalent native syntax.
 
+Value-switch constant checks now default untyped subjects, preserve interface
+dynamic-type identity, and check duplicate scalar expressions after contextual
+rounding. Imported/re-exported constants and runtime-versus-constant bindings
+are covered by `switch_constants_test.go`; `switch_go_parity_test.go` checks
+the duplicate rules directly against Go's type checker. Repeated boolean and
+complex cases follow Go's first-match behavior. The existing duplicate
+`nil`/`null` case restriction remains a source-language difference.
+
 ## OOP gaps and design decisions
 
 | Area | Current state | Required work |

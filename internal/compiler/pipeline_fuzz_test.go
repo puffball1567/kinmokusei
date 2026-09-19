@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function f(v:float32):void{switch(v){case 16777216.0{}case 16777217.0{}}}`,
+	`const a="a"+"b";const b=a;function f(v:string):void{switch(v){case b{}case "ab"{}}}`,
+	`constraint N=~int|~int64;function f<T extends N>(v:T):void{switch(v){case T(1){}case 1{}}}`,
+	`function f(v:int):void{for(const i=1;i<2;){switch(v){case i{}case 1{}}break;}}`,
+	`function f(n:uint):void{switch(1.0<<n){default{}}}`,
 	`function f(n:uint):byte{return (300<<n)+2;}`,
 	`function f(n:uint):byte{return byte(1.0<<n);}`,
 	`function f(n:uint,v:byte):boolean{return (1.0<<n)==v;}`,

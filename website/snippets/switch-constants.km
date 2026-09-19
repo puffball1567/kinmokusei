@@ -1,0 +1,14 @@
+import go fmt from "fmt";
+
+const word = "G" + "ET";
+
+function classify(method: string): int {
+  switch (method) {
+    case word, "HEAD" { return 1; }
+    default { return 0; }
+  }
+}
+
+function main(): void {
+  fmt.Println(classify("GET"), classify("HEAD"), classify("POST"));
+}

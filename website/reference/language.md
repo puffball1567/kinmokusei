@@ -213,6 +213,19 @@ Conditions are parenthesized and must be `boolean`. `if`, `while`, `for`, `switc
 
 Value switch cases accept comma-separated expressions. Cases stop after the first match unless the final statement is explicit `fallthrough;`; fallthrough is not available in a type switch.
 
+An untyped subject defaults before its cases are checked (`int` for integer
+constants, `float` for floating-point constants). Constant cases include scalar
+expressions and imported/re-exported constants. Duplicate integer, floating-point
+and string cases follow Go's constant-case rules, including rounding to a concrete
+subject type. For interface subjects, equal values with different dynamic types
+(such as `int(1)` and `int64(1)`) remain distinct. Boolean/complex cases and runtime
+expressions can repeat; the first match wins. Duplicate `nil`/`null` cases remain
+rejected by Kinmokusei.
+
+<<< ../snippets/switch-constants.km{ts}
+
+<<< ../snippets-invalid/switch-rounded-duplicate.km{ts}
+
 ```ts
 switch (reader) {
   case const text as *strings.Reader { return text.Len(); }
