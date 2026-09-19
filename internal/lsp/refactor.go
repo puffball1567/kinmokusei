@@ -256,6 +256,15 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 			}
 			for _, method := range class.Methods {
 				family := []source.Span{method.NameSpan}
+				if method.Accessor != "" {
+					for _, paired := range class.Methods {
+						if paired.Accessor != "" && paired.Name == method.Name {
+							family = append(family, paired.NameSpan)
+						}
+					}
+					connect(family)
+					continue
+				}
 				for baseRef := class.Base; baseRef != nil; {
 					base := classes[spanKey(baseRef.ResolvedDeclaration)]
 					if base == nil {

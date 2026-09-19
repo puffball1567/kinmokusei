@@ -147,6 +147,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		}
 	}
 	declareField := func(name string, typeRef ast.TypeRef, visibility ast.Visibility, span, declarationSpan source.Span, setGoName func(string)) {
+		if hasClassProperty(symbol, name) {
+			c.report(span, fmt.Sprintf("field %q conflicts with an inherited property", name))
+		}
 		if name == "__kinmokuseiRoot" {
 			c.report(span, fmt.Sprintf("field %q is reserved for class identity", name))
 			return
@@ -200,6 +203,13 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		symbol.constructorVariadic = hasVariadicParameter(decl.Constructor.Parameters)
 	}
 	for _, method := range decl.Methods {
+		if method.Accessor != "" {
+			c.declareClassAccessor(decl, symbol, method)
+			continue
+		}
+		if hasClassProperty(symbol, method.Name) {
+			c.report(method.Span, fmt.Sprintf("method %q conflicts with a property", method.Name))
+		}
 		c.declareAbstractMethod(decl, method)
 		c.validateLabels(method.Body)
 		for _, parameter := range method.TypeParameters {
@@ -286,6 +296,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			virtual: method.Virtual || method.Override, final: method.Final, abstract: method.Abstract, virtualOwner: virtualOwner,
 		}
 	}
+	c.checkClassPropertyContracts(decl, symbol)
 	owners := map[string]bool{}
 	c.checkConcreteClassMethods(decl, symbol)
 	for _, method := range symbol.methods {

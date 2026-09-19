@@ -190,6 +190,8 @@ type ConstructorDecl struct {
 }
 
 type MethodDecl struct {
+	// Accessor is "get" or "set" for class properties; Name remains the source name.
+	Accessor       string
 	Name           string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
@@ -910,6 +912,9 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
+	Property            bool
+	PropertyGetter      string
+	PropertySetter      string
 	Object              Expression
 	Name                string
 	NameSpan            source.Span

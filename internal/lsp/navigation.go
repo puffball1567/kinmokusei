@@ -296,6 +296,9 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			for _, method := range declaration.Methods {
 				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				if method.Accessor != "" {
+					child.Kind = 7
+				}
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
@@ -539,6 +542,9 @@ func functionDeclarationDetail(function *ast.FunctionDecl) string {
 }
 
 func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast.TypeRef) string {
+	if method.Accessor != "" {
+		return method.Accessor + " " + strings.TrimPrefix(functionDetail(method.Name, parameters, result), "function ")
+	}
 	name := method.Name
 	if !method.External && len(method.TypeParameters) != 0 {
 		name += formatTypeParameters(method.TypeParameters)

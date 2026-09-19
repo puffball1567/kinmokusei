@@ -1,7 +1,7 @@
 # Remaining language work: Go compatibility and OOP
 
 This is an implementation audit, not a claim of full Go compatibility. The
-100 runtime contract groups cover accepted features only. The baseline output
+101 runtime contract groups cover accepted features only. The baseline output
 remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
@@ -29,7 +29,7 @@ require a minor release and migration notes.
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
 Go programs, and document deliberate source-language differences. Neither the
-100 existing runtime contract groups nor statement coverage alone establishes
+101 existing runtime contract groups nor statement coverage alone establishes
 that milestone. OOP work continues alongside Go compatibility.
 
 ## Approved implementation queue
@@ -52,7 +52,7 @@ feature work without mixing unrelated changes into its implementation.
 | 9 | Source anonymous-interface syntax | Queued |
 | 10 | Source-declared multiple results | Queued |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
-| 12 | Getter/setter properties | Queued |
+| 12 | Getter/setter properties | Concrete instance accessors implemented, including independent visibility, generic inheritance, ordered updates and editor support; static/virtual/abstract/interface properties remain |
 | 13 | Static fields and constants | Queued |
 | 14 | Receiver/constructor-dependent field initializers | Queued |
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
@@ -339,7 +339,7 @@ complex cases follow Go's first-match behavior. The existing duplicate
 | Recursive comparable source bounds | Array/struct comparability that depends on a still-resolving parameter is diagnosed rather than allowed to deadlock Go type resolution; recursive pointer and method contracts remain supported | Break the dependency with an independently constrained element parameter; broader cyclic value-bound solving remains unsupported |
 | Source struct constraint terms | Terms requiring source struct value storage before it is finalized are diagnosed, including generic instances, instead of panicking | Coordinate constraint and source storage completion before enabling these terms; imported Go concrete types remain available |
 | Abstract classes/methods | Explicit abstract method declarations and concrete implementation checks are implemented; abstract classes cannot be constructed directly | Interface requirements must be declared explicitly; direct constructor access to abstract methods is rejected, while indirect access to an unimplemented construction-phase slot panics; method-level generics remain nonvirtual |
-| Getter/setter properties | Not implemented; use explicit methods | Define assignment lowering, visibility, receiver evaluation, and restrictions on hidden effects |
+| Getter/setter properties | Concrete instance properties support read/write access, independent visibility, exact paired types, generics/inherited access, single-evaluation updates, nullable-flow invalidation and public Go accessor methods; differential coverage in `class_properties_test.go` | Add virtual/abstract/interface properties and inherited redeclarations; no property storage, implicit Result/Task handling or stable getter narrowing |
 | Static fields/constants | Not implemented; use module constants or static methods | Define initialization, inheritance/name lookup, mutability, and public Go API shape |
 
 Multiple class inheritance, prototype mutation, dynamic field creation, and

@@ -351,7 +351,52 @@ rules just as it can bypass ordinary class initializers.
 
 ## Properties
 
-Getter/setter properties are also future work. If added, they must have explicit lowering and cannot hide arbitrary asynchronous or fallible behavior behind field-looking syntax.
+Concrete instance properties use `get` and `set` accessors:
+
+```ts
+class Counter {
+  private raw: int = 0;
+  public get value(): int { return this.raw; }
+  private set value(next: int) { this.raw = next; }
+  public function increment(): void { this.value++; }
+}
+const counter = new Counter();
+counter.increment();
+const value = counter.value;
+// counter.value = 3; // private setter
+```
+
+A getter has no parameters and an explicit non-void return type. A setter has
+one typed, non-rest parameter and returns void; its `: void` annotation is
+optional. Paired types must match exactly, including nullability and generic
+arguments. Each accessor has its own public/protected/private visibility;
+the default is private. Getter-only properties are read-only and setter-only
+properties are write-only. Properties do not declare storage or initialize
+backing fields on behalf of a constructor.
+
+Property reads and writes lower to method calls. Public `get value` / `set value`
+generate `GetValue()` / `SetValue(value)` for ordinary Go consumers. These names
+cannot collide with other declared or inherited members. Nonpublic accessors
+remain unexported. Properties are not JSON fields and are not addressable;
+value structs/arrays returned by a getter are copies, while returned references
+and slices retain their ordinary aliasing behavior.
+
+`receiver.value += rhs`, other compound assignments, and `++`/`--` evaluate the
+receiver once, call the getter once, evaluate the right-hand side, then call the
+setter once. An exception or panic stops that sequence. Both accessors must be
+accessible for updates. Inherited properties retain their access rules and
+generic substitution; `super.value` operates on the existing base instance.
+Redeclaring an inherited property (including adding just one accessor), static
+properties, virtual/override/abstract accessors and interface property signatures
+are not yet supported. Ordinary class fields and methods cannot hide a property.
+
+Accessors are synchronous calls, not stable storage reads. Repeated nullable
+getter reads are not narrowed by an earlier null check: bind the result locally
+and check that binding. Accessor calls invalidate potentially aliased field
+proofs, just like ordinary method calls. Property types cannot be `Result` or
+`Task`; there is no implicit error propagation or awaiting. Bodies retain
+ordinary explicit statements and exception/panic behavior. Prefer explicit
+methods for operations whose effects should be visible at the call site.
 
 ## Stages
 
@@ -374,7 +419,7 @@ Getter/setter properties are also future work. If added, they must have explicit
 
 ### Later candidates
 
-- Getter/setter properties.
+- Static, virtual/abstract, and interface properties.
 - Discriminated-union integration.
 
 ### Out of scope

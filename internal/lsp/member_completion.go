@@ -220,6 +220,9 @@ func expressionCompletionType(program *ast.Program, expression ast.Expression) (
 	case *ast.AwaitExpr:
 		return expression.ValueType, expression.ValueType.IsSpecified()
 	case *ast.CallExpr:
+		if member, ok := expression.Callee.(*ast.MemberExpr); ok && member.Property && expression.Signature != nil {
+			return simpleSignatureType(expression.Signature.Result)
+		}
 		if ref, ok := callableDeclarationReturn(program, expression.Callee); ok {
 			return ref, true
 		}
@@ -510,6 +513,13 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
 			}
 			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			if method.Accessor != "" {
+				if method.Accessor == "set" && len(parameters) == 1 {
+					result = parameters[0].Type
+				}
+				add(completionItem{Label: method.Name, Kind: 10, Detail: visibilityName(method.Visibility) + " " + method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
+				continue
+			}
 			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + methodDetail(method, parameters, result), SortText: "0_" + method.Name})
 		}
 	case *ast.StructDecl:

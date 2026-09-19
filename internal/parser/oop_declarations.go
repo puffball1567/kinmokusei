@@ -157,6 +157,13 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		}
 	modifiersComplete:
 		switch {
+		case p.at(token.Identifier) && (p.peek().Lexeme == "get" || p.peek().Lexeme == "set") && p.atNext(token.Identifier):
+			accessor := p.parseClassAccessor(p.advance())
+			if accessor != nil {
+				accessor.Visibility = visibility
+				accessor.Static, accessor.Virtual, accessor.Override, accessor.Final, accessor.Abstract = static, virtual, override, final, abstract
+				class.Methods = append(class.Methods, accessor)
+			}
 		case p.match(token.Constructor):
 			if static || virtual || override || final || abstract {
 				p.report(p.previous(), "constructor cannot have static, virtual, override, final, or abstract modifiers")
