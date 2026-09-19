@@ -46,7 +46,11 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 				continue
 			}
 			linked := name
-			if nameCounts[name] > 1 && !roots[path] {
+			// An imported module's main is an ordinary source binding, even
+			// when no entry declaration happens to collide with it. External
+			// documents checked in a consumer's graph remain dependency modules.
+			dependencyMain := name == "main" && (!roots[path] || l.packages != nil && l.packages.SourceIdentity(path) != "")
+			if dependencyMain || nameCounts[name] > 1 && !roots[path] {
 				linked = l.linkedModuleName(path, name)
 			}
 			bindings[path][name] = linked

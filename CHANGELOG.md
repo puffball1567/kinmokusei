@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Keep an imported module's `main` binding module-local even when the entry
+  has no same-named declaration. Imported constants, variables and ordinary
+  functions named `main` no longer inherit entry-arrow restrictions or supply
+  an accidental executable entry point. Retain source names in editor features.
+
 - Add manifest `[imports]` aliases for external Kinmokusei source imports and
   re-exports, including submodules. Resolve aliases in the importing package's
   own manifest without changing canonical dependency or type identities.

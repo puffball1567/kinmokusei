@@ -31,7 +31,7 @@ func testExternalPackageEditor(t *testing.T, aliases bool) {
 		"app/kinmokusei.toml":     "[project]\nname = \"app\"\nversion = \"0.1.0\"\ngo-module = \"app.test/main\"\ngo-version = \"1.23\"\n[dependencies]\n\"pkg.test/library\" = \"v0.1.0\"\n[replace]\n\"pkg.test/library\" = \"../library\"\n",
 		"app/main.km":             input,
 		"library/kinmokusei.toml": "[project]\nname = \"library\"\nversion = \"0.1.0\"\ngo-module = \"pkg.test/library\"\ngo-version = \"1.23\"\n[package]\nentry = \"index.km\"\nmin-kinmokusei = \"0.4.0\"\nbackend = \"go\"\nlicense = \"MIT\"\n",
-		"library/index.km":        `export class Box{constructor(public value:int){}}`,
+		"library/index.km":        `const main=42;export class Box{constructor(public value:int){}function base():int{return main;}}`,
 	}
 	if aliases {
 		files["app/kinmokusei.toml"] += "[imports]\n\"library\" = \"pkg.test/library\"\n"
@@ -68,7 +68,7 @@ func testExternalPackageEditor(t *testing.T, aliases bool) {
 	// Following the definition opens a library without its own lock. It must
 	// retain the consumer's dependency context, including unsaved edits.
 	libraryURI := fileURI(canonical)
-	libraryInput := `export class Box{constructor(public value:int){} function read():int{return this.value;}}`
+	libraryInput := `const main=42;export class Box{constructor(public value:int){} function read():int{return this.value;}}`
 	s := &Server{documents: map[string]document{
 		uri:        {Path: filepath.Join(root, "main.km"), Text: input},
 		libraryURI: {Path: canonical, Text: libraryInput},
