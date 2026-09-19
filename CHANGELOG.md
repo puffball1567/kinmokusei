@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Preserve contextual types for nonconstant shifts in assignments, returns,
+  conversions, operators and generic calls. Diagnose overflowing left operands
+  and floating-point shift contexts before Go generation, while accepting
+  integer-valued untyped floating shifts in indices, slice bounds and allocation
+  sizes. Keep runtime bindings typed and preserve evaluation and panic behavior.
+
 - Prevent slice-allocation temporaries from shadowing user size bindings,
   including existing `makeSlice` calls with explicit capacity.
 

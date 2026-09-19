@@ -52,6 +52,22 @@ Negative constant shifts and the compiler's constant-shift limit are rejected be
 
 <<< ../snippets-invalid/negative-shift.km{ts}
 
+For a nonconstant shift such as `1 << n`, an untyped left operand takes its
+integer type from the destination or a typed peer. This also permits `1.0 << n`
+in an integer context: the literal is exactly representable as an integer.
+Array indices, slice bounds and allocation sizes supply an `int` context.
+
+<<< ../snippets/contextual-shifts.km{ts}
+
+The left operand must fit that type before shifting: `300 << n` cannot produce
+a `byte`, even if a particular shift count would discard the high bits. A
+floating-point destination is invalid. Without an integer context,
+`const value = 1.0 << n` defaults to a floating-point type and is rejected.
+An already stored runtime value keeps its type; a later use cannot retroactively
+change the type of its initializer.
+
+<<< ../snippets-invalid/shift-left-overflow.km{ts}
+
 The [numeric and bitwise recipe](../examples/numeric-operators) traces masks, complement, signed shift behavior, compound updates, and explicit width conversion in one runnable program.
 
 ## Pointer operators

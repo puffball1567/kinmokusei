@@ -653,6 +653,9 @@ func (c *Checker) checkBinary(expr *ast.BinaryExpr) Type {
 }
 
 func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Type {
+	if c.hasDeferredShift(expr.Left) || c.hasDeferredShift(expr.Right) {
+		return c.checkGoBinary(expr, left, right)
+	}
 	if scalarBinaryOperation(expr.Operator, left, right) {
 		return c.checkGoBinary(expr, left, right)
 	}

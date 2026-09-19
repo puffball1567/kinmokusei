@@ -111,6 +111,7 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 				result = Type{Kind: Invalid, Name: "<invalid>"}
 			} else {
 				result = defaultLiteralType(actual)
+				c.checkNumericMaterialization(expr.ExpressionBody, result)
 			}
 		} else {
 			c.requireAssignable(result, actual, expr.ExpressionBody.GetSpan())

@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function f(n:uint):byte{return (300<<n)+2;}`,
+	`function f(n:uint):byte{return byte(1.0<<n);}`,
+	`function f(n:uint,v:byte):boolean{return (1.0<<n)==v;}`,
+	`function f(n:uint):int[]{return make[int[]](1.0<<n,2.0<<n);}`,
+	`constraint B=~byte|~uint16;function f<T extends B>(n:uint):T{return 300<<n;}`,
 	`constraint S<E>=~E[];function f<E,T extends S<E>>(n:int):T{return make[T](n,n+1);}`,
 	`constraint C=~GoChannel<int>|~GoSendChannel<int>;function f<T extends C>():T{return make[T](2);}`,
 	`constraint C=~GoSendChannel<int>|~GoReceiveChannel<int>;function f<T extends C>():T{return make[T]();}`,

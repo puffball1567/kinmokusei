@@ -103,7 +103,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				return target
 			}
 			value := c.checkExpression(expr.Arguments[0])
-			if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) {
+			if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 				return c.checkComplexConversion(expr, target, value)
 			}
 			targetGo, targetRepresentable := goTypeOf(target)

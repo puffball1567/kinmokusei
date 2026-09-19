@@ -85,7 +85,7 @@ func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
 	valueGo, valueOK := goTypeOf(value)
-	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) {
+	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, converted, value)
 	}
 	if target.GoType == nil || !valueOK || !gotypes.ConvertibleTo(valueGo, target.GoType) {
@@ -111,7 +111,7 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
 	targetGo, targetOK := goTypeOf(target)
-	if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) {
+	if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, target, value)
 	}
 	valueGo, valueOK := goTypeOf(value)
