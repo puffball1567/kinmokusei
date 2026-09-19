@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-19
+
+- Include Go and applicable third-party license, patent and source notice
+  materials in every CLI archive, collected from the actual build toolchain
+  and target dependency graph. Verify their contents before publication and
+  refuse unreviewed external dependencies. Preserve existing output directories.
+
 - Broaden generic constraint intersections to safely discard disjoint collection
   shapes, array lengths, channel directions and nominal types. Support combined
   writable/readable bounds and slice/array/map narrowing through source/imported

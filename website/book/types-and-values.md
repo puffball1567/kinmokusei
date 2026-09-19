@@ -110,7 +110,7 @@ Calls and channel receives inside the argument keep it nonconstant. No user
 function is evaluated at compile time. Use `let size = len(array)` if the result
 needs addressable storage.
 
-On the development branch after v0.4.1, the same constant rules apply to
+Since v0.4.2, the same constant rules apply to
 `*[N]T | null` and nullable named array pointers. The pointer may be null, but
 its length is still `N`; `len(pointer) > 0` does **not** prove it is non-null.
 Indexing or dereferencing still requires a null check. A `const` initialized

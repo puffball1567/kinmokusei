@@ -330,7 +330,7 @@ Matching generic collection terms retain element inference and nullable types.
 
 A declaration uses either `|` or `&`; name intermediate constraints to combine
 the operators. Empty intersections and conflicting nullable shapes are rejected.
-On the development branch after v0.4.1, intersections can discard terms whose
+Since v0.4.2, intersections can discard terms whose
 shapes cannot overlap under any substitution. For example, intersecting writable
 and readable channel bounds keeps only bidirectional channels. Slices and arrays,
 different array lengths, channel directions, and distinct nominal declarations

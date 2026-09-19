@@ -86,7 +86,7 @@ Channel types preserve direction:
 
 Send/receive blocking, nil channels, closed-channel zero values, double close, and send-after-close follow Go behavior. Checked receive distinguishes a delivered zero value from a closed/drained channel.
 
-On the development branch after v0.4.1, a generic helper can close channels
+Since v0.4.2, a generic helper can close channels
 when every type in its constraint permits sending. Closing does not inspect
 elements, so their types need not be identical:
 
@@ -97,7 +97,7 @@ A bound containing even one receive-only channel is rejected:
 <<< ../snippets-invalid/generic-channel-close.km{ts}
 
 Generic send/receive expressions and `select` communication are also supported
-on the development branch. Every type in the constraint must permit the
+since v0.4.2. Every type in the constraint must permit the
 operation and have the same element type, including source nullability:
 
 <<< ../snippets/generic-channel-operations.km{ts}

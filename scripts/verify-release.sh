@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 1 || ! "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-  echo "usage: scripts/verify-release.sh v<major>.<minor>.<patch>" >&2
+if [[ $# -lt 1 || $# -gt 2 || ! "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "usage: scripts/verify-release.sh v<major>.<minor>.<patch> [output-directory]" >&2
   exit 2
 fi
 
 release_tag=$1
 release_version=${release_tag#v}
-distribution_dir=dist
+distribution_dir=${2:-dist}
 expected_assets=(
   "keika_${release_version}_linux_amd64.tar.gz"
   "keika_${release_version}_linux_arm64.tar.gz"
@@ -57,7 +57,17 @@ for target in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64; do
   tar -tzf "${archive}" | grep -x "keika_${release_version}_${target}/keika" >/dev/null
   tar -tzf "${archive}" | grep -x "keika_${release_version}_${target}/README.md" >/dev/null
   tar -tzf "${archive}" | grep -x "keika_${release_version}_${target}/LICENSE" >/dev/null
+  if [[ "$target" != linux_amd64 ]]; then
+    tar -xzf "${archive}" -C "${verification_root}"
+  fi
+  cmp THIRD_PARTY_NOTICES.md "${verification_root}/keika_${release_version}_${target}/THIRD_PARTY_NOTICES.md"
+  CGO_ENABLED=0 GOOS="${target%_*}" GOARCH="${target#*_}" \
+    node scripts/go-notices.mjs --check "${verification_root}/keika_${release_version}_${target}"
 done
+unzip -q "${distribution_dir}/keika_${release_version}_windows_amd64.zip" -d "${verification_root}"
+cmp THIRD_PARTY_NOTICES.md "${verification_root}/keika_${release_version}_windows_amd64/THIRD_PARTY_NOTICES.md"
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
+  node scripts/go-notices.mjs --check "${verification_root}/keika_${release_version}_windows_amd64"
 unzip -Z1 "${distribution_dir}/keika_${release_version}_windows_amd64.zip" \
   | grep -x "keika_${release_version}_windows_amd64/keika.exe" >/dev/null
 unzip -Z1 "${distribution_dir}/keika_${release_version}_windows_amd64.zip" \
