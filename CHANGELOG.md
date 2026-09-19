@@ -9,6 +9,38 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-09-19
+
+- Include Go and applicable third-party license, patent and source notice
+  materials in every CLI archive, collected from the actual build toolchain
+  and target dependency graph. Verify their contents before publication and
+  refuse unreviewed external dependencies. Preserve existing output directories.
+
+- Broaden generic constraint intersections to safely discard disjoint collection
+  shapes, array lengths, channel directions and nominal types. Support combined
+  writable/readable bounds and slice/array/map narrowing through source/imported
+  constraints, re-exports and generic class methods. Keep substitution-dependent
+  matches and nullable conflicts rejected; add Go comparisons and editor/doc tests.
+
+- Support send/receive, checked receives and `select` on channel-constrained
+  type parameters, including imported bounds and generic class methods. Preserve
+  element identity/nullability and reject incompatible directions or elements.
+  Keep directional channel metadata through constraint substitution and class
+  upcasts in select sends. Show inferred types for destructured locals in editor
+  hover/completion. Add independent Go comparisons and editor/doc tests.
+
+- Support `closeGoChannel` on send-capable channel type parameters, including
+  mixed element types, imported constraints and generic class methods. Reject
+  receive-only/non-channel bounds; retain evaluation, buffered-drain and panic
+  behavior. Add independent Go comparisons, editor and executable-doc tests.
+
+- Treat eligible `len`/`cap` calls on nullable fixed-array pointers as typed
+  constants, including named arrays/pointers and generic elements. Preserve
+  nil safety and runtime call/receive evaluation; diagnose constant bounds and
+  negative sizes without narrowing the pointer. Keep explicit slice/array
+  annotations in Go variable declarations, fixing nullable slice initialization
+  with `null`. Add independent Go comparisons and editor regression coverage.
+
 ## [0.4.1] - 2026-09-19
 
 - Add `keika new app` and `keika new library` with runnable/exported arrow-function

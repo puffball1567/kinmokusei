@@ -89,6 +89,11 @@ closeGoChannel(buffered);
 
 `goChannel[T]` accepts zero or one integer capacity and returns `GoChannel<T>`. A negative constant capacity is rejected before generation; a negative data-dependent capacity retains Go's runtime panic. `closeGoChannel` requires one bidirectional or send-capable channel. Closing a nil or already closed channel, and later send/receive behavior, retain Go semantics.
 
+Since v0.4.2, `closeGoChannel` also accepts a type parameter whose type set
+contains only send-capable channels, including differing element types and
+imported constraints. Empty/unrestricted sets, non-channels and receive-only
+members are rejected. No common element type is required for closing.
+
 ## Results
 
 | Form | Valid context |

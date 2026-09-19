@@ -34,6 +34,17 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.2 highlights
+
+- CLI archives include Go and third-party attribution materials in
+  `THIRD_PARTY_NOTICES.md` and `licenses/go/`. Keep these alongside redistributed
+  binaries. Kinmokusei remains Apache-2.0; the Go compiler is an external dependency.
+- Channel-constrained generics support send, receive, checked receives, `select`
+  and closing, preserving direction and source nullability.
+- Constraint intersections can discard provably disjoint parameter-dependent
+  shapes. Nullable array-pointer constants and select-send class upcasts are fixed.
+- Destructured locals show inferred types in editor hover and completion.
+
 ## v0.4.1 highlights
 
 - External `.km` libraries with tagged acquisition, direct/transitive dependencies,

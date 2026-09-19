@@ -1,0 +1,1 @@
+channel send type parameter requires only send-capable channels with identical element types and nullability

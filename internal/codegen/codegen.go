@@ -183,7 +183,7 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 			tok = token.CONST
 		}
 		spec := &goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(goName(decl.Name))}, Values: []goast.Expr{value}}
-		if decl.Type.Name != "" || decl.Type.IsFunction() || decl.Type.IsPointer() {
+		if decl.Type.Name != "" || decl.Type.IsFunction() || decl.Type.IsPointer() || decl.Type.IsArray() {
 			spec.Type = goType(decl.Type)
 		}
 		return []goast.Decl{&goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil
@@ -1227,7 +1227,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			tok = token.CONST
 		}
 		spec := &goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(goName(stmt.Name))}, Values: []goast.Expr{value}}
-		if stmt.Type.Name != "" || stmt.Type.IsFunction() || stmt.Type.IsPointer() {
+		if stmt.Type.Name != "" || stmt.Type.IsFunction() || stmt.Type.IsPointer() || stmt.Type.IsArray() {
 			spec.Type = goType(stmt.Type)
 		}
 		return &goast.DeclStmt{Decl: &goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil

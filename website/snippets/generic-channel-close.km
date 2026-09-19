@@ -1,0 +1,16 @@
+import go { Println } from "fmt"
+
+constraint Writable = ~GoChannel<int> | ~GoSendChannel<string>
+
+function finish<C extends Writable>(channel: C): void {
+  closeGoChannel(channel)
+}
+
+function main(): void {
+  const channel = goChannel<int>(1)
+  channel <- 7
+  finish(channel)
+  const [value, delivered] = <-channel
+  const [zero, open] = <-channel
+  Println(value, delivered, zero, open)
+}

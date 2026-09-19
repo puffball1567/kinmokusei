@@ -1,0 +1,2 @@
+// E could become int, so the intersection cannot be normalized yet.
+constraint Unresolved<E> = ~E[] & ~int[]

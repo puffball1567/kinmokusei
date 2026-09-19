@@ -1,0 +1,27 @@
+import go { Println } from "fmt"
+
+constraint Writable<E> = ~GoChannel<E> | ~GoSendChannel<E>
+constraint Readable = ~GoChannel<int> | ~GoReceiveChannel<int>
+
+function put<E, C extends Writable<E>>(channel: C, value: E): void {
+  channel <- value
+}
+
+function poll<C extends Readable>(channel: C): int {
+  select {
+    case const [value, open] = <-channel {
+      if (open) { return value }
+      return -1
+    }
+    default { return -2 }
+  }
+}
+
+function main(): void {
+  const channel = goChannel<int>(1)
+  put(channel, 42)
+  Println(poll(channel))
+  Println(poll(channel))
+  closeGoChannel(channel)
+  Println(poll(channel))
+}

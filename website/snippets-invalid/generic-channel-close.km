@@ -1,0 +1,5 @@
+constraint Readable = ~GoChannel<int> | ~GoReceiveChannel<int>
+
+function finish<C extends Readable>(channel: C): void {
+  closeGoChannel(channel)
+}

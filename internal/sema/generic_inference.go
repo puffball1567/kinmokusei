@@ -451,6 +451,12 @@ func substituteNativeTypeParametersSeen(value Type, bindings nativeTypeBindings,
 	}
 	if value.Kind == GoChannel && result.Element != nil {
 		direction := gotypes.SendRecv
+		switch value.Name {
+		case "GoSendChannel":
+			direction = gotypes.SendOnly
+		case "GoReceiveChannel":
+			direction = gotypes.RecvOnly
+		}
 		if value.GoType != nil {
 			if channel, ok := gotypes.Unalias(value.GoType).Underlying().(*gotypes.Chan); ok {
 				direction = channel.Dir()

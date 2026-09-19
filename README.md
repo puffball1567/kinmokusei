@@ -221,3 +221,7 @@ behavior has a handwritten oracle.
 ## License
 
 Kinmokusei is available under the [Apache License 2.0](LICENSE).
+
+CLI binary distributions also include Go runtime/standard-library attribution
+materials. See [third-party notices](THIRD_PARTY_NOTICES.md); retain the bundled
+`licenses/` directory when redistributing a release.
