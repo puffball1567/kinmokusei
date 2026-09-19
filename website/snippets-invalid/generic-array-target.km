@@ -1,0 +1,5 @@
+constraint ArrayOrSlice = ~[2]int | ~int[]
+
+function convert<A extends ArrayOrSlice>(values: int[]): A {
+  return copyArray[A](values)
+}

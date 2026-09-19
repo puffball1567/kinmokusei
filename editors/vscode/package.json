@@ -2,7 +2,7 @@
   "name": "kinmokusei",
   "displayName": "Kinmokusei",
   "description": "Language support for Kinmokusei",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "license": "Apache-2.0",
   "publisher": "kinmokusei",
   "private": true,

@@ -44,6 +44,7 @@ type Manifest struct {
 	Packages            map[string]string
 	PackageReplacements map[string]string
 	Exports             map[string]string
+	Imports             map[string]string
 }
 
 var (
@@ -95,6 +96,7 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 		Root: filepath.Dir(absolute), Path: absolute, Contents: append([]byte(nil), contents...),
 		Dependencies: map[string]string{}, Replacements: map[string]string{},
 		Packages: map[string]string{}, PackageReplacements: map[string]string{}, Exports: map[string]string{},
+		Imports: map[string]string{},
 	}
 	section := ""
 	seenSections := map[string]bool{}
@@ -117,7 +119,7 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 				return Manifest{}, manifestError(path, line, "malformed section header")
 			}
 			section = strings.TrimSpace(text[1 : len(text)-1])
-			if section != "project" && section != "target" && section != "go.interop" && section != "go.dependencies" && section != "go.replacements" && section != "package" && section != "dependencies" && section != "replace" && section != "exports" {
+			if section != "project" && section != "target" && section != "go.interop" && section != "go.dependencies" && section != "go.replacements" && section != "package" && section != "dependencies" && section != "replace" && section != "exports" && section != "imports" {
 				return Manifest{}, manifestError(path, line, fmt.Sprintf("unknown section %q", section))
 			}
 			if seenSections[section] {
@@ -147,7 +149,7 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 			if err := manifest.Package.set(key, value); err != nil {
 				return Manifest{}, manifestError(path, line, err.Error())
 			}
-		case "dependencies", "replace", "exports":
+		case "dependencies", "replace", "exports", "imports":
 			key, keyErr := quotedString(keyText)
 			if keyErr != nil {
 				return Manifest{}, manifestError(path, line, "package paths must be quoted strings")
@@ -158,6 +160,9 @@ func ParseManifest(path string, contents []byte) (Manifest, error) {
 			}
 			if section == "exports" {
 				target = manifest.Exports
+			}
+			if section == "imports" {
+				target = manifest.Imports
 			}
 			if _, exists := target[key]; exists {
 				return Manifest{}, manifestError(path, line, fmt.Sprintf("duplicate package path %q in [%s]", key, section))
@@ -293,7 +298,10 @@ func (m Manifest) Validate() error {
 			return fmt.Errorf("replacement %q escapes the project root", path)
 		}
 	}
-	return m.validatePackageConfig()
+	if err := m.validatePackageConfig(); err != nil {
+		return err
+	}
+	return m.validateSourceImports()
 }
 
 func isPortableAbsolutePath(value string) bool {

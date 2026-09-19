@@ -13,6 +13,12 @@ import (
 // AddAutoDependency keeps existing Go packages working, while modules with an
 // explicit [package] declaration become ordinary Kinmokusei dependencies.
 func AddAutoDependency(root, module, version, replacement string, offline bool) error {
+	return AddAutoDependencyWithAlias(root, module, version, replacement, "", offline)
+}
+
+// Source dependencies receive a local import alias in the same transaction as
+// the dependency and lock. Go-only modules never receive source import aliases.
+func AddAutoDependencyWithAlias(root, module, version, replacement, alias string, offline bool) error {
 	if err := validatePackageRequest(module, version); err != nil {
 		return err
 	}
@@ -34,6 +40,9 @@ func AddAutoDependency(root, module, version, replacement string, offline bool) 
 	}
 	contents, err := os.ReadFile(filepath.Join(directory, product.ProjectFileName))
 	if os.IsNotExist(err) {
+		if alias != "" {
+			return fmt.Errorf("--alias only applies to Kinmokusei source packages")
+		}
 		return AddDependency(root, module, version, replacement, offline)
 	}
 	if err != nil {
@@ -44,12 +53,18 @@ func AddAutoDependency(root, module, version, replacement string, offline bool) 
 		return err
 	}
 	if dependency.Package.Entry == "" {
+		if alias != "" {
+			return fmt.Errorf("--alias only applies to Kinmokusei source packages")
+		}
 		return AddDependency(root, module, version, replacement, offline)
 	}
 	if _, exists := manifest.Packages[module]; exists {
 		return fmt.Errorf("Kinmokusei dependency %q already exists", module)
 	}
 	manifest.Packages[module] = version
+	if err := manifest.addSourceImportAlias(module, alias); err != nil {
+		return err
+	}
 	if replacement != "" {
 		manifest.PackageReplacements[module] = filepath.ToSlash(filepath.Clean(filepath.FromSlash(replacement)))
 	}

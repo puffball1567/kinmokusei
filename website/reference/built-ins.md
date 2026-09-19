@@ -79,6 +79,17 @@ const viewed: *[3]int = viewArray[[3]int](values);
 
 `copyArray` returns an independent fixed-array value. `viewArray` returns a pointer view over the slice backing storage. Each takes one explicit fixed-array target type and one compatible slice. Both panic like Go when the source is shorter than the array length.
 
+Since v0.4.3, `copyArray` also accepts an array-constrained target type
+parameter. All members must be arrays with identical element types and nullable
+qualifiers, although lengths may differ. The result keeps the target's identity.
+`viewArray` still requires a concrete array shape.
+
+<<< ../snippets/generic-array-target.km{ts}
+
+A target set containing a slice is rejected before Go generation:
+
+<<< ../snippets-invalid/generic-array-target.km{ts}
+
 ## Channels
 
 ```ts

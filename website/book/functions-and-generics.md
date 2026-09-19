@@ -99,6 +99,15 @@ assignable function variable. `let` bindings remain function storage that can be
 reassigned. An explicit named Go function type retains its named storage/type
 contract; local arrows continue to be lexical function values.
 
+`main` is not a keyword: parameters and local constants, variables and functions
+may use that name. A top-level arrow named `main` in an explicitly selected input
+file must be a `const` with no parameters and a `void` result. Since v0.4.3,
+an imported module's `main` is consistently an ordinary module-local binding,
+including data and value-returning functions. It does not become the importing
+application's entry point; the application must declare its own entry. Importing
+`main` and declaring another `main` in the same source module is still a duplicate
+binding; a re-export alias can give the imported symbol a different name.
+
 ### Local recursive arrows (development)
 
 Local `const` and `let` arrows can call themselves when the binding has a complete

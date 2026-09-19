@@ -134,10 +134,18 @@ alias[0] = 99; // values[0] is now 99
 No implicit array/slice conversion exists. `copyArray[[N]T](slice)` copies into an independent fixed array; `viewArray[[N]T](slice)` returns a pointer view over shared storage.
 
 Since v0.4.0, both operations accept slice-constrained type parameters.
-The target still needs a concrete array shape, possibly containing an
+Targets can have a concrete array shape, possibly containing an
 element type parameter or using a named array type:
 
 <<< ../snippets/generic-array-conversion.km{ts}
+
+Since v0.4.3, `copyArray` additionally accepts array-constrained target
+parameters, with matching element types and nullable qualifiers across all
+members. Lengths may differ. `viewArray` still needs a concrete array shape.
+The length of a type-parameter result is not a Go constant: evaluating
+`len(copyArray[A](values))` still performs the conversion and may panic.
+
+<<< ../snippets/generic-array-target.km{ts}
 
 The copy is shallow: class references and nested slices/maps retain their shared
 objects, although replacing a copied array slot does not replace the source

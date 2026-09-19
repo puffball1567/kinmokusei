@@ -80,7 +80,7 @@ it records metadata without generating license text.
 | Command | Purpose |
 | --- | --- |
 | `keika install --go-module [--offline] [--replace path] <module>@<version> [project]` | Add an exact Go module transactionally |
-| `keika deps add [--offline] [--replace path] <module>@<version> [project]` | Add a source package when its manifest declares `[package]`, otherwise a Go module |
+| `keika deps add [--offline] [--replace path] [--alias name] <module>@<version> [project]` | Add a source package and its automatic import alias when its manifest declares `[package]`, otherwise a Go module (`--alias` is source-only) |
 | `keika deps update [--offline] <module>@<version> [project]` | Update one declared module to an exact version |
 | `keika deps update [--offline] [module] [project]` | Select the latest version of one or all direct source packages |
 | `keika deps list [project]` | Print locked source and Go dependencies |

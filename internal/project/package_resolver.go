@@ -20,11 +20,13 @@ func (g *PackageGraph) owner(file string) *SourcePackage {
 // ResolveImport checks the importing package's own declared dependency edges,
 // not merely membership somewhere in the consumer's transitive graph.
 func (g *PackageGraph) ResolveImport(importer, imported string) (string, error) {
-	dependencies := g.Root.Packages
+	manifest := g.Root
 	owner := g.owner(importer)
 	if owner != nil {
-		dependencies = owner.Manifest.Packages
+		manifest = owner.Manifest
 	}
+	imported = manifest.expandSourceImport(imported)
+	dependencies := manifest.Packages
 	module := ""
 	for candidate := range dependencies {
 		if (imported == candidate || strings.HasPrefix(imported, candidate+"/")) && len(candidate) > len(module) {

@@ -16,8 +16,11 @@ from the central checker. Constructor analysis consumes checked AST metadata
 and explicit field facts without owning mutable checker state.
 
 Callable return/control-transfer state now has a shared entry and restoration
-boundary, with nested-callable regression coverage. Lexical/capture/nullable
-state and the large parser/codegen files still need further decomposition.
+boundary, with nested-callable regression coverage. The parser has been split
+into grammar-focused files while retaining shared token state and recovery.
+Go generation likewise has responsibility-focused files, retaining identical
+lowering and runtime helpers. Lexical/capture/nullable state still needs further
+decomposition.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor
 versions and documented diagnostics. Intentional source/public API breaks
@@ -52,8 +55,8 @@ feature work without mixing unrelated changes into its implementation.
 | 12 | Getter/setter properties | Queued |
 | 13 | Static fields and constants | Queued |
 | 14 | Receiver/constructor-dependent field initializers | Queued |
-| 15 | Parser decomposition | Queued |
-| 16 | Go emitter decomposition | Queued |
+| 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
+| 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
 
 ## Completed through v0.3.0
@@ -258,9 +261,13 @@ generic class methods; `generic_slice_builtins_test.go` covers Go behavior and
 source OOP invariance. Operations requiring a common element shape reject
 conflicting source nullability; `delete` likewise rejects conflicting source key
 qualifiers. `copyArray`/`viewArray` also accept slice-constrained parameters with
-common elements, including OOP elements and generic methods. Their targets must
-have a concrete fixed-array shape (`[2]E` or a named instantiation), not a bare
-array-constrained parameter. `generic_array_conversion_test.go` covers shallow
+common elements, including OOP elements and generic methods. `copyArray` also
+accepts array-constrained target parameters with common element contracts,
+including differing lengths, imported bounds and generic class methods.
+`viewArray` still requires a concrete fixed-array target shape (`[2]E` or a named
+instantiation), not a bare array-constrained parameter.
+`generic_array_target_test.go` covers parameter targets and runtime length
+evaluation; `generic_array_conversion_test.go` covers shallow
 copy versus shared slots, nil/zero length, short-source panics, evaluation, and
 preserved class/interface/nullability contracts after indexing and reslicing.
 This is not a claim of complete generic collection support.
