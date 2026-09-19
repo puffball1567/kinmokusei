@@ -87,6 +87,13 @@ quoted value must exactly match a direct `[dependencies]` module:
 `cli` resolves to the package entry; `cli/flags` resolves to the canonical
 `example.com/command/flags` export. The same rules apply to `export ... from`.
 
+`keika deps add` automatically writes an alias from the module's last path
+component, skipping a trailing semantic major-version component such as `/v2`.
+Use `--alias <name>` to override that choice. Automatic registration rejects
+overlapping existing aliases without overwriting them, and participates in the
+dependency/lock transaction. Updates preserve the choice; removal deletes the
+corresponding aliases. Transitive dependencies do not acquire consumer aliases.
+
 - Prefixes are canonical, slash-separated, non-relative paths. Characters are
   ASCII letters, digits, `_`, `@`, `.`, `-` and `/`; the first character must be
   a letter, digit, `_` or `@`. Empty paths, dot segments, trailing/repeated

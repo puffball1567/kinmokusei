@@ -162,7 +162,10 @@ func TestSourcePackageDownloadLockFetchAndIntegrity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest.Imports["library"] = "pkg.test/library"
+	if manifest.Imports["library"] != "pkg.test/library" || len(manifest.Imports) != 1 {
+		t.Fatalf("install did not register the direct alias only: %v", manifest.Imports)
+	}
+	manifest.Imports["short-library"] = "pkg.test/library"
 	if err := commitManifestAndLock(manifest, true); err != nil {
 		t.Fatal(err)
 	}

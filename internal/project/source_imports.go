@@ -2,11 +2,41 @@ package project
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"strings"
 )
 
 var sourceImportAliasPattern = regexp.MustCompile(`^[A-Za-z0-9_@][A-Za-z0-9_@./-]*$`)
+
+func defaultSourceImportAlias(module string) string {
+	name := path.Base(module)
+	// A Go semantic-import-version suffix is not the library's short name.
+	if strings.HasPrefix(name, "v") && len(name) > 1 && name != "v1" && name[1] != '0' && strings.Trim(name[1:], "0123456789") == "" {
+		return path.Base(path.Dir(module))
+	}
+	return name
+}
+
+func (m *Manifest) addSourceImportAlias(module, alias string) error {
+	if alias == "" {
+		alias = defaultSourceImportAlias(module)
+	}
+	for _, existing := range sortedKeys(m.Imports) {
+		if importPrefix(alias, existing) || importPrefix(existing, alias) {
+			return fmt.Errorf("source import alias %q conflicts with existing alias %q; use keika deps add --alias <name>", alias, existing)
+		}
+	}
+	if m.Imports == nil {
+		m.Imports = map[string]string{}
+	}
+	m.Imports[alias] = module
+	if err := m.validateSourceImports(); err != nil {
+		delete(m.Imports, alias)
+		return fmt.Errorf("%w; use keika deps add --alias <name>", err)
+	}
+	return nil
+}
 
 func importPrefix(imported, prefix string) bool {
 	return imported == prefix || strings.HasPrefix(imported, prefix+"/")

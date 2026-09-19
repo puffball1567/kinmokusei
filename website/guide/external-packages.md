@@ -117,8 +117,15 @@ are loaded through imports, not by concatenating every source in a directory.
 
 ## Short import names
 
-In the next patch, add `[imports]` to the consuming project's manifest to give
-a direct source dependency a short name:
+In the next patch, `keika deps add` automatically registers a short source
+import name and updates the lock in the same transaction:
+
+```sh
+keika deps add example.com/greeting@v0.1.0
+keika check
+```
+
+The command writes these entries; no manual manifest edit is needed:
 
 ```toml
 [dependencies]
@@ -128,21 +135,25 @@ a direct source dependency a short name:
 "greeting" = "example.com/greeting"
 ```
 
-Then refresh the lock explicitly and use the short name:
-
-```sh
-keika deps lock --offline
-keika check
-```
-
 ```ts
 import { greet } from "greeting"
 import { format } from "greeting/format"
 export { greet } from "greeting"
 ```
 
-`--offline` requires the dependencies to be already cached or locally replaced.
-The alias only changes source spelling: versions, acquisition, lock entries,
+The default alias is the module path's last component; a trailing `/v2`, `/v3`,
+etc. is skipped (`example.com/greeting/v2` becomes `greeting`). Package metadata
+does not choose the consumer's alias. If the name conflicts with an existing
+alias or a reserved/canonical path, the command fails without changing the
+manifest or lock. Choose another name directly in the command:
+
+```sh
+keika deps add --alias hello example.com/greeting@v0.1.0
+```
+
+`--alias` is for Kinmokusei source dependencies only. `--offline` requires the
+dependencies to be already cached or locally replaced. The alias only changes
+source spelling: versions, acquisition, lock entries,
 hash checks and type identity still use the canonical module path. Canonical
 and short imports may coexist without loading a second copy of the module.
 
@@ -154,6 +165,9 @@ Relative imports, standard-library imports and `import go` are unchanged.
 Continue to use canonical module paths with `keika deps add/update/remove`.
 Dependency edits preserve aliases; removing a direct dependency removes aliases
 targeting it, even when another library still needs that package transitively.
+Only directly added packages receive aliases, not their transitive dependencies.
+Manual `[imports]` edits remain possible; unlike `deps add`, they require an
+explicit `keika deps lock` afterwards.
 See the [alias rules](../reference/project-files#imports) for validation details.
 
 ## Develop two repositories together
@@ -172,6 +186,9 @@ This records:
 ```toml
 [dependencies]
 "example.com/greeting" = "v0.1.0"
+
+[imports]
+"greeting" = "example.com/greeting"
 
 [replace]
 "example.com/greeting" = "../greeting"

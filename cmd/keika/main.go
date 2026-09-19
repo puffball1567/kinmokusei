@@ -204,6 +204,7 @@ func runDeps(args []string) int {
 		flags.SetOutput(os.Stderr)
 		offline := flags.Bool("offline", false, "resolve only from the existing Go module cache")
 		replacement := flags.String("replace", "", "replace the module with a project-relative local directory")
+		alias := flags.String("alias", "", "source import alias (defaults to the module name)")
 		if err := flags.Parse(args[1:]); err != nil {
 			return 2
 		}
@@ -216,7 +217,7 @@ func runDeps(args []string) int {
 			fmt.Fprintln(os.Stderr, err)
 			return 2
 		}
-		if err = project.AddAutoDependency(root, path, version, *replacement, *offline); err != nil {
+		if err = project.AddAutoDependencyWithAlias(root, path, version, *replacement, *alias, *offline); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}

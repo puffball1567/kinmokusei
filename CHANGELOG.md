@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Automatically register a source import alias when `keika deps add` installs
+  a Kinmokusei package. Derive it from the module name (ignoring a trailing major
+  version), allow `--alias` overrides and reject collisions transactionally.
+  No manual manifest edit or separate lock operation is needed.
+
 - Split Go generation into declaration, class, type, statement, expression,
   Result, exception and runtime-support modules without changing generated code.
 

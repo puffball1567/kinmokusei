@@ -8,17 +8,23 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 func TestExternalPackageCLIWorkflow(t *testing.T) {
-	for _, aliases := range []bool{false, true} {
-		t.Run(map[bool]string{false: "canonical", true: "alias"}[aliases], func(t *testing.T) {
-			testExternalPackageCLIWorkflow(t, aliases)
+	for _, alias := range []string{"", "command", "kinmokusei-cli", "fmt"} {
+		name := alias
+		if name == "" {
+			name = "canonical"
+		}
+		t.Run(name, func(t *testing.T) {
+			testExternalPackageCLIWorkflow(t, alias)
 		})
 	}
 }
 
-func testExternalPackageCLIWorkflow(t *testing.T, aliases bool) {
+func testExternalPackageCLIWorkflow(t *testing.T, alias string) {
 	base := t.TempDir()
 	root := filepath.Join(base, "app")
 	files := map[string]string{
@@ -29,6 +35,9 @@ func testExternalPackageCLIWorkflow(t *testing.T, aliases bool) {
 		"command/kinmokusei.toml":          "[project]\nname = \"command\"\nversion = \"0.1.0\"\ngo-module = \"pkg.test/command\"\ngo-version = \"1.23\"\n[package]\nentry = \"index.km\"\nmin-kinmokusei = \"0.4.0\"\nbackend = \"go\"\nlicense = \"MIT\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n",
 		"command/index.km":                 `import go helper from "go.test/helper";export class Command{public function run():string{return helper.Message();}}`,
 		"command/examples/unconfigured.km": `import go sample from "missing.test/sample";`,
+	}
+	if alias != "" {
+		files["app/main.km"] = strings.Replace(files["app/main.km"], "pkg.test/command", alias, 1)
 	}
 	for name, contents := range files {
 		file := filepath.Join(base, filepath.FromSlash(name))
@@ -52,8 +61,13 @@ func testExternalPackageCLIWorkflow(t *testing.T, aliases bool) {
 		}
 	}()
 	t.Setenv("GOPROXY", "off")
+	add := []string{"deps", "add", "--offline", "--replace", "../command"}
+	if alias != "" && alias != "command" {
+		add = append(add, "--alias", alias)
+	}
+	add = append(add, "pkg.test/command@v0.1.0")
 	for _, args := range [][]string{
-		{"deps", "add", "--offline", "--replace", "../command", "pkg.test/command@v0.1.0"},
+		add,
 		{"check"}, {"deps", "check"},
 	} {
 		status, out, stderr := captureRun(t, args...)
@@ -61,27 +75,12 @@ func testExternalPackageCLIWorkflow(t *testing.T, aliases bool) {
 			t.Fatalf("%v: status=%d out=%s err=%s", args, status, out, stderr)
 		}
 	}
-	if aliases {
-		contents, err := os.ReadFile("kinmokusei.toml")
-		if err != nil {
-			t.Fatal(err)
-		}
-		contents = append(contents, []byte("\n[imports]\n\"kinmokusei-cli\" = \"pkg.test/command\"\n\"fmt\" = \"pkg.test/command\"\n")...)
-		if err := os.WriteFile("kinmokusei.toml", contents, 0o644); err != nil {
-			t.Fatal(err)
-		}
-		input := strings.Replace(files["app/main.km"], "pkg.test/command", "kinmokusei-cli", 1)
-		if err := os.WriteFile("main.km", []byte(input), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		if status, _, stderr := captureRun(t, "check"); status == 0 || !strings.Contains(stderr, "does not match") {
-			t.Fatalf("alias edit did not invalidate lock: %d %s", status, stderr)
-		}
-		for _, args := range [][]string{{"deps", "lock", "--offline"}, {"check"}, {"deps", "check"}} {
-			if status, out, stderr := captureRun(t, args...); status != 0 || out != "" || stderr != "" {
-				t.Fatalf("%v: %d %s %s", args, status, out, stderr)
-			}
-		}
+	manifest, err := project.ReadManifest(root)
+	if alias == "" {
+		alias = "command"
+	}
+	if err != nil || len(manifest.Imports) != 1 || manifest.Imports[alias] != "pkg.test/command" {
+		t.Fatalf("automatic alias=%v err=%v", manifest.Imports, err)
 	}
 	manifestBefore, err := os.ReadFile("kinmokusei.toml")
 	if err != nil {
