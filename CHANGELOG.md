@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Broaden generic constraint intersections to safely discard disjoint collection
+  shapes, array lengths, channel directions and nominal types. Support combined
+  writable/readable bounds and slice/array/map narrowing through source/imported
+  constraints, re-exports and generic class methods. Keep substitution-dependent
+  matches and nullable conflicts rejected; add Go comparisons and editor/doc tests.
+
 - Support send/receive, checked receives and `select` on channel-constrained
   type parameters, including imported bounds and generic class methods. Preserve
   element identity/nullability and reject incompatible directions or elements.

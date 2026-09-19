@@ -1,0 +1,23 @@
+import go { Println } from "fmt"
+
+constraint Writable<E> = ~GoChannel<E> | ~GoSendChannel<E>
+constraint Readable<E> = ~GoChannel<E> | ~GoReceiveChannel<E>
+constraint Duplex<E> = Writable<E> & Readable<E>
+
+function roundTrip<E, C extends Duplex<E>>(channel: C, value: E): E {
+  channel <- value
+  return <-channel
+}
+
+constraint Storage<E> = ~E[] | ~[2]E
+constraint Slice<E> = Storage<E> & ~E[]
+
+function first<E, S extends Slice<E>>(values: S): E {
+  return values[0]
+}
+
+function main(): void {
+  const channel = goChannel<int>(1)
+  Println(roundTrip(channel, 42))
+  Println(first([7, 8]))
+}

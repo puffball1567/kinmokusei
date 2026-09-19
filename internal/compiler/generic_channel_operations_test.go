@@ -45,7 +45,7 @@ function putChild<C extends Items>(ch:C):void{ch<-new Child();}
 export function Upcast():int[]{const ch=goChannel<Item>(3);offerChild(ch);putChild(ch);select{case ch<-new Child(){}default{}}const a=<-ch;const b=<-ch;const c=<-ch;return [a.value,b.value,c.value];}
 constraint Objects=~GoChannel<Item|null>|~GoReceiveChannel<Item|null>;
 function objectValue<C extends Objects>(ch:C):int{const [value,open]=<-ch;if(value!==null){return value.value;}return 0;}
-constraint Both<E>=~GoChannel<E>;
+constraint Both<E>=contracts.Send<E>&contracts.Receive<E>;
 class Relay<E>{public function roundTrip<C extends Both<E>>(ch:C,value:E):E{ch<-value;return <-ch;}}
 export function OOP():int[]{const ch=goChannel<Item|null>(1);const item=new Item(17);importedPut<Item|null,GoChannel<Item|null>>(ch,item);const a=objectValue(ch);const value=new Relay<Item|null>().roundTrip<GoChannel<Item|null>>(ch,item);let identity=0;if(value===item){identity=1;}closeGoChannel(ch);return [a,identity,objectValue(ch)];}
 export function ClosedSend():void{const ch=goChannel<int>();closeGoChannel(ch);put(ch,1);}

@@ -330,9 +330,20 @@ Matching generic collection terms retain element inference and nullable types.
 
 A declaration uses either `|` or `&`; name intermediate constraints to combine
 the operators. Empty intersections and conflicting nullable shapes are rejected.
-Unmatched terms containing type parameters are conservatively rejected because
-later substitution might make them overlap; instantiate the operands with
-concrete types first. The expanded union limit remains 100 terms, but repeated
+On the development branch after v0.4.1, intersections can discard terms whose
+shapes cannot overlap under any substitution. For example, intersecting writable
+and readable channel bounds keeps only bidirectional channels. Slices and arrays,
+different array lengths, channel directions, and distinct nominal declarations
+can also be distinguished, including stable mismatches inside collection elements:
+
+<<< ../snippets/parameter-constraint-intersections.km{ts}
+
+If terms might overlap after substitution, such as `E[]` and `int[]`, they remain
+rejected; instantiate those operands with concrete types first:
+
+<<< ../snippets-invalid/parameter-constraint-intersections.km{ts}
+
+The expanded union limit remains 100 terms, but repeated
 `&` operands do not consume that union limit. Constraints cannot be stored as
 runtime values.
 
