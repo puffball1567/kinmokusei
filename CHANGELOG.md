@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Treat eligible `len`/`cap` calls on nullable fixed-array pointers as typed
+  constants, including named arrays/pointers and generic elements. Preserve
+  nil safety and runtime call/receive evaluation; diagnose constant bounds and
+  negative sizes without narrowing the pointer. Keep explicit slice/array
+  annotations in Go variable declarations, fixing nullable slice initialization
+  with `null`. Add independent Go comparisons and editor regression coverage.
+
 ## [0.4.1] - 2026-09-19
 
 - Add `keika new app` and `keika new library` with runnable/exported arrow-function

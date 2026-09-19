@@ -10,6 +10,11 @@ import (
 // len/cap of an array (or array pointer) is a typed int constant when Go
 // does not evaluate the operand. An immutable binding is not required.
 func (c *Checker) checkArrayLengthConstant(call *ast.CallExpr, value Type) {
+	// Nullable array pointers have the same fixed length as non-null pointers.
+	// Only inspect the type: do not narrow the operand or permit dereferencing it.
+	if value.Kind == Nullable && value.Element != nil {
+		value = *value.Element
+	}
 	if len(call.Arguments) != 1 || len(call.TypeArguments) != 0 || call.Expanded || value.Kind == Invalid || value.Kind == Nullable || value.Kind == TypeParameter {
 		return
 	}

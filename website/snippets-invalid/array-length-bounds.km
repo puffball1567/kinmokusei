@@ -1,5 +1,6 @@
 function main(): void {
   const values: [3]int = [10, 20, 30]
-  const count = len(values)
+  const pointer: *[3]int | null = null
+  const count = len(pointer)
   const invalid = values[count]
 }

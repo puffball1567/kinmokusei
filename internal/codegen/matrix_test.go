@@ -71,7 +71,12 @@ func TestGeneratedGoSyntaxMatrix(t *testing.T) {
 		{
 			"collections and object fields",
 			`function collect(values: int[], lookup: Map<string, int>): int { let items: int[] = []; items = [values[0], lookup["x"]]; const dto = { count: items[0], label: "ok" }; return dto.count; }`,
-			[]string{"values []int", "lookup map[string]int", "var items = []int{}", "struct {", "Count int", "`json:\"count\"`", "dto.Count"},
+			[]string{"values []int", "lookup map[string]int", "var items []int = []int{}", "struct {", "Count int", "`json:\"count\"`", "dto.Count"},
+		},
+		{
+			"nullable slice annotations",
+			`const global:int[]|null=null;function size():int{const local:int[]|null=null;return len(global)+cap(local);}`,
+			[]string{"var global []int = nil", "var local []int = nil"},
 		},
 		{
 			"class interface and visibility",

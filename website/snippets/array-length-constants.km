@@ -10,7 +10,7 @@ function main(): void {
   let values: [3]int = [10, 20, 30]
   const count = len(values)
   const last = count - 1
-  const pointer: *[3]int = nil
+  const pointer: *[3]int | null = null
   const capacity = cap(pointer)
   Println(count, capacity, values[last])
   Println(size(values), size("温泉"))

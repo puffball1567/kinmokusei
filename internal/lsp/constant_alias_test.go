@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"bytes"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -37,6 +38,8 @@ func TestScalarConstantAliasEditor(t *testing.T) {
 		`const original="温泉";const alias=len(original);function use():int{return alias;}`,
 		`function use(original:[3]int):int{const alias=len(original);return alias;}`,
 		`function use(original:*[3]int):int{const alias=cap(original);return alias;}`,
+		`function use(original:*[3]int|null):int{const alias=len(original);return alias;}`,
+		`function use(original:*[3]int|null):int{const alias=cap(original);return alias;}`,
 		`const original=255;const alias=min(original,256);function use():byte{return alias;}`,
 		`const original="温泉";const alias=max(original,"a");function use():string{return alias;}`,
 	} {
@@ -61,4 +64,27 @@ func TestScalarConstantAliasEditor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNullableArrayConstantBoundsDiagnostic(t *testing.T) {
+	t.Parallel()
+	uri := fileURI(filepath.Join(t.TempDir(), "bounds.km"))
+	input := `function use(pointer:*[3]int|null,values:[3]int):int{const count=len(pointer);return values[count];}`
+	var output bytes.Buffer
+	if err := Serve(strings.NewReader(framed(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`, openDocument(uri, input), `{"jsonrpc":"2.0","id":2,"method":"shutdown"}`, `{"jsonrpc":"2.0","method":"exit"}`)), &output); err != nil {
+		t.Fatal(err)
+	}
+	messages := decodeMessages(t, output.String())
+	for _, message := range messages {
+		if message["method"] != "textDocument/publishDiagnostics" {
+			continue
+		}
+		for _, raw := range message["params"].(map[string]any)["diagnostics"].([]any) {
+			diagnostic := raw.(map[string]any)
+			if strings.Contains(diagnostic["message"].(string), "out of bounds") {
+				return
+			}
+		}
+	}
+	t.Fatalf("missing constant bounds diagnostic: %v", messages)
 }

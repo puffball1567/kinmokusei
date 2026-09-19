@@ -110,10 +110,18 @@ Calls and channel receives inside the argument keep it nonconstant. No user
 function is evaluated at compile time. Use `let size = len(array)` if the result
 needs addressable storage.
 
+On the development branch after v0.4.1, the same constant rules apply to
+`*[N]T | null` and nullable named array pointers. The pointer may be null, but
+its length is still `N`; `len(pointer) > 0` does **not** prove it is non-null.
+Indexing or dereferencing still requires a null check. A `const` initialized
+with such a constant length is no longer addressable; use `let` for storage.
+Nullable slices, maps and channels remain runtime values whose length can be
+zero. Calls returning array pointers and channel receives remain evaluated.
+
 Generic type sets can use `len` or `cap` when every member supports that operation.
 These calls remain runtime values, even for a constraint such as `~[3]int`.
-A concrete array shape `[3]T`, in contrast, has a constant length. Nullable
-array-pointer wrappers and some constant intrinsics remain further work.
+A concrete array shape `[3]T`, in contrast, has a constant length. Some
+constant intrinsics, such as target-dependent layout operations, remain further work.
 
 ```ts
 let copiedPair = pair;

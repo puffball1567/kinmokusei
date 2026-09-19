@@ -127,6 +127,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"generic-collection-mutation.test":    {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[5], implementedGoCompatibilityContracts[6]},
 	"ordered-constants.test":              {implementedGoCompatibilityContracts[6], implementedGoCompatibilityContracts[96], implementedGoCompatibilityContracts[97], implementedGoCompatibilityContracts[99]},
 	"array-length-constants.test":         {implementedGoCompatibilityContracts[5], implementedGoCompatibilityContracts[8], implementedGoCompatibilityContracts[10], implementedGoCompatibilityContracts[96]},
+	"nullable-array-constants.test":       {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[5], implementedGoCompatibilityContracts[8], implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[96]},
 	"scalar-constants.test":               {implementedGoCompatibilityContracts[99]},
 	"constant-aliases.test":               {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[96], implementedGoCompatibilityContracts[97]},
 	"abstract-classes.test":               {implementedGoCompatibilityContracts[98]},
