@@ -9,6 +9,9 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Split Go generation into declaration, class, type, statement, expression,
+  Result, exception and runtime-support modules without changing generated code.
+
 - Split the parser into grammar-focused files while retaining its shared token
   checkpoints, source spans and error recovery. No syntax or diagnostic changes.
 

@@ -18,7 +18,9 @@ and explicit field facts without owning mutable checker state.
 Callable return/control-transfer state now has a shared entry and restoration
 boundary, with nested-callable regression coverage. The parser has been split
 into grammar-focused files while retaining shared token state and recovery.
-Lexical/capture/nullable state and the large codegen file still need further decomposition.
+Go generation likewise has responsibility-focused files, retaining identical
+lowering and runtime helpers. Lexical/capture/nullable state still needs further
+decomposition.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor
 versions and documented diagnostics. Intentional source/public API breaks
@@ -54,7 +56,7 @@ feature work without mixing unrelated changes into its implementation.
 | 13 | Static fields and constants | Queued |
 | 14 | Receiver/constructor-dependent field initializers | Queued |
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
-| 16 | Go emitter decomposition | Queued |
+| 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
 
 ## Completed through v0.3.0
