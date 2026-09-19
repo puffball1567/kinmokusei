@@ -15,6 +15,10 @@ func TestSourcePackageRemovalRetainsSharedAndPrunesUnusedReplacements(t *testing
 "pkg.test/a" = "v0.1.0"
 "pkg.test/b" = "v0.1.0"
 "pkg.test/shared" = "v0.1.0"
+[imports]
+"a" = "pkg.test/a"
+"b" = "pkg.test/b"
+"shared" = "pkg.test/shared"
 [replace]
 "pkg.test/a" = "../a"
 "pkg.test/b" = "../b"
@@ -57,6 +61,14 @@ func TestSourcePackageRemovalRetainsSharedAndPrunesUnusedReplacements(t *testing
 		}
 		if got := sortedKeys(manifest.PackageReplacements); !reflect.DeepEqual(got, step.want) {
 			t.Fatalf("after removing %s replacements=%v want=%v", step.remove, got, step.want)
+		}
+		if len(manifest.Imports) != len(manifest.Packages) {
+			t.Fatalf("aliases not retained/pruned with direct dependencies: %v", manifest.Imports)
+		}
+		for alias, module := range manifest.Imports {
+			if manifest.Packages[module] == "" {
+				t.Fatalf("dangling alias %s -> %s", alias, module)
+			}
 		}
 		if err := CheckDependencies(root); err != nil {
 			t.Fatal(err)

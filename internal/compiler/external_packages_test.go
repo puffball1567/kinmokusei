@@ -40,9 +40,15 @@ func TestExternalSourcePackagesMatchIndependentGo(t *testing.T) {
 			"first/src/api.km":               `import {value} from "./value";export class Box{public function read():int{return value();}}`,
 			"first/src/value.km":             `export function value():int{return 20;}`,
 			"first/examples/unconfigured.km": `import go sample from "missing.test/sample";`,
-			"second/kinmokusei.toml":         externalManifest("pkg.test/second", true),
-			"second/index.km":                `function value():int{return 22;}export function second():int{return value();}`,
-			"app/main.km":                    `import {Box} from "pkg.test/first/api";import {second} from "pkg.test/second";export function Answer():int{return new Box().read()+second();}`,
+			"second/kinmokusei.toml":         externalManifest("pkg.test/second", true) + "[dependencies]\n\"pkg.test/first\" = \"v0.1.0\"\n[imports]\n\"second\" = \"pkg.test/first\"\n",
+			"second/index.km":                `import {Box} from "second";function value():int{return new Box().read()+2;}export function second():int{return value();}`,
+			"app/reexports.km":               `export {Box} from "first/api";`,
+			"app/identity.km":                `import {Box} from "./reexports";export function identity(value:Box):Box{return value;}`,
+			"app/main.km":                    `import {Box} from "pkg.test/first/api";import {second} from "pkg.test/second";import {identity} from "./identity";export function Answer():int{return identity(new Box()).read()+second();}`,
+		}
+		files["app/kinmokusei.toml"] += "[imports]\n\"first\" = \"pkg.test/first\"\n\"second\" = \"pkg.test/second\"\n"
+		if attempt == 1 {
+			files["app/main.km"] = strings.ReplaceAll(strings.ReplaceAll(files["app/main.km"], "pkg.test/first", "first"), "pkg.test/second", "second")
 		}
 		for name, source := range files {
 			file := filepath.Join(base, filepath.FromSlash(name))
@@ -66,7 +72,7 @@ func TestExternalSourcePackagesMatchIndependentGo(t *testing.T) {
 			t.Fatal(err)
 		}
 		if attempt != 0 && !bytes.Equal(generated, previous) {
-			t.Fatalf("generated code depends on checkout path\n%s\n%s", generated, previous)
+			t.Fatalf("generated code depends on checkout path or import alias\n%s\n%s", generated, previous)
 		}
 		previous = generated
 		reference := `package reference
@@ -92,6 +98,10 @@ func TestAnswer(t *testing.T){if got,want:=g.Answer(),r.Answer();got!=want{t.Fat
 			if err != nil || len(result.Diagnostics) == 0 {
 				t.Fatalf("invalid import accepted: %s err=%v", bad, err)
 			}
+		}
+		result, err = CheckFilesWithOverlay([]string{entry}, map[string]string{filepath.Join(base, "second", "index.km"): `import {Box} from "first";export function second():int{return new Box().read();}`})
+		if err != nil || len(result.Diagnostics) == 0 || !strings.Contains(result.Diagnostics[0].Message, "not declared") {
+			t.Fatalf("consumer alias leaked into dependency: diagnostics=%v err=%v", result.Diagnostics, err)
 		}
 		result, err = CheckFilesWithOverlay([]string{entry}, map[string]string{filepath.Join(base, "first", "src", "value.km"): `import {second} from "../../second/index";export function value():int{return second();}`})
 		if err != nil || len(result.Diagnostics) == 0 || !strings.Contains(result.Diagnostics[0].Message, "source path") {

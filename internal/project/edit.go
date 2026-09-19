@@ -30,7 +30,7 @@ func RenderManifest(manifest Manifest) ([]byte, error) {
 	for _, section := range []struct {
 		name   string
 		values map[string]string
-	}{{"exports", manifest.Exports}, {"dependencies", manifest.Packages}, {"replace", manifest.PackageReplacements}} {
+	}{{"exports", manifest.Exports}, {"dependencies", manifest.Packages}, {"imports", manifest.Imports}, {"replace", manifest.PackageReplacements}} {
 		if len(section.values) == 0 {
 			continue
 		}
@@ -112,6 +112,11 @@ func RemoveDependency(root, path string, offline bool) error {
 	}
 	if _, exists := manifest.Packages[path]; exists {
 		delete(manifest.Packages, path)
+		for alias, module := range manifest.Imports {
+			if module == path {
+				delete(manifest.Imports, alias)
+			}
+		}
 		if !pruneRemovedPackageReplacements(&manifest) {
 			delete(manifest.PackageReplacements, path)
 		}

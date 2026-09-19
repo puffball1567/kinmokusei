@@ -58,6 +58,14 @@ baseline for accepted constructs with a Go equivalent.
 
 ### Lexing and parsing
 
+- `parser.go` owns the parser state, entry loop, token checkpoints/splitting and
+  recovery helpers. Grammar implementations are grouped in `imports.go`,
+  `declarations.go`, `oop_declarations.go`, `functions.go`, `types.go`,
+  `statements.go`, `loops.go`, `branches.go`, `expressions.go` and `arrows.go`.
+  Keep speculative parsing on the shared checkpoint/restore boundary instead
+  of copying token state into individual grammar files. The existing export,
+  abstract-method and terminator helpers remain separate.
+
 - Accept only syntax that Kinmokusei actually supports; do not parse all TypeScript and reject it later.
 - Recover after syntax errors so one malformed statement does not suppress the rest of the file.
 - Preserve source spans on every AST node.
@@ -90,6 +98,11 @@ baseline for accepted constructs with a Go equivalent.
 - Manage Go keywords, predeclared identifiers, and generated-name collisions through deterministic mangling.
 - Place relative imports and Go package aliases in the same file scope.
 - Do not expose transitive relative imports; every reference must resolve to a local declaration or explicit import.
+- Keep imported `main` declarations module-local regardless of name collisions.
+  Only explicit input roots can retain the executable entry spelling. A document
+  belonging to an external package in a consumer's graph remains a dependency
+  even when requested directly by editor analysis. Preserve original source
+  spans and names for navigation and rename.
 - Keep source export directives as AST metadata beside ordinary declarations.
   Any source export, including an empty list, opts that file into explicit
   visibility; files without source exports retain legacy importability. Capture
@@ -201,8 +214,9 @@ itself decouple those analyses. `callable_context.go` groups return, loop,
 breakable, and exception context into one saved/restored control state used by
 functions, constructors, methods, and arrows. Receiver access, lexical scopes,
 nullable facts, and capture tracking retain their separate lifetimes. Further
-refactoring should address those boundaries and responsibility-based parser
-and codegen decomposition without changing source semantics in the same patch.
+refactoring should address those state boundaries without changing source
+semantics in the same patch. Parser and Go emitter implementations now use
+responsibility-focused files, but file boundaries alone do not isolate state.
 
 - Imported Go interface bases retain their checked package/type identities and
   exported method names. Source class methods satisfy them by emitted public Go
@@ -339,6 +353,22 @@ Kinmokusei manifest + lock + target
 - Keep dependency acquisition outside normal loading. Only explicit dependency commands may access or mutate the module graph.
 
 ## Go generation guarantees
+
+Go emission is organized within `internal/codegen` by responsibility:
+
+- `codegen.go` assembles the output file, formats it and validates it with the
+  selected Go importer.
+- `declarations.go`, `classes.go` and `types.go` lower declarations, OOP storage/
+  dispatch and type/signature shapes. Existing constructor, abstract-class and
+  loop helper modules remain separate.
+- `statements.go` and `expressions.go` dispatch checked statements and expressions;
+  `results.go` and `exceptions.go` preserve effect propagation and cleanup.
+- `runtime_support.go` emits task/exception support and ordered runtime helpers.
+  `names.go` and `operators.go` centralize spelling and operator/constant mapping.
+
+This decomposition preserves checked AST metadata, declaration order and generated
+Go bytes. It does not introduce a second intermediate representation or alter
+the existing C ABI/C FFI boundaries.
 
 Generated Go is a user-inspectable artifact and must:
 

@@ -318,8 +318,17 @@ func (c *Checker) checkSliceToArray(expr *ast.CallExpr, view bool) Type {
 	}
 	target := c.resolveType(expr.TypeArguments[0])
 	targetGo, targetOK := goTypeOf(target)
+	var targetElement Type
 	if targetOK {
-		_, targetOK = gotypes.Unalias(targetGo).Underlying().(*gotypes.Array)
+		if parameter, ok := gotypes.Unalias(targetGo).(*gotypes.TypeParam); !view && target.Kind == TypeParameter && ok {
+			targetElement, targetOK = c.parameterArrayElement(parameter, expr.TypeArguments[0].Span)
+		} else {
+			var array *gotypes.Array
+			array, targetOK = gotypes.Unalias(targetGo).Underlying().(*gotypes.Array)
+			if targetOK {
+				targetElement = c.fixedArrayElementType(array, target, expr.TypeArguments[0].Span)
+			}
+		}
 	}
 	if target.Kind != Invalid && !targetOK {
 		c.report(expr.TypeArguments[0].Span, fmt.Sprintf("%s target must be a fixed array type, got %s", name, target.String()))
@@ -344,8 +353,6 @@ func (c *Checker) checkSliceToArray(expr *ast.CallExpr, view bool) Type {
 			if view {
 				conversionTarget = gotypes.NewPointer(targetGo)
 			}
-			targetArray := gotypes.Unalias(targetGo).Underlying().(*gotypes.Array)
-			targetElement := c.fixedArrayElementType(targetArray, target, expr.TypeArguments[0].Span)
 			if !gotypes.ConvertibleTo(sourceGo, conversionTarget) || !c.identicalCollectionElement(targetElement, sourceElement) {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert slice %s to %s target %s", source.String(), name, target.String()))
 			}

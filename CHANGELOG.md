@@ -9,6 +9,36 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-19
+
+- Automatically register a source import alias when `keika deps add` installs
+  a Kinmokusei package. Derive it from the module name (ignoring a trailing major
+  version), allow `--alias` overrides and reject collisions transactionally.
+  No manual manifest edit or separate lock operation is needed.
+
+- Split Go generation into declaration, class, type, statement, expression,
+  Result, exception and runtime-support modules without changing generated code.
+
+- Split the parser into grammar-focused files while retaining its shared token
+  checkpoints, source spans and error recovery. No syntax or diagnostic changes.
+
+- Keep an imported module's `main` binding module-local even when the entry
+  has no same-named declaration. Imported constants, variables and ordinary
+  functions named `main` no longer inherit entry-arrow restrictions or supply
+  an accidental executable entry point. Retain source names in editor features.
+
+- Add manifest `[imports]` aliases for external Kinmokusei source imports and
+  re-exports, including submodules. Resolve aliases in the importing package's
+  own manifest without changing canonical dependency or type identities.
+  Validate reserved/colliding paths, preserve aliases through dependency edits,
+  and remove aliases when their direct dependency is removed. Cover offline CLI
+  workflows, compiler output identity, package isolation and editor navigation.
+
+- Allow array-constrained type parameters as `copyArray` targets, including
+  differing lengths, imported/re-exported constraints and generic class methods.
+  Preserve element identity/nullability and shallow-copy semantics; compare
+  generated behavior with independent Go implementations and add editor tests.
+
 ## [0.4.2] - 2026-09-19
 
 - Include Go and applicable third-party license, patent and source notice

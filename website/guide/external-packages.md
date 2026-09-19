@@ -115,6 +115,61 @@ Without source arguments, `check`, `build`, `run`, and `emit-go` use
 project. Explicit source arguments remain supported. Files needed by the entry
 are loaded through imports, not by concatenating every source in a directory.
 
+## Short import names
+
+Since v0.4.3, `keika deps add` automatically registers a short source
+import name and updates the lock in the same transaction:
+
+```sh
+keika deps add example.com/greeting@v0.1.0
+keika check
+```
+
+The command writes these entries; no manual manifest edit is needed:
+
+```toml
+[dependencies]
+"example.com/greeting" = "v0.1.0"
+
+[imports]
+"greeting" = "example.com/greeting"
+```
+
+```ts
+import { greet } from "greeting"
+import { format } from "greeting/format"
+export { greet } from "greeting"
+```
+
+The default alias is the module path's last component; a trailing `/v2`, `/v3`,
+etc. is skipped (`example.com/greeting/v2` becomes `greeting`). Package metadata
+does not choose the consumer's alias. If the name conflicts with an existing
+alias or a reserved/canonical path, the command fails without changing the
+manifest or lock. Choose another name directly in the command:
+
+```sh
+keika deps add --alias hello example.com/greeting@v0.1.0
+```
+
+`--alias` is for Kinmokusei source dependencies only. `--offline` requires the
+dependencies to be already cached or locally replaced. The alias only changes
+source spelling: versions, acquisition, lock entries,
+hash checks and type identity still use the canonical module path. Canonical
+and short imports may coexist without loading a second copy of the module.
+
+Aliases belong to the importing project's manifest. A library can define its
+own aliases for its direct dependencies; it never inherits the application's
+aliases, and its aliases never leak into the application or sibling libraries.
+Relative imports, standard-library imports and `import go` are unchanged.
+
+Continue to use canonical module paths with `keika deps add/update/remove`.
+Dependency edits preserve aliases; removing a direct dependency removes aliases
+targeting it, even when another library still needs that package transitively.
+Only directly added packages receive aliases, not their transitive dependencies.
+Manual `[imports]` edits remain possible; unlike `deps add`, they require an
+explicit `keika deps lock` afterwards.
+See the [alias rules](../reference/project-files#imports) for validation details.
+
 ## Develop two repositories together
 
 The consumer can replace a package with a sibling checkout before publishing
@@ -131,6 +186,9 @@ This records:
 ```toml
 [dependencies]
 "example.com/greeting" = "v0.1.0"
+
+[imports]
+"greeting" = "example.com/greeting"
 
 [replace]
 "example.com/greeting" = "../greeting"
@@ -199,7 +257,7 @@ Published source packages are checked against their locked full-content hash.
 Changed cache content is an error, not a reason to silently update the lock.
 Library minimum Kinmokusei/Go versions and declared OS, architecture, CGO and
 build-tag requirements are checked against the consumer's target. Unversioned
-development binaries currently use the compatibility floor `0.4.2`.
+development binaries currently use the compatibility floor `0.4.3`.
 
 The initial source graph selects one exact version per module. Conflicting
 direct/transitive source requirements are diagnosed with both versions instead

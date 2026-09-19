@@ -1,0 +1,17 @@
+import go { Println } from "fmt"
+
+constraint Array<E> = ~[0]E | ~[2]E | ~[3]E
+
+function convert<E, A extends Array<E>>(values: E[]): A {
+  return copyArray[A](values)
+}
+
+type Pair = distinct [2]int
+
+function main(): void {
+  const values = [1, 2, 3]
+  let pair = convert<int, Pair>(values)
+  const triple = convert<int, [3]int>(values)
+  pair[0] = 9
+  Println(values[0], pair[0], triple[2])
+}
