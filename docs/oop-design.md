@@ -386,9 +386,8 @@ receiver once, call the getter once, evaluate the right-hand side, then call the
 setter once. An exception or panic stops that sequence. Both accessors must be
 accessible for updates. Inherited properties retain their access rules and
 generic substitution; `super.value` operates on the existing base instance.
-Redeclaring an inherited property (including adding just one accessor), static
-properties, virtual/override/abstract accessors and interface property signatures
-are not yet supported. Ordinary class fields and methods cannot hide a property.
+Static properties and interface property signatures are not yet supported.
+Ordinary class fields and methods cannot hide a property.
 
 Accessors are synchronous calls, not stable storage reads. Repeated nullable
 getter reads are not narrowed by an earlier null check: bind the result locally
@@ -397,6 +396,50 @@ proofs, just like ordinary method calls. Property types cannot be `Result` or
 `Task`; there is no implicit error propagation or awaiting. Bodies retain
 ordinary explicit statements and exception/panic behavior. Prefer explicit
 methods for operations whose effects should be visible at the call site.
+
+### Virtual and abstract accessors
+
+Each accessor independently supports the ordinary `virtual`, `override`, `final`
+and `abstract` method rules. Overrides must preserve its visibility and exact
+type, including nested nullability. Nonvirtual accessors cannot be overridden.
+Overriding only a getter preserves the inherited setter, and vice versa; adding
+a previously absent accessor to an inherited property is not supported. A final
+override closes that accessor, not the other half of the property.
+
+```ts
+abstract class Setting<T> {
+  public abstract get value(): T;
+  public abstract set value(next: T);
+}
+class Count extends Setting<int> {
+  private raw: int = 0;
+  public override get value(): int { return this.raw; }
+  public override set value(next: int) { this.raw = next; }
+}
+function increment(setting: Setting<int>): int {
+  setting.value++;
+  return setting.value;
+}
+```
+
+Abstract accessors have signatures without bodies and are implicitly virtual.
+A concrete descendant must implement each abstract accessor; an abstract
+intermediate class may redeclare an inherited virtual accessor with
+`abstract override`. These abstract classes work as ordinary DI types.
+
+Access through a base reference dispatches to the most-derived override,
+including updates and public Go `GetValue`/`SetValue` method calls or bound
+method values. `super.value` deliberately bypasses virtual dispatch and uses
+the inherited implementation. Reading or writing an abstract accessor through
+`super` is an error, including an abstract getter needed for a compound update.
+
+Construction uses the same phase-local dispatch as ordinary methods. Direct
+access to an abstract accessor on `this` during construction is rejected;
+indirect access through helpers can still reach an unimplemented slot and
+panics. An abstract getter is not read by a simple assignment through a concrete
+setter. Getter/setter bodies do not supply definite-initialization proofs for
+backing fields. Go-created zero values use the ordinary wrapper fallback, and
+unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ## Stages
 
@@ -419,7 +462,7 @@ methods for operations whose effects should be visible at the call site.
 
 ### Later candidates
 
-- Static, virtual/abstract, and interface properties.
+- Static and interface properties.
 - Discriminated-union integration.
 
 ### Out of scope

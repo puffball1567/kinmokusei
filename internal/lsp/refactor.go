@@ -262,8 +262,6 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 							family = append(family, paired.NameSpan)
 						}
 					}
-					connect(family)
-					continue
 				}
 				for baseRef := class.Base; baseRef != nil; {
 					base := classes[spanKey(baseRef.ResolvedDeclaration)]
@@ -271,14 +269,16 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 						break
 					}
 					for _, inherited := range base.Methods {
-						if inherited.Name == method.Name {
+						if inherited.Name == method.Name && (inherited.Accessor != "") == (method.Accessor != "") {
 							family = append(family, inherited.NameSpan)
-							break
 						}
 					}
 					baseRef = base.Base
 				}
 				for _, implemented := range class.Implements {
+					if method.Accessor != "" {
+						break
+					}
 					contract := interfaces[spanKey(implemented.ResolvedDeclaration)]
 					if contract == nil {
 						continue

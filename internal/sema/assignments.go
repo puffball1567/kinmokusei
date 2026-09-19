@@ -162,6 +162,9 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 }
 
 func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
+	if member, ok := expr.(*ast.MemberExpr); ok && member.Property {
+		c.checkAbstractPropertyAccess(member, member.PropertyGetterAbstract, "getter")
+	}
 	if member, ok := expr.(*ast.MemberExpr); ok && member.Property && member.PropertyGetter == "" {
 		c.report(member.Span, fmt.Sprintf("property %q requires an accessible getter for an update", member.Name))
 	}

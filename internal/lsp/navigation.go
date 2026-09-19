@@ -543,7 +543,11 @@ func functionDeclarationDetail(function *ast.FunctionDecl) string {
 
 func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast.TypeRef) string {
 	if method.Accessor != "" {
-		return method.Accessor + " " + strings.TrimPrefix(functionDetail(method.Name, parameters, result), "function ")
+		detail := method.Accessor + " " + strings.TrimPrefix(functionDetail(method.Name, parameters, result), "function ")
+		if method.Abstract {
+			detail = "abstract " + detail
+		}
+		return detail
 	}
 	name := method.Name
 	if !method.External && len(method.TypeParameters) != 0 {

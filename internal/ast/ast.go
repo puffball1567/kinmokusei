@@ -912,24 +912,27 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
-	Property            bool
-	PropertyGetter      string
-	PropertySetter      string
-	Object              Expression
-	Name                string
-	NameSpan            source.Span
-	ResolvedDeclaration source.Span
-	ResolvedName        string
-	Static              bool
-	Constant            bool
-	Addressable         bool
-	GoField             bool
-	GoFieldViaPointer   bool
-	Go                  bool
-	Super               bool
-	SuperBase           string
-	VirtualDispatch     bool
-	VirtualOwner        string
+	Property               bool
+	PropertyGetter         string
+	PropertySetter         string
+	PropertyGetterOwner    string
+	PropertySetterOwner    string
+	PropertyGetterAbstract bool
+	Object                 Expression
+	Name                   string
+	NameSpan               source.Span
+	ResolvedDeclaration    source.Span
+	ResolvedName           string
+	Static                 bool
+	Constant               bool
+	Addressable            bool
+	GoField                bool
+	GoFieldViaPointer      bool
+	Go                     bool
+	Super                  bool
+	SuperBase              string
+	VirtualDispatch        bool
+	VirtualOwner           string
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
 	GenericMethod                bool

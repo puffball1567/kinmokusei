@@ -5,7 +5,7 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
-func (p *Parser) parseClassAccessor(start token.Token) *ast.MethodDecl {
+func (p *Parser) parseClassAccessor(start token.Token, abstract bool) *ast.MethodDecl {
 	name, ok := p.expect(token.Identifier, "expected property name")
 	if !ok {
 		return nil
@@ -30,7 +30,19 @@ func (p *Parser) parseClassAccessor(start token.Token) *ast.MethodDecl {
 	} else if start.Lexeme == "get" {
 		p.report(p.peek(), "getter requires an explicit return type")
 	}
-	body := p.parseBlock()
+	var body *ast.BlockStmt
+	if abstract && !p.at(token.LeftBrace) {
+		end, valid := p.expectTerminator("expected ';' after abstract accessor signature")
+		if !valid {
+			return nil
+		}
+		body = &ast.BlockStmt{Span: end.Span}
+	} else {
+		if abstract {
+			p.report(p.peek(), "abstract accessors cannot have a body")
+		}
+		body = p.parseBlock()
+	}
 	if body == nil || !ok {
 		return nil
 	}

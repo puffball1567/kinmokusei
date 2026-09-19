@@ -9,11 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
-- Add concrete instance getter/setter properties with independent visibility,
-  generic and inherited element types, read/write diagnostics and single-evaluation
-  compound updates. Generated Go exposes accessor methods; LSP supports property
-  completion, navigation, and paired getter/setter rename. Static, virtual and
-  abstract properties remain unsupported.
+- Add instance getter/setter properties with independent visibility, generic
+  and inherited types, read/write diagnostics and single-evaluation updates.
+  Support virtual/abstract accessors, explicit and final overrides, partial
+  accessor overrides and phase-local construction dispatch. Generated Go exposes
+  accessor methods; LSP supports completion, navigation and inheritance-aware
+  paired getter/setter rename. Static and interface properties remain unsupported.
 
 - Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
   type parameters and source class elements, preserving source nullability.

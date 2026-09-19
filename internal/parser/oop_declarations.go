@@ -158,7 +158,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 	modifiersComplete:
 		switch {
 		case p.at(token.Identifier) && (p.peek().Lexeme == "get" || p.peek().Lexeme == "set") && p.atNext(token.Identifier):
-			accessor := p.parseClassAccessor(p.advance())
+			accessor := p.parseClassAccessor(p.advance(), abstract)
 			if accessor != nil {
 				accessor.Visibility = visibility
 				accessor.Static, accessor.Virtual, accessor.Override, accessor.Final, accessor.Abstract = static, virtual, override, final, abstract

@@ -235,21 +235,6 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if field, conflicts := symbol.fields[method.Name]; conflicts {
 			c.report(method.Span, fmt.Sprintf("method %q conflicts with field declared by class %s", method.Name, field.declaringClass))
 		}
-		if method.Static && (method.Virtual || method.Override) {
-			c.report(method.Span, "static methods cannot be virtual or override")
-		}
-		if len(method.TypeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
-			c.report(method.Span, "generic methods cannot be virtual, override, or final because Go method sets cannot represent method type parameters")
-		}
-		if method.Virtual && method.Override {
-			c.report(method.Span, "override already remains virtual; remove the virtual modifier")
-		}
-		if method.Final && !method.Override {
-			c.report(method.Span, "final methods must override an inherited virtual method")
-		}
-		if method.Virtual && method.Visibility == ast.Private {
-			c.report(method.Span, "virtual methods must be public or protected")
-		}
 		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
 		if len(methodTypeParameters) != 0 {
 			methodType.TypeParameters = append(methodType.TypeParameters, methodTypeParameters...)
@@ -260,34 +245,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if len(methodType.TypeParameters) != 0 {
 			methodType.Generic = true
 		}
-		virtualOwner := ""
-		if replaces && inherited.declaringClass == decl.Name {
-			c.report(method.Span, fmt.Sprintf("duplicate method %q", method.Name))
+		virtualOwner, valid := c.methodDispatchOwner(decl, method, methodType, inherited, replaces)
+		if !valid {
 			continue
-		}
-		if replaces {
-			switch {
-			case !method.Override:
-				c.report(method.Span, fmt.Sprintf("method %q replaces inherited method from %s; add override", method.Name, inherited.declaringClass))
-			case inherited.final:
-				c.report(method.Span, fmt.Sprintf("method %q in %s is final and cannot be overridden", method.Name, inherited.declaringClass))
-			case inherited.static:
-				c.report(method.Span, fmt.Sprintf("static method %q cannot be overridden", method.Name))
-			case !inherited.virtual:
-				c.report(method.Span, fmt.Sprintf("method %q in %s is not virtual", method.Name, inherited.declaringClass))
-			case method.Static:
-				c.report(method.Span, fmt.Sprintf("override method %q cannot be static", method.Name))
-			case method.Visibility != inherited.visibility:
-				c.report(method.Span, fmt.Sprintf("override method %q must preserve inherited visibility", method.Name))
-			case !identicalMethodSignature(methodType, inherited.typeInfo):
-				c.report(method.Span, fmt.Sprintf("override method %q has an incompatible signature", method.Name))
-			}
-			virtualOwner = inherited.virtualOwner
-		} else if method.Override {
-			c.report(method.Span, fmt.Sprintf("method %q has override but no inherited method", method.Name))
-		}
-		if method.Virtual && virtualOwner == "" {
-			virtualOwner = decl.Name
 		}
 		method.VirtualOwner = virtualOwner
 		symbol.methods[method.Name] = methodSymbol{

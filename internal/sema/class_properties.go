@@ -18,17 +18,16 @@ func hasClassProperty(class *classSymbol, name string) bool {
 }
 
 func (c *Checker) declareClassAccessor(decl *ast.ClassDecl, class *classSymbol, method *ast.MethodDecl) {
-	if method.Static || method.Virtual || method.Override || method.Final || method.Abstract {
-		c.report(method.Span, "properties currently require concrete nonvirtual instance accessors")
+	if method.Static {
+		c.report(method.Span, "static properties are not supported; use an instance accessor or static method")
 	}
+	c.declareAbstractMethod(decl, method)
 	c.validateLabels(method.Body)
 	key := method.Accessor + " " + method.Name
-	if _, exists := class.methods[key]; exists {
-		c.report(method.NameSpan, fmt.Sprintf("duplicate or inherited %s property %q cannot be redeclared", method.Accessor, method.Name))
-	}
+	inherited, replaces := class.methods[key]
 	for _, accessor := range []string{"get ", "set "} {
-		if inherited, exists := class.methods[accessor+method.Name]; exists && inherited.declaringClass != decl.Name {
-			c.report(method.NameSpan, fmt.Sprintf("inherited property %q cannot be redeclared", method.Name))
+		if other, exists := class.methods[accessor+method.Name]; !replaces && exists && other.declaringClass != decl.Name {
+			c.report(method.NameSpan, fmt.Sprintf("inherited property %q cannot be redeclared by adding an accessor", method.Name))
 		}
 	}
 	if _, exists := class.fields[method.Name]; exists {
@@ -54,8 +53,15 @@ func (c *Checker) declareClassAccessor(decl *ast.ClassDecl, class *classSymbol, 
 		c.report(method.Span, "setter must have exactly one non-rest parameter and return void")
 	}
 	method.GoName = memberGoName(method.Accessor+memberGoName(method.Name, ast.Public), method.Visibility)
-	class.methods[key] = methodSymbol{typeInfo: Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result},
-		visibility: method.Visibility, goName: method.GoName, declarationSpan: method.NameSpan, declaringClass: decl.Name}
+	signature := Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
+	owner, valid := c.methodDispatchOwner(decl, method, signature, inherited, replaces)
+	if !valid {
+		return
+	}
+	method.VirtualOwner = owner
+	class.methods[key] = methodSymbol{typeInfo: signature,
+		visibility: method.Visibility, goName: method.GoName, declarationSpan: method.NameSpan, declaringClass: decl.Name,
+		virtual: method.Virtual || method.Override, abstract: method.Abstract, final: method.Final, virtualOwner: owner}
 }
 
 func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classSymbol) {
@@ -65,7 +71,7 @@ func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classS
 		}
 		getter, get := class.methods["get "+method.Name]
 		setter, set := class.methods["set "+method.Name]
-		if method.Accessor == "get" && get && set && len(setter.typeInfo.Parameters) == 1 && getter.typeInfo.Result != nil {
+		if get && set && len(setter.typeInfo.Parameters) == 1 && getter.typeInfo.Result != nil {
 			left := Type{Kind: Function, Name: "function", Result: getter.typeInfo.Result}
 			right := Type{Kind: Function, Name: "function", Result: &setter.typeInfo.Parameters[0]}
 			if !identicalMethodSignature(left, right) {
@@ -101,13 +107,17 @@ func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classS
 func (c *Checker) checkClassProperty(expr *ast.MemberExpr, class *classSymbol, object Type, write bool) Type {
 	expr.Property = true
 	expr.PropertyGetter, expr.PropertySetter = "", ""
+	expr.PropertyGetterOwner, expr.PropertySetterOwner = "", ""
 	getter, get := class.methods["get "+expr.Name]
 	setter, set := class.methods["set "+expr.Name]
 	if get && c.canAccessClassMember(getter.visibility, getter.declaringClass) {
 		expr.PropertyGetter = getter.goName
+		expr.PropertyGetterOwner = getter.virtualOwner
 	}
+	expr.PropertyGetterAbstract = get && getter.abstract
 	if set && c.canAccessClassMember(setter.visibility, setter.declaringClass) {
 		expr.PropertySetter = setter.goName
+		expr.PropertySetterOwner = setter.virtualOwner
 	}
 	selected, exists, kind := getter, get, "getter"
 	if write {
@@ -120,6 +130,7 @@ func (c *Checker) checkClassProperty(expr *ast.MemberExpr, class *classSymbol, o
 	if !c.canAccessClassMember(selected.visibility, selected.declaringClass) {
 		c.reportInaccessibleClassMember(expr.Span, kind, expr.Name, selected.visibility)
 	}
+	c.checkAbstractPropertyAccess(expr, selected.abstract, kind)
 	expr.ResolvedDeclaration = selected.declarationSpan
 	c.recordMemberWrite(expr.Span)
 	c.invalidateAllMemberFacts(expr.Span, "a property accessor with unknown mutation effects")
@@ -131,4 +142,15 @@ func (c *Checker) checkClassProperty(expr *ast.MemberExpr, class *classSymbol, o
 		result = *selected.typeInfo.Result
 	}
 	return substituteNativeTypeParameters(result, nativeClassBindings(class, object))
+}
+
+func (c *Checker) checkAbstractPropertyAccess(expr *ast.MemberExpr, abstract bool, kind string) {
+	if !abstract {
+		return
+	}
+	if expr.Super {
+		c.report(expr.Span, fmt.Sprintf("super cannot access abstract %s %q without an implementation", kind, expr.Name))
+	} else if receiver, direct := expr.Object.(*ast.IdentifierExpr); direct && receiver.Name == "this" && c.inConstructor {
+		c.report(expr.Span, fmt.Sprintf("cannot access an abstract %s on this during construction", kind))
+	}
 }

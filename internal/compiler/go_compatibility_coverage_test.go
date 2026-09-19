@@ -116,10 +116,11 @@ var implementedGoCompatibilityContracts = []string{
 	"generic numeric arguments with exact constant values, typed-argument-first inference, numeric constant kind promotion, explicit and partial type arguments, variadics, imported Go generics and constants, named types, linked modules, generic class methods, rounding, and single evaluation",
 	"abstract classes and methods with explicit concrete implementation, dependency injection, generic and multi-level inheritance, re-abstraction, interface dispatch, Result and variadic method values, hierarchy identity, linked export aliases, and construction-phase failure",
 	"string and boolean constant aliases with linked exports and Go constants, named scalar operations, typed-argument-first generic inference, constant-string byte lengths and bounds, lexical captures, named boolean control, and runtime storage and evaluation",
-	"concrete instance properties with getter/setter visibility, inherited generic contracts, source nullability, single-evaluation updates, ordered effects, shared values, public Go methods, and failure behavior",
+	"instance properties with getter/setter visibility, virtual and abstract contracts, final and partial overrides, generic inheritance, construction phases, source nullability, single-evaluation updates, ordered effects, shared values, public Go methods, and failure behavior",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"virtual-properties.test":             {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[98]},
 	"class-properties.test":               {implementedGoCompatibilityContracts[100]},
 	"generic-channel-close.test":          {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[20]},
 	"generic-channel-operations.test":     {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21]},

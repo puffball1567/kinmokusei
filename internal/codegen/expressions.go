@@ -322,7 +322,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			return propertyCall(object, expr.PropertyGetter), nil
+			return propertyCall(object, propertyAccessorName(expr, false)), nil
 		}
 		if expr.Static {
 			return goast.NewIdent(goName(expr.ResolvedName)), nil

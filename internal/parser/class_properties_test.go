@@ -20,3 +20,19 @@ func TestClassPropertiesParse(t *testing.T) {
 		}
 	}
 }
+
+func TestAbstractPropertiesParse(t *testing.T) {
+	program, count := parseSource(t, "abstract class B<T>{\npublic abstract get value():T\nprotected abstract set value(v:T)\n}\nclass C extends B<int>{public final override get value():int{return 1;}protected override set value(v:int){}}")
+	if count != 0 {
+		t.Fatalf("diagnostics=%d", count)
+	}
+	base := program.Declarations[0].(*ast.ClassDecl)
+	if len(base.Methods) != 2 || !base.Methods[0].Abstract || !base.Methods[1].Abstract || base.Methods[0].Body == nil || base.Methods[1].ReturnType.Name != "void" {
+		t.Fatalf("base=%#v", base)
+	}
+	for _, input := range []string{`abstract class B{public abstract get x():int{return 1;}}`, `abstract class B{public abstract set x(v:int){}}`, `class B{public get x():int;}`, `abstract class B{public abstract get x():int public abstract set x(v:int);}`} {
+		if _, count := parseSource(t, input); count == 0 {
+			t.Errorf("accepted %q", input)
+		}
+	}
+}

@@ -3,6 +3,10 @@ package compiler
 import "testing"
 
 var classPropertySeeds = []string{
+	`abstract class B<T>{public abstract get x():T;public abstract set x(v:T);}class C extends B<int>{private n:int=0;public override get x():int{return this.n;}public override set x(v:int){this.n=v;}}function f(c:C):int{const b:B<int>=c;b.x++;return b.x;}`,
+	`class B{public virtual get x():int{return 1;}public virtual set x(v:int){}}class C extends B{public override get x():int{return super.x+1;}}function f(c:C):void{c.x++;}`,
+	`abstract class B{constructor(){this.x++;}public abstract get x():int;public set x(v:int){}}`,
+	`abstract class B{public abstract get x():int;}class C extends B{public override get x():int{return super.x;}}`,
 	`class C{private n:int=0;public get x():int{return this.n;}public set x(v:int){this.n=v;}}function f(c:C):int{c.x+=1;c.x++;return c.x;}`,
 	`class C<T>{constructor(private v:T){}public get x():T{return this.v;}protected set x(v:T){this.v=v;}}class D extends C<int>{constructor(){super(0);}public function f():int{super.x++;return this.x;}}`,
 	`class C{public get value():int{return 1;}}function f(c:C):void{c.value=2;}`,
