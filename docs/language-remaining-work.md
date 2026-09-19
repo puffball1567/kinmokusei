@@ -237,6 +237,14 @@ compiler/editor version metadata when preparing each v0.4.x release.
 
 ## Confirmed Go-facing gaps
 
+After v0.4.1, `closeGoChannel` accepts send-capable channel type parameters,
+including mixed element types, named channels, source/imported constraints and
+generic class methods. Buffered draining, nil/double-close/send-after-close
+panics, evaluation count, deferred/concurrent close and nullable OOP elements
+are compared with Go in `generic_channel_close_test.go`. Direct generic
+send/receive expressions and select communication remain further work;
+generic channel range is already supported for compatible receive-capable bounds.
+
 Generic collection mutation now accepts mixed slice/map type sets for `clear`
 and common-key map type sets for `delete`, including differing map value types,
 source nullable/class keys, imported constraints and generic class methods.

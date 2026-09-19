@@ -15,6 +15,8 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint C=~GoChannel<int>|~GoSendChannel<string>;function finish<T extends C>(ch:T):void{closeGoChannel(ch);}`,
+	`constraint C=~GoChannel<int>|~GoReceiveChannel<int>;function finish<T extends C>(ch:T):void{closeGoChannel(ch);}`,
 	`constraint S<E>=~E[]|~[2]E|~*[3]E;function f<E,T extends S<E>>(v:T,e:E):E{const p=&v[0];*p=e;return v[1];}`,
 	`constraint S=~string|~byte[];function f<T extends S>(v:T):T{const b:byte=v[0];return v[1:];}`,
 	`constraint S=~string|~byte[];function f<T extends S>(v:T):void{v[0]=1;}`,

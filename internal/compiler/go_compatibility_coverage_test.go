@@ -119,6 +119,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"generic-channel-close.test":          {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[20]},
 	"generic-array-conversion.test":       {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[8], implementedGoCompatibilityContracts[9], implementedGoCompatibilityContracts[10], implementedGoCompatibilityContracts[96]},
 	"generic-index-slice.test":            {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[8], implementedGoCompatibilityContracts[9], implementedGoCompatibilityContracts[13], implementedGoCompatibilityContracts[14]},
 	"mixed-generic-collections.test":      {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[8], implementedGoCompatibilityContracts[9], implementedGoCompatibilityContracts[13], implementedGoCompatibilityContracts[14]},

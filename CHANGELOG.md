@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support `closeGoChannel` on send-capable channel type parameters, including
+  mixed element types, imported constraints and generic class methods. Reject
+  receive-only/non-channel bounds; retain evaluation, buffered-drain and panic
+  behavior. Add independent Go comparisons, editor and executable-doc tests.
+
 - Treat eligible `len`/`cap` calls on nullable fixed-array pointers as typed
   constants, including named arrays/pointers and generic elements. Preserve
   nil safety and runtime call/receive evaluation; diagnose constant bounds and

@@ -86,6 +86,19 @@ Channel types preserve direction:
 
 Send/receive blocking, nil channels, closed-channel zero values, double close, and send-after-close follow Go behavior. Checked receive distinguishes a delivered zero value from a closed/drained channel.
 
+On the development branch after v0.4.1, a generic helper can close channels
+when every type in its constraint permits sending. Closing does not inspect
+elements, so their types need not be identical:
+
+<<< ../snippets/generic-channel-close.km{ts}
+
+A bound containing even one receive-only channel is rejected:
+
+<<< ../snippets-invalid/generic-channel-close.km{ts}
+
+This extension covers closing only; it does not enable generic send/receive
+expressions. The existing channel-direction and nullable-value checks remain.
+
 ## Range over a channel
 
 ```ts
