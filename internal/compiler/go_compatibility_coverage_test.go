@@ -193,6 +193,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"example.com/cgo-application":         {implementedGoCompatibilityContracts[37]},
 	"example.com/unsafe-application":      {implementedGoCompatibilityContracts[38]},
 	"example.com/unsafe-builtins":         {implementedGoCompatibilityContracts[39]},
+	"unsafe-collections.test":             {implementedGoCompatibilityContracts[39]},
 	"jsonapi.test":                        {implementedGoCompatibilityContracts[40]},
 	"nullable-members.test":               {implementedGoCompatibilityContracts[41]},
 	"unsigned.test":                       {implementedGoCompatibilityContracts[42], implementedGoCompatibilityContracts[71]},

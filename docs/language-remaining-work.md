@@ -240,6 +240,16 @@ compiler/editor version metadata when preparing each v0.4.x release.
 
 ## Confirmed Go-facing gaps
 
+Permitted `unsafe.Slice`/`SliceData` calls now support constrained pointer/slice
+operands and source class elements without erasing source nullability. Shared
+integer-context checks handle constant reference chains, integer-valued untyped
+floating/complex constants and nonconstant shifts in lengths/offsets. Coverage
+in `unsafe_collections_test.go` compares generic helpers, generic class methods,
+aliasing, writes, nil/empty behavior and evaluation order with independent Go.
+Negative/nil-invalid runtime lengths are checked in ordinary runs; race runs
+retain valid operations because Go checkptr makes those failures unrecoverable.
+The explicit unsafe permission and its lifetime/pointer obligations are unchanged.
+
 After v0.4.3, `make[T](...)` allocates concrete, named and constrained slices,
 maps and channels without losing target identity. Source and imported bounds,
 generic class methods, nullable elements, integer-valued constant sizes,

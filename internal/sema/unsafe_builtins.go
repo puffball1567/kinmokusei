@@ -101,37 +101,29 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 		if !exists || pointer.Kind == Invalid {
 			return invalid, true
 		}
-		pointerGo, representable := goTypeOf(pointer)
-		var selected *gotypes.Pointer
-		if representable {
-			selected, _ = gotypes.Unalias(pointerGo).Underlying().(*gotypes.Pointer)
-		}
-		if selected == nil {
+		element, valid := c.unsafeSequenceElement(pointer, true)
+		if !valid {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s pointer must be a typed Go pointer, got %s", qualifiedName, pointer.String()))
 			return invalid, true
 		}
 		if length, exists := argument(1); exists {
 			c.checkUnsafeIntegerArgument(qualifiedName, "length", expr.Arguments[1], length, true)
 		}
-		element := c.collectionElementType(selected.Elem(), pointer, expr.Span)
 		return Type{Kind: Array, Name: "array", Element: &element}, true
 	case "SliceData":
 		value, exists := argument(0)
 		if !exists || value.Kind == Invalid {
 			return invalid, true
 		}
-		valueGo, representable := goTypeOf(value)
-		if !representable {
+		element, valid := c.unsafeSequenceElement(value, false)
+		if !valid {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s argument must be a slice, got %s", qualifiedName, value.String()))
 			return invalid, true
 		}
-		slice, sliceOK := gotypes.Unalias(valueGo).Underlying().(*gotypes.Slice)
-		if !sliceOK {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s argument must be a slice, got %s", qualifiedName, value.String()))
+		elementGo, ok := c.goTypeForNativeStorage(element)
+		if !ok {
 			return invalid, true
 		}
-		element := c.collectionElementType(slice.Elem(), value, expr.Span)
-		elementGo, _ := goTypeOf(element)
 		return Type{Kind: GoPointer, Name: "*" + element.String(), Element: &element, GoType: gotypes.NewPointer(elementGo), GoQualifier: element.GoQualifier}, true
 	case "String":
 		if pointer, exists := argument(0); exists && pointer.Kind != Invalid && pointer.Kind != Nil && !isGoBytePointer(pointer) {
@@ -178,17 +170,20 @@ func isGoString(value Type) bool {
 }
 
 func (c *Checker) checkUnsafeIntegerArgument(name, role string, expression ast.Expression, value Type, nonnegative bool) {
-	if value.Kind != Invalid && !value.IsInteger() {
+	if value.Kind == Invalid {
+		return
+	}
+	if !c.isIntegerContext(expression, value) {
 		c.report(expression.GetSpan(), fmt.Sprintf("%s %s must be an integer, got %s", name, role, value.String()))
 		return
 	}
 	if nonnegative {
-		if constant, known := integerConstantValue(expression); known && constant.Sign() < 0 {
+		if constant, known := c.integerContextValue(expression); known && constant.Sign() < 0 {
 			c.report(expression.GetSpan(), fmt.Sprintf("%s %s cannot be negative", name, role))
 		} else if known && !constant.IsInt64() {
 			c.report(expression.GetSpan(), fmt.Sprintf("%s %s is out of range", name, role))
 		}
-	} else if constant, known := integerConstantValue(expression); known && !constant.IsInt64() {
+	} else if constant, known := c.integerContextValue(expression); known && !constant.IsInt64() {
 		c.report(expression.GetSpan(), fmt.Sprintf("%s %s is out of range", name, role))
 	}
 }

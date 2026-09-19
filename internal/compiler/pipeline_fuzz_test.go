@@ -245,6 +245,10 @@ var pipelineFuzzSeeds = []string{
 }
 
 func compilePipelineProperty(input string) ([]byte, bool, error) {
+	return compilePipelinePropertyWithPolicy(input, sema.GoInteropPolicy{})
+}
+
+func compilePipelinePropertyWithPolicy(input string, policy sema.GoInteropPolicy) ([]byte, bool, error) {
 	tokens, lexDiagnostics := lexer.Lex("fuzz.km", input)
 	program, parseDiagnostics := kinmokuseiParser.Parse(tokens)
 	if program == nil {
@@ -254,7 +258,7 @@ func compilePipelineProperty(input string) ([]byte, bool, error) {
 		return nil, false, nil
 	}
 	goImporter := importer.Default()
-	if diagnostics := sema.CheckScopedWithGoImporter(program, nil, goImporter); len(diagnostics) != 0 {
+	if diagnostics := sema.CheckScopedWithGoImporterAndPolicy(program, nil, goImporter, policy); len(diagnostics) != 0 {
 		return nil, false, nil
 	}
 	first, err := codegen.GenerateWithImporter(program, "fuzzpkg", goImporter)

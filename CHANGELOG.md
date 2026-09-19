@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
+  type parameters and source class elements, preserving source nullability.
+  Accept integer-valued untyped constants and contextual shifts in unsafe lengths
+  and offsets; diagnose negative lengths and overflowing constant reference
+  chains. The explicit unsafe permission and Go lifetime obligations are unchanged.
+
 - Extend scalar constant checking for value switches: default the subject's
   type, reject overflowing subjects/cases, recognize constant expression and
   re-export chains, and account for floating-point rounding and interface
