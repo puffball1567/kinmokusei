@@ -16,8 +16,9 @@ from the central checker. Constructor analysis consumes checked AST metadata
 and explicit field facts without owning mutable checker state.
 
 Callable return/control-transfer state now has a shared entry and restoration
-boundary, with nested-callable regression coverage. Lexical/capture/nullable
-state and the large parser/codegen files still need further decomposition.
+boundary, with nested-callable regression coverage. The parser has been split
+into grammar-focused files while retaining shared token state and recovery.
+Lexical/capture/nullable state and the large codegen file still need further decomposition.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor
 versions and documented diagnostics. Intentional source/public API breaks
@@ -52,7 +53,7 @@ feature work without mixing unrelated changes into its implementation.
 | 12 | Getter/setter properties | Queued |
 | 13 | Static fields and constants | Queued |
 | 14 | Receiver/constructor-dependent field initializers | Queued |
-| 15 | Parser decomposition | Queued |
+| 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
 | 16 | Go emitter decomposition | Queued |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
 

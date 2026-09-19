@@ -58,6 +58,14 @@ baseline for accepted constructs with a Go equivalent.
 
 ### Lexing and parsing
 
+- `parser.go` owns the parser state, entry loop, token checkpoints/splitting and
+  recovery helpers. Grammar implementations are grouped in `imports.go`,
+  `declarations.go`, `oop_declarations.go`, `functions.go`, `types.go`,
+  `statements.go`, `loops.go`, `branches.go`, `expressions.go` and `arrows.go`.
+  Keep speculative parsing on the shared checkpoint/restore boundary instead
+  of copying token state into individual grammar files. The existing export,
+  abstract-method and terminator helpers remain separate.
+
 - Accept only syntax that Kinmokusei actually supports; do not parse all TypeScript and reject it later.
 - Recover after syntax errors so one malformed statement does not suppress the rest of the file.
 - Preserve source spans on every AST node.
@@ -90,6 +98,11 @@ baseline for accepted constructs with a Go equivalent.
 - Manage Go keywords, predeclared identifiers, and generated-name collisions through deterministic mangling.
 - Place relative imports and Go package aliases in the same file scope.
 - Do not expose transitive relative imports; every reference must resolve to a local declaration or explicit import.
+- Keep imported `main` declarations module-local regardless of name collisions.
+  Only explicit input roots can retain the executable entry spelling. A document
+  belonging to an external package in a consumer's graph remains a dependency
+  even when requested directly by editor analysis. Preserve original source
+  spans and names for navigation and rename.
 - Keep source export directives as AST metadata beside ordinary declarations.
   Any source export, including an empty list, opts that file into explicit
   visibility; files without source exports retain legacy importability. Capture

@@ -9,6 +9,9 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Split the parser into grammar-focused files while retaining its shared token
+  checkpoints, source spans and error recovery. No syntax or diagnostic changes.
+
 - Keep an imported module's `main` binding module-local even when the entry
   has no same-named declaration. Imported constants, variables and ordinary
   functions named `main` no longer inherit entry-arrow restrictions or supply
