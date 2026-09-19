@@ -410,7 +410,15 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 		case *ast.MultiVariableDecl:
 			for _, binding := range statement.Bindings {
 				if binding.Name != "_" {
-					*result = append(*result, declarationInfo{Name: binding.Name, Detail: binding.Name, Kind: 13, Span: binding.Span, Selection: binding.Span})
+					kind, prefix := 13, "let "
+					if statement.Constant {
+						kind, prefix = 14, "const "
+					}
+					detail := prefix + binding.Name
+					if binding.ResolvedType.IsSpecified() && binding.ResolvedType.Name != "<invalid>" {
+						detail += ": " + formatTypeRef(binding.ResolvedType)
+					}
+					*result = append(*result, declarationInfo{Name: binding.Name, Detail: detail, Kind: kind, Span: binding.Span, Selection: binding.Span})
 				}
 			}
 		case *ast.BlockStmt:

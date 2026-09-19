@@ -70,6 +70,14 @@ func (c *Checker) checkGoChannelClose(expr *ast.CallExpr) Type {
 			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))
 			continue
 		}
+		if _, parameter := gotypes.Unalias(goType).(*gotypes.TypeParam); parameter {
+			// Closing does not inspect elements: unlike send/receive or range,
+			// its type set may contain channels with different element types.
+			if !genericCollectionOperation("close", goType) {
+				c.report(argument.GetSpan(), "closeGoChannel type parameter requires only send-capable channel types")
+			}
+			continue
+		}
 		channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
 		if !ok {
 			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))

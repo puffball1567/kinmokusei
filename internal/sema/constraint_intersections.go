@@ -62,7 +62,7 @@ func (c *Checker) intersectConstraintTerms(left []*gotypes.Term, leftShapes []Ty
 			if !typeSetTermsOverlap(a, b) {
 				// A later substitution could make currently different parameterized
 				// terms identical. Do not silently discard such a possible match.
-				if constraintTypeHasParameters(a.Type()) || constraintTypeHasParameters(b.Type()) {
+				if (constraintTypeHasParameters(a.Type()) || constraintTypeHasParameters(b.Type())) && !constraintTermsProvablyDisjoint(a, b) {
 					problem = "constraint intersection cannot discard unmatched parameter-dependent terms; instantiate the operands with concrete types first"
 				}
 				continue

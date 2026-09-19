@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -ne 1 || ! "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
-  echo "usage: scripts/package-release.sh v<major>.<minor>.<patch>" >&2
+if [[ $# -lt 1 || $# -gt 2 || ! "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "usage: scripts/package-release.sh v<major>.<minor>.<patch> [empty-output-directory]" >&2
   exit 2
 fi
 
 release_tag=$1
 release_version=${release_tag#v}
 repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-distribution_dir="${repository_root}/dist"
+distribution_dir=${2:-"${repository_root}/dist"}
 active_staging_root=
 
 cleanup() {
@@ -19,8 +19,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-rm -rf -- "${distribution_dir}"
+if [[ -e "$distribution_dir" && ( ! -d "$distribution_dir" || -n "$(ls -A "$distribution_dir")" ) ]]; then
+  echo "release output directory must be empty: $distribution_dir" >&2
+  exit 1
+fi
 mkdir -p "${distribution_dir}"
+distribution_dir=$(cd "$distribution_dir" && pwd)
 
 targets=(
   "linux amd64 tar.gz"
@@ -48,7 +52,11 @@ for target in "${targets[@]}"; do
       -ldflags="-s -w -X github.com/puffball1567/kinmokusei/internal/product.Version=${release_tag}" \
       -o "${staging_dir}/${executable_name}" ./cmd/keika
 
-  cp README.md LICENSE "${staging_dir}/"
+  cp README.md LICENSE THIRD_PARTY_NOTICES.md "${staging_dir}/"
+  CGO_ENABLED=0 GOOS="${target_os}" GOARCH="${target_arch}" \
+    node scripts/go-notices.mjs --write "${staging_dir}"
+  CGO_ENABLED=0 GOOS="${target_os}" GOARCH="${target_arch}" \
+    node scripts/go-notices.mjs --check "${staging_dir}"
 
   find "${staging_dir}" -exec touch -t 202001010000 {} +
   if [[ "${archive_format}" == zip ]]; then

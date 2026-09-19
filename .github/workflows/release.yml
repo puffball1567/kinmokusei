@@ -33,7 +33,9 @@ jobs:
           cache: npm
           cache-dependency-path: editors/vscode/package-lock.json
       - name: Build CLI archives
-        run: ./scripts/package-release.sh "${GITHUB_REF_NAME}"
+        run: |
+          node --test scripts/go-notices.test.mjs
+          ./scripts/package-release.sh "${GITHUB_REF_NAME}"
       - name: Build the Visual Studio Code extension
         working-directory: editors/vscode
         run: |

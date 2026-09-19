@@ -313,6 +313,7 @@ jobs:
       - run: npm ci --ignore-scripts
         working-directory: website
       - run: ./scripts/check-docs.sh
+      - run: node --test scripts/go-notices.test.mjs
       - run: npm run docs:build
         working-directory: website
 

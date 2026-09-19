@@ -236,6 +236,17 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if parameter, ok := gotypes.Unalias(goType).(*gotypes.TypeParam); ok {
+		element, valid := c.genericChannelElement(parameter, false)
+		if !valid {
+			c.report(expr.Span, "channel receive type parameter requires only receive-capable channels with identical element types and nullability")
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		if checked {
+			return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
+		}
+		return element
+	}
 	channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
 	if !ok {
 		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))

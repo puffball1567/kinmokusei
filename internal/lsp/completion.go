@@ -461,7 +461,11 @@ func addStatementBindings(statement ast.Statement, add func(completionItem)) {
 	case *ast.MultiVariableDecl:
 		for _, binding := range statement.Bindings {
 			if binding.Name != "_" {
-				add(completionItem{Label: binding.Name, Kind: 6, Detail: "local binding", SortText: "0_" + binding.Name})
+				ref := binding.ResolvedType
+				if ref.Name == "<invalid>" {
+					ref = ast.TypeRef{}
+				}
+				add(variableCompletion(binding.Name, ref, statement.Constant))
 			}
 		}
 	}

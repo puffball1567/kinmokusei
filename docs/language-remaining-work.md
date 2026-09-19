@@ -237,6 +237,17 @@ compiler/editor version metadata when preparing each v0.4.x release.
 
 ## Confirmed Go-facing gaps
 
+After v0.4.1, `closeGoChannel` accepts send-capable channel type parameters,
+including mixed element types, named channels, source/imported constraints and
+generic class methods. Buffered draining, nil/double-close/send-after-close
+panics, evaluation count, deferred/concurrent close and nullable OOP elements
+are compared with Go in `generic_channel_close_test.go`. Generic send/receive
+expressions, checked receives and select communication now also accept compatible
+directional bounds with one element type and source nullability. Source/imported
+constraints, generic class methods, nil/default behavior, class upcasts and
+evaluation counts are compared in `generic_channel_operations_test.go`.
+Generic channel range is already supported for compatible receive-capable bounds.
+
 Generic collection mutation now accepts mixed slice/map type sets for `clear`
 and common-key map type sets for `delete`, including differing map value types,
 source nullable/class keys, imported constraints and generic class methods.
@@ -254,7 +265,7 @@ copy versus shared slots, nil/zero length, short-source panics, evaluation, and
 preserved class/interface/nullability contracts after indexing and reslicing.
 This is not a claim of complete generic collection support.
 
-After v0.4.0, common-underlying-shape type parameters also support direct
+In v0.4.1, common-underlying-shape type parameters also support direct
 indexing and slicing, including writes, checked map lookup, source OOP/nullable
 elements, and named slice/string result identity. Runtime aliasing, bounds,
 evaluation order and nil behavior are compared with Go in
@@ -267,10 +278,16 @@ panics with Go. Array/slice unions are still not sliceable under Go 1.23;
 different element contracts and map/non-map indexing remain rejected. This
 does not broaden range, append, or copy to those mixed shapes.
 
+After v0.4.1, nullable fixed-array pointers participate in the same constant
+`len`/`cap` rules as non-null pointers, including named arrays/pointers and
+generic elements. Calls/receives still evaluate at runtime, and a constant
+length does not establish non-nullness. Bounds and size diagnostics consume
+these constants; differential coverage is in `nullable_array_constants_test.go`.
+
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
-| Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, and linked export aliases | Add native source interface contracts; preserve source-only method argument shapes; extend parameter-dependent intersections beyond matching shapes |
-| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` are supported; ordered built-ins also preserve contextual nonconstant shifts; type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining deferred shift contexts, constant layout intrinsics, nullable array-pointer constants, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
+| Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, linked export aliases and provably disjoint parameter-dependent collection shapes | Add native source interface contracts; preserve source-only method argument shapes; handle intersections whose overlap depends on later substitution |
+| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; ordered built-ins also preserve contextual nonconstant shifts; type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining deferred shift contexts, constant layout intrinsics, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs and inference; no source anonymous-interface literal syntax | Source callback annotations can use an imported Go alias; consider source syntax separately, and retain rejection of anonymous private method identities |
 | Source-declared multiple results | Raw Go multiple-result calls can be consumed; source callable results use a single type or `Result<T>` | Decide a source result-list syntax and propagation rules before expanding declarations |
 

@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,7 @@ func TestConstraintIntersectionEditor(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	library := filepath.Join(root, "library.km")
-	if err := os.WriteFile(library, []byte("export constraint Base<E> = ~E[];\n"), 0o644); err != nil {
+	if err := os.WriteFile(library, []byte("export constraint Base<E> = ~E[] | ~[2]E;\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(root, "entry.km")
@@ -45,5 +46,37 @@ function use(xs:int[]):int[]{return copy(xs);}
 	label, _, _ := signatureResult(t, signatureHelpAt(t, path, input, positionOf(input, "xs);}", 0)))
 	if label != "copy(xs: int[]): int[]" {
 		t.Fatalf("signature=%q", label)
+	}
+}
+
+func TestParameterConstraintIntersectionDiagnostics(t *testing.T) {
+	t.Parallel()
+	uri := fileURI(filepath.Join(t.TempDir(), "bounds.km"))
+	for _, test := range []struct{ input, want string }{
+		{`constraint A<E>=~E[]|~[2]E;constraint B<E>=A<E>&~E[];function first<E,S extends B<E>>(xs:S):E{return xs[0];}function use(xs:int[]):int{return first(xs);}`, ""},
+		{`constraint A<E>=~E[]&~int[];`, "unmatched parameter-dependent"},
+		{`constraint A<E>=~GoSendChannel<E>&~GoReceiveChannel<E>;`, "no common types"},
+	} {
+		var output bytes.Buffer
+		if err := Serve(strings.NewReader(framed(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`, openDocument(uri, test.input), `{"jsonrpc":"2.0","id":2,"method":"shutdown"}`, `{"jsonrpc":"2.0","method":"exit"}`)), &output); err != nil {
+			t.Fatal(err)
+		}
+		published, found := false, false
+		for _, message := range decodeMessages(t, output.String()) {
+			if message["method"] != "textDocument/publishDiagnostics" {
+				continue
+			}
+			published = true
+			for _, raw := range message["params"].(map[string]any)["diagnostics"].([]any) {
+				message := raw.(map[string]any)["message"].(string)
+				if test.want == "" || !strings.Contains(message, test.want) {
+					t.Fatalf("unexpected diagnostic: %s", message)
+				}
+				found = true
+			}
+		}
+		if !published || found != (test.want != "") {
+			t.Fatalf("want=%q output=%s", test.want, output.String())
+		}
 	}
 }

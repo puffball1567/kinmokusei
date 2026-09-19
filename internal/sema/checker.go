@@ -501,6 +501,17 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.checkExpression(stmt.Value)
 			return
 		}
+		if parameter, ok := gotypes.Unalias(goType).(*gotypes.TypeParam); ok {
+			element, valid := c.genericChannelElement(parameter, true)
+			if !valid {
+				c.report(stmt.Channel.GetSpan(), "channel send type parameter requires only send-capable channels with identical element types and nullability")
+				c.checkExpression(stmt.Value)
+				return
+			}
+			value := c.checkExpressionExpectedSlot(&stmt.Value, element)
+			c.requireAssignable(element, value, stmt.Value.GetSpan())
+			return
+		}
 		channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
 		if !ok {
 			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel send requires a Go channel, got %s", channelType.String()))

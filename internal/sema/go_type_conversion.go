@@ -178,7 +178,14 @@ func kinmokuseiTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]boo
 		if err != nil {
 			return Type{}, err
 		}
-		return Type{Kind: GoChannel, Name: "Go channel", Element: &element, GoType: goType}, nil
+		name := "GoChannel"
+		switch goType.Dir() {
+		case gotypes.SendOnly:
+			name = "GoSendChannel"
+		case gotypes.RecvOnly:
+			name = "GoReceiveChannel"
+		}
+		return Type{Kind: GoChannel, Name: name, Element: &element, GoType: goType}, nil
 	case *gotypes.Struct:
 		fields := make([]GoStructField, goType.NumFields())
 		for index := 0; index < goType.NumFields(); index++ {

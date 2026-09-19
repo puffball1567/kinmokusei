@@ -15,6 +15,14 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint A<E>=~E[]|~[2]E;constraint B<E>=~E[]|~[3]E;constraint C<E>=A<E>&B<E>;function first<E,S extends C<E>>(xs:S):E{return xs[0];}`,
+	`constraint S<E>=~GoChannel<E>|~GoSendChannel<E>;constraint R<E>=~GoChannel<E>|~GoReceiveChannel<E>;constraint C<E>=S<E>&R<E>;function relay<E,T extends C<E>>(ch:T,x:E):E{ch<-x;return <-ch;}`,
+	`constraint A<E>=~E[]|~[2]E;constraint B<E>=~int[]|~[3]E;constraint C<E>=A<E>&B<E>;`,
+	`constraint C<E>=~GoChannel<E>|~GoSendChannel<E>;function put<E,T extends C<E>>(ch:T,value:E):void{select{case ch<-value{}default{}}}`,
+	`constraint C=~GoChannel<int>|~GoReceiveChannel<int>;function get<T extends C>(ch:T):int{const [value,open]=<-ch;return value;}`,
+	`class Item{}constraint C=~GoChannel<Item>|~GoReceiveChannel<Item|null>;function get<T extends C>(ch:T):Item{return <-ch;}`,
+	`constraint C=~GoChannel<int>|~GoSendChannel<string>;function finish<T extends C>(ch:T):void{closeGoChannel(ch);}`,
+	`constraint C=~GoChannel<int>|~GoReceiveChannel<int>;function finish<T extends C>(ch:T):void{closeGoChannel(ch);}`,
 	`constraint S<E>=~E[]|~[2]E|~*[3]E;function f<E,T extends S<E>>(v:T,e:E):E{const p=&v[0];*p=e;return v[1];}`,
 	`constraint S=~string|~byte[];function f<T extends S>(v:T):T{const b:byte=v[0];return v[1:];}`,
 	`constraint S=~string|~byte[];function f<T extends S>(v:T):void{v[0]=1;}`,
@@ -58,6 +66,10 @@ var pipelineFuzzSeeds = []string{
 	`function run():void{const n=max(1,2);const p=&n;}`,
 	`function run(a:[3]int):int{const n=len(a);return a[n];}`,
 	`function run(a:*[3]int):void{const n=cap(a);const p=&n;}`,
+	`function run(a:*[3]int|null):void{const n=cap(a);const p=&n;}`,
+	`function run(a:*[3]int|null,b:[3]int):int{const n=len(a);return b[n];}`,
+	`function run(a:*[3]int|null):int{const n=len(a);return a[0];}`,
+	`const xs:int[]|null=null;function run():int{const ys:int[]|null=null;return len(xs)+cap(ys);}`,
 	`constraint A=~[3]int|~int[]|~string;function run<T extends A>(a:T):int{return len(a);}`,
 	`constraint A=~[3]int|~string;function run<T extends A>(a:T):int{return cap(a);}`,
 	`function run(c:GoChannel<[3]int>):int{return len(<-c);}`,
