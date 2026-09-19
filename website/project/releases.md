@@ -34,6 +34,21 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.3 highlights
+
+- Short source imports are configured automatically by `keika deps add`, with
+  optional `--alias` overrides and transactional conflict checks. Aliases are
+  package-local and preserve canonical dependency and type identities.
+- Imported `main` bindings remain ordinary module-local data or functions;
+  applications still declare their own entry point.
+- `copyArray` supports array-constrained generic target types, including
+  mixed lengths and generic class methods.
+- Parser and Go generation are split into smaller responsibility-focused files.
+
+Existing dependencies can opt into short names through `[imports]` followed by
+`keika deps lock`. Libraries that use manifest aliases should declare
+`min-kinmokusei = "0.4.3"`. See [external packages](../guide/external-packages).
+
 ## v0.4.2 highlights
 
 - CLI archives include Go and third-party attribution materials in

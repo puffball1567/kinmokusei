@@ -9,6 +9,8 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-09-19
+
 - Automatically register a source import alias when `keika deps add` installs
   a Kinmokusei package. Derive it from the module name (ignoring a trailing major
   version), allow `--alias` overrides and reject collisions transactionally.

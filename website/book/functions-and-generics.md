@@ -101,7 +101,7 @@ contract; local arrows continue to be lexical function values.
 
 `main` is not a keyword: parameters and local constants, variables and functions
 may use that name. A top-level arrow named `main` in an explicitly selected input
-file must be a `const` with no parameters and a `void` result. In the next patch,
+file must be a `const` with no parameters and a `void` result. Since v0.4.3,
 an imported module's `main` is consistently an ordinary module-local binding,
 including data and value-returning functions. It does not become the importing
 application's entry point; the application must declare its own entry. Importing

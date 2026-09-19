@@ -73,7 +73,7 @@ Only explicit dependency commands may resolve or mutate the graph. Normal compil
 
 ## `[imports]`
 
-Available in the next patch. Each quoted key is a source import prefix; its
+Available since v0.4.3. Each quoted key is a source import prefix; its
 quoted value must exactly match a direct `[dependencies]` module:
 
 ```toml

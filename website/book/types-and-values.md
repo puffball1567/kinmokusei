@@ -139,7 +139,7 @@ element type parameter or using a named array type:
 
 <<< ../snippets/generic-array-conversion.km{ts}
 
-In the next patch, `copyArray` additionally accepts array-constrained target
+Since v0.4.3, `copyArray` additionally accepts array-constrained target
 parameters, with matching element types and nullable qualifiers across all
 members. Lengths may differ. `viewArray` still needs a concrete array shape.
 The length of a type-parameter result is not a Go constant: evaluating
