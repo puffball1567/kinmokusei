@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add manifest `[imports]` aliases for external Kinmokusei source imports and
+  re-exports, including submodules. Resolve aliases in the importing package's
+  own manifest without changing canonical dependency or type identities.
+  Validate reserved/colliding paths, preserve aliases through dependency edits,
+  and remove aliases when their direct dependency is removed. Cover offline CLI
+  workflows, compiler output identity, package isolation and editor navigation.
+
 - Allow array-constrained type parameters as `copyArray` targets, including
   differing lengths, imported/re-exported constraints and generic class methods.
   Preserve element identity/nullability and shallow-copy semantics; compare

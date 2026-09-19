@@ -71,6 +71,39 @@ Dependencies require complete versions, including complete pseudo-versions. Init
 
 Only explicit dependency commands may resolve or mutate the graph. Normal compilation validates the lock and uses the graph read-only/offline.
 
+## `[imports]`
+
+Available in the next patch. Each quoted key is a source import prefix; its
+quoted value must exactly match a direct `[dependencies]` module:
+
+```toml
+[dependencies]
+"example.com/command" = "v0.1.0"
+
+[imports]
+"cli" = "example.com/command"
+```
+
+`cli` resolves to the package entry; `cli/flags` resolves to the canonical
+`example.com/command/flags` export. The same rules apply to `export ... from`.
+
+- Prefixes are canonical, slash-separated, non-relative paths. Characters are
+  ASCII letters, digits, `_`, `@`, `.`, `-` and `/`; the first character must be
+  a letter, digit, `_` or `@`. Empty paths, dot segments, trailing/repeated
+  slashes, backslashes, drive paths and whitespace are rejected.
+- `kinmokusei` and its subpaths are reserved. Aliases cannot equal, contain, or
+  be a parent prefix of a declared canonical dependency path or the project's
+  own module path.
+- Matching uses slash boundaries and the longest alias prefix. Expansion
+  happens once: alias chains, submodule targets, local filesystem targets,
+  undeclared/transitive-only targets and Go-only dependencies are rejected.
+- Resolution uses the importing package's own `[imports]`. Consumer aliases
+  do not override dependency manifests. `import go` never expands these aliases.
+- Aliases do not create dependencies or alter package/type identity. The lock
+  keeps canonical module paths and hashes; changing `[imports]` requires an
+  explicit `keika deps lock`, like other manifest changes. Normal compilation
+  and editor operations do not rewrite the manifest or lock.
+
 ## Lock contents
 
 The canonical lock records:

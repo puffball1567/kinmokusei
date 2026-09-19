@@ -115,6 +115,47 @@ Without source arguments, `check`, `build`, `run`, and `emit-go` use
 project. Explicit source arguments remain supported. Files needed by the entry
 are loaded through imports, not by concatenating every source in a directory.
 
+## Short import names
+
+In the next patch, add `[imports]` to the consuming project's manifest to give
+a direct source dependency a short name:
+
+```toml
+[dependencies]
+"example.com/greeting" = "v0.1.0"
+
+[imports]
+"greeting" = "example.com/greeting"
+```
+
+Then refresh the lock explicitly and use the short name:
+
+```sh
+keika deps lock --offline
+keika check
+```
+
+```ts
+import { greet } from "greeting"
+import { format } from "greeting/format"
+export { greet } from "greeting"
+```
+
+`--offline` requires the dependencies to be already cached or locally replaced.
+The alias only changes source spelling: versions, acquisition, lock entries,
+hash checks and type identity still use the canonical module path. Canonical
+and short imports may coexist without loading a second copy of the module.
+
+Aliases belong to the importing project's manifest. A library can define its
+own aliases for its direct dependencies; it never inherits the application's
+aliases, and its aliases never leak into the application or sibling libraries.
+Relative imports, standard-library imports and `import go` are unchanged.
+
+Continue to use canonical module paths with `keika deps add/update/remove`.
+Dependency edits preserve aliases; removing a direct dependency removes aliases
+targeting it, even when another library still needs that package transitively.
+See the [alias rules](../reference/project-files#imports) for validation details.
+
 ## Develop two repositories together
 
 The consumer can replace a package with a sibling checkout before publishing

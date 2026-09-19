@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -157,6 +158,34 @@ func TestSourcePackageDownloadLockFetchAndIntegrity(t *testing.T) {
 	if len(lock.Packages) != 2 || lock.Packages[1].Dependencies["pkg.test/base"] != "v0.1.0" {
 		t.Fatalf("lock=%v", lock.Packages)
 	}
+	manifest, err := ReadManifest(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Imports["library"] = "pkg.test/library"
+	if err := commitManifestAndLock(manifest, true); err != nil {
+		t.Fatal(err)
+	}
+	aliasedLock, err := ReadLock(root)
+	if err != nil || !reflect.DeepEqual(lock.Packages, aliasedLock.Packages) {
+		t.Fatalf("alias changed canonical package versions/hashes: %v %v", aliasedLock.Packages, err)
+	}
+	checkAlias := func() {
+		t.Helper()
+		manifest, lock, err := ValidateLockedFiles(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		graph, err := ReadPackageGraph(manifest, lock)
+		if err != nil {
+			t.Fatal(err)
+		}
+		aliased, err := graph.ResolveImport(filepath.Join(root, "index.km"), "library")
+		if err != nil || graph.SourceIdentity(aliased) != "pkg.test/library/index.km" {
+			t.Fatalf("cached alias: %s %v", aliased, err)
+		}
+	}
+	checkAlias()
 	before, err := os.ReadFile(filepath.Join(root, "kinmokusei.lock"))
 	if err != nil {
 		t.Fatal(err)
@@ -180,6 +209,7 @@ func TestSourcePackageDownloadLockFetchAndIntegrity(t *testing.T) {
 	if err != nil || updated.Packages[1].Version != "v0.2.0" {
 		t.Fatalf("upgrade=%v err=%v", updated.Packages, err)
 	}
+	checkAlias()
 	if err := UpdateDependency(root, "pkg.test/library", "v0.1.0", true); err != nil {
 		t.Fatal(err)
 	}
@@ -194,6 +224,7 @@ func TestSourcePackageDownloadLockFetchAndIntegrity(t *testing.T) {
 	if string(before) != string(after) {
 		t.Fatal("fetch rewrote lock")
 	}
+	checkAlias()
 	file := filepath.Join(cache, "pkg.test", "library@v0.1.0", "index.km")
 	if err := os.Chmod(file, 0o644); err != nil {
 		t.Fatal(err)

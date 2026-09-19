@@ -12,15 +12,29 @@ import (
 
 func TestExternalPackageEditor(t *testing.T) {
 	t.Parallel()
+	for _, aliases := range []bool{false, true} {
+		t.Run(map[bool]string{false: "canonical", true: "alias"}[aliases], func(t *testing.T) {
+			testExternalPackageEditor(t, aliases)
+		})
+	}
+}
+
+func testExternalPackageEditor(t *testing.T, aliases bool) {
 	base := t.TempDir()
 	root := filepath.Join(base, "app")
 	library := filepath.Join(base, "library")
 	input := `import {Box} from "pkg.test/library";function run():int{const box=new Box(42);return box.value;}`
+	if aliases {
+		input = strings.Replace(input, "pkg.test/library", "library", 1)
+	}
 	files := map[string]string{
 		"app/kinmokusei.toml":     "[project]\nname = \"app\"\nversion = \"0.1.0\"\ngo-module = \"app.test/main\"\ngo-version = \"1.23\"\n[dependencies]\n\"pkg.test/library\" = \"v0.1.0\"\n[replace]\n\"pkg.test/library\" = \"../library\"\n",
 		"app/main.km":             input,
 		"library/kinmokusei.toml": "[project]\nname = \"library\"\nversion = \"0.1.0\"\ngo-module = \"pkg.test/library\"\ngo-version = \"1.23\"\n[package]\nentry = \"index.km\"\nmin-kinmokusei = \"0.4.0\"\nbackend = \"go\"\nlicense = \"MIT\"\n",
 		"library/index.km":        `export class Box{constructor(public value:int){}}`,
+	}
+	if aliases {
+		files["app/kinmokusei.toml"] += "[imports]\n\"library\" = \"pkg.test/library\"\n"
 	}
 	for name, contents := range files {
 		file := filepath.Join(base, filepath.FromSlash(name))

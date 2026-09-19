@@ -11,6 +11,14 @@ import (
 )
 
 func TestExternalPackageCLIWorkflow(t *testing.T) {
+	for _, aliases := range []bool{false, true} {
+		t.Run(map[bool]string{false: "canonical", true: "alias"}[aliases], func(t *testing.T) {
+			testExternalPackageCLIWorkflow(t, aliases)
+		})
+	}
+}
+
+func testExternalPackageCLIWorkflow(t *testing.T, aliases bool) {
 	base := t.TempDir()
 	root := filepath.Join(base, "app")
 	files := map[string]string{
@@ -53,6 +61,32 @@ func TestExternalPackageCLIWorkflow(t *testing.T) {
 			t.Fatalf("%v: status=%d out=%s err=%s", args, status, out, stderr)
 		}
 	}
+	if aliases {
+		contents, err := os.ReadFile("kinmokusei.toml")
+		if err != nil {
+			t.Fatal(err)
+		}
+		contents = append(contents, []byte("\n[imports]\n\"kinmokusei-cli\" = \"pkg.test/command\"\n\"fmt\" = \"pkg.test/command\"\n")...)
+		if err := os.WriteFile("kinmokusei.toml", contents, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		input := strings.Replace(files["app/main.km"], "pkg.test/command", "kinmokusei-cli", 1)
+		if err := os.WriteFile("main.km", []byte(input), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if status, _, stderr := captureRun(t, "check"); status == 0 || !strings.Contains(stderr, "does not match") {
+			t.Fatalf("alias edit did not invalidate lock: %d %s", status, stderr)
+		}
+		for _, args := range [][]string{{"deps", "lock", "--offline"}, {"check"}, {"deps", "check"}} {
+			if status, out, stderr := captureRun(t, args...); status != 0 || out != "" || stderr != "" {
+				t.Fatalf("%v: %d %s %s", args, status, out, stderr)
+			}
+		}
+	}
+	manifestBefore, err := os.ReadFile("kinmokusei.toml")
+	if err != nil {
+		t.Fatal(err)
+	}
 	lock, err := os.ReadFile("kinmokusei.lock")
 	if err != nil {
 		t.Fatal(err)
@@ -86,6 +120,10 @@ func TestExternalPackageCLIWorkflow(t *testing.T) {
 	after, err := os.ReadFile("kinmokusei.lock")
 	if err != nil || string(lock) != string(after) {
 		t.Fatal("normal commands/fetch changed lock", err)
+	}
+	manifestAfter, err := os.ReadFile("kinmokusei.toml")
+	if err != nil || string(manifestBefore) != string(manifestAfter) {
+		t.Fatal("normal commands/fetch changed manifest", err)
 	}
 	if status, _, stderr := captureRun(t, "deps", "remove", "--offline", "pkg.test/command"); status != 0 {
 		t.Fatalf("remove=%s", stderr)
