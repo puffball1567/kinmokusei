@@ -258,9 +258,13 @@ generic class methods; `generic_slice_builtins_test.go` covers Go behavior and
 source OOP invariance. Operations requiring a common element shape reject
 conflicting source nullability; `delete` likewise rejects conflicting source key
 qualifiers. `copyArray`/`viewArray` also accept slice-constrained parameters with
-common elements, including OOP elements and generic methods. Their targets must
-have a concrete fixed-array shape (`[2]E` or a named instantiation), not a bare
-array-constrained parameter. `generic_array_conversion_test.go` covers shallow
+common elements, including OOP elements and generic methods. `copyArray` also
+accepts array-constrained target parameters with common element contracts,
+including differing lengths, imported bounds and generic class methods.
+`viewArray` still requires a concrete fixed-array target shape (`[2]E` or a named
+instantiation), not a bare array-constrained parameter.
+`generic_array_target_test.go` covers parameter targets and runtime length
+evaluation; `generic_array_conversion_test.go` covers shallow
 copy versus shared slots, nil/zero length, short-source panics, evaluation, and
 preserved class/interface/nullability contracts after indexing and reslicing.
 This is not a claim of complete generic collection support.

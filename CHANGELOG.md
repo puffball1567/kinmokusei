@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Allow array-constrained type parameters as `copyArray` targets, including
+  differing lengths, imported/re-exported constraints and generic class methods.
+  Preserve element identity/nullability and shallow-copy semantics; compare
+  generated behavior with independent Go implementations and add editor tests.
+
 ## [0.4.2] - 2026-09-19
 
 - Include Go and applicable third-party license, patent and source notice

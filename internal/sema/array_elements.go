@@ -22,3 +22,27 @@ func (c *Checker) fixedArrayElementType(array *gotypes.Array, owner Type, span s
 	}
 	return c.collectionElementType(array.Elem(), owner, span)
 }
+
+// A copy target may contain arrays of different lengths, but every alternative
+// must preserve the same source element contract. Go checks the actual
+// conversion against the complete bound; no element conversion is introduced.
+func (c *Checker) parameterArrayElement(parameter *gotypes.TypeParam, span source.Span) (Type, bool) {
+	terms := c.collectionTerms(parameter)
+	var element Type
+	for i, term := range terms {
+		storage, ok := c.goTypeForNativeStorage(term)
+		if !ok {
+			return Type{}, false
+		}
+		array, ok := gotypes.Unalias(storage).Underlying().(*gotypes.Array)
+		if !ok {
+			return Type{}, false
+		}
+		next := c.fixedArrayElementType(array, term, span)
+		if next.Kind == Invalid || i != 0 && !c.identicalCollectionElement(element, next) {
+			return Type{}, false
+		}
+		element = next
+	}
+	return element, len(terms) != 0
+}
