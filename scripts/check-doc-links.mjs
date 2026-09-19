@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { maskInlineCode } from "./markdown-inline-code.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
@@ -91,8 +92,9 @@ for (const file of files) {
     if (fence) continue;
 
     const targets = [];
-    for (const match of line.matchAll(/!?\[[^\]]*\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g)) targets.push(match[1]);
-    for (const match of line.matchAll(/\bhref=["']([^"']+)["']/g)) targets.push(match[1]);
+    const prose = maskInlineCode(line);
+    for (const match of prose.matchAll(/!?\[[^\]]*\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/g)) targets.push(match[1]);
+    for (const match of prose.matchAll(/\bhref=["']([^"']+)["']/g)) targets.push(match[1]);
 
     for (let target of targets) {
       target = target.replace(/^<|>$/g, "");
