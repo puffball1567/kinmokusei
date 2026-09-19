@@ -96,8 +96,20 @@ A bound containing even one receive-only channel is rejected:
 
 <<< ../snippets-invalid/generic-channel-close.km{ts}
 
-This extension covers closing only; it does not enable generic send/receive
-expressions. The existing channel-direction and nullable-value checks remain.
+Generic send/receive expressions and `select` communication are also supported
+on the development branch. Every type in the constraint must permit the
+operation and have the same element type, including source nullability:
+
+<<< ../snippets/generic-channel-operations.km{ts}
+
+Unlike closing, sending cannot use a bound with different element types:
+
+<<< ../snippets-invalid/generic-channel-operations.km{ts}
+
+These rules follow [Go's channel operations](https://go.dev/ref/spec#Send_statements).
+Source/imported constraints and generic class methods preserve class identity
+and nullable elements. The existing channel-direction and nullable-value checks
+remain; use explicit type arguments if inference cannot establish one element type.
 
 ## Range over a channel
 

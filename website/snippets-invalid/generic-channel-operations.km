@@ -1,0 +1,5 @@
+constraint Writable = ~GoChannel<int> | ~GoSendChannel<string>
+
+function put<C extends Writable>(channel: C): void {
+  channel <- 42
+}

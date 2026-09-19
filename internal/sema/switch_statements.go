@@ -27,7 +27,9 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 			}
 			defaultSeen = true
 		case ast.SelectSend:
-			c.checkStatement(&ast.ChannelSendStmt{Channel: clause.Channel, Value: clause.Value, Span: clause.Span})
+			send := &ast.ChannelSendStmt{Channel: clause.Channel, Value: clause.Value, Span: clause.Span}
+			c.checkStatement(send)
+			clause.Value = send.Value // Keep contextual conversions such as class upcasts.
 		case ast.SelectReceive:
 			c.checkSelectReceive(clause)
 		}

@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support send/receive, checked receives and `select` on channel-constrained
+  type parameters, including imported bounds and generic class methods. Preserve
+  element identity/nullability and reject incompatible directions or elements.
+  Keep directional channel metadata through constraint substitution and class
+  upcasts in select sends. Show inferred types for destructured locals in editor
+  hover/completion. Add independent Go comparisons and editor/doc tests.
+
 - Support `closeGoChannel` on send-capable channel type parameters, including
   mixed element types, imported constraints and generic class methods. Reject
   receive-only/non-channel bounds; retain evaluation, buffered-drain and panic

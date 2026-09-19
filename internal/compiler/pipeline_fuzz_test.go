@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint C<E>=~GoChannel<E>|~GoSendChannel<E>;function put<E,T extends C<E>>(ch:T,value:E):void{select{case ch<-value{}default{}}}`,
+	`constraint C=~GoChannel<int>|~GoReceiveChannel<int>;function get<T extends C>(ch:T):int{const [value,open]=<-ch;return value;}`,
+	`class Item{}constraint C=~GoChannel<Item>|~GoReceiveChannel<Item|null>;function get<T extends C>(ch:T):Item{return <-ch;}`,
 	`constraint C=~GoChannel<int>|~GoSendChannel<string>;function finish<T extends C>(ch:T):void{closeGoChannel(ch);}`,
 	`constraint C=~GoChannel<int>|~GoReceiveChannel<int>;function finish<T extends C>(ch:T):void{closeGoChannel(ch);}`,
 	`constraint S<E>=~E[]|~[2]E|~*[3]E;function f<E,T extends S<E>>(v:T,e:E):E{const p=&v[0];*p=e;return v[1];}`,
