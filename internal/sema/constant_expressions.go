@@ -165,6 +165,11 @@ func (c *Checker) resolvedRangeExpressionGuaranteedNonEmpty(expression ast.Expre
 				return len(expression.Arguments) > 1
 			}
 			return len(expression.Arguments) == 2 && c.resolvedRangeExpressionGuaranteedNonEmpty(expression.Arguments[1], seen)
+		case ast.MakeCall:
+			if !expression.MakeSliceTarget {
+				return false
+			}
+			fallthrough
 		case ast.MakeSliceCall:
 			if len(expression.Arguments) == 0 {
 				return false
@@ -197,6 +202,11 @@ func rangeExpressionGuaranteedNonEmpty(expression ast.Expression) bool {
 				return len(expression.Arguments) > 1
 			}
 			return len(expression.Arguments) == 2 && rangeExpressionGuaranteedNonEmpty(expression.Arguments[1])
+		case ast.MakeCall:
+			if !expression.MakeSliceTarget {
+				return false
+			}
+			fallthrough
 		case ast.MakeSliceCall:
 			if len(expression.Arguments) == 0 {
 				return false

@@ -152,8 +152,8 @@ func generateAwait(expr *kinmokuseiAST.AwaitExpr) (goast.Expr, error) {
 }
 
 func orderedSliceMake(sliceType, length, capacity goast.Expr) goast.Expr {
-	lengthName := goast.NewIdent("kinmokuseiMakeLength")
-	capacityName := goast.NewIdent("kinmokuseiMakeCapacity")
+	lengthName := goast.NewIdent("__kinmokusei_make_length")
+	capacityName := goast.NewIdent("__kinmokusei_make_capacity")
 	returnType := &goast.FieldList{List: []*goast.Field{{Type: sliceType}}}
 	body := &goast.BlockStmt{List: []goast.Stmt{
 		&goast.AssignStmt{

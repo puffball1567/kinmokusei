@@ -102,12 +102,14 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: target, Args: []goast.Expr{argument}}, nil
 		}
-		if expr.Builtin == kinmokuseiAST.MakeSliceCall || expr.Builtin == kinmokuseiAST.MakeMapCall {
-			if (expr.Builtin == kinmokuseiAST.MakeSliceCall && len(expr.TypeArguments) != 1) || (expr.Builtin == kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 2) {
+		if expr.Builtin == kinmokuseiAST.MakeSliceCall || expr.Builtin == kinmokuseiAST.MakeMapCall || expr.Builtin == kinmokuseiAST.MakeCall {
+			if (expr.Builtin != kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 1) || (expr.Builtin == kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 2) {
 				return nil, fmt.Errorf("collection make lowering received invalid type arguments")
 			}
 			var collectionType goast.Expr
-			if expr.Builtin == kinmokuseiAST.MakeSliceCall {
+			if expr.Builtin == kinmokuseiAST.MakeCall {
+				collectionType = goType(expr.TypeArguments[0])
+			} else if expr.Builtin == kinmokuseiAST.MakeSliceCall {
 				collectionType = &goast.ArrayType{Elt: goType(expr.TypeArguments[0])}
 			} else {
 				collectionType = &goast.MapType{Key: goType(expr.TypeArguments[0]), Value: goType(expr.TypeArguments[1])}
@@ -120,7 +122,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				}
 				arguments[index] = generated
 			}
-			if expr.Builtin == kinmokuseiAST.MakeSliceCall && len(arguments) == 2 {
+			if expr.Builtin != kinmokuseiAST.MakeMapCall && len(arguments) == 2 {
 				// Evaluate size expressions in source order before invoking Go's make
 				// intrinsic so behavior does not vary between Go toolchains.
 				for index := range arguments {

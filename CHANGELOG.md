@@ -9,6 +9,15 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Prevent slice-allocation temporaries from shadowing user size bindings,
+  including existing `makeSlice` calls with explicit capacity.
+
+- Add `make[T](...)` for concrete, named and constrained slice, map and channel
+  targets, preserving the requested type and source nullability. Check type-set
+  compatibility, sizes and channel directions; retain ordered size evaluation,
+  constructor slice-cardinality proofs and editor signatures/navigation. Existing
+  element-oriented allocation helpers remain supported.
+
 ## [0.4.3] - 2026-09-19
 
 - Automatically register a source import alias when `keika deps add` installs

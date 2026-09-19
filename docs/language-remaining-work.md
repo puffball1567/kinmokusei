@@ -240,6 +240,15 @@ compiler/editor version metadata when preparing each v0.4.x release.
 
 ## Confirmed Go-facing gaps
 
+After v0.4.3, `make[T](...)` allocates concrete, named and constrained slices,
+maps and channels without losing target identity. Source and imported bounds,
+generic class methods, nullable elements, integer-valued constant sizes,
+ordered evaluation, empty/non-nil allocation and dynamic size failures are
+compared with independent Go in `collection_make_test.go`. Different underlying
+slice/map types and conflicting channel directions remain source errors.
+Constructor nonempty-range proofs distinguish slice lengths from map hints
+and channel capacities. Existing element-oriented allocation helpers remain.
+
 After v0.4.1, `closeGoChannel` accepts send-capable channel type parameters,
 including mixed element types, named channels, source/imported constraints and
 generic class methods. Buffered draining, nil/double-close/send-after-close

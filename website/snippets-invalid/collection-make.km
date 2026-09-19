@@ -1,0 +1,5 @@
+constraint Conflicting = ~GoSendChannel<int> | ~GoReceiveChannel<int>
+
+function allocate<T extends Conflicting>(): T {
+  return make[T]()
+}

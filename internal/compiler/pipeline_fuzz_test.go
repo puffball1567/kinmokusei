@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(n:int):T{return make[T](n,n+1);}`,
+	`constraint C=~GoChannel<int>|~GoSendChannel<int>;function f<T extends C>():T{return make[T](2);}`,
+	`constraint C=~GoSendChannel<int>|~GoReceiveChannel<int>;function f<T extends C>():T{return make[T]();}`,
+	`class C{}alias Maybe=C|null;function f():Maybe[]{return make[Maybe[]](1.0,2.0);}`,
+	`function f():void{make[void]();make[int[]](-1,2);make[int[]](1...);}`,
 	`constraint A<E>=~[0]E|~[2]E;function f<E,T extends A<E>>(v:E[]):T{return copyArray[T](v);}`,
 	`constraint A=~[2]int|~[3]int;function f<T extends A>(v:int[]):int{const n=len(copyArray[T](v));const p=&n;return *p;}`,
 	`class C{}constraint A=~[2]C|~[3](C|null);function f<T extends A>(v:C[]):T{return copyArray[T](v);}`,

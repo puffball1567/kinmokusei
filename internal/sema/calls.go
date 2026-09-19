@@ -60,6 +60,8 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				return c.checkComplexBuiltin(expr, name.Name)
 			case "makeSlice":
 				return c.checkMakeSlice(expr)
+			case "make":
+				return c.checkMakeCollection(expr)
 			case "makeMap":
 				return c.checkMakeMap(expr)
 			case "copyArray":

@@ -802,6 +802,7 @@ type CallExpr struct {
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments []bool
+	MakeSliceTarget      bool // make[T] has a checked slice target, not a map hint or channel capacity.
 	Expanded             bool
 	Conversion           bool
 	GoConstant           bool // Checked calls/conversions that Go evaluates at compile time.
@@ -842,6 +843,7 @@ const (
 	ImagCall
 	MakeSliceCall
 	MakeMapCall
+	MakeCall
 	CopyArrayCall
 	ViewArrayCall
 	UnsafeSizeofCall
