@@ -119,7 +119,7 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		// Source anonymous interfaces are structural at the value boundary.
 		// Match their exported Go method set against the class's lowered methods
 		// even when the class did not declare a named `implements` contract.
-		if c.classSatisfiesGoInterface(class, target.GoType) {
+		if c.classSatisfiesSourceAnonymousInterface(target) && c.classSatisfiesGoInterface(class, target.GoType) {
 			return true
 		}
 		for _, declared := range class.goImplements {
@@ -136,6 +136,15 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		return false
 	}
 	return assignable(target, value)
+}
+
+func (c *Checker) classSatisfiesSourceAnonymousInterface(target Type) bool {
+	for _, method := range target.GoMethods {
+		if method.GoName != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Checker) classSatisfiesGoInterface(class *classSymbol, target gotypes.Type) bool {
