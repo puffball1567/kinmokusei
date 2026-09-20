@@ -9,14 +9,21 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add static getter/setter properties accessed through class names, with
+  inherited owner lookup, independent visibility, ordered updates and public
+  Go package functions. Generic classes may declare type-argument-independent
+  static accessors. Diagnose global initialization cycles through static
+  accessors and methods; keep ordinary assignments independent of getters.
+  Reject local bindings that would shadow a selected generated static accessor
+  or method, preventing calls from being silently redirected.
+
 - Add instance getter/setter properties with independent visibility, generic
   and inherited types, read/write diagnostics and single-evaluation updates.
   Support virtual/abstract accessors, explicit and final overrides, partial
   accessor overrides and phase-local construction dispatch. Generated Go exposes
   accessor methods; LSP supports completion, navigation and inheritance-aware
   paired getter/setter rename. Interfaces can declare public property contracts,
-  including generic/diamond inheritance and class or abstract-class DI; static
-  properties remain unsupported.
+  including generic/diamond inheritance and class or abstract-class DI.
 
 - Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
   type parameters and source class elements, preserving source nullability.

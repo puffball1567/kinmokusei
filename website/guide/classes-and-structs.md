@@ -37,7 +37,10 @@ the other inherited accessor; its visibility and type must remain unchanged.
 `super.value` uses the base implementation. Interfaces accept public accessor
 signatures such as `get value(): int;` and `set value(next: int);`, including
 generic inheritance and DI. Class implementations must supply the corresponding
-public accessors. Static properties remain unsupported.
+public accessors. Static accessors use `public static get` / `set` and are
+accessed as `ClassName.value`; they are inherited without virtual dispatch.
+In generic classes, static property signatures and bodies cannot refer to the
+class type parameters. Static properties do not declare backing storage.
 Bind a nullable getter result locally before checking it: separate
 reads are separate calls and may return different values.
 

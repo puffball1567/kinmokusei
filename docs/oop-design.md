@@ -386,7 +386,6 @@ receiver once, call the getter once, evaluate the right-hand side, then call the
 setter once. An exception or panic stops that sequence. Both accessors must be
 accessible for updates. Inherited properties retain their access rules and
 generic substitution; `super.value` operates on the existing base instance.
-Static properties are not yet supported.
 Ordinary class fields and methods cannot hide a property.
 
 Accessors are synchronous calls, not stable storage reads. Repeated nullable
@@ -396,6 +395,44 @@ proofs, just like ordinary method calls. Property types cannot be `Result` or
 `Task`; there is no implicit error propagation or awaiting. Bodies retain
 ordinary explicit statements and exception/panic behavior. Prefer explicit
 methods for operations whose effects should be visible at the call site.
+
+### Static properties
+
+Static accessors use the same signature and paired-type rules, but are accessed
+through a class name rather than an instance:
+
+```ts
+let configuredLimit: int = 10;
+class Settings {
+  public static get limit(): int { return configuredLimit; }
+  public static set limit(next: int) { configuredLimit = next; }
+}
+Settings.limit += 2;
+```
+
+Both halves of a pair must be static. Visibility is checked independently,
+including private and protected access from class methods and subclasses.
+Inherited access uses the declaring class's accessor; it does not create a new
+property per subclass. Static accessors cannot be virtual, abstract, overridden,
+or hidden by a descendant. Use a class name, not `this` or `super`, to access them.
+They do not satisfy instance interface contracts.
+
+The generated public API is `SettingsGetLimit()` / `SettingsSetLimit(int)`.
+These are package functions, not instance methods. Generated names must not
+collide with other package declarations. Updates call the getter, evaluate the
+right-hand side, then call the setter; ordinary assignment calls only the setter.
+No locking is added: a compound update is not automatically atomic. Global
+initialization cycles through static accessor and method bodies are rejected.
+If a local binding or type parameter hides the generated Go function name at
+a static member access, compilation reports the collision; rename that binding.
+
+A generic class can also declare static accessors, but its type parameters are
+out of scope in their signatures and bodies. Access with `Box.value`, without
+type arguments. There is one accessor implementation, not one per `Box<T>`.
+This restriction does not change generic static **methods**, which retain their
+existing explicit or inferred generic call syntax. Static properties declare
+no storage; module bindings supply backing state when needed. Static fields
+remain a separate feature.
 
 ### Interface properties
 
@@ -499,7 +536,7 @@ unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ### Later candidates
 
-- Static properties.
+- Static fields and constants.
 - Discriminated-union integration.
 
 ### Out of scope

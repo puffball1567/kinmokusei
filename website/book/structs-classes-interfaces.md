@@ -106,6 +106,26 @@ class Meter {
 
 Call through the class: `Meter.create(1)`. Calling a static method on an instance is rejected. Public static methods lower to idiomatic package functions because Go has no type-level methods; generated name collisions are checked.
 
+Static properties provide the same class-name access style:
+
+```ts
+let currentLevel: int = 0;
+class Logging {
+  public static get level(): int { return currentLevel; }
+  public static set level(next: int) { currentLevel = next; }
+}
+Logging.level++;
+```
+
+Accessor visibility applies separately to reads and writes. Descendants reuse
+the declaring class's implementation; static properties cannot be overridden.
+They are not instance members and do not supply interface implementations.
+Generic classes may have static properties, but these accessors cannot use class
+type parameters: access remains `ClassName.property`, shared across type
+instantiations. Ordinary static methods keep their existing generic behavior.
+Public accessors lower to Go package functions such as `LoggingGetLevel()` and
+`LoggingSetLevel(int)`. Updates are ordered calls, not atomic operations.
+
 ## Interfaces
 
 ```ts

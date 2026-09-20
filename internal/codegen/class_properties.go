@@ -9,6 +9,9 @@ import (
 )
 
 func generatePropertyReceiver(member *ast.MemberExpr) (goast.Expr, error) {
+	if member.Static {
+		return nil, nil
+	}
 	if member.Super {
 		return &goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(member.SuperBase)}}, nil
 	}
@@ -16,6 +19,9 @@ func generatePropertyReceiver(member *ast.MemberExpr) (goast.Expr, error) {
 }
 
 func propertyCall(receiver goast.Expr, name string, arguments ...goast.Expr) *goast.CallExpr {
+	if receiver == nil {
+		return &goast.CallExpr{Fun: goast.NewIdent(goName(name)), Args: arguments}
+	}
 	return &goast.CallExpr{Fun: &goast.SelectorExpr{X: receiver, Sel: goast.NewIdent(goName(name))}, Args: arguments}
 }
 
@@ -69,11 +75,16 @@ func generatePropertyAssignment(member *ast.MemberExpr, operator string, value a
 		used[name] = true
 		return goast.NewIdent(name)
 	}
-	object, current := fresh("__propertyReceiver"), fresh("__propertyValue")
-	statements := []goast.Stmt{
-		&goast.AssignStmt{Lhs: []goast.Expr{object}, Tok: token.DEFINE, Rhs: []goast.Expr{receiver}},
-		&goast.AssignStmt{Lhs: []goast.Expr{current}, Tok: token.DEFINE, Rhs: []goast.Expr{propertyCall(object, propertyAccessorName(member, false))}},
+	used[propertyAccessorName(member, false)] = true
+	used[propertyAccessorName(member, true)] = true
+	var object goast.Expr
+	var statements []goast.Stmt
+	if receiver != nil {
+		object = fresh("__propertyReceiver")
+		statements = append(statements, &goast.AssignStmt{Lhs: []goast.Expr{object}, Tok: token.DEFINE, Rhs: []goast.Expr{receiver}})
 	}
+	current := fresh("__propertyValue")
+	statements = append(statements, &goast.AssignStmt{Lhs: []goast.Expr{current}, Tok: token.DEFINE, Rhs: []goast.Expr{propertyCall(object, propertyAccessorName(member, false))}})
 	if operator == "++" || operator == "--" {
 		op := token.INC
 		if operator == "--" {

@@ -46,6 +46,11 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			return c.resolveNativeType(c.nativeTypes[identifier.Name])
 		}
 		if class := c.classes[identifier.Name]; class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+			if hasClassProperty(class, expr.Name) {
+				expr.Static = true
+				identifier.ResolvedDeclaration = class.declarationSpan
+				return c.checkPropertyAccess(expr, class.methods, nil, write)
+			}
 			method, exists := class.methods[expr.Name]
 			if !exists || !method.static {
 				c.report(expr.Span, fmt.Sprintf("class %s has no static method %q", identifier.Name, expr.Name))
@@ -62,6 +67,8 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				owner = identifier.Name
 			}
 			expr.ResolvedName = staticMethodGoName(owner, method.goName, method.visibility)
+			c.checkStaticMemberShadowing(expr.ResolvedName, expr.Span)
+			c.recordGlobalDependency(staticMemberDependency(owner, method.goName))
 			if method.typeInfo.Generic && c.directCallCallee != expr {
 				c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
 			}

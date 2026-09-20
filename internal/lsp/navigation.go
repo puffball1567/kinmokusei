@@ -553,6 +553,9 @@ func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast
 		if method.Abstract {
 			detail = "abstract " + detail
 		}
+		if method.Static {
+			detail = "static " + detail
+		}
 		return detail
 	}
 	name := method.Name

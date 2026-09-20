@@ -240,3 +240,24 @@ func staticMethodGoName(className, methodName string, visibility ast.Visibility)
 	}
 	return generatedIdentifier("__kinmokuseiStatic" + className + methodName)
 }
+
+// A source selector lowers to an unqualified package function. Do not let a
+// local binding silently redirect that call to an unrelated value or closure.
+func (c *Checker) checkStaticMemberShadowing(name string, span source.Span) {
+	for _, scope := range c.scopes {
+		for local := range scope {
+			if generatedIdentifier(local) == name {
+				c.report(span, fmt.Sprintf("local name %q shadows generated static member %q; rename the local binding", local, name))
+				return
+			}
+		}
+	}
+	for _, scope := range c.typeParameterScopes {
+		for parameter := range scope {
+			if generatedIdentifier(parameter) == name {
+				c.report(span, fmt.Sprintf("type parameter %q shadows generated static member %q; rename the type parameter", parameter, name))
+				return
+			}
+		}
+	}
+}

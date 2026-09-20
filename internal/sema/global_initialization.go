@@ -6,6 +6,12 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
+// Static methods and accessors lower to package functions. Their bodies are
+// part of Go's lexical initialization dependency graph, including closures.
+func staticMemberDependency(owner, goName string) string {
+	return "static " + owner + " " + goName
+}
+
 func (c *Checker) recordGlobalDependency(name string) {
 	owner := c.globalDependencyOwner
 	if owner == "" {

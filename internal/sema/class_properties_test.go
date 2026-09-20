@@ -37,7 +37,7 @@ func TestClassPropertyContracts(t *testing.T) {
 		{"setter result", `class C{set x(v:int):int{return v;}}`, "setter must"},
 		{"rest setter", `class C{set x(...v:int[]){}}`, "setter must"},
 		{"result getter", `class C{get x():Result<int>{return ok(1);}}`, "properties"},
-		{"static", `class C{static get x():int{return 1;}}`, "static properties"},
+		{"static", `class C{static get x():int{return 1;}}`, ""},
 		{"virtual", `class C{public virtual get x():int{return 1;}}`, ""},
 		{"constructor not initialized by setter", `class V{}class C{private raw:V;public set value(v:V){this.raw=v;}constructor(){this.value=new V();}}`, "initialized"},
 		{"no property narrowing", `class V{public n:int=1;}class C{public get value():V|null{return null;}}function f(c:C):int{if(c.value!==null){return c.value.n;}return 0;}`, "nullable"},

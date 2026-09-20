@@ -36,3 +36,14 @@ func TestAbstractPropertiesParse(t *testing.T) {
 		}
 	}
 }
+
+func TestStaticPropertiesParse(t *testing.T) {
+	program, count := parseSource(t, "class C<T>{\npublic static get value():int{return 1;}\nprotected static set value(v:int):void{}\n}")
+	if count != 0 {
+		t.Fatalf("diagnostics=%d", count)
+	}
+	decl := program.Declarations[0].(*ast.ClassDecl)
+	if len(decl.Methods) != 2 || !decl.Methods[0].Static || !decl.Methods[1].Static || decl.Methods[0].Accessor != "get" || decl.Methods[1].Accessor != "set" || decl.Methods[1].Visibility != ast.Protected {
+		t.Fatalf("class=%#v", decl)
+	}
+}

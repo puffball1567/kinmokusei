@@ -517,7 +517,11 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 				if method.Accessor == "set" && len(parameters) == 1 {
 					result = parameters[0].Type
 				}
-				add(completionItem{Label: method.Name, Kind: 10, Detail: visibilityName(method.Visibility) + " " + method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
+				prefix := visibilityName(method.Visibility) + " "
+				if method.Static {
+					prefix += "static "
+				}
+				add(completionItem{Label: method.Name, Kind: 10, Detail: prefix + method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
 				continue
 			}
 			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + methodDetail(method, parameters, result), SortText: "0_" + method.Name})

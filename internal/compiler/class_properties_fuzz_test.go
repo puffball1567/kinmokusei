@@ -3,6 +3,11 @@ package compiler
 import "testing"
 
 var classPropertySeeds = []string{
+	`let n=0;class C{public static get x():int{return n;}public static set x(v:int){n=v;}}function f():int{C.x++;return C.x;}`,
+	`class B<T>{public static get x():int{return 1;}public static set x(v:int){}}class C<T> extends B<T>{}function f():void{C.x+=2;}`,
+	`class C<T>{public static get x():T{throw new Exception("bad");}}`,
+	`class C{public static get x():int{return 1;}}function f(c:C):int{return c.x;}`,
+	`class C{public static get x():int{return 1;}public set x(v:int){}}`,
 	`interface R<T>{get x():T;}interface W<T>{set x(v:T);}interface I<T> extends R<T>,W<T>{}function f(c:I<int>):int{c.x++;return c.x;}`,
 	`interface I{get x():int;set x(v:int);}class B{public get x():int{return 1;}public set x(v:int){}}class C extends B implements I{}`,
 	`interface I<T>{get x():T;}abstract class B<T> implements I<T>{public abstract get x():T;}class C extends B<int>{public override get x():int{return 1;}}`,

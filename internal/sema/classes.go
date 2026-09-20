@@ -385,6 +385,14 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 	c.inConstructor = false
 	c.checkClassFieldInitialization(decl)
 	for _, method := range decl.Methods {
+		previousTypeScopes := c.typeParameterScopes
+		previousDependency := c.globalDependencyOwner
+		if method.Static {
+			c.globalDependencyOwner = staticMemberDependency(decl.Name, method.GoName)
+		}
+		if method.Static && method.Accessor != "" {
+			c.typeParameterScopes = nil
+		}
 		c.pushTypeParameterScope(c.methodTypeParameters[method])
 		previousMemberFlow := c.memberFlow
 		c.memberFlow = map[memberFlowKey]memberFlowState{}
@@ -407,6 +415,8 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.popScope()
 		c.memberFlow = previousMemberFlow
 		c.popTypeParameterScope()
+		c.typeParameterScopes = previousTypeScopes
+		c.globalDependencyOwner = previousDependency
 	}
 	c.currentClass = previousClass
 }

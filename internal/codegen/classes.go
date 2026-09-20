@@ -343,7 +343,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			for _, parameter := range method.TypeParameters {
 				staticTypeParameters = append(staticTypeParameters, goTypeParameterField(parameter, false))
 			}
-			staticTypeParameters = append(staticTypeParameters, typeParameterFields...)
+			if method.Accessor == "" {
+				staticTypeParameters = append(staticTypeParameters, typeParameterFields...)
+			}
 			if len(staticTypeParameters) != 0 {
 				generated.Type.TypeParams = &goast.FieldList{List: staticTypeParameters}
 			}
