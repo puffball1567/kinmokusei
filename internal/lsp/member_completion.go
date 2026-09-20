@@ -500,7 +500,12 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 				if field.Static {
 					prefix += "static "
 				}
-				add(completionItem{Label: field.Name, Kind: 5, Detail: prefix + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
+				kind := 5
+				if field.Constant {
+					prefix += "const "
+					kind = 21
+				}
+				add(completionItem{Label: field.Name, Kind: kind, Detail: prefix + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
 			}
 		}
 		if declaration.Constructor != nil {

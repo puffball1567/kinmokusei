@@ -194,8 +194,8 @@ Fields remain ordinary named fields; embedding and promoted Go methods are not i
 ### Static members
 
 - Static methods lower to stable type-prefixed package functions.
-- Mutable static fields lower to type-prefixed package variables; class
-  constants remain unimplemented (use module constants).
+- Mutable static fields lower to type-prefixed package variables; `static const`
+  members lower to typed Go constants.
 - Mutable static state is discouraged and should require an explicit synchronization/lifecycle design.
 
 ```ts
@@ -223,6 +223,41 @@ A public field such as `Counter.count` emits the Go package variable
 `CounterCount`; private and protected fields use unexported names. Static state
 is not part of instance structs or JSON. Generated-name collisions are diagnosed,
 including local bindings that would shadow the selected Go variable.
+
+### Class constants
+
+```ts
+class Limits<T> {
+  public static const size: int = 32;
+  public static const label: string = "items";
+  private static const extra: int = 1;
+  public static const capacity: int = Limits.size + Limits.extra;
+}
+```
+
+Class constants require `static const`, an explicit scalar type, and an
+initializer whose compile-time value can be established. Numeric, string and
+boolean types (including named scalar types) are supported. Use the class name
+without type arguments; inheritance, visibility and module lexical scope follow
+static fields. Class type parameters are not available. Forward references to
+other constants are allowed; cycles are rejected.
+
+Constant operations preserve Go types, representability and floating-point
+rounding. These values work in numeric bounds, allocation sizes, switches,
+generic calls and further constant expressions. Runtime calls, mutable bindings,
+accessors, collections and object references cannot initialize constants.
+Constant array `len`/`cap` is permitted without reading array elements, but Go's
+dependency-cycle restrictions still apply to those references.
+Assignments, updates and address-taking are errors. Unlike a module `const`
+binding holding an immutable runtime value, `static const` always requires a
+compile-time constant.
+
+`Limits.size` emits `const LimitsSize int = 32`, usable as a constant by Go
+consumers, including Go array lengths. Kinmokusei array **type** lengths still
+require integer literals; this declaration syntax does not extend them to
+expressions. Enum-member values are not yet evaluated by this scalar-constant
+initializer checker. Constants occupy no per-instance storage and are excluded
+from JSON.
 
 ## Deliberate differences from TypeScript/JavaScript
 
@@ -561,7 +596,7 @@ unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ### Later candidates
 
-- Class constants and their constant-expression contexts.
+- Additional constant-expression contexts, including nonliteral array type lengths.
 - Discriminated-union integration.
 
 ### Out of scope

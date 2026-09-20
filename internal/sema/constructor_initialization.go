@@ -27,6 +27,10 @@ func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 		if field.Initializer == nil {
 			continue
 		}
+		if field.Constant {
+			c.ensureClassConstantChecked(decl.Name, field)
+			continue
+		}
 		previousScopes, previousDependency := c.typeParameterScopes, c.globalDependencyOwner
 		if field.Static {
 			c.typeParameterScopes = nil

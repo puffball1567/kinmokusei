@@ -61,6 +61,8 @@ type Checker struct {
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
+	classConstantChecks        map[*ast.FieldDecl]globalBindingCheckState
+	classConstantValues        map[*ast.FieldDecl]gotypes.TypeAndValue
 	checkingLocalArrow         *localArrowInference
 	resultErrorUses            map[*bool]resultErrorUse
 }
@@ -96,6 +98,8 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
 		validFallthrough:       map[*ast.BranchStmt]bool{},
 		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
+		classConstantChecks:    map[*ast.FieldDecl]globalBindingCheckState{},
+		classConstantValues:    map[*ast.FieldDecl]gotypes.TypeAndValue{},
 		globalDependencies:     map[string]map[string]bool{},
 		constantValues:         map[ast.Expression]gotypes.TypeAndValue{},
 		resultErrorUses:        map[*bool]resultErrorUse{},

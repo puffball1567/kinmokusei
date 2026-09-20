@@ -286,10 +286,15 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			for _, field := range declaration.Fields {
 				detail := field.Name + ": " + formatTypeRef(field.Type)
+				kind := 8
+				if field.Constant {
+					detail = "const " + detail
+					kind = 14
+				}
 				if field.Static {
 					detail = "static " + detail
 				}
-				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: detail, Kind: 8, Span: field.Span, Selection: field.NameSpan})
+				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: detail, Kind: kind, Span: field.Span, Selection: field.NameSpan})
 			}
 			if declaration.Constructor != nil {
 				for _, parameter := range declaration.Constructor.Parameters {

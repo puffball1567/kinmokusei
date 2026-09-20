@@ -62,6 +62,13 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				}
 				c.checkStaticMemberShadowing(field.goName, expr.Span)
 				c.recordGlobalDependency(staticFieldDependency(field.declaringClass, expr.Name))
+				if field.declaration != nil && field.declaration.Constant {
+					expr.Constant, expr.Addressable = true, false
+					c.ensureClassConstantChecked(field.declaringClass, field.declaration)
+					if value, known := c.classConstantValues[field.declaration]; known {
+						c.constantValues[expr] = value
+					}
+				}
 				return field.typeInfo
 			}
 			if hasClassProperty(class, expr.Name) {

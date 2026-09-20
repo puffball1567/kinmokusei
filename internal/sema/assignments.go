@@ -146,7 +146,11 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 	}
 	if member, ok := expr.(*ast.MemberExpr); ok {
 		if member.Constant {
-			c.report(member.Span, fmt.Sprintf("cannot assign to Go constant %q", member.Name))
+			kind := "Go constant"
+			if id, ok := member.Object.(*ast.IdentifierExpr); ok && member.Static && c.classes[id.Name] != nil {
+				kind = "class constant"
+			}
+			c.report(member.Span, fmt.Sprintf("cannot assign to %s %q", kind, member.Name))
 		} else if !member.Addressable {
 			c.report(member.Span, fmt.Sprintf("member %q is not assignable", member.Name))
 		}

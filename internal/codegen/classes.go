@@ -89,7 +89,11 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			if err != nil {
 				return nil, err
 			}
-			declarations = append(declarations, &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{
+			kind := token.VAR
+			if field.Constant {
+				kind = token.CONST
+			}
+			declarations = append(declarations, &goast.GenDecl{Tok: kind, Specs: []goast.Spec{&goast.ValueSpec{
 				Names: []*goast.Ident{goast.NewIdent(name)}, Type: goType(field.Type), Values: []goast.Expr{value},
 			}}})
 			continue

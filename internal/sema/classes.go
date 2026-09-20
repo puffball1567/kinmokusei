@@ -194,6 +194,10 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 	for i := range decl.Fields {
 		field := &decl.Fields[i]
 		declareField(field.Name, field.Type, field.Visibility, field.Static, field.Span, field.NameSpan, func(name string) { field.GoName = name })
+		if declared, exists := symbol.fields[field.Name]; exists && declared.declarationSpan == field.NameSpan {
+			declared.declaration = field
+			symbol.fields[field.Name] = declared
+		}
 		if field.Static && field.Initializer == nil {
 			c.report(field.NameSpan, "static fields require an explicit initializer")
 		}

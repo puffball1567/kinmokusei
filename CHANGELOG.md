@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add typed `static const` class members with compile-time scalar initializers,
+  inherited visibility, forward/module references, generic-independent scope,
+  exact constant operations and typed rounding. Emit public Go constants and
+  support editor completion, navigation and rename. Reject mutation, address
+  taking, runtime initializers and cycles, including cyclic constant array
+  `len`/`cap` dependencies.
+
 - Add explicitly initialized mutable static class fields, shared across generic
   instantiations and descendants, with visibility checks, addressable storage,
   collection/callable values and public Go package variables. Exclude static

@@ -53,7 +53,7 @@ feature work without mixing unrelated changes into its implementation.
 | 10 | Source-declared multiple results | Queued |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
 | 12 | Getter/setter properties | Instance/static accessors and interface contracts implemented, including independent visibility, generic inheritance, virtual/abstract/final instance overrides, DI, ordered updates and editor support |
-| 13 | Static fields and constants | Mutable fields implemented with explicit initializers, inherited/generic shared storage, visibility, addressability and package initialization checks; constants remain |
+| 13 | Static fields and constants | Mutable fields and typed scalar `static const` members implemented, with inherited visibility, generic-independent scope, Go variables/constants and initialization checks |
 | 14 | Receiver/constructor-dependent field initializers | Queued |
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
 | 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
@@ -340,7 +340,7 @@ complex cases follow Go's first-match behavior. The existing duplicate
 | Source struct constraint terms | Terms requiring source struct value storage before it is finalized are diagnosed, including generic instances, instead of panicking | Coordinate constraint and source storage completion before enabling these terms; imported Go concrete types remain available |
 | Abstract classes/methods | Explicit abstract method declarations and concrete implementation checks are implemented; abstract classes cannot be constructed directly | Interface requirements must be declared explicitly; direct constructor access to abstract methods is rejected, while indirect access to an unimplemented construction-phase slot panics; method-level generics remain nonvirtual |
 | Getter/setter properties | Instance/static properties and interface contracts support independent visibility, exact paired types, generic/diamond interface inheritance, DI, virtual/abstract/final and partial instance overrides, phase-local construction dispatch, single-evaluation updates, nullable-flow invalidation and public Go accessor APIs; differential coverage in `class_properties_test.go`, `virtual_properties_test.go`, `interface_properties_test.go` and `static_properties_test.go` | Static accessors cannot capture class type parameters or be overridden; adding a missing accessor to an inherited class property is rejected; no property storage, implicit Result/Task handling or stable getter narrowing |
-| Static fields/constants | Mutable fields implemented with explicit initializers, shared inherited/generic storage and Go package variables | Class constants and their constant-expression contexts remain |
+| Static fields/constants | Mutable fields and typed compile-time scalar constants implemented with explicit initializers, shared inherited/generic scope and Go package APIs | Enum-member constant evaluation and nonliteral array type lengths remain |
 
 Multiple class inheritance, prototype mutation, dynamic field creation, and
 runtime metaprogramming are deliberate exclusions, not missing Go compatibility.

@@ -41,7 +41,14 @@ instantiations and descendants; it is initialized once in Go package dependency
 order and excluded from instance JSON. Class type parameters and `this`/`super`
 cannot be used in static initializers. Cyclic initialization is a compile error.
 Public fields become Go package variables such as `CounterCount`. Concurrent
-updates require explicit synchronization. Class constants remain unsupported.
+updates require explicit synchronization.
+
+Use `public static const limit: int = 32;` for a typed class constant and read it
+as `ClassName.limit`. Its initializer must be a known compile-time numeric,
+string or boolean value; runtime calls and mutable values are rejected. Constants
+are inherited with the same visibility rules and cannot be assigned or addressed.
+Public constants become Go constants, not storage or accessor calls. Kinmokusei
+array type lengths still require integer literals.
 
 Instance properties use `public get value(): int { ... }` and
 `private set value(next: int) { ... }`. Read with `instance.value` and assign

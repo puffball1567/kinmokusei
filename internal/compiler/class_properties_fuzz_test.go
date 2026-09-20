@@ -3,6 +3,12 @@ package compiler
 import "testing"
 
 var classPropertySeeds = []string{
+	`class C{public static const n:int=D.n+1;}class D{public static const n:int=2;}function f():int{return C.n;}`,
+	`class C{public static const n:int=C.n;}`,
+	`class C{public static const n:byte=255;}function f():byte{return C.n+1;}`,
+	`class C{public static const n:int=1;}function f():void{C.n++;}`,
+	`class C{public static const n:int=1;}function f():void{const p=&C.n;}`,
+	`class C{public static const function f():int{return 1;}}`,
 	`class C<T>{public static n:int=0;public static get x():int{return C.n;}public static set x(v:int){C.n=v;}}function f():int{C.x++;return C.n;}`,
 	`class B{public static n:int=0;}class C extends B{}function f():void{C.n++;const p=&B.n;*p=2;}`,
 	`class C{public static current:C=new C();constructor(){const c=C.current;}}`,
