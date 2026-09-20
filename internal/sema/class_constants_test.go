@@ -25,6 +25,7 @@ func TestClassConstantContracts(t *testing.T) {
 		{"generic", `class C<T>{public static const n:T=1;}`, "unknown type"},
 		{"overflow", `class C{public static const n:byte=256;}`, "represented"},
 		{"overflow use", `class C{public static const n:byte=255;}function f():byte{return C.n+1;}`, "overflows"},
+		{"enum member", `enum Code:int{Ok=2}class C{public static const n:Code=Code.Ok;}function f():Code{return C.n;}`, ""},
 		{"wrong type", `class C{public static const n:int="a";}`, "cannot use"},
 		{"assign", `class C{public static const n:int=1;}function f():void{C.n=2;}`, "cannot assign"},
 		{"increment", `class C{public static const n:int=1;}function f():void{C.n++;}`, "cannot assign"},

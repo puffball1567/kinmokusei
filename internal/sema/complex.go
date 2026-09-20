@@ -6,6 +6,7 @@ import (
 	"go/constant"
 	gotoken "go/token"
 	gotypes "go/types"
+	"math/big"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -101,6 +102,18 @@ func (c *Checker) scalarConstant(expr ast.Expression) (gotypes.TypeAndValue, boo
 	}
 	if member, ok := expr.(*ast.MemberExpr); ok && member.Constant {
 		if id, ok := member.Object.(*ast.IdentifierExpr); ok {
+			if enumeration := c.enums[id.Name]; enumeration != nil {
+				if value := enumeration.members[member.Name]; value != nil && value.ResolvedValue != "" {
+					if native := c.nativeTypes[id.Name]; native != nil {
+						typeInfo := c.resolveNativeType(native)
+						if goType, ok := goTypeOf(typeInfo); ok {
+							if parsed, ok := new(big.Int).SetString(value.ResolvedValue, 10); ok {
+								return gotypes.TypeAndValue{Type: goType, Value: constant.Make(parsed)}, true
+							}
+						}
+					}
+				}
+			}
 			if imported := c.lookupGoPackage(id.Span.Path, id.Name); imported != nil {
 				if object, ok := imported.packageInfo.Scope().Lookup(member.Name).(*gotypes.Const); ok {
 					return gotypes.TypeAndValue{Type: object.Type(), Value: object.Val()}, true
