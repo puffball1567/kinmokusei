@@ -196,7 +196,9 @@ retain their complete exported method sets. Inferred locals can call or bind
 their methods, pass them to compatible Go APIs, and consume multiple results.
 They may also occur inside collection and callback types. For an explicitly
 typed source callback, an imported Go alias to the same anonymous interface can
-provide the annotation; source anonymous-interface literal syntax is not added.
+provide the annotation. Source code may also spell a method-only anonymous
+interface as `interface { read(offset: int): string; }`; it lowers to the
+corresponding Go interface without introducing a named source contract.
 Source classes still use explicit interface implementation contracts.
 Anonymous interfaces with private methods are rejected because re-emitting those
 methods in another Go package would change their identity. Type-set constraints

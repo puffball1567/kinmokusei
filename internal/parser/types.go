@@ -12,6 +12,55 @@ func (p *Parser) parseType() (ast.TypeRef, bool) {
 }
 
 func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
+	if p.match(token.Interface) {
+		start := p.previous()
+		if _, ok := p.expect(token.LeftBrace, "expected '{' after anonymous interface"); !ok {
+			return ast.TypeRef{}, false
+		}
+		var methods []ast.ObjectTypeField
+		for !p.at(token.RightBrace) && !p.at(token.EOF) {
+			name, ok := p.expect(token.Identifier, "expected anonymous interface method name")
+			if !ok {
+				p.synchronizeStatement()
+				continue
+			}
+			if _, ok = p.expect(token.LeftParen, "expected '(' after anonymous interface method name"); !ok {
+				p.synchronizeStatement()
+				continue
+			}
+			parameters, valid := p.parseParameters(token.RightParen)
+			if !valid {
+				p.synchronizeTo(token.RightParen)
+			}
+			if _, ok = p.expect(token.RightParen, "expected ')' after anonymous interface parameters"); !ok {
+				p.synchronizeStatement()
+				continue
+			}
+			if _, ok = p.expect(token.Colon, "expected ':' before anonymous interface result"); !ok {
+				p.synchronizeStatement()
+				continue
+			}
+			result, ok := p.parseType()
+			if !ok {
+				p.synchronizeStatement()
+				continue
+			}
+			if _, ok = p.expectTerminator("expected ';' after anonymous interface method"); !ok {
+				p.synchronizeStatement()
+			}
+			parameterTypes := make([]ast.TypeRef, len(parameters))
+			for index, parameter := range parameters {
+				parameterTypes[index] = parameter.Type
+			}
+			methodType := ast.TypeRef{Parameters: parameterTypes, Return: &result, Variadic: len(parameters) != 0 && parameters[len(parameters)-1].Variadic, Span: name.Span.Merge(result.Span)}
+			methods = append(methods, ast.ObjectTypeField{Name: name.Lexeme, JSONName: name.Lexeme, Type: methodType, Span: name.Span.Merge(result.Span)})
+		}
+		end, ok := p.expect(token.RightBrace, "expected '}' after anonymous interface")
+		if !ok {
+			return ast.TypeRef{}, false
+		}
+		return p.parseTypeSuffix(ast.TypeRef{GoInterface: true, ObjectFields: methods, Span: start.Span.Merge(end.Span)}, allowNullable)
+	}
 	if p.match(token.LeftBrace) {
 		start := p.previous()
 		var fields []ast.ObjectTypeField

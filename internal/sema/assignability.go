@@ -116,6 +116,12 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		if class == nil {
 			return false
 		}
+		// Source anonymous interfaces are structural at the value boundary.
+		// Match their exported Go method set against the class's lowered methods
+		// even when the class did not declare a named `implements` contract.
+		if c.classSatisfiesSourceAnonymousInterface(target) && c.classSatisfiesGoInterface(class, target.GoType) {
+			return true
+		}
 		for _, declared := range class.goImplements {
 			if gotypes.AssignableTo(declared, target.GoType) || gotypes.Identical(declared, target.GoType) {
 				return true
@@ -130,6 +136,42 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		return false
 	}
 	return assignable(target, value)
+}
+
+func (c *Checker) classSatisfiesSourceAnonymousInterface(target Type) bool {
+	for _, method := range target.GoMethods {
+		if method.GoName != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Checker) classSatisfiesGoInterface(class *classSymbol, target gotypes.Type) bool {
+	contract := underlyingGoInterface(target)
+	if contract == nil {
+		return false
+	}
+	for index := 0; index < contract.NumMethods(); index++ {
+		required := contract.Method(index)
+		var provided *methodSymbol
+		for name := range class.methods {
+			method := class.methods[name]
+			if method.goName == required.Name() && !method.static {
+				copy := method
+				provided = &copy
+				break
+			}
+		}
+		if provided == nil {
+			return false
+		}
+		actual, ok := goTypeOf(provided.typeInfo)
+		if !ok || !gotypes.Identical(actual, required.Type()) {
+			return false
+		}
+	}
+	return true
 }
 
 func exactType(left, right Type) bool { return assignable(left, right) && assignable(right, left) }

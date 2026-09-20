@@ -49,7 +49,7 @@ feature work without mixing unrelated changes into its implementation.
 | 6 | Additional export forms, including re-exports and aliases | Implemented: named re-exports and export aliases |
 | 7 | Constraint intersections and interface composition | Source/imported Go type sets, Go method interfaces, and comparable requirements can be composed; native interface contracts remain |
 | 8 | Remaining constant contexts | Scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` preserve values and types; bounds and size checks consume these constants; further contexts remain |
-| 9 | Source anonymous-interface syntax | Queued |
+| 9 | Source anonymous-interface syntax | Implemented for method-only `interface { name(parameters): result; }` types; exported method sets lower to Go anonymous interfaces |
 | 10 | Source-declared multiple results | Queued |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
 | 12 | Getter/setter properties | Instance/static accessors and interface contracts implemented, including independent visibility, generic inheritance, virtual/abstract/final instance overrides, DI, ordered updates and editor support |
@@ -314,7 +314,7 @@ these constants; differential coverage is in `nullable_array_constants_test.go`.
 |---|---|---|
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, linked export aliases and provably disjoint parameter-dependent collection shapes | Add native source interface contracts; preserve source-only method argument shapes; handle intersections whose overlap depends on later substitution |
 | Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining contextual-expression combinations, constant layout intrinsics, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
-| Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs and inference; no source anonymous-interface literal syntax | Source callback annotations can use an imported Go alias; consider source syntax separately, and retain rejection of anonymous private method identities |
+| Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs, inference and source method-only `interface { ... }` type literals | Source fields, private method identities and richer anonymous-interface members remain rejected |
 | Source-declared multiple results | Raw Go multiple-result calls can be consumed; source callable results use a single type or `Result<T>` | Decide a source result-list syntax and propagation rules before expanding declarations |
 
 These entries come from the parser, `internal/sema/checker.go`,
