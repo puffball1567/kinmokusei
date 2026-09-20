@@ -351,7 +351,132 @@ rules just as it can bypass ordinary class initializers.
 
 ## Properties
 
-Getter/setter properties are also future work. If added, they must have explicit lowering and cannot hide arbitrary asynchronous or fallible behavior behind field-looking syntax.
+Concrete instance properties use `get` and `set` accessors:
+
+```ts
+class Counter {
+  private raw: int = 0;
+  public get value(): int { return this.raw; }
+  private set value(next: int) { this.raw = next; }
+  public function increment(): void { this.value++; }
+}
+const counter = new Counter();
+counter.increment();
+const value = counter.value;
+// counter.value = 3; // private setter
+```
+
+A getter has no parameters and an explicit non-void return type. A setter has
+one typed, non-rest parameter and returns void; its `: void` annotation is
+optional. Paired types must match exactly, including nullability and generic
+arguments. Each accessor has its own public/protected/private visibility;
+the default is private. Getter-only properties are read-only and setter-only
+properties are write-only. Properties do not declare storage or initialize
+backing fields on behalf of a constructor.
+
+Property reads and writes lower to method calls. Public `get value` / `set value`
+generate `GetValue()` / `SetValue(value)` for ordinary Go consumers. These names
+cannot collide with other declared or inherited members. Nonpublic accessors
+remain unexported. Properties are not JSON fields and are not addressable;
+value structs/arrays returned by a getter are copies, while returned references
+and slices retain their ordinary aliasing behavior.
+
+`receiver.value += rhs`, other compound assignments, and `++`/`--` evaluate the
+receiver once, call the getter once, evaluate the right-hand side, then call the
+setter once. An exception or panic stops that sequence. Both accessors must be
+accessible for updates. Inherited properties retain their access rules and
+generic substitution; `super.value` operates on the existing base instance.
+Static properties are not yet supported.
+Ordinary class fields and methods cannot hide a property.
+
+Accessors are synchronous calls, not stable storage reads. Repeated nullable
+getter reads are not narrowed by an earlier null check: bind the result locally
+and check that binding. Accessor calls invalidate potentially aliased field
+proofs, just like ordinary method calls. Property types cannot be `Result` or
+`Task`; there is no implicit error propagation or awaiting. Bodies retain
+ordinary explicit statements and exception/panic behavior. Prefer explicit
+methods for operations whose effects should be visible at the call site.
+
+### Interface properties
+
+Interfaces declare accessor signatures without bodies or visibility modifiers;
+all required accessors are public. The ordinary accessor arity and exact paired
+type rules apply, including when separate generic ancestors supply the getter
+and setter.
+
+```ts
+interface Readable<T> { get value(): T; }
+interface Writable<T> { set value(next: T); }
+interface Cell<T> extends Readable<T>, Writable<T> {}
+
+class Box<T> implements Cell<T> {
+  constructor(private raw: T) {}
+  public get value(): T { return this.raw; }
+  public set value(next: T) { this.raw = next; }
+}
+function increment(cell: Cell<int>): int {
+  cell.value++;
+  return cell.value;
+}
+```
+
+As with methods, implementation is explicit. Required accessors may be inherited
+from a class or declared abstract by an abstract implementer. A field or ordinary
+method named `getValue` does not satisfy a source `get value` contract. A
+getter-only interface exposes only reads even if the concrete class also has a
+setter; setter-only contracts work analogously. These interfaces can be used for
+DI without inheriting a shared class implementation.
+
+Generated Go interfaces expose `GetValue`/`SetValue`, so handwritten Go types with
+those methods can implement the generated API. A source interface can also
+extend an imported Go interface with the same accessor methods when signatures
+match exactly. Source method/property name collisions and generated accessor
+name collisions are diagnosed. Property evaluation, nullability, mutation
+effects and non-addressability are unchanged when accessed through an interface.
+
+### Virtual and abstract accessors
+
+Each accessor independently supports the ordinary `virtual`, `override`, `final`
+and `abstract` method rules. Overrides must preserve its visibility and exact
+type, including nested nullability. Nonvirtual accessors cannot be overridden.
+Overriding only a getter preserves the inherited setter, and vice versa; adding
+a previously absent accessor to an inherited property is not supported. A final
+override closes that accessor, not the other half of the property.
+
+```ts
+abstract class Setting<T> {
+  public abstract get value(): T;
+  public abstract set value(next: T);
+}
+class Count extends Setting<int> {
+  private raw: int = 0;
+  public override get value(): int { return this.raw; }
+  public override set value(next: int) { this.raw = next; }
+}
+function increment(setting: Setting<int>): int {
+  setting.value++;
+  return setting.value;
+}
+```
+
+Abstract accessors have signatures without bodies and are implicitly virtual.
+A concrete descendant must implement each abstract accessor; an abstract
+intermediate class may redeclare an inherited virtual accessor with
+`abstract override`. These abstract classes work as ordinary DI types.
+
+Access through a base reference dispatches to the most-derived override,
+including updates and public Go `GetValue`/`SetValue` method calls or bound
+method values. `super.value` deliberately bypasses virtual dispatch and uses
+the inherited implementation. Reading or writing an abstract accessor through
+`super` is an error, including an abstract getter needed for a compound update.
+
+Construction uses the same phase-local dispatch as ordinary methods. Direct
+access to an abstract accessor on `this` during construction is rejected;
+indirect access through helpers can still reach an unimplemented slot and
+panics. An abstract getter is not read by a simple assignment through a concrete
+setter. Getter/setter bodies do not supply definite-initialization proofs for
+backing fields. Go-created zero values use the ordinary wrapper fallback, and
+unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ## Stages
 
@@ -374,7 +499,7 @@ Getter/setter properties are also future work. If added, they must have explicit
 
 ### Later candidates
 
-- Getter/setter properties.
+- Static properties.
 - Discriminated-union integration.
 
 ### Out of scope

@@ -307,6 +307,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			return
 		}
 		value := c.checkExpression(stmt.Value)
+		if call, ok := stmt.Value.(*ast.CallExpr); ok && call.Builtin == ast.MakeCall && value.Kind != Invalid {
+			c.report(stmt.Span, "make result must be used; bind it or explicitly discard with _")
+		}
 		if value.Kind == Result {
 			c.report(stmt.Span, resultUsageMessage)
 		}

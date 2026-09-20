@@ -172,6 +172,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.ExprStmt{X: value}, nil
 	case *kinmokuseiAST.AssignmentStmt:
+		if member, ok := stmt.Target.(*kinmokuseiAST.MemberExpr); ok && member.Property {
+			return generatePropertyAssignment(member, stmt.Operator, stmt.Value)
+		}
 		if stmt.DiscardArity > 0 {
 			return generateDiscard(stmt.Value, stmt.DiscardArity, kinmokuseiAST.TypeRef{})
 		}
@@ -185,6 +188,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.AssignStmt{Lhs: []goast.Expr{target}, Tok: goAssignmentToken(stmt.Operator), Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.IncDecStmt:
+		if member, ok := stmt.Target.(*kinmokuseiAST.MemberExpr); ok && member.Property {
+			return generatePropertyAssignment(member, stmt.Operator, nil)
+		}
 		target, err := generateExpression(stmt.Target)
 		if err != nil {
 			return nil, err

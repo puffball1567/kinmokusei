@@ -1,0 +1,7 @@
+function classify(value: float32): int {
+  switch (value) {
+    case 16777216.0 { return 1; }
+    case 16777217.0 { return 2; }
+    default { return 0; }
+  }
+}

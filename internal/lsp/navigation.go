@@ -296,6 +296,9 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			for _, method := range declaration.Methods {
 				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				if method.Accessor != "" {
+					child.Kind = 7
+				}
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
@@ -362,7 +365,13 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan})
+				detail := functionDetail(method.Name, method.Parameters, method.ReturnType)
+				kind := 6
+				if method.Accessor != "" {
+					detail = method.Accessor + " " + strings.TrimPrefix(detail, "function ")
+					kind = 7
+				}
+				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: detail, Kind: kind, Span: method.Span, Selection: method.NameSpan})
 			}
 			result = append(result, info)
 		case *ast.VariableDecl:
@@ -539,6 +548,13 @@ func functionDeclarationDetail(function *ast.FunctionDecl) string {
 }
 
 func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast.TypeRef) string {
+	if method.Accessor != "" {
+		detail := method.Accessor + " " + strings.TrimPrefix(functionDetail(method.Name, parameters, result), "function ")
+		if method.Abstract {
+			detail = "abstract " + detail
+		}
+		return detail
+	}
 	name := method.Name
 	if !method.External && len(method.TypeParameters) != 0 {
 		name += formatTypeParameters(method.TypeParameters)

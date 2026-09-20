@@ -85,7 +85,7 @@ function dynamicCapacity(length: int, capacity: int): int[] { return makeSlice[i
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"kinmokuseiMakeLength := 1", "kinmokuseiMakeCapacity := 3", "make([]int, kinmokuseiMakeLength, kinmokuseiMakeCapacity)", "make(map[string]int, 2)", "append(values, suffix...)", `append(values, "abc"...)`, "copy(values[1:], values[:3])", `delete(lookup, "a")`, "len(value)", "cap(value)"} {
+	for _, want := range []string{"__kinmokusei_make_length := 1", "__kinmokusei_make_capacity := 3", "make([]int, __kinmokusei_make_length, __kinmokusei_make_capacity)", "make(map[string]int, 2)", "append(values, suffix...)", `append(values, "abc"...)`, "copy(values[1:], values[:3])", `delete(lookup, "a")`, "len(value)", "cap(value)"} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
 		}

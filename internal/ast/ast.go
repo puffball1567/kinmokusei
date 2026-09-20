@@ -190,6 +190,8 @@ type ConstructorDecl struct {
 }
 
 type MethodDecl struct {
+	// Accessor is "get" or "set" for class properties; Name remains the source name.
+	Accessor       string
 	Name           string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
@@ -290,6 +292,7 @@ func (*EnumDecl) declaration()           {}
 func (d *EnumDecl) GetSpan() source.Span { return d.Span }
 
 type InterfaceMethod struct {
+	Accessor   string
 	Name       string
 	NameSpan   source.Span
 	Parameters []Parameter
@@ -802,6 +805,7 @@ type CallExpr struct {
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments []bool
+	MakeSliceTarget      bool // make[T] has a checked slice target, not a map hint or channel capacity.
 	Expanded             bool
 	Conversion           bool
 	GoConstant           bool // Checked calls/conversions that Go evaluates at compile time.
@@ -842,6 +846,7 @@ const (
 	ImagCall
 	MakeSliceCall
 	MakeMapCall
+	MakeCall
 	CopyArrayCall
 	ViewArrayCall
 	UnsafeSizeofCall
@@ -908,21 +913,27 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
-	Object              Expression
-	Name                string
-	NameSpan            source.Span
-	ResolvedDeclaration source.Span
-	ResolvedName        string
-	Static              bool
-	Constant            bool
-	Addressable         bool
-	GoField             bool
-	GoFieldViaPointer   bool
-	Go                  bool
-	Super               bool
-	SuperBase           string
-	VirtualDispatch     bool
-	VirtualOwner        string
+	Property               bool
+	PropertyGetter         string
+	PropertySetter         string
+	PropertyGetterOwner    string
+	PropertySetterOwner    string
+	PropertyGetterAbstract bool
+	Object                 Expression
+	Name                   string
+	NameSpan               source.Span
+	ResolvedDeclaration    source.Span
+	ResolvedName           string
+	Static                 bool
+	Constant               bool
+	Addressable            bool
+	GoField                bool
+	GoFieldViaPointer      bool
+	Go                     bool
+	Super                  bool
+	SuperBase              string
+	VirtualDispatch        bool
+	VirtualOwner           string
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
 	GenericMethod                bool

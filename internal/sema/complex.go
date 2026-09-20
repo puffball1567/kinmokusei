@@ -126,6 +126,14 @@ func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) 
 			}
 		}
 	}
+	if (target.IsNumeric() || underlyingGoInterface(target.GoType) != nil) && c.hasDeferredShift(expr) {
+		if gt, ok := goTypeOf(target); ok {
+			if err := c.checkShiftAssignment(expr, gt); err != nil {
+				c.report(expr.GetSpan(), err.Error())
+				return false
+			}
+		}
+	}
 	return true
 }
 
@@ -195,9 +203,12 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 	if value != nil {
 		pkg.Scope().Insert(gotypes.NewConst(0, pkg, name, gt, value))
 	} else {
-		// A nonconstant untyped shift cannot acquire a floating/complex type.
-		// Replacing its AST with an untyped synthetic variable would lose Go's
-		// deferred shift check and incorrectly accept complex(1 << n, 0).
+		if actual.Kind == UntypedInt || isUntypedGoNumeric(actual) {
+			if tree := c.contextualNumericExpression(pkg, name, expr); tree != nil {
+				return tree, true
+			}
+		}
+		// Runtime bindings remain typed variables, even if immutable.
 		gt = gotypes.Default(gt)
 		pkg.Scope().Insert(gotypes.NewVar(0, pkg, name, gt))
 	}

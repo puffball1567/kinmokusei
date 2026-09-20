@@ -26,6 +26,11 @@ func (c *Checker) genericNumericArguments(arguments []ast.Expression, actuals []
 					actuals[i] = Type{Kind: UntypedInt, Name: "integer literal"}
 				}
 			}
+		} else if (actuals[i].Kind == UntypedInt || isUntypedGoNumeric(actuals[i])) && c.hasDeferredShift(argument) {
+			// A runtime shift is not a constant, but its untyped kind still
+			// waits for explicit or typed-argument inference. Check the actual
+			// expression against the instantiated parameter afterwards.
+			values[i].Type, _ = goTypeOf(actuals[i])
 		}
 	}
 	return values
@@ -33,7 +38,7 @@ func (c *Checker) genericNumericArguments(arguments []ast.Expression, actuals []
 
 func untypedNumericRank(info gotypes.TypeAndValue) int {
 	basic, ok := info.Type.(*gotypes.Basic)
-	if !ok || info.Value == nil || basic.Info()&gotypes.IsUntyped == 0 {
+	if !ok || basic.Info()&gotypes.IsUntyped == 0 {
 		return 0
 	}
 	switch {

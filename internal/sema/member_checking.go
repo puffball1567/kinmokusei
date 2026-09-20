@@ -8,12 +8,28 @@ import (
 )
 
 func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
+	return c.checkMemberAccess(expr, false)
+}
+
+func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
 			c.report(identifier.Span, "class field initializers cannot reference this or super; use the constructor")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if identifier.Name == "super" {
+			if class := c.classes[c.currentClass]; class != nil && class.base != "" {
+				if base := c.classes[class.base]; base != nil && hasClassProperty(base, expr.Name) {
+					if c.inFieldInitializer {
+						c.report(expr.Span, "class field initializers cannot reference this or super; use the constructor")
+					}
+					if _, ok := c.lookupSymbol("this", expr.Span); !ok {
+						c.report(expr.Span, "super cannot be used in a static method")
+					}
+					expr.Super, expr.SuperBase = true, class.base
+					return c.checkClassProperty(expr, base, class.baseType, write)
+				}
+			}
 			return c.checkSuperMember(expr)
 		}
 		if enumeration := c.enums[identifier.Name]; enumeration != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
@@ -81,6 +97,9 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		class := c.classes[object.Name]
 		if class == nil {
 			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		if hasClassProperty(class, expr.Name) {
+			return c.checkClassProperty(expr, class, object, write)
 		}
 		if field, ok := class.fields[expr.Name]; ok {
 			if !c.canAccessClassMember(field.visibility, field.declaringClass) {
@@ -213,6 +232,9 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		contract := c.interfaces[object.Name]
 		if contract == nil {
 			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		if hasProperty(contract.methods, expr.Name) {
+			return c.checkPropertyAccess(expr, contract.methods, nativeInterfaceBindings(contract, object), write)
 		}
 		method, ok := contract.methods[expr.Name]
 		if !ok {

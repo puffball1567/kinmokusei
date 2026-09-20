@@ -304,6 +304,7 @@ func builtinSignature(name string) (ast.CallableSignature, bool) {
 		"real":           {ParameterNames: []string{"value"}, ParameterTypes: []string{"complex"}, Result: "float"},
 		"imag":           {ParameterNames: []string{"value"}, ParameterTypes: []string{"complex"}, Result: "float"},
 		"makeSlice":      {ParameterNames: []string{"length", "capacity?"}, ParameterTypes: []string{"int", "int"}, Result: "T[]"},
+		"make":           {ParameterNames: []string{"size?", "capacity?"}, ParameterTypes: []string{"int", "int"}, Result: "T"},
 		"makeMap":        {ParameterNames: []string{"capacity?"}, ParameterTypes: []string{"int"}, Result: "Map<K, V>"},
 		"copyArray":      {ParameterNames: []string{"source"}, ParameterTypes: []string{"T[]"}, Result: "[N]T"},
 		"viewArray":      {ParameterNames: []string{"source"}, ParameterTypes: []string{"T[]"}, Result: "*[N]T"},

@@ -221,6 +221,15 @@ Supported special built-ins have dedicated type rules rather than guessed functi
 
 They are not first-class function values. `Offsetof` accepts a Go struct field selector and rejects invalid pointer-embedding paths. Named pointer/slice underlying types determine element types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic behavior remain exactly as unsafe Go; enabling the capability does not make them safe.
 
+`Slice` and `SliceData` also accept constrained pointer/slice parameters with a
+common underlying shape and identical source element contracts. Source class
+elements and their nullability survive both operations; conflicting element
+types or nullability are rejected. Lengths and offsets accept integer-valued
+untyped constants, including aliases and arithmetic, and contextual shifts such
+as `1.0 << n`. Constant lengths must be nonnegative and representable as `int`;
+offsets may be negative but must also fit `int`. Runtime bounds and pointer
+validity remain the caller's responsibility.
+
 ## Environment-dependent packages
 
 - Pure Go packages are the primary compatibility target.

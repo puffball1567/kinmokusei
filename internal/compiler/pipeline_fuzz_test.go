@@ -15,6 +15,21 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function f(v:float32):void{switch(v){case 16777216.0{}case 16777217.0{}}}`,
+	`const a="a"+"b";const b=a;function f(v:string):void{switch(v){case b{}case "ab"{}}}`,
+	`constraint N=~int|~int64;function f<T extends N>(v:T):void{switch(v){case T(1){}case 1{}}}`,
+	`function f(v:int):void{for(const i=1;i<2;){switch(v){case i{}case 1{}}break;}}`,
+	`function f(n:uint):void{switch(1.0<<n){default{}}}`,
+	`function f(n:uint):byte{return (300<<n)+2;}`,
+	`function f(n:uint):byte{return byte(1.0<<n);}`,
+	`function f(n:uint,v:byte):boolean{return (1.0<<n)==v;}`,
+	`function f(n:uint):int[]{return make[int[]](1.0<<n,2.0<<n);}`,
+	`constraint B=~byte|~uint16;function f<T extends B>(n:uint):T{return 300<<n;}`,
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(n:int):T{return make[T](n,n+1);}`,
+	`constraint C=~GoChannel<int>|~GoSendChannel<int>;function f<T extends C>():T{return make[T](2);}`,
+	`constraint C=~GoSendChannel<int>|~GoReceiveChannel<int>;function f<T extends C>():T{return make[T]();}`,
+	`class C{}alias Maybe=C|null;function f():Maybe[]{return make[Maybe[]](1.0,2.0);}`,
+	`function f():void{make[void]();make[int[]](-1,2);make[int[]](1...);}`,
 	`constraint A<E>=~[0]E|~[2]E;function f<E,T extends A<E>>(v:E[]):T{return copyArray[T](v);}`,
 	`constraint A=~[2]int|~[3]int;function f<T extends A>(v:int[]):int{const n=len(copyArray[T](v));const p=&n;return *p;}`,
 	`class C{}constraint A=~[2]C|~[3](C|null);function f<T extends A>(v:C[]):T{return copyArray[T](v);}`,
@@ -230,6 +245,10 @@ var pipelineFuzzSeeds = []string{
 }
 
 func compilePipelineProperty(input string) ([]byte, bool, error) {
+	return compilePipelinePropertyWithPolicy(input, sema.GoInteropPolicy{})
+}
+
+func compilePipelinePropertyWithPolicy(input string, policy sema.GoInteropPolicy) ([]byte, bool, error) {
 	tokens, lexDiagnostics := lexer.Lex("fuzz.km", input)
 	program, parseDiagnostics := kinmokuseiParser.Parse(tokens)
 	if program == nil {
@@ -239,7 +258,7 @@ func compilePipelineProperty(input string) ([]byte, bool, error) {
 		return nil, false, nil
 	}
 	goImporter := importer.Default()
-	if diagnostics := sema.CheckScopedWithGoImporter(program, nil, goImporter); len(diagnostics) != 0 {
+	if diagnostics := sema.CheckScopedWithGoImporterAndPolicy(program, nil, goImporter, policy); len(diagnostics) != 0 {
 		return nil, false, nil
 	}
 	first, err := codegen.GenerateWithImporter(program, "fuzzpkg", goImporter)

@@ -185,7 +185,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
-	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
+	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "make", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
 		add(completionItem{Label: name, Kind: 3, Detail: "compiler built-in", SortText: "2_" + name})
 	}
 	for _, imported := range program.Imports {

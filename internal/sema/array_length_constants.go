@@ -55,7 +55,7 @@ func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
 	case *ast.BinaryExpr:
 		return arrayLengthOperandUnevaluated(expr.Left) && arrayLengthOperandUnevaluated(expr.Right)
 	case *ast.MemberExpr:
-		return arrayLengthOperandUnevaluated(expr.Object)
+		return !expr.Property && arrayLengthOperandUnevaluated(expr.Object)
 	case *ast.IndexExpr:
 		return arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Index)
 	case *ast.SliceExpr:

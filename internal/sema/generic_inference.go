@@ -143,6 +143,9 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 			}
 		}
 		c.requireAssignable(expected, actualTypes[index], expr.Arguments[index].GetSpan())
+		if c.hasDeferredShift(expr.Arguments[index]) {
+			c.checkNumericMaterialization(expr.Arguments[index], expected)
+		}
 		c.applyClassUpcast(&expr.Arguments[index], expected, actualTypes[index])
 	}
 	return result
@@ -549,6 +552,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	c.recordCallSignature(expr, converted)
+	c.checkGenericShiftArguments(expr, converted)
 	return *converted.Result
 }
 
@@ -574,7 +578,16 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	c.recordCallSignature(expr, converted)
+	c.checkGenericShiftArguments(expr, converted)
 	return *converted.Result
+}
+
+func (c *Checker) checkGenericShiftArguments(expr *ast.CallExpr, callable Type) {
+	for index, argument := range expr.Arguments {
+		if c.hasDeferredShift(argument) {
+			c.checkNumericMaterialization(argument, genericArgumentParameter(callable, expr, index))
+		}
+	}
 }
 
 func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explicitTypeArguments []gotypes.Type, expanded bool, numericArguments []gotypes.TypeAndValue) (*gotypes.Signature, error) {

@@ -135,7 +135,15 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 		}
 		return symbol.typeInfo
 	}
-	target := c.checkExpression(expr)
+	var target Type
+	if member, ok := expr.(*ast.MemberExpr); ok {
+		target = c.checkMemberAccess(member, true)
+		if member.Property {
+			return target
+		}
+	} else {
+		target = c.checkExpression(expr)
+	}
 	if member, ok := expr.(*ast.MemberExpr); ok {
 		if member.Constant {
 			c.report(member.Span, fmt.Sprintf("cannot assign to Go constant %q", member.Name))
@@ -154,6 +162,12 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 }
 
 func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
+	if member, ok := expr.(*ast.MemberExpr); ok && member.Property {
+		c.checkAbstractPropertyAccess(member, member.PropertyGetterAbstract, "getter")
+	}
+	if member, ok := expr.(*ast.MemberExpr); ok && member.Property && member.PropertyGetter == "" {
+		c.report(member.Span, fmt.Sprintf("property %q requires an accessible getter for an update", member.Name))
+	}
 	if identifier, ok := expr.(*ast.IdentifierExpr); ok {
 		if symbol, exists := c.lookupSymbol(identifier.Name, identifier.Span); exists {
 			identifier.ResolvedDeclaration = symbol.declarationSpan

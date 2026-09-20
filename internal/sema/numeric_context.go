@@ -48,6 +48,9 @@ func (c *Checker) integerContextValue(expr ast.Expression) (*big.Int, bool) {
 }
 
 func (c *Checker) isIntegerContext(expr ast.Expression, actual Type) bool {
+	if (actual.Kind == UntypedInt || isUntypedGoNumeric(actual)) && c.hasDeferredShift(expr) {
+		return c.checkShiftAssignment(expr, gotypes.Typ[gotypes.Int]) == nil
+	}
 	if actual.IsInteger() {
 		return true
 	}

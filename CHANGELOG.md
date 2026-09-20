@@ -9,6 +9,43 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add instance getter/setter properties with independent visibility, generic
+  and inherited types, read/write diagnostics and single-evaluation updates.
+  Support virtual/abstract accessors, explicit and final overrides, partial
+  accessor overrides and phase-local construction dispatch. Generated Go exposes
+  accessor methods; LSP supports completion, navigation and inheritance-aware
+  paired getter/setter rename. Interfaces can declare public property contracts,
+  including generic/diamond inheritance and class or abstract-class DI; static
+  properties remain unsupported.
+
+- Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
+  type parameters and source class elements, preserving source nullability.
+  Accept integer-valued untyped constants and contextual shifts in unsafe lengths
+  and offsets; diagnose negative lengths and overflowing constant reference
+  chains. The explicit unsafe permission and Go lifetime obligations are unchanged.
+
+- Extend scalar constant checking for value switches: default the subject's
+  type, reject overflowing subjects/cases, recognize constant expression and
+  re-export chains, and account for floating-point rounding and interface
+  dynamic-type identity when checking duplicates. Preserve Go's first-match
+  behavior for repeated boolean/complex cases and runtime bindings. Separate
+  value-switch and constant-case checks from channel/type-switch checking.
+
+- Preserve contextual types for nonconstant shifts in assignments, returns,
+  conversions, operators and generic calls. Diagnose overflowing left operands
+  and floating-point shift contexts before Go generation, while accepting
+  integer-valued untyped floating shifts in indices, slice bounds and allocation
+  sizes. Keep runtime bindings typed and preserve evaluation and panic behavior.
+
+- Prevent slice-allocation temporaries from shadowing user size bindings,
+  including existing `makeSlice` calls with explicit capacity.
+
+- Add `make[T](...)` for concrete, named and constrained slice, map and channel
+  targets, preserving the requested type and source nullability. Check type-set
+  compatibility, sizes and channel directions; retain ordered size evaluation,
+  constructor slice-cardinality proofs and editor signatures/navigation. Existing
+  element-oriented allocation helpers remain supported.
+
 ## [0.4.3] - 2026-09-19
 
 - Automatically register a source import alias when `keika deps add` installs
