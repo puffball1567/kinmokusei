@@ -9,6 +9,9 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Allow enum members in typed class constant initializers. Their existing
+  generated Go constant identity and underlying enum type are preserved.
+
 - Add typed `static const` class members with compile-time scalar initializers,
   inherited visibility, forward/module references, generic-independent scope,
   exact constant operations and typed rounding. Emit public Go constants and
