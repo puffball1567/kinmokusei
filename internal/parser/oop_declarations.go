@@ -195,8 +195,8 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				})
 			}
 		case p.at(token.Identifier):
-			if static || virtual || override || final || abstract {
-				p.report(p.peek(), "fields cannot have static, virtual, override, final, or abstract modifiers")
+			if virtual || override || final || abstract {
+				p.report(p.peek(), "fields cannot have virtual, override, final, or abstract modifiers")
 			}
 			fieldName := p.advance()
 			if _, ok = p.expect(token.Colon, "expected ':' after field name"); !ok {
@@ -217,7 +217,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				p.synchronizeStatement()
 				end = p.previous()
 			}
-			class.Fields = append(class.Fields, ast.FieldDecl{Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
+			class.Fields = append(class.Fields, ast.FieldDecl{Static: static, Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
 		default:
 			p.report(p.peek(), "expected a field, constructor, or method")
 			p.advance()

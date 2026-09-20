@@ -50,8 +50,8 @@ receiver-dependent initialization belongs in the constructor. A module binding
 with the same name as a constructor parameter still resolves to the module
 binding in a field initializer. Fields with valid initializers satisfy definite
 initialization checks, while other non-null reference fields still need a
-constructor assignment. Native struct defaults and static fields remain separate,
-unsupported features.
+constructor assignment. Native struct defaults remain unsupported; static field
+initialization is described below.
 
 Generated `NewClass(...)` functions perform initialization. Constructing a Go
 struct literal directly does not run source-language initializers. JSON decoding
@@ -194,9 +194,35 @@ Fields remain ordinary named fields; embedding and promoted Go methods are not i
 ### Static members
 
 - Static methods lower to stable type-prefixed package functions.
-- Static fields/constants are not implemented; use module constants or
-  explicit static methods today.
+- Mutable static fields lower to type-prefixed package variables; class
+  constants remain unimplemented (use module constants).
 - Mutable static state is discouraged and should require an explicit synchronization/lifecycle design.
+
+```ts
+class Counter<T> {
+  public static count: int = 0;
+  constructor(public value: T) { Counter.count++; }
+}
+```
+
+Every static field requires an explicit type and initializer. Access it through
+the class name (`Counter.count`), not an instance. A declaring class has one
+storage location, shared by all generic instantiations and descendants.
+Descendants cannot redeclare that field. Public, protected and private visibility
+apply normally. Class type parameters, `this`, `super` and constructor parameters
+are out of scope in a static initializer; module bindings remain available.
+
+Initializers follow generated Go package dependency order and run once, not per
+construction. Initialization cycles are compile errors, including dependencies
+through static accessors, methods and constructors. Fields are addressable and
+support ordinary assignment, compound updates and collection operations. As with
+module variables, bind a nullable static value locally before narrowing it.
+Updates do not acquire locks or become atomic automatically.
+
+A public field such as `Counter.count` emits the Go package variable
+`CounterCount`; private and protected fields use unexported names. Static state
+is not part of instance structs or JSON. Generated-name collisions are diagnosed,
+including local bindings that would shadow the selected Go variable.
 
 ## Deliberate differences from TypeScript/JavaScript
 
@@ -431,8 +457,7 @@ out of scope in their signatures and bodies. Access with `Box.value`, without
 type arguments. There is one accessor implementation, not one per `Box<T>`.
 This restriction does not change generic static **methods**, which retain their
 existing explicit or inferred generic call syntax. Static properties declare
-no storage; module bindings supply backing state when needed. Static fields
-remain a separate feature.
+no storage; module bindings or static fields supply backing state when needed.
 
 ### Interface properties
 
@@ -536,7 +561,7 @@ unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ### Later candidates
 
-- Static fields and constants.
+- Class constants and their constant-expression contexts.
 - Discriminated-union integration.
 
 ### Out of scope

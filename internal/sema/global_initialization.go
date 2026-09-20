@@ -4,12 +4,21 @@ import (
 	"fmt"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 // Static methods and accessors lower to package functions. Their bodies are
 // part of Go's lexical initialization dependency graph, including closures.
 func staticMemberDependency(owner, goName string) string {
 	return "static " + owner + " " + goName
+}
+
+func staticFieldDependency(owner, name string) string {
+	return "static field " + owner + "." + name
+}
+
+func classConstructionDependency(owner string) string {
+	return "constructor " + owner
 }
 
 func (c *Checker) recordGlobalDependency(name string) {
@@ -30,23 +39,19 @@ func (c *Checker) recordGlobalDependency(name string) {
 // between functions is recursion; a cycle returning to stored global state is an
 // invalid initialization, even when a reference occurs inside a closure.
 func (c *Checker) checkGlobalInitializationCycles(program *ast.Program) {
-	for _, declaration := range program.Declarations {
-		variable, ok := declaration.(*ast.VariableDecl)
-		if !ok || variable.FunctionBinding {
-			continue
-		}
+	check := func(name, description string, span source.Span) {
 		seen := map[string]bool{}
-		pending := []string{variable.Name}
+		pending := []string{name}
 		cycle := false
 		for len(pending) != 0 && !cycle {
-			name := pending[len(pending)-1]
+			current := pending[len(pending)-1]
 			pending = pending[:len(pending)-1]
-			if seen[name] {
+			if seen[current] {
 				continue
 			}
-			seen[name] = true
-			for dependency := range c.globalDependencies[name] {
-				if dependency == variable.Name {
+			seen[current] = true
+			for dependency := range c.globalDependencies[current] {
+				if dependency == name {
 					cycle = true
 					break
 				}
@@ -54,7 +59,21 @@ func (c *Checker) checkGlobalInitializationCycles(program *ast.Program) {
 			}
 		}
 		if cycle {
-			c.report(variable.NameSpan, fmt.Sprintf("global %q has an initialization cycle", variable.Name))
+			c.report(span, description+" has an initialization cycle")
+		}
+	}
+	for _, declaration := range program.Declarations {
+		switch declaration := declaration.(type) {
+		case *ast.VariableDecl:
+			if !declaration.FunctionBinding {
+				check(declaration.Name, fmt.Sprintf("global %q", declaration.Name), declaration.NameSpan)
+			}
+		case *ast.ClassDecl:
+			for _, field := range declaration.Fields {
+				if field.Static {
+					check(staticFieldDependency(declaration.Name, field.Name), fmt.Sprintf("static field %q", declaration.Name+"."+field.Name), field.NameSpan)
+				}
+			}
 		}
 	}
 }

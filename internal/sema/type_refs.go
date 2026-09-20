@@ -310,8 +310,13 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitType(&declaration.Implements[i])
 			}
 			for i := range declaration.Fields {
+				previous := activeTypeParameters
+				if declaration.Fields[i].Static {
+					activeTypeParameters = nil
+				}
 				visitType(&declaration.Fields[i].Type)
 				visitExpression(declaration.Fields[i].Initializer)
+				activeTypeParameters = previous
 			}
 			if declaration.Constructor != nil {
 				for i := range declaration.Constructor.Parameters {
@@ -323,7 +328,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				classTypeParameters := activeTypeParameters
 				activeTypeParameters = make(map[string]source.Span, len(classTypeParameters)+len(method.TypeParameters))
 				for name, span := range classTypeParameters {
-					activeTypeParameters[name] = span
+					if !method.Static || method.Accessor == "" {
+						activeTypeParameters[name] = span
+					}
 				}
 				for _, parameter := range method.TypeParameters {
 					activeTypeParameters[parameter.Name] = parameter.NameSpan

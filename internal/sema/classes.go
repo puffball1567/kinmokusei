@@ -128,7 +128,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			}
 			decl.Base.ResolvedDeclaration = base.declarationSpan
 			for name, field := range base.fields {
-				field.typeInfo = substituteNativeTypeParameters(field.typeInfo, baseBindings)
+				if !field.static {
+					field.typeInfo = substituteNativeTypeParameters(field.typeInfo, baseBindings)
+				}
 				symbol.fields[name] = field
 			}
 			for name, method := range base.methods {
@@ -146,7 +148,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			symbol.goImplements = append(symbol.goImplements, base.goImplements...)
 		}
 	}
-	declareField := func(name string, typeRef ast.TypeRef, visibility ast.Visibility, span, declarationSpan source.Span, setGoName func(string)) {
+	declareField := func(name string, typeRef ast.TypeRef, visibility ast.Visibility, static bool, span, declarationSpan source.Span, setGoName func(string)) {
 		if hasClassProperty(symbol, name) {
 			c.report(span, fmt.Sprintf("field %q conflicts with an inherited property", name))
 		}
@@ -177,15 +179,24 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			return
 		}
 		goName := memberGoName(name, visibility)
+		if static {
+			goName = staticMethodGoName(decl.Name, goName, visibility)
+			previous := c.typeParameterScopes
+			c.typeParameterScopes = nil
+			defer func() { c.typeParameterScopes = previous }()
+		}
 		setGoName(goName)
 		fieldType := c.resolveType(typeRef)
 		c.rejectResultValueType(fieldType, typeRef.Span, "fields")
 		c.rejectTaskAPIType(fieldType, typeRef.Span, "class fields")
-		symbol.fields[name] = fieldSymbol{typeInfo: fieldType, visibility: visibility, goName: goName, declarationSpan: declarationSpan, declaringClass: decl.Name}
+		symbol.fields[name] = fieldSymbol{static: static, typeInfo: fieldType, visibility: visibility, goName: goName, declarationSpan: declarationSpan, declaringClass: decl.Name}
 	}
 	for i := range decl.Fields {
 		field := &decl.Fields[i]
-		declareField(field.Name, field.Type, field.Visibility, field.Span, field.NameSpan, func(name string) { field.GoName = name })
+		declareField(field.Name, field.Type, field.Visibility, field.Static, field.Span, field.NameSpan, func(name string) { field.GoName = name })
+		if field.Static && field.Initializer == nil {
+			c.report(field.NameSpan, "static fields require an explicit initializer")
+		}
 	}
 	if decl.Constructor != nil {
 		c.validateLabels(decl.Constructor.Body)
@@ -197,7 +208,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.rejectTaskAPIType(resolved, parameter.Type.Span, "constructor parameters")
 			symbol.constructor[i] = c.callableParameterType(*parameter, resolved)
 			if parameter.IsField {
-				declareField(parameter.Name, parameter.Type, parameter.Visibility, parameter.Span, declarationNameSpan(parameter.Name, parameter.Span), func(string) {})
+				declareField(parameter.Name, parameter.Type, parameter.Visibility, false, parameter.Span, declarationNameSpan(parameter.Name, parameter.Span), func(string) {})
 			}
 		}
 		symbol.constructorVariadic = hasVariadicParameter(decl.Constructor.Parameters)
@@ -355,6 +366,11 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 	if class != nil {
 		thisType.TypeArguments = append([]Type(nil), class.typeParameters...)
 	}
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = classConstructionDependency(decl.Name)
+	if class != nil && class.base != "" {
+		c.recordGlobalDependency(classConstructionDependency(class.base))
+	}
 	c.checkClassFieldInitializers(decl)
 	if decl.Constructor == nil {
 		if class := c.classes[decl.Name]; class != nil && class.base != "" {
@@ -383,6 +399,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.memberFlow = previousMemberFlow
 	}
 	c.inConstructor = false
+	c.globalDependencyOwner = previousDependency
 	c.checkClassFieldInitialization(decl)
 	for _, method := range decl.Methods {
 		previousTypeScopes := c.typeParameterScopes

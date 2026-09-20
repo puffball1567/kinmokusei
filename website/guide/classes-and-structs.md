@@ -25,7 +25,23 @@ class User {
 }
 ```
 
-Classes support public, protected, and private members; static methods; interfaces; single `extends`; `virtual`; explicit `override`; `final`; `super`; and abstract classes/methods. Typed instance fields may have initializers evaluated separately for each construction. Static fields remain unimplemented.
+Classes support public, protected, and private members; static methods and fields; interfaces; single `extends`; `virtual`; explicit `override`; `final`; `super`; and abstract classes/methods. Typed instance fields may have initializers evaluated separately for each construction.
+
+Static fields require an explicit type and initializer:
+
+```ts
+class Counter<T> {
+  public static count: int = 0;
+  constructor(public value: T) { Counter.count++; }
+}
+```
+
+Use `Counter.count`, not `instance.count`. The storage is shared across generic
+instantiations and descendants; it is initialized once in Go package dependency
+order and excluded from instance JSON. Class type parameters and `this`/`super`
+cannot be used in static initializers. Cyclic initialization is a compile error.
+Public fields become Go package variables such as `CounterCount`. Concurrent
+updates require explicit synchronization. Class constants remain unsupported.
 
 Instance properties use `public get value(): int { ... }` and
 `private set value(next: int) { ... }`. Read with `instance.value` and assign

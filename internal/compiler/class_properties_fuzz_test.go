@@ -3,6 +3,11 @@ package compiler
 import "testing"
 
 var classPropertySeeds = []string{
+	`class C<T>{public static n:int=0;public static get x():int{return C.n;}public static set x(v:int){C.n=v;}}function f():int{C.x++;return C.n;}`,
+	`class B{public static n:int=0;}class C extends B{}function f():void{C.n++;const p=&B.n;*p=2;}`,
+	`class C{public static current:C=new C();constructor(){const c=C.current;}}`,
+	`class C{public static first:int=C.next+1;public static next:int=2;}`,
+	`class C<T>{public static value:T=1;}`,
 	`let n=0;class C{public static get x():int{return n;}public static set x(v:int){n=v;}}function f():int{C.x++;return C.x;}`,
 	`class B<T>{public static get x():int{return 1;}public static set x(v:int){}}class C<T> extends B<T>{}function f():void{C.x+=2;}`,
 	`class C<T>{public static get x():T{throw new Exception("bad");}}`,

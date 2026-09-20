@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add explicitly initialized mutable static class fields, shared across generic
+  instantiations and descendants, with visibility checks, addressable storage,
+  collection/callable values and public Go package variables. Exclude static
+  state from instance construction and JSON. Diagnose initialization cycles
+  through fields, static accessors/methods and constructors. Editor completion,
+  navigation and rename recognize static fields and module-level type scope.
+
 - Add static getter/setter properties accessed through class names, with
   inherited owner lookup, independent visibility, ordered updates and public
   Go package functions. Generic classes may declare type-argument-independent

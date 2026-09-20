@@ -491,9 +491,16 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			collectTypeMemberCompletions(program, base, owner, static, seen, add)
 		}
 		for _, field := range declaration.Fields {
-			if !static && memberVisible(program, owner, declaration.Name, field.Visibility) {
+			if field.Static == static && memberVisible(program, owner, declaration.Name, field.Visibility) {
 				fieldType := substituteTypeRefParameters(field.Type, bindings)
-				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
+				if field.Static {
+					fieldType = field.Type
+				}
+				prefix := visibilityName(field.Visibility) + " "
+				if field.Static {
+					prefix += "static "
+				}
+				add(completionItem{Label: field.Name, Kind: 5, Detail: prefix + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
 			}
 		}
 		if declaration.Constructor != nil {
@@ -508,11 +515,15 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			if method.Static != static || !memberVisible(program, owner, declaration.Name, method.Visibility) {
 				continue
 			}
+			methodBindings := bindings
+			if method.Static && method.Accessor != "" {
+				methodBindings = nil
+			}
 			parameters := append([]ast.Parameter(nil), method.Parameters...)
 			for index := range parameters {
-				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
+				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, methodBindings)
 			}
-			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			result := substituteTypeRefParameters(method.ReturnType, methodBindings)
 			if method.Accessor != "" {
 				if method.Accessor == "set" && len(parameters) == 1 {
 					result = parameters[0].Type

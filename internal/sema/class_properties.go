@@ -104,7 +104,7 @@ func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classS
 			}
 		}
 		for _, field := range class.fields {
-			if field.goName == method.goName {
+			if !field.static && field.goName == method.goName {
 				c.report(decl.NameSpan, fmt.Sprintf("generated property method %q conflicts with a field", method.goName))
 			}
 		}

@@ -69,7 +69,7 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 			}
 			claim("__kinmokuseiInit"+declaration.Name, declaration.Span)
 			for _, field := range declaration.Fields {
-				if field.Initializer != nil {
+				if !field.Static && field.Initializer != nil {
 					helper := "__kinmokuseiFields" + declaration.Name
 					claim(helper, declaration.Span)
 					for _, parameter := range declaration.TypeParameters {
@@ -99,7 +99,11 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				}
 			}
 			for _, field := range declaration.Fields {
-				claimStructMember(declaration.Name, field.GoName, field.Span)
+				if field.Static {
+					claim(field.GoName, field.Span)
+				} else {
+					claimStructMember(declaration.Name, field.GoName, field.Span)
+				}
 			}
 			if declaration.Constructor != nil {
 				for _, parameter := range declaration.Constructor.Parameters {

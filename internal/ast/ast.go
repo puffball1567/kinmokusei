@@ -174,6 +174,7 @@ type CABIExport struct {
 }
 
 type FieldDecl struct {
+	Static      bool
 	Name        string
 	NameSpan    source.Span
 	Type        TypeRef

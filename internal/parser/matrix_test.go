@@ -87,7 +87,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"class missing body", `class Broken function recovered(): void {}`},
 		{"duplicate constructors", `class Broken { constructor() {} constructor() {} }`},
 		{"static constructor", `class Broken { static constructor() {} }`},
-		{"static field", `class Broken { static value: int; }`},
+		{"virtual field", `class Broken { virtual value: int; }`},
 		{"interface missing separator", `interface Broken { function value(): int function other(): int; }`},
 		{"interface method body", `interface Broken { function value(): int {} }`},
 		{"implements missing type", `class Broken implements {}`},
