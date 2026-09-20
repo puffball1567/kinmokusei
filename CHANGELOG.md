@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add method-only anonymous interface type syntax, for example
+  `interface { read(offset: int): string; }`. Source declarations preserve
+  exported method signatures and lower directly to Go anonymous interfaces;
+  fields and unsupported private identities remain rejected.
+
 - Allow enum members in typed class constant initializers. Their existing
   generated Go constant identity and underlying enum type are preserved.
 
