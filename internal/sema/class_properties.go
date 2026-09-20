@@ -24,7 +24,11 @@ func hasProperty(methods map[string]methodSymbol, name string) bool {
 
 func (c *Checker) declareClassAccessor(decl *ast.ClassDecl, class *classSymbol, method *ast.MethodDecl) {
 	if method.Static {
-		c.report(method.Span, "static properties are not supported; use an instance accessor or static method")
+		// A static property belongs to the class declaration, not a generic
+		// instantiation. Its signature and body cannot capture class parameters.
+		previous := c.typeParameterScopes
+		c.typeParameterScopes = nil
+		defer func() { c.typeParameterScopes = previous }()
 	}
 	c.declareAbstractMethod(decl, method)
 	c.validateLabels(method.Body)
@@ -55,7 +59,7 @@ func (c *Checker) declareClassAccessor(decl *ast.ClassDecl, class *classSymbol, 
 	}
 	method.VirtualOwner = owner
 	class.methods[key] = methodSymbol{typeInfo: signature,
-		visibility: method.Visibility, goName: method.GoName, declarationSpan: method.NameSpan, declaringClass: decl.Name,
+		visibility: method.Visibility, static: method.Static, goName: method.GoName, declarationSpan: method.NameSpan, declaringClass: decl.Name,
 		virtual: method.Virtual || method.Override, abstract: method.Abstract, final: method.Final, virtualOwner: owner}
 }
 
@@ -66,6 +70,9 @@ func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classS
 		}
 		getter, get := class.methods["get "+method.Name]
 		setter, set := class.methods["set "+method.Name]
+		if get && set && getter.static != setter.static {
+			c.report(method.NameSpan, fmt.Sprintf("getter and setter for %q must both be static or both be instance accessors", method.Name))
+		}
 		if get && set && len(setter.typeInfo.Parameters) == 1 && getter.typeInfo.Result != nil {
 			left := Type{Kind: Function, Name: "function", Result: getter.typeInfo.Result}
 			right := Type{Kind: Function, Name: "function", Result: &setter.typeInfo.Parameters[0]}
@@ -86,13 +93,18 @@ func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classS
 			continue
 		}
 		method := class.methods[key]
+		if method.static {
+			// Static accessors occupy the package namespace, whose generated
+			// names are checked separately, not the instance method set.
+			continue
+		}
 		for _, otherKey := range keys {
-			if otherKey != key && class.methods[otherKey].goName == method.goName {
+			if otherKey != key && !class.methods[otherKey].static && class.methods[otherKey].goName == method.goName {
 				c.report(decl.NameSpan, fmt.Sprintf("generated property method %q conflicts with another member", method.goName))
 			}
 		}
 		for _, field := range class.fields {
-			if field.goName == method.goName {
+			if !field.static && field.goName == method.goName {
 				c.report(decl.NameSpan, fmt.Sprintf("generated property method %q conflicts with a field", method.goName))
 			}
 		}
@@ -111,11 +123,17 @@ func (c *Checker) checkPropertyAccess(expr *ast.MemberExpr, methods map[string]m
 	setter, set := methods["set "+expr.Name]
 	if get && c.canAccessClassMember(getter.visibility, getter.declaringClass) {
 		expr.PropertyGetter = getter.goName
+		if getter.static {
+			expr.PropertyGetter = staticMethodGoName(getter.declaringClass, getter.goName, getter.visibility)
+		}
 		expr.PropertyGetterOwner = getter.virtualOwner
 	}
 	expr.PropertyGetterAbstract = get && getter.abstract
 	if set && c.canAccessClassMember(setter.visibility, setter.declaringClass) {
 		expr.PropertySetter = setter.goName
+		if setter.static {
+			expr.PropertySetter = staticMethodGoName(setter.declaringClass, setter.goName, setter.visibility)
+		}
 		expr.PropertySetterOwner = setter.virtualOwner
 	}
 	selected, exists, kind := getter, get, "getter"
@@ -126,8 +144,19 @@ func (c *Checker) checkPropertyAccess(expr *ast.MemberExpr, methods map[string]m
 		c.report(expr.Span, fmt.Sprintf("property %q has no %s", expr.Name, kind))
 		return Type{Kind: Invalid}
 	}
+	if selected.static {
+		c.recordGlobalDependency(staticMemberDependency(selected.declaringClass, selected.goName))
+		c.checkStaticMemberShadowing(staticMethodGoName(selected.declaringClass, selected.goName, selected.visibility), expr.Span)
+	}
 	if !c.canAccessClassMember(selected.visibility, selected.declaringClass) {
 		c.reportInaccessibleClassMember(expr.Span, kind, expr.Name, selected.visibility)
+	}
+	if selected.static != expr.Static {
+		if selected.static {
+			c.report(expr.Span, fmt.Sprintf("static property %q must be accessed through a class name", expr.Name))
+		} else {
+			c.report(expr.Span, fmt.Sprintf("instance property %q requires an instance", expr.Name))
+		}
 	}
 	c.checkAbstractPropertyAccess(expr, selected.abstract, kind)
 	expr.ResolvedDeclaration = selected.declarationSpan

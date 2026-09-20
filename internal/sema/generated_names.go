@@ -69,7 +69,7 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 			}
 			claim("__kinmokuseiInit"+declaration.Name, declaration.Span)
 			for _, field := range declaration.Fields {
-				if field.Initializer != nil {
+				if !field.Static && field.Initializer != nil {
 					helper := "__kinmokuseiFields" + declaration.Name
 					claim(helper, declaration.Span)
 					for _, parameter := range declaration.TypeParameters {
@@ -99,7 +99,11 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				}
 			}
 			for _, field := range declaration.Fields {
-				claimStructMember(declaration.Name, field.GoName, field.Span)
+				if field.Static {
+					claim(field.GoName, field.Span)
+				} else {
+					claimStructMember(declaration.Name, field.GoName, field.Span)
+				}
 			}
 			if declaration.Constructor != nil {
 				for _, parameter := range declaration.Constructor.Parameters {
@@ -239,4 +243,25 @@ func staticMethodGoName(className, methodName string, visibility ast.Visibility)
 		return generatedIdentifier(className + methodName)
 	}
 	return generatedIdentifier("__kinmokuseiStatic" + className + methodName)
+}
+
+// A source selector lowers to an unqualified package function. Do not let a
+// local binding silently redirect that call to an unrelated value or closure.
+func (c *Checker) checkStaticMemberShadowing(name string, span source.Span) {
+	for _, scope := range c.scopes {
+		for local := range scope {
+			if generatedIdentifier(local) == name {
+				c.report(span, fmt.Sprintf("local name %q shadows generated static member %q; rename the local binding", local, name))
+				return
+			}
+		}
+	}
+	for _, scope := range c.typeParameterScopes {
+		for parameter := range scope {
+			if generatedIdentifier(parameter) == name {
+				c.report(span, fmt.Sprintf("type parameter %q shadows generated static member %q; rename the type parameter", parameter, name))
+				return
+			}
+		}
+	}
 }

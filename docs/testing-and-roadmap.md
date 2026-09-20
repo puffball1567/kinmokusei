@@ -85,7 +85,7 @@ mean that a larger count is not necessarily faster.
 The compiler maintains an explicit registry of every implemented, accepted
 runtime contract that has a direct Go equivalent. Coverage is complete only
 when each registered contract is connected to an isolated handwritten-Go
-differential scenario. The current registry covers 101 of 101 contract groups
+differential scenario. The current registry covers 102 of 102 contract groups
 (100%), including core language behavior, collections, nullability, results,
 control flow, concurrency, standard/external Go interop, locked targets, CGO,
 unsafe operations, string conversion, native generic functions, classes, structs, and interfaces,

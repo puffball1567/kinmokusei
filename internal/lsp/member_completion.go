@@ -491,9 +491,21 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			collectTypeMemberCompletions(program, base, owner, static, seen, add)
 		}
 		for _, field := range declaration.Fields {
-			if !static && memberVisible(program, owner, declaration.Name, field.Visibility) {
+			if field.Static == static && memberVisible(program, owner, declaration.Name, field.Visibility) {
 				fieldType := substituteTypeRefParameters(field.Type, bindings)
-				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
+				if field.Static {
+					fieldType = field.Type
+				}
+				prefix := visibilityName(field.Visibility) + " "
+				if field.Static {
+					prefix += "static "
+				}
+				kind := 5
+				if field.Constant {
+					prefix += "const "
+					kind = 21
+				}
+				add(completionItem{Label: field.Name, Kind: kind, Detail: prefix + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
 			}
 		}
 		if declaration.Constructor != nil {
@@ -508,16 +520,24 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			if method.Static != static || !memberVisible(program, owner, declaration.Name, method.Visibility) {
 				continue
 			}
+			methodBindings := bindings
+			if method.Static && method.Accessor != "" {
+				methodBindings = nil
+			}
 			parameters := append([]ast.Parameter(nil), method.Parameters...)
 			for index := range parameters {
-				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
+				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, methodBindings)
 			}
-			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			result := substituteTypeRefParameters(method.ReturnType, methodBindings)
 			if method.Accessor != "" {
 				if method.Accessor == "set" && len(parameters) == 1 {
 					result = parameters[0].Type
 				}
-				add(completionItem{Label: method.Name, Kind: 10, Detail: visibilityName(method.Visibility) + " " + method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
+				prefix := visibilityName(method.Visibility) + " "
+				if method.Static {
+					prefix += "static "
+				}
+				add(completionItem{Label: method.Name, Kind: 10, Detail: prefix + method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
 				continue
 			}
 			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + methodDetail(method, parameters, result), SortText: "0_" + method.Name})

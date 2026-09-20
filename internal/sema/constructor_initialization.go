@@ -8,9 +8,9 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-// Initializers have class type parameters and module lexical bindings, but no
-// receiver or constructor parameters. In particular, callbacks cannot capture
-// a partially initialized receiver through this context.
+// Initializers have module lexical bindings, but no receiver or constructor
+// parameters. Only instance initializers have class type parameters. Callbacks
+// cannot capture a partially initialized receiver through this context.
 func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 	previousInitializer, previousConstructor := c.inFieldInitializer, c.inConstructor
 	previousFlow, previousResult := c.memberFlow, c.result
@@ -27,9 +27,19 @@ func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 		if field.Initializer == nil {
 			continue
 		}
+		if field.Constant {
+			c.ensureClassConstantChecked(decl.Name, field)
+			continue
+		}
+		previousScopes, previousDependency := c.typeParameterScopes, c.globalDependencyOwner
+		if field.Static {
+			c.typeParameterScopes = nil
+			c.globalDependencyOwner = staticFieldDependency(decl.Name, field.Name)
+		}
 		expected := c.resolveType(field.Type)
 		actual := c.checkExpressionExpectedSlot(&field.Initializer, expected)
 		c.requireAssignable(expected, actual, field.Initializer.GetSpan())
+		c.typeParameterScopes, c.globalDependencyOwner = previousScopes, previousDependency
 	}
 }
 
@@ -40,6 +50,9 @@ func (c *Checker) checkClassFieldInitialization(decl *ast.ClassDecl) {
 	}
 	required := map[string]source.Span{}
 	for _, field := range decl.Fields {
+		if field.Static {
+			continue
+		}
 		symbol, exists := class.fields[field.Name]
 		if !exists || symbol.typeInfo.Kind == Invalid || symbol.typeInfo.Kind == Nullable || !isNullableBaseType(symbol.typeInfo) {
 			continue
@@ -51,7 +64,7 @@ func (c *Checker) checkClassFieldInitialization(decl *ast.ClassDecl) {
 	}
 	initialized := map[string]bool{}
 	for _, field := range decl.Fields {
-		if field.Initializer != nil {
+		if !field.Static && field.Initializer != nil {
 			initialized[field.Name] = true
 		}
 	}

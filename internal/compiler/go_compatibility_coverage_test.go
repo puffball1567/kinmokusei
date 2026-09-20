@@ -116,12 +116,16 @@ var implementedGoCompatibilityContracts = []string{
 	"generic numeric arguments with exact constant values, typed-argument-first inference, numeric constant kind promotion, explicit and partial type arguments, variadics, imported Go generics and constants, named types, linked modules, generic class methods, rounding, and single evaluation",
 	"abstract classes and methods with explicit concrete implementation, dependency injection, generic and multi-level inheritance, re-abstraction, interface dispatch, Result and variadic method values, hierarchy identity, linked export aliases, and construction-phase failure",
 	"string and boolean constant aliases with linked exports and Go constants, named scalar operations, typed-argument-first generic inference, constant-string byte lengths and bounds, lexical captures, named boolean control, and runtime storage and evaluation",
-	"instance properties with getter/setter visibility, virtual and abstract contracts, final and partial overrides, generic class and diamond interface inheritance, DI, construction phases, source nullability, single-evaluation updates, ordered effects, shared values, public Go methods, and failure behavior",
+	"instance and static properties with getter/setter visibility, virtual and abstract instance contracts, final and partial overrides, generic class and diamond interface inheritance, DI, construction phases, source nullability, single-evaluation updates, ordered effects, shared values, public Go APIs, and failure behavior",
+	"static class fields and constants with explicit initialization, shared generic and inherited storage, visibility, addressability, package dependency order, module lexical scope, linked aliases, collection and callable values, narrow updates, typed constant evaluation and rounding, instance serialization isolation, and public Go variables/constants",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
 	"virtual-properties.test":             {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[98]},
 	"interface-properties.test":           {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[3]},
+	"static-properties.test":              {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[57]},
+	"static-fields.test":                  {implementedGoCompatibilityContracts[101]},
+	"class-constants.test":                {implementedGoCompatibilityContracts[101]},
 	"class-properties.test":               {implementedGoCompatibilityContracts[100]},
 	"generic-channel-close.test":          {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[20]},
 	"generic-channel-operations.test":     {implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21]},

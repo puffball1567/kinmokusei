@@ -25,7 +25,30 @@ class User {
 }
 ```
 
-Classes support public, protected, and private members; static methods; interfaces; single `extends`; `virtual`; explicit `override`; `final`; `super`; and abstract classes/methods. Typed instance fields may have initializers evaluated separately for each construction. Static fields remain unimplemented.
+Classes support public, protected, and private members; static methods and fields; interfaces; single `extends`; `virtual`; explicit `override`; `final`; `super`; and abstract classes/methods. Typed instance fields may have initializers evaluated separately for each construction.
+
+Static fields require an explicit type and initializer:
+
+```ts
+class Counter<T> {
+  public static count: int = 0;
+  constructor(public value: T) { Counter.count++; }
+}
+```
+
+Use `Counter.count`, not `instance.count`. The storage is shared across generic
+instantiations and descendants; it is initialized once in Go package dependency
+order and excluded from instance JSON. Class type parameters and `this`/`super`
+cannot be used in static initializers. Cyclic initialization is a compile error.
+Public fields become Go package variables such as `CounterCount`. Concurrent
+updates require explicit synchronization.
+
+Use `public static const limit: int = 32;` for a typed class constant and read it
+as `ClassName.limit`. Its initializer must be a known compile-time numeric,
+string or boolean value; runtime calls and mutable values are rejected. Constants
+are inherited with the same visibility rules and cannot be assigned or addressed.
+Public constants become Go constants, not storage or accessor calls. Kinmokusei
+array type lengths still require integer literals.
 
 Instance properties use `public get value(): int { ... }` and
 `private set value(next: int) { ... }`. Read with `instance.value` and assign
@@ -37,7 +60,10 @@ the other inherited accessor; its visibility and type must remain unchanged.
 `super.value` uses the base implementation. Interfaces accept public accessor
 signatures such as `get value(): int;` and `set value(next: int);`, including
 generic inheritance and DI. Class implementations must supply the corresponding
-public accessors. Static properties remain unsupported.
+public accessors. Static accessors use `public static get` / `set` and are
+accessed as `ClassName.value`; they are inherited without virtual dispatch.
+In generic classes, static property signatures and bodies cannot refer to the
+class type parameters. Static properties do not declare backing storage.
 Bind a nullable getter result locally before checking it: separate
 reads are separate calls and may return different values.
 

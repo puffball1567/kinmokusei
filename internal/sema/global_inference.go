@@ -18,12 +18,18 @@ func (c *Checker) ensureGlobalBindingChecked(decl *ast.VariableDecl) {
 		return
 	}
 	c.globalBindingChecks[decl] = globalBindingChecking
+	dependency := c.initializerChecker()
+	dependency.checkGlobalBinding(decl)
+	c.finishInitializerCheck(dependency)
+	c.globalBindingChecks[decl] = globalBindingChecked
+}
 
+func (c *Checker) initializerChecker() *Checker {
 	// A global dependency is not a nested closure of its caller. Start with an
 	// empty lexical/control context and explicitly share only program metadata.
 	// In particular, locals, generic parameters, receiver access, nullable facts,
 	// capture tracking and return inference must not cross this boundary.
-	dependency := &Checker{
+	return &Checker{
 		functions: c.functions, globals: c.globals,
 		classes: c.classes, structs: c.structs, interfaces: c.interfaces,
 		nativeTypes: c.nativeTypes, enums: c.enums, allowed: c.allowed, unimportedReferences: c.unimportedReferences,
@@ -42,13 +48,16 @@ func (c *Checker) ensureGlobalBindingChecked(decl *ast.VariableDecl) {
 		constantValues:           c.constantValues,
 		globalDependencies:       c.globalDependencies,
 		globalBindingChecks:      c.globalBindingChecks,
+		classConstantChecks:      c.classConstantChecks,
+		classConstantValues:      c.classConstantValues,
 		resultErrorUses:          c.resultErrorUses,
 		memberFlow:               map[memberFlowKey]memberFlowState{},
 		memberTypes:              map[memberFlowKey]Type{},
 	}
-	dependency.checkGlobalBinding(decl)
+}
+
+func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.diagnostics = append(c.diagnostics, dependency.diagnostics...)
 	c.usesTasks = c.usesTasks || dependency.usesTasks
 	c.usesExceptions = c.usesExceptions || dependency.usesExceptions
-	c.globalBindingChecks[decl] = globalBindingChecked
 }

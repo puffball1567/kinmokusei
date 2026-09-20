@@ -84,6 +84,20 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		if name == "" {
 			name = memberName(field.Name, field.Visibility)
 		}
+		if field.Static {
+			value, err := generateExpression(field.Initializer)
+			if err != nil {
+				return nil, err
+			}
+			kind := token.VAR
+			if field.Constant {
+				kind = token.CONST
+			}
+			declarations = append(declarations, &goast.GenDecl{Tok: kind, Specs: []goast.Spec{&goast.ValueSpec{
+				Names: []*goast.Ident{goast.NewIdent(name)}, Type: goType(field.Type), Values: []goast.Expr{value},
+			}}})
+			continue
+		}
 		fields = append(fields, goStoredField(name, field.Name, field.Visibility, field.Type))
 	}
 	if class.Constructor != nil {
@@ -233,7 +247,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	}
 	fieldBody := &goast.BlockStmt{}
 	for _, field := range class.Fields {
-		if field.Initializer == nil {
+		if field.Static || field.Initializer == nil {
 			continue
 		}
 		value, err := generateExpression(field.Initializer)
@@ -343,7 +357,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			for _, parameter := range method.TypeParameters {
 				staticTypeParameters = append(staticTypeParameters, goTypeParameterField(parameter, false))
 			}
-			staticTypeParameters = append(staticTypeParameters, typeParameterFields...)
+			if method.Accessor == "" {
+				staticTypeParameters = append(staticTypeParameters, typeParameterFields...)
+			}
 			if len(staticTypeParameters) != 0 {
 				generated.Type.TypeParams = &goast.FieldList{List: staticTypeParameters}
 			}

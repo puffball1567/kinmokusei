@@ -88,8 +88,12 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 			linker.linkType(&declaration.Implements[i], classVisible)
 		}
 		for i := range declaration.Fields {
-			linker.linkType(&declaration.Fields[i].Type, classVisible)
-			linker.linkExpression(declaration.Fields[i].Initializer, classVisible, map[string]bool{})
+			fieldVisible := classVisible
+			if declaration.Fields[i].Static {
+				fieldVisible = visible
+			}
+			linker.linkType(&declaration.Fields[i].Type, fieldVisible)
+			linker.linkExpression(declaration.Fields[i].Initializer, fieldVisible, map[string]bool{})
 		}
 		if declaration.Constructor != nil {
 			locals := parameterNames(declaration.Constructor.Parameters)
@@ -101,6 +105,9 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		}
 		for _, method := range declaration.Methods {
 			methodVisible := cloneModuleNames(classVisible)
+			if method.Static && method.Accessor != "" {
+				methodVisible = cloneModuleNames(visible)
+			}
 			for _, parameter := range method.TypeParameters {
 				delete(methodVisible, parameter.Name)
 			}

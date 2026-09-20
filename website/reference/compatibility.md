@@ -49,6 +49,6 @@ Unsupported or ambiguous machine-width/pointer/ownership shapes are rejected bef
 
 ## Behavioral compatibility evidence
 
-The runtime contract registry contains 101/101 implemented Go-equivalent groups, each connected to an isolated independently handwritten Go scenario. This is contract coverage for implemented behavior, not a claim that every Go or planned Kinmokusei feature exists.
+The runtime contract registry contains 102/102 implemented Go-equivalent groups, each connected to an isolated independently handwritten Go scenario. This is contract coverage for implemented behavior, not a claim that every Go or planned Kinmokusei feature exists.
 
 See [Quality promise](../project/quality) for the oracle and generated-artifact gates.

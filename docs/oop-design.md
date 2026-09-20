@@ -50,8 +50,8 @@ receiver-dependent initialization belongs in the constructor. A module binding
 with the same name as a constructor parameter still resolves to the module
 binding in a field initializer. Fields with valid initializers satisfy definite
 initialization checks, while other non-null reference fields still need a
-constructor assignment. Native struct defaults and static fields remain separate,
-unsupported features.
+constructor assignment. Native struct defaults remain unsupported; static field
+initialization is described below.
 
 Generated `NewClass(...)` functions perform initialization. Constructing a Go
 struct literal directly does not run source-language initializers. JSON decoding
@@ -194,9 +194,70 @@ Fields remain ordinary named fields; embedding and promoted Go methods are not i
 ### Static members
 
 - Static methods lower to stable type-prefixed package functions.
-- Static fields/constants are not implemented; use module constants or
-  explicit static methods today.
+- Mutable static fields lower to type-prefixed package variables; `static const`
+  members lower to typed Go constants.
 - Mutable static state is discouraged and should require an explicit synchronization/lifecycle design.
+
+```ts
+class Counter<T> {
+  public static count: int = 0;
+  constructor(public value: T) { Counter.count++; }
+}
+```
+
+Every static field requires an explicit type and initializer. Access it through
+the class name (`Counter.count`), not an instance. A declaring class has one
+storage location, shared by all generic instantiations and descendants.
+Descendants cannot redeclare that field. Public, protected and private visibility
+apply normally. Class type parameters, `this`, `super` and constructor parameters
+are out of scope in a static initializer; module bindings remain available.
+
+Initializers follow generated Go package dependency order and run once, not per
+construction. Initialization cycles are compile errors, including dependencies
+through static accessors, methods and constructors. Fields are addressable and
+support ordinary assignment, compound updates and collection operations. As with
+module variables, bind a nullable static value locally before narrowing it.
+Updates do not acquire locks or become atomic automatically.
+
+A public field such as `Counter.count` emits the Go package variable
+`CounterCount`; private and protected fields use unexported names. Static state
+is not part of instance structs or JSON. Generated-name collisions are diagnosed,
+including local bindings that would shadow the selected Go variable.
+
+### Class constants
+
+```ts
+class Limits<T> {
+  public static const size: int = 32;
+  public static const label: string = "items";
+  private static const extra: int = 1;
+  public static const capacity: int = Limits.size + Limits.extra;
+}
+```
+
+Class constants require `static const`, an explicit scalar type, and an
+initializer whose compile-time value can be established. Numeric, string and
+boolean types (including named scalar types) are supported. Use the class name
+without type arguments; inheritance, visibility and module lexical scope follow
+static fields. Class type parameters are not available. Forward references to
+other constants are allowed; cycles are rejected.
+
+Constant operations preserve Go types, representability and floating-point
+rounding. These values work in numeric bounds, allocation sizes, switches,
+generic calls and further constant expressions. Runtime calls, mutable bindings,
+accessors, collections and object references cannot initialize constants.
+Constant array `len`/`cap` is permitted without reading array elements, but Go's
+dependency-cycle restrictions still apply to those references.
+Assignments, updates and address-taking are errors. Unlike a module `const`
+binding holding an immutable runtime value, `static const` always requires a
+compile-time constant.
+
+`Limits.size` emits `const LimitsSize int = 32`, usable as a constant by Go
+consumers, including Go array lengths. Kinmokusei array **type** lengths still
+require integer literals; this declaration syntax does not extend them to
+expressions. Enum-member values are not yet evaluated by this scalar-constant
+initializer checker. Constants occupy no per-instance storage and are excluded
+from JSON.
 
 ## Deliberate differences from TypeScript/JavaScript
 
@@ -386,7 +447,6 @@ receiver once, call the getter once, evaluate the right-hand side, then call the
 setter once. An exception or panic stops that sequence. Both accessors must be
 accessible for updates. Inherited properties retain their access rules and
 generic substitution; `super.value` operates on the existing base instance.
-Static properties are not yet supported.
 Ordinary class fields and methods cannot hide a property.
 
 Accessors are synchronous calls, not stable storage reads. Repeated nullable
@@ -396,6 +456,43 @@ proofs, just like ordinary method calls. Property types cannot be `Result` or
 `Task`; there is no implicit error propagation or awaiting. Bodies retain
 ordinary explicit statements and exception/panic behavior. Prefer explicit
 methods for operations whose effects should be visible at the call site.
+
+### Static properties
+
+Static accessors use the same signature and paired-type rules, but are accessed
+through a class name rather than an instance:
+
+```ts
+let configuredLimit: int = 10;
+class Settings {
+  public static get limit(): int { return configuredLimit; }
+  public static set limit(next: int) { configuredLimit = next; }
+}
+Settings.limit += 2;
+```
+
+Both halves of a pair must be static. Visibility is checked independently,
+including private and protected access from class methods and subclasses.
+Inherited access uses the declaring class's accessor; it does not create a new
+property per subclass. Static accessors cannot be virtual, abstract, overridden,
+or hidden by a descendant. Use a class name, not `this` or `super`, to access them.
+They do not satisfy instance interface contracts.
+
+The generated public API is `SettingsGetLimit()` / `SettingsSetLimit(int)`.
+These are package functions, not instance methods. Generated names must not
+collide with other package declarations. Updates call the getter, evaluate the
+right-hand side, then call the setter; ordinary assignment calls only the setter.
+No locking is added: a compound update is not automatically atomic. Global
+initialization cycles through static accessor and method bodies are rejected.
+If a local binding or type parameter hides the generated Go function name at
+a static member access, compilation reports the collision; rename that binding.
+
+A generic class can also declare static accessors, but its type parameters are
+out of scope in their signatures and bodies. Access with `Box.value`, without
+type arguments. There is one accessor implementation, not one per `Box<T>`.
+This restriction does not change generic static **methods**, which retain their
+existing explicit or inferred generic call syntax. Static properties declare
+no storage; module bindings or static fields supply backing state when needed.
 
 ### Interface properties
 
@@ -499,7 +596,7 @@ unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ### Later candidates
 
-- Static properties.
+- Additional constant-expression contexts, including nonliteral array type lengths.
 - Discriminated-union integration.
 
 ### Out of scope

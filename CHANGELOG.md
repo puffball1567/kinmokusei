@@ -9,14 +9,35 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add typed `static const` class members with compile-time scalar initializers,
+  inherited visibility, forward/module references, generic-independent scope,
+  exact constant operations and typed rounding. Emit public Go constants and
+  support editor completion, navigation and rename. Reject mutation, address
+  taking, runtime initializers and cycles, including cyclic constant array
+  `len`/`cap` dependencies.
+
+- Add explicitly initialized mutable static class fields, shared across generic
+  instantiations and descendants, with visibility checks, addressable storage,
+  collection/callable values and public Go package variables. Exclude static
+  state from instance construction and JSON. Diagnose initialization cycles
+  through fields, static accessors/methods and constructors. Editor completion,
+  navigation and rename recognize static fields and module-level type scope.
+
+- Add static getter/setter properties accessed through class names, with
+  inherited owner lookup, independent visibility, ordered updates and public
+  Go package functions. Generic classes may declare type-argument-independent
+  static accessors. Diagnose global initialization cycles through static
+  accessors and methods; keep ordinary assignments independent of getters.
+  Reject local bindings that would shadow a selected generated static accessor
+  or method, preventing calls from being silently redirected.
+
 - Add instance getter/setter properties with independent visibility, generic
   and inherited types, read/write diagnostics and single-evaluation updates.
   Support virtual/abstract accessors, explicit and final overrides, partial
   accessor overrides and phase-local construction dispatch. Generated Go exposes
   accessor methods; LSP supports completion, navigation and inheritance-aware
   paired getter/setter rename. Interfaces can declare public property contracts,
-  including generic/diamond inheritance and class or abstract-class DI; static
-  properties remain unsupported.
+  including generic/diamond inheritance and class or abstract-class DI.
 
 - Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
   type parameters and source class elements, preserving source nullability.

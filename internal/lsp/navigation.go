@@ -285,7 +285,16 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
 			for _, field := range declaration.Fields {
-				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
+				detail := field.Name + ": " + formatTypeRef(field.Type)
+				kind := 8
+				if field.Constant {
+					detail = "const " + detail
+					kind = 14
+				}
+				if field.Static {
+					detail = "static " + detail
+				}
+				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: detail, Kind: kind, Span: field.Span, Selection: field.NameSpan})
 			}
 			if declaration.Constructor != nil {
 				for _, parameter := range declaration.Constructor.Parameters {
@@ -552,6 +561,9 @@ func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast
 		detail := method.Accessor + " " + strings.TrimPrefix(functionDetail(method.Name, parameters, result), "function ")
 		if method.Abstract {
 			detail = "abstract " + detail
+		}
+		if method.Static {
+			detail = "static " + detail
 		}
 		return detail
 	}

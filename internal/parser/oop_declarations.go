@@ -194,11 +194,19 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Abstract: abstract, Span: function.Span,
 				})
 			}
-		case p.at(token.Identifier):
-			if static || virtual || override || final || abstract {
-				p.report(p.peek(), "fields cannot have static, virtual, override, final, or abstract modifiers")
+		case p.at(token.Identifier) || p.at(token.Const):
+			constant := p.match(token.Const)
+			if constant && !static {
+				p.report(p.previous(), "class constants require the static modifier")
 			}
-			fieldName := p.advance()
+			if virtual || override || final || abstract {
+				p.report(p.peek(), "fields cannot have virtual, override, final, or abstract modifiers")
+			}
+			fieldName, valid := p.expect(token.Identifier, "expected field name")
+			if !valid {
+				p.synchronizeStatement()
+				continue
+			}
 			if _, ok = p.expect(token.Colon, "expected ':' after field name"); !ok {
 				p.synchronizeStatement()
 				continue
@@ -217,7 +225,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				p.synchronizeStatement()
 				end = p.previous()
 			}
-			class.Fields = append(class.Fields, ast.FieldDecl{Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
+			class.Fields = append(class.Fields, ast.FieldDecl{Static: static, Constant: constant, Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
 		default:
 			p.report(p.peek(), "expected a field, constructor, or method")
 			p.advance()

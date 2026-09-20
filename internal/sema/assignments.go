@@ -146,7 +146,11 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 	}
 	if member, ok := expr.(*ast.MemberExpr); ok {
 		if member.Constant {
-			c.report(member.Span, fmt.Sprintf("cannot assign to Go constant %q", member.Name))
+			kind := "Go constant"
+			if id, ok := member.Object.(*ast.IdentifierExpr); ok && member.Static && c.classes[id.Name] != nil {
+				kind = "class constant"
+			}
+			c.report(member.Span, fmt.Sprintf("cannot assign to %s %q", kind, member.Name))
 		} else if !member.Addressable {
 			c.report(member.Span, fmt.Sprintf("member %q is not assignable", member.Name))
 		}
@@ -164,6 +168,14 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
 	if member, ok := expr.(*ast.MemberExpr); ok && member.Property {
 		c.checkAbstractPropertyAccess(member, member.PropertyGetterAbstract, "getter")
+		if identifier, named := member.Object.(*ast.IdentifierExpr); member.Static && named {
+			if class := c.classes[identifier.Name]; class != nil {
+				if getter, exists := class.methods["get "+member.Name]; exists && getter.static {
+					c.recordGlobalDependency(staticMemberDependency(getter.declaringClass, getter.goName))
+					c.checkStaticMemberShadowing(staticMethodGoName(getter.declaringClass, getter.goName, getter.visibility), member.Span)
+				}
+			}
+		}
 	}
 	if member, ok := expr.(*ast.MemberExpr); ok && member.Property && member.PropertyGetter == "" {
 		c.report(member.Span, fmt.Sprintf("property %q requires an accessible getter for an update", member.Name))
