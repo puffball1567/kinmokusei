@@ -59,7 +59,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		if !ok {
 			return ast.TypeRef{}, false
 		}
-		return p.parseTypeSuffix(ast.TypeRef{Go: true, GoInterface: true, ObjectFields: methods, Span: start.Span.Merge(end.Span)}, allowNullable)
+		return p.parseTypeSuffix(ast.TypeRef{GoInterface: true, ObjectFields: methods, Span: start.Span.Merge(end.Span)}, allowNullable)
 	}
 	if p.match(token.LeftBrace) {
 		start := p.previous()

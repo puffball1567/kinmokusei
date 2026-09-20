@@ -17,7 +17,11 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if ref.GoInterface && !ref.Nullable {
 		result := Type{Kind: GoInterface, Name: "interface{}"}
 		for _, method := range ref.ObjectFields {
-			result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: method.Name, Type: c.resolveType(method.Type)})
+			goName := ""
+			if !ref.Go {
+				goName = memberGoName(method.Name, ast.Public)
+			}
+			result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: method.Name, GoName: goName, Type: c.resolveType(method.Type)})
 		}
 		if converted, ok := goTypeOf(result); ok {
 			result.GoType = converted

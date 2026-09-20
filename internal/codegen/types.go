@@ -187,7 +187,11 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	if ref.GoInterface {
 		methods := make([]*goast.Field, len(ref.ObjectFields))
 		for i, method := range ref.ObjectFields {
-			methods[i] = &goast.Field{Names: []*goast.Ident{goast.NewIdent(method.Name)}, Type: goType(method.Type)}
+			name := method.Name
+			if !ref.Go {
+				name = memberName(name, kinmokuseiAST.Public)
+			}
+			methods[i] = &goast.Field{Names: []*goast.Ident{goast.NewIdent(name)}, Type: goType(method.Type)}
 		}
 		return &goast.InterfaceType{Methods: &goast.FieldList{List: methods}}
 	}

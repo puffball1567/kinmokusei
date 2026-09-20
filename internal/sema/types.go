@@ -75,8 +75,9 @@ type Type struct {
 }
 
 type GoInterfaceMethod struct {
-	Name string
-	Type Type
+	Name   string
+	GoName string
+	Type   Type
 }
 
 type GoStructField struct {
@@ -431,7 +432,11 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 			if !ok {
 				return nil, false
 			}
-			methods[i] = gotypes.NewFunc(0, nil, method.Name, signature)
+			name := method.Name
+			if method.GoName != "" {
+				name = method.GoName
+			}
+			methods[i] = gotypes.NewFunc(0, nil, name, signature)
 		}
 		return gotypes.NewInterfaceType(methods, nil).Complete(), true
 	case Nullable:
