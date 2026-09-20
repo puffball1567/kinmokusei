@@ -3,6 +3,12 @@ package compiler
 import "testing"
 
 var classPropertySeeds = []string{
+	`interface R<T>{get x():T;}interface W<T>{set x(v:T);}interface I<T> extends R<T>,W<T>{}function f(c:I<int>):int{c.x++;return c.x;}`,
+	`interface I{get x():int;set x(v:int);}class B{public get x():int{return 1;}public set x(v:int){}}class C extends B implements I{}`,
+	`interface I<T>{get x():T;}abstract class B<T> implements I<T>{public abstract get x():T;}class C extends B<int>{public override get x():int{return 1;}}`,
+	`interface I{get x():int;function getX():int;}`,
+	`interface R<T>{get x():T;}interface W<T>{set x(v:T);}interface I extends R<int>,W<string>{}`,
+	`interface I{get x(:int;}`,
 	`abstract class B<T>{public abstract get x():T;public abstract set x(v:T);}class C extends B<int>{private n:int=0;public override get x():int{return this.n;}public override set x(v:int){this.n=v;}}function f(c:C):int{const b:B<int>=c;b.x++;return b.x;}`,
 	`class B{public virtual get x():int{return 1;}public virtual set x(v:int){}}class C extends B{public override get x():int{return super.x+1;}}function f(c:C):void{c.x++;}`,
 	`abstract class B{constructor(){this.x++;}public abstract get x():int;public set x(v:int){}}`,

@@ -6,14 +6,19 @@ import (
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 // Accessors share the method representation, but not the source method namespace.
 // Spaces cannot occur in source identifiers, so these keys cannot be called or
 // accidentally satisfy source method contracts.
 func hasClassProperty(class *classSymbol, name string) bool {
-	_, get := class.methods["get "+name]
-	_, set := class.methods["set "+name]
+	return hasProperty(class.methods, name)
+}
+
+func hasProperty(methods map[string]methodSymbol, name string) bool {
+	_, get := methods["get "+name]
+	_, set := methods["set "+name]
 	return get || set
 }
 
@@ -39,19 +44,9 @@ func (c *Checker) declareClassAccessor(decl *ast.ClassDecl, class *classSymbol, 
 	parameters := make([]Type, len(method.Parameters))
 	for i, parameter := range method.Parameters {
 		parameters[i] = c.resolveType(parameter.Type)
-		c.rejectResultValueType(parameters[i], parameter.Span, "properties")
-		c.rejectTaskAPIType(parameters[i], parameter.Span, "properties")
 	}
 	result := c.resolveType(method.ReturnType)
-	c.rejectResultValueType(result, method.ReturnType.Span, "properties")
-	c.rejectTaskAPIType(result, method.ReturnType.Span, "properties")
-	if method.Accessor == "get" {
-		if len(parameters) != 0 || result.Kind == Void {
-			c.report(method.Span, "getter must have no parameters and return a value")
-		}
-	} else if len(parameters) != 1 || hasVariadicParameter(method.Parameters) || result.Kind != Void {
-		c.report(method.Span, "setter must have exactly one non-rest parameter and return void")
-	}
+	c.checkAccessorSignature(method.Accessor, parameters, result, hasVariadicParameter(method.Parameters), method.Span)
 	method.GoName = memberGoName(method.Accessor+memberGoName(method.Name, ast.Public), method.Visibility)
 	signature := Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
 	owner, valid := c.methodDispatchOwner(decl, method, signature, inherited, replaces)
@@ -105,11 +100,15 @@ func (c *Checker) checkClassPropertyContracts(decl *ast.ClassDecl, class *classS
 }
 
 func (c *Checker) checkClassProperty(expr *ast.MemberExpr, class *classSymbol, object Type, write bool) Type {
+	return c.checkPropertyAccess(expr, class.methods, nativeClassBindings(class, object), write)
+}
+
+func (c *Checker) checkPropertyAccess(expr *ast.MemberExpr, methods map[string]methodSymbol, bindings nativeTypeBindings, write bool) Type {
 	expr.Property = true
 	expr.PropertyGetter, expr.PropertySetter = "", ""
 	expr.PropertyGetterOwner, expr.PropertySetterOwner = "", ""
-	getter, get := class.methods["get "+expr.Name]
-	setter, set := class.methods["set "+expr.Name]
+	getter, get := methods["get "+expr.Name]
+	setter, set := methods["set "+expr.Name]
 	if get && c.canAccessClassMember(getter.visibility, getter.declaringClass) {
 		expr.PropertyGetter = getter.goName
 		expr.PropertyGetterOwner = getter.virtualOwner
@@ -141,7 +140,23 @@ func (c *Checker) checkClassProperty(expr *ast.MemberExpr, class *classSymbol, o
 	if !write && selected.typeInfo.Result != nil {
 		result = *selected.typeInfo.Result
 	}
-	return substituteNativeTypeParameters(result, nativeClassBindings(class, object))
+	return substituteNativeTypeParameters(result, bindings)
+}
+
+func (c *Checker) checkAccessorSignature(accessor string, parameters []Type, result Type, variadic bool, span source.Span) {
+	for _, parameter := range parameters {
+		c.rejectResultValueType(parameter, span, "properties")
+		c.rejectTaskAPIType(parameter, span, "properties")
+	}
+	c.rejectResultValueType(result, span, "properties")
+	c.rejectTaskAPIType(result, span, "properties")
+	if accessor == "get" {
+		if len(parameters) != 0 || result.Kind == Void {
+			c.report(span, "getter must have no parameters and return a value")
+		}
+	} else if len(parameters) != 1 || variadic || result.Kind != Void {
+		c.report(span, "setter must have exactly one non-rest parameter and return void")
+	}
 }
 
 func (c *Checker) checkAbstractPropertyAccess(expr *ast.MemberExpr, abstract bool, kind string) {

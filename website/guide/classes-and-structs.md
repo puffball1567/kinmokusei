@@ -34,8 +34,11 @@ such as `instance.value++` require both accessors. Inherited generic properties
 are supported. Each accessor can be virtual or abstract, with explicit
 `override` and optional `final` in descendants. Overriding one accessor retains
 the other inherited accessor; its visibility and type must remain unchanged.
-`super.value` uses the base implementation. Static properties and property
-signatures in interfaces remain unsupported. Bind a nullable getter result locally before checking it: separate
+`super.value` uses the base implementation. Interfaces accept public accessor
+signatures such as `get value(): int;` and `set value(next: int);`, including
+generic inheritance and DI. Class implementations must supply the corresponding
+public accessors. Static properties remain unsupported.
+Bind a nullable getter result locally before checking it: separate
 reads are separate calls and may return different values.
 
 ## JSON

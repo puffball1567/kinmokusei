@@ -5,7 +5,8 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
-func (p *Parser) parseClassAccessor(start token.Token, abstract bool) *ast.MethodDecl {
+// Interface members and abstract class accessors share the signature grammar.
+func (p *Parser) parseAccessor(start token.Token, signatureOnly bool) *ast.MethodDecl {
 	name, ok := p.expect(token.Identifier, "expected property name")
 	if !ok {
 		return nil
@@ -31,15 +32,15 @@ func (p *Parser) parseClassAccessor(start token.Token, abstract bool) *ast.Metho
 		p.report(p.peek(), "getter requires an explicit return type")
 	}
 	var body *ast.BlockStmt
-	if abstract && !p.at(token.LeftBrace) {
-		end, valid := p.expectTerminator("expected ';' after abstract accessor signature")
+	if signatureOnly && !p.at(token.LeftBrace) {
+		end, valid := p.expectTerminator("expected ';' after accessor signature")
 		if !valid {
 			return nil
 		}
 		body = &ast.BlockStmt{Span: end.Span}
 	} else {
-		if abstract {
-			p.report(p.peek(), "abstract accessors cannot have a body")
+		if signatureOnly {
+			p.report(p.peek(), "accessor signatures cannot have a body")
 		}
 		body = p.parseBlock()
 	}

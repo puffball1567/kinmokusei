@@ -365,7 +365,13 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan})
+				detail := functionDetail(method.Name, method.Parameters, method.ReturnType)
+				kind := 6
+				if method.Accessor != "" {
+					detail = method.Accessor + " " + strings.TrimPrefix(detail, "function ")
+					kind = 7
+				}
+				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: detail, Kind: kind, Span: method.Span, Selection: method.NameSpan})
 			}
 			result = append(result, info)
 		case *ast.VariableDecl:

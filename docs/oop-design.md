@@ -386,7 +386,7 @@ receiver once, call the getter once, evaluate the right-hand side, then call the
 setter once. An exception or panic stops that sequence. Both accessors must be
 accessible for updates. Inherited properties retain their access rules and
 generic substitution; `super.value` operates on the existing base instance.
-Static properties and interface property signatures are not yet supported.
+Static properties are not yet supported.
 Ordinary class fields and methods cannot hide a property.
 
 Accessors are synchronous calls, not stable storage reads. Repeated nullable
@@ -396,6 +396,43 @@ proofs, just like ordinary method calls. Property types cannot be `Result` or
 `Task`; there is no implicit error propagation or awaiting. Bodies retain
 ordinary explicit statements and exception/panic behavior. Prefer explicit
 methods for operations whose effects should be visible at the call site.
+
+### Interface properties
+
+Interfaces declare accessor signatures without bodies or visibility modifiers;
+all required accessors are public. The ordinary accessor arity and exact paired
+type rules apply, including when separate generic ancestors supply the getter
+and setter.
+
+```ts
+interface Readable<T> { get value(): T; }
+interface Writable<T> { set value(next: T); }
+interface Cell<T> extends Readable<T>, Writable<T> {}
+
+class Box<T> implements Cell<T> {
+  constructor(private raw: T) {}
+  public get value(): T { return this.raw; }
+  public set value(next: T) { this.raw = next; }
+}
+function increment(cell: Cell<int>): int {
+  cell.value++;
+  return cell.value;
+}
+```
+
+As with methods, implementation is explicit. Required accessors may be inherited
+from a class or declared abstract by an abstract implementer. A field or ordinary
+method named `getValue` does not satisfy a source `get value` contract. A
+getter-only interface exposes only reads even if the concrete class also has a
+setter; setter-only contracts work analogously. These interfaces can be used for
+DI without inheriting a shared class implementation.
+
+Generated Go interfaces expose `GetValue`/`SetValue`, so handwritten Go types with
+those methods can implement the generated API. A source interface can also
+extend an imported Go interface with the same accessor methods when signatures
+match exactly. Source method/property name collisions and generated accessor
+name collisions are diagnosed. Property evaluation, nullability, mutation
+effects and non-addressability are unchanged when accessed through an interface.
 
 ### Virtual and abstract accessors
 
@@ -462,7 +499,7 @@ unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ### Later candidates
 
-- Static and interface properties.
+- Static properties.
 - Discriminated-union integration.
 
 ### Out of scope

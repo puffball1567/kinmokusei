@@ -233,6 +233,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		if contract == nil {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
+		if hasProperty(contract.methods, expr.Name) {
+			return c.checkPropertyAccess(expr, contract.methods, nativeInterfaceBindings(contract, object), write)
+		}
 		method, ok := contract.methods[expr.Name]
 		if !ok {
 			c.report(expr.Span, fmt.Sprintf("interface %s has no method %q", object.Name, expr.Name))

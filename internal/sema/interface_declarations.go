@@ -25,21 +25,33 @@ func (c *Checker) declareInterfaces(program *ast.Program) {
 		c.pushTypeParameterScope(symbol.typeParamScope)
 		for i := range decl.Methods {
 			method := &decl.Methods[i]
-			if _, exists := symbol.methods[method.Name]; exists {
+			key := method.Name
+			if method.Accessor != "" {
+				key = method.Accessor + " " + key
+			}
+			if _, exists := symbol.methods[key]; exists {
 				c.report(method.Span, fmt.Sprintf("duplicate interface method %q", method.Name))
 				continue
 			}
 			parameters := make([]Type, len(method.Parameters))
 			for j, parameter := range method.Parameters {
 				resolved := c.resolveType(parameter.Type)
-				c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
-				c.rejectTaskAPIType(resolved, parameter.Type.Span, "interface parameters")
+				if method.Accessor == "" {
+					c.rejectResultValueType(resolved, parameter.Type.Span, "parameters")
+					c.rejectTaskAPIType(resolved, parameter.Type.Span, "interface parameters")
+				}
 				parameters[j] = c.callableParameterType(parameter, resolved)
 			}
 			result := c.resolveType(method.ReturnType)
-			c.rejectTaskAPIType(result, method.ReturnType.Span, "interface return types")
+			if method.Accessor == "" {
+				c.rejectTaskAPIType(result, method.ReturnType.Span, "interface return types")
+			}
 			method.GoName = memberGoName(method.Name, ast.Public)
-			symbol.methods[method.Name] = methodSymbol{
+			if method.Accessor != "" {
+				method.GoName = memberGoName(method.Accessor+memberGoName(method.Name, ast.Public), ast.Public)
+				c.checkAccessorSignature(method.Accessor, parameters, result, hasVariadicParameter(method.Parameters), method.Span)
+			}
+			symbol.methods[key] = methodSymbol{
 				typeInfo:   Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result},
 				visibility: ast.Public, goName: method.GoName, declarationSpan: method.NameSpan,
 			}
@@ -112,6 +124,7 @@ func (c *Checker) declareInterfaces(program *ast.Program) {
 				symbol.methods[methodName] = inherited
 			}
 		}
+		c.checkInterfacePropertyContracts(decl, symbol)
 		state[name] = 2
 	}
 	for _, declaration := range program.Declarations {

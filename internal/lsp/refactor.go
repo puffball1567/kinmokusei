@@ -238,6 +238,19 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 		visit(root)
 		return methods
 	}
+	classMethods := func(class *ast.ClassDecl) []*ast.MethodDecl {
+		var methods []*ast.MethodDecl
+		seen := map[*ast.ClassDecl]bool{}
+		for class != nil && !seen[class] {
+			seen[class] = true
+			methods = append(methods, class.Methods...)
+			if class.Base == nil {
+				break
+			}
+			class = classes[spanKey(class.Base.ResolvedDeclaration)]
+		}
+		return methods
+	}
 	for changed {
 		changed = false
 		for _, contract := range interfaces {
@@ -254,37 +267,23 @@ func relatedDeclarations(program *ast.Program, target source.Span) declarationSe
 			if !ok {
 				continue
 			}
-			for _, method := range class.Methods {
+			// A class may satisfy a newly implemented contract entirely with
+			// inherited members, without declaring any methods of its own.
+			methods := classMethods(class)
+			for _, method := range methods {
 				family := []source.Span{method.NameSpan}
-				if method.Accessor != "" {
-					for _, paired := range class.Methods {
-						if paired.Accessor != "" && paired.Name == method.Name {
-							family = append(family, paired.NameSpan)
-						}
+				for _, related := range methods {
+					if related.Name == method.Name && (related.Accessor != "") == (method.Accessor != "") {
+						family = append(family, related.NameSpan)
 					}
-				}
-				for baseRef := class.Base; baseRef != nil; {
-					base := classes[spanKey(baseRef.ResolvedDeclaration)]
-					if base == nil {
-						break
-					}
-					for _, inherited := range base.Methods {
-						if inherited.Name == method.Name && (inherited.Accessor != "") == (method.Accessor != "") {
-							family = append(family, inherited.NameSpan)
-						}
-					}
-					baseRef = base.Base
 				}
 				for _, implemented := range class.Implements {
-					if method.Accessor != "" {
-						break
-					}
 					contract := interfaces[spanKey(implemented.ResolvedDeclaration)]
 					if contract == nil {
 						continue
 					}
 					for _, required := range interfaceMethods(contract) {
-						if required.Name == method.Name {
+						if required.Name == method.Name && (required.Accessor != "") == (method.Accessor != "") {
 							family = append(family, required.NameSpan)
 						}
 					}

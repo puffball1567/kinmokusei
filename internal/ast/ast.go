@@ -292,6 +292,7 @@ func (*EnumDecl) declaration()           {}
 func (d *EnumDecl) GetSpan() source.Span { return d.Span }
 
 type InterfaceMethod struct {
+	Accessor   string
 	Name       string
 	NameSpan   source.Span
 	Parameters []Parameter

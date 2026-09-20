@@ -143,6 +143,32 @@ methods retain their exported Go names and signature requirements, including
 variadic and Result-shaped methods. Anonymous runtime interfaces imported from
 Go retain their method sets; source anonymous interface literals are not added.
 
+Interfaces also support property contracts:
+
+```ts
+interface CountReader { get count(): int; }
+interface CountWriter { set count(next: int); }
+interface CountCell extends CountReader, CountWriter {}
+
+class Counter implements CountCell {
+  private stored: int = 0;
+  public get count(): int { return this.stored; }
+  public set count(next: int) { this.stored = next; }
+}
+function increment(counter: CountCell): int {
+  counter.count++;
+  return counter.count;
+}
+```
+
+Accessor signatures are implicitly public and have no body. A getter-only
+contract permits reads, a setter-only contract permits writes, and updates
+require both. Paired types must match exactly, even across generic or diamond
+bases. Classes explicitly implement these contracts with public accessors, not
+fields or similarly named ordinary methods. Abstract classes may declare the
+required accessors abstract. The generated Go contract uses `GetCount()` and
+`SetCount(int)` methods rather than fields.
+
 ## Single inheritance
 
 ```ts

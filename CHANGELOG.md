@@ -14,7 +14,9 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   Support virtual/abstract accessors, explicit and final overrides, partial
   accessor overrides and phase-local construction dispatch. Generated Go exposes
   accessor methods; LSP supports completion, navigation and inheritance-aware
-  paired getter/setter rename. Static and interface properties remain unsupported.
+  paired getter/setter rename. Interfaces can declare public property contracts,
+  including generic/diamond inheritance and class or abstract-class DI; static
+  properties remain unsupported.
 
 - Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
   type parameters and source class elements, preserving source nullability.

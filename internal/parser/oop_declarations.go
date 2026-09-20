@@ -29,6 +29,13 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 		return nil
 	}
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
+		if p.at(token.Identifier) && (p.peek().Lexeme == "get" || p.peek().Lexeme == "set") && p.atNext(token.Identifier) {
+			if accessor := p.parseAccessor(p.advance(), true); accessor != nil {
+				declaration.Methods = append(declaration.Methods, ast.InterfaceMethod{Accessor: accessor.Accessor,
+					Name: accessor.Name, NameSpan: accessor.NameSpan, Parameters: accessor.Parameters, ReturnType: accessor.ReturnType, Span: accessor.Span})
+			}
+			continue
+		}
 		methodStart, valid := p.expect(token.Function, "expected interface method")
 		if !valid {
 			// Statement recovery can stop immediately at a statement keyword or
@@ -158,7 +165,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 	modifiersComplete:
 		switch {
 		case p.at(token.Identifier) && (p.peek().Lexeme == "get" || p.peek().Lexeme == "set") && p.atNext(token.Identifier):
-			accessor := p.parseClassAccessor(p.advance(), abstract)
+			accessor := p.parseAccessor(p.advance(), abstract)
 			if accessor != nil {
 				accessor.Visibility = visibility
 				accessor.Static, accessor.Virtual, accessor.Override, accessor.Final, accessor.Abstract = static, virtual, override, final, abstract
