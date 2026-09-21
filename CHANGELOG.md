@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Diagnose unused value-only built-ins (including sole-call result expansion)
+  in expression statements and `go`/`defer` statements before Go generation.
+  Explicit `_ = ...` discards remain available; copy/delete/clear/close and
+  user-defined functions shadowing built-in names retain statement use.
+
 - Accept sole-call multiple-result arguments in `min`, `max`, and `complex`.
   Preserve runtime operand types, generic ordered constraints, complex64 width,
   single evaluation, NaN and signed-zero behavior; reject incompatible result

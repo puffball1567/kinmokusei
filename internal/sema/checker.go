@@ -319,9 +319,12 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			}
 			return
 		}
+		diagnosticCount := len(c.diagnostics)
 		value := c.checkExpression(stmt.Value)
-		if call, ok := stmt.Value.(*ast.CallExpr); ok && call.Builtin == ast.MakeCall && value.Kind != Invalid {
-			c.report(stmt.Span, "make result must be used; bind it or explicitly discard with _")
+		if call, ok := stmt.Value.(*ast.CallExpr); ok && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
+			if name := unusedBuiltinResult(call); name != "" {
+				c.report(stmt.Span, name+" result must be used; bind it or explicitly discard with _")
+			}
 		}
 		if value.Kind == Result {
 			c.report(stmt.Span, resultUsageMessage)
@@ -466,7 +469,15 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.checkExpression(stmt.Value)
 			return
 		}
+		diagnosticCount := len(c.diagnostics)
 		value := c.checkExpression(call)
+		if name := unusedBuiltinResult(call); name != "" && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
+			keyword := "defer"
+			if stmt.Kind == ast.GoCall {
+				keyword = "go"
+			}
+			c.report(call.Span, keyword+" cannot discard the result of "+name+"; use a function that explicitly handles the result")
+		}
 		if value.Kind == Result {
 			keyword := "defer"
 			if stmt.Kind == ast.GoCall {

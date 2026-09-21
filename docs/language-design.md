@@ -1158,6 +1158,12 @@ Other built-ins still require destructuring first. A `go` expression captures
 the callee/receiver and the producer's values before starting its Task, just as
 it captures ordinary arguments; this also applies to generic calls.
 
+Value-only built-ins such as `min`, `complex`, and `append` require their result
+to be used, or explicitly discarded with `_ = min(values());`. They cannot be
+used directly as `go` or `defer` statements. This restriction also applies when
+their arguments come from a multiple-result call. Side-effect operations such
+as `copy`, `delete`, `clear`, and `closeGoChannel` remain valid statements.
+
 ```ts
 const add = (left: int, right: int): int => left + right;
 const checked = (value: int): int => { return value; };

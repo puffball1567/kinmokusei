@@ -29,6 +29,7 @@ function Text():string{return min(words())+low("b","a");}
 function narrowParts():(float32,float32){return 1.5,-2.5;}
 function Narrow():complex64{return complex(narrowParts());}
 function Extrema(a:float,b:float):(float,float){const pair=():(float,float)=>{return a,b;};return min(pair()),max(pair());}
+function Discarded():int{calls=0;_=min(numbers());_=complex(parts());_=append(appendInputs());return calls;}
 function Run():int{
  calls=0;const a=append(appendInputs());const b:int[]=[0,0];
  const n=copy(copyInputs(b));const text:byte[]=[0,0];const size=copy(textInputs(text));
@@ -60,13 +61,14 @@ func Numeric()complex128{calls=0;a,b,c:=numbers();lo:=min(a,b,c);d,e,f:=numbers(
 func Text()string{return min("z","a")+low("b","a")}
 func Narrow()complex64{return complex(float32(1.5),float32(-2.5))}
 func Extrema(a,b float64)(float64,float64){return min(a,b),max(a,b)}
+func Discarded()int{calls=0;a,b,c:=numbers();_=min(a,b,c);x,y:=parts();_=complex(x,y);dst,p,q:=appendInputs();_=append(dst,p,q);return calls}
 // Bind explicitly: Go 1.26+ vet panics on tuple arguments to collection built-ins.
 func Run()int{calls=0;dst,x,y:=appendInputs();a:=append(dst,x,y);b:=[]int{0,0};cd,cs:=copyInputs(b);n:=copy(cd,cs);text:=[]byte{0,0};td,ts:=textInputs(text);size:=copy(td,ts);m:=map[string]int{"key":1};dm,dk:=deleteInputs(m);delete(dm,dk);return a[2]+b[1]+n+size+len(m)+int(text[0])+calls*1000}
 `
 	comparison := `package collections_test
 import("testing";"math";g "collection-results.test";r "collection-results.test/reference")
 func TestRun(t *testing.T){if got,want:=g.Run(),r.Run();got!=want{t.Fatalf("got %d want %d",got,want)};if got,want:=g.Deferred(),r.Deferred();got!=want{t.Fatalf("deferred capture got %d want %d",got,want)};if got,want:=g.Generic(),r.Generic();got!=want{t.Fatalf("generic result got %d want %d",got,want)}}
-func TestNumeric(t *testing.T){if got,want:=g.Numeric(),r.Numeric();got!=want{t.Fatalf("numeric %v != %v",got,want)};if g.Text()!=r.Text()||g.Narrow()!=r.Narrow(){t.Fatal("string/generic or complex64")};same:=func(a,b float64)bool{return (math.IsNaN(a)&&math.IsNaN(b))||(a==b&&math.Signbit(a)==math.Signbit(b))};for _,p:=range [][2]float64{{0,math.Copysign(0,-1)},{math.NaN(),1},{1,math.NaN()},{math.Inf(1),math.Inf(-1)}}{a,b:=g.Extrema(p[0],p[1]);x,y:=r.Extrema(p[0],p[1]);if !same(a,x)||!same(b,y){t.Fatalf("extrema %v",p)}}}
+func TestNumeric(t *testing.T){if got,want:=g.Numeric(),r.Numeric();got!=want{t.Fatalf("numeric %v != %v",got,want)};if g.Text()!=r.Text()||g.Narrow()!=r.Narrow(){t.Fatal("string/generic or complex64")};same:=func(a,b float64)bool{return (math.IsNaN(a)&&math.IsNaN(b))||(a==b&&math.Signbit(a)==math.Signbit(b))};for _,p:=range [][2]float64{{0,math.Copysign(0,-1)},{math.NaN(),1},{1,math.NaN()},{math.Inf(1),math.Inf(-1)}}{a,b:=g.Extrema(p[0],p[1]);x,y:=r.Extrema(p[0],p[1]);if !same(a,x)||!same(b,y){t.Fatalf("extrema %v",p)}};if got,want:=g.Discarded(),r.Discarded();got!=want{t.Fatalf("discard evaluated %d times, want %d",got,want)}}
 `
 	runGeneratedGoDifferentialTest(t, root, "collection-results.test", generated, reference, comparison)
 }
