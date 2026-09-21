@@ -6,6 +6,19 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
+func TestMalformedMultipleResultsRetainDiagnostics(t *testing.T) {
+	for _, input := range []string{
+		`function f():(int,) {}`,
+		`function f():(int,string {}`,
+		`function f():(int,[]) {}`,
+		`const f=():(int,)=>0;`,
+	} {
+		if _, count := parseSource(t, input); count == 0 {
+			t.Errorf("missing diagnostic for %s", input)
+		}
+	}
+}
+
 func TestParsesResultReturnTypeAndPropagationExpression(t *testing.T) {
 	program, diagnosticCount := parseSource(t, `
 function parse(text: string): Result<int> {
@@ -27,6 +40,32 @@ function parse(text: string): Result<int> {
 	}
 	if _, ok := propagated.Value.(*ast.CallExpr); !ok {
 		t.Fatalf("propagation operand = %T", propagated.Value)
+	}
+}
+
+func TestParsesSourceMultipleResultReturnType(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+function pair(value: int): (int, string) { return pair(value); }
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	result := program.Declarations[0].(*ast.FunctionDecl).ReturnType
+	if len(result.GoResults) != 2 || result.GoResults[0].Name != "int" || result.GoResults[1].Name != "string" {
+		t.Fatalf("return type = %#v", result)
+	}
+}
+
+func TestParsesArrowMultipleResultReturnType(t *testing.T) {
+	program, diagnosticCount := parseSource(t, `
+const pair = (value: int): (int, string) => makePair(value);
+`)
+	if diagnosticCount != 0 {
+		t.Fatalf("got %d parser diagnostics", diagnosticCount)
+	}
+	arrow := program.Declarations[0].(*ast.VariableDecl).Value.(*ast.ArrowExpr)
+	if arrow.ReturnType == nil || len(arrow.ReturnType.GoResults) != 2 {
+		t.Fatalf("arrow return type = %#v", arrow.ReturnType)
 	}
 }
 

@@ -64,7 +64,9 @@ type TypeRef struct {
 	ObjectFields         []ObjectTypeField
 	Object               bool
 	GoStruct             bool
-	// GoInterface and GoResults describe inferred Go types, not source syntax.
+	// GoInterface describes an anonymous interface type. GoResults is also used
+	// for source tuple result types; Go marks results reconstructed from Go
+	// signatures, while source declarations leave it unset.
 	GoInterface   bool
 	GoResults     []TypeRef
 	Struct        bool

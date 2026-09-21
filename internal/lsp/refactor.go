@@ -423,6 +423,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkType(&ref.Parameters[index])
 		}
 		walkType(ref.Return)
+		for index := range ref.GoResults {
+			walkType(&ref.GoResults[index])
+		}
 		for index := range ref.ObjectFields {
 			walkType(&ref.ObjectFields[index].Type)
 		}

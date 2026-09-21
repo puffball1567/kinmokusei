@@ -1094,6 +1094,26 @@ let timeout: time.Duration = time.Second;
 
 Functions have explicit parameter and return types. Arrow functions support expression and block bodies, function-type annotations, callbacks, and Go function values. A block body with a non-void result must return on every path.
 
+Callable result lists may contain two or more ordinary value types. A matching
+multiple-result call can be forwarded directly:
+
+```typescript
+import go strings from "strings";
+function cut(text: string): (string, string, boolean) {
+  return strings.Cut(text, ":");
+}
+const split: (text: string) => (string, string, boolean) =
+  (text) => strings.Cut(text, ":");
+```
+
+This is a callable result list, not a storable tuple. Destructuring consumes
+its values. Counts, nullable qualifiers and per-element types are checked;
+direct forwarding cannot insert a class upcast for an individual result.
+Use an explicit arrow result annotation or a contextual function signature.
+Comma-separated return expressions and try blocks inside multiple-result
+callables are not yet supported. Getters still return one property value.
+`void`, `Result<T>` and `Task<T>` cannot be elements of a result list.
+
 ```ts
 const add = (left: int, right: int): int => left + right;
 const checked = (value: int): int => { return value; };

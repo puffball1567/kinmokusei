@@ -66,7 +66,7 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 			p.synchronizeStatement()
 			continue
 		}
-		returnType, valid := p.parseType()
+		returnType, valid := p.parseCallableReturnType()
 		if !valid {
 			p.synchronizeStatement()
 			continue

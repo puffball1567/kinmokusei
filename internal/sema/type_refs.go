@@ -426,6 +426,10 @@ func substituteNativeTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.
 	}
 	result := ref
 	result.LoweredType = nil
+	result.GoResults = append([]ast.TypeRef(nil), ref.GoResults...)
+	for index := range result.GoResults {
+		result.GoResults[index] = substituteNativeTypeRefParameters(result.GoResults[index], bindings)
+	}
 	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
 	for index := range result.GenericArguments {
 		result.GenericArguments[index] = substituteNativeTypeRefParameters(result.GenericArguments[index], bindings)

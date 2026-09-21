@@ -9,10 +9,20 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Add source function, method, arrow and function-type result lists such as
+  `function cut(text: string): (string, string, boolean)`. Matching multiple-result
+  calls can be forwarded directly, including contextual callbacks and generic
+  function aliases. Preserve nullable contracts and type references in editor
+  rename/references. This is partial multiple-return support: comma-separated
+  return expressions, result-list inference without a contextual signature,
+  multiple-result properties, and try blocks in these callables are not supported.
+
 - Add method-only anonymous interface type syntax, for example
   `interface { read(offset: int): string; }`. Source declarations preserve
   exported method signatures and lower directly to Go anonymous interfaces;
   fields and unsupported private identities remain rejected.
+  Structural class matching substitutes class type arguments and checks source
+  nullable parameter/result contracts before Go storage erases their qualifiers.
 
 - Allow enum members in typed class constant initializers. Their existing
   generated Go constant identity and underlying enum type are preserved.
