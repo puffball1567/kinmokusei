@@ -274,6 +274,14 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 	} else if formal.Kind == GoNamed && actual.Kind == Function {
 		formal = c.callableType(formal)
 	}
+	// A named collection is assignable to an unnamed collection with the same
+	// underlying type. Preserve source element contracts while exposing that
+	// shape for inference; do not unwrap two distinct named types.
+	if actual.Kind == GoNamed && unnamedInferenceCollection(formal) {
+		actual = c.constraintArgumentShape(actual)
+	} else if formal.Kind == GoNamed && unnamedInferenceCollection(actual) {
+		formal = c.constraintArgumentShape(formal)
+	}
 	if formal.Kind != actual.Kind {
 		return nil
 	}
@@ -341,6 +349,15 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 		}
 	}
 	return nil
+}
+
+func unnamedInferenceCollection(value Type) bool {
+	switch value.Kind {
+	case Array, FixedArray, Map, GoChannel, GoPointer:
+		return true
+	default:
+		return false
+	}
 }
 
 func substituteNativeTypeParameters(value Type, bindings nativeTypeBindings) Type {

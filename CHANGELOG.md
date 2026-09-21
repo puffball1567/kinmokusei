@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Infer native generic arguments between named and unnamed slices, arrays,
+  maps, pointers and channels, including imported Go collections and dependent
+  callbacks. Keep named identity, array lengths, channel directions and nullable
+  element checks enforced by argument compatibility.
+
 - Infer native generic arguments across named and unnamed callback signatures,
   including scalar/multiple results, dependent arrows and generic methods.
   Preserve distinct function identity, nullable contracts and Result effects.

@@ -1160,6 +1160,11 @@ the arguments of `type Pair<T, U> = distinct () => (T, U)` when used as a
 parameter type. This does not make two different distinct function types
 assignable, erase nullable qualifiers, or turn a `Result<T>` effect into an
 ordinary value.
+The same named/unnamed inference applies to slices, fixed arrays, maps,
+pointers and channels. For example, `first<T>(values: T[]): T` can infer `int`
+from a `distinct int[]` argument, including named slices imported from Go.
+Argument compatibility still checks nominal identity, array length, channel
+direction and nullable elements; inference does not insert a type conversion.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
 The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support
