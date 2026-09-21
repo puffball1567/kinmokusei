@@ -322,7 +322,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		diagnosticCount := len(c.diagnostics)
 		value := c.checkExpression(stmt.Value)
 		if call, ok := stmt.Value.(*ast.CallExpr); ok && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
-			if name := unusedBuiltinResult(call); name != "" {
+			if call.Conversion {
+				c.report(stmt.Span, "conversion result must be used; bind it or explicitly discard with _")
+			} else if name := unusedBuiltinResult(call); name != "" {
 				c.report(stmt.Span, name+" result must be used; bind it or explicitly discard with _")
 			}
 		}

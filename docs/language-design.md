@@ -1163,6 +1163,10 @@ to be used, or explicitly discarded with `_ = min(values());`. They cannot be
 used directly as `go` or `defer` statements. This restriction also applies when
 their arguments come from a multiple-result call. Side-effect operations such
 as `copy`, `delete`, `clear`, and `closeGoChannel` remain valid statements.
+Type conversions follow the same result-use rule: `int(value);` is invalid,
+while `_ = int(value);` explicitly discards the converted value. Conversions
+are not callable operations for `go` or `defer`; ordinary functions returning
+values remain usable as statements.
 
 ```ts
 const add = (left: int, right: int): int => left + right;

@@ -148,6 +148,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"source-results.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[29], implementedGoCompatibilityContracts[56]},
 	"collection-results.test":             {implementedGoCompatibilityContracts[5], implementedGoCompatibilityContracts[6], implementedGoCompatibilityContracts[94]},
 	"task-results.test":                   {implementedGoCompatibilityContracts[53]},
+	"conversion-discard.test":             {implementedGoCompatibilityContracts[0]},
 	"arrow-bindings.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"forward-arrows.test":                 {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"local-arrow-bindings.test":           {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},

@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Reject unused type conversions in statement and for-clause positions during
+  source checking, including native, imported Go and type-parameter conversions.
+  Keep explicit discards and ordinary function calls, with evaluation verified
+  against handwritten Go.
+
 - Diagnose unused value-only built-ins (including sole-call result expansion)
   in expression statements and `go`/`defer` statements before Go generation.
   Explicit `_ = ...` discards remain available; copy/delete/clear/close and
