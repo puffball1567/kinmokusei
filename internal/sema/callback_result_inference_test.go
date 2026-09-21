@@ -5,6 +5,27 @@ import (
 	"testing"
 )
 
+func TestContainsNativeInterfaceInCallbackResults(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		result Type
+		want   bool
+	}{
+		{"scalar", Type{Kind: Int}, false},
+		{"interface", Type{Kind: Interface}, true},
+		{"scalar results", Type{Kind: MultiValue, Results: []Type{{Kind: Int}, {Kind: String}}}, false},
+		{"interface result", Type{Kind: MultiValue, Results: []Type{{Kind: Int}, {Kind: Interface}}}, true},
+		{"nested interface result", Type{Kind: MultiValue, Results: []Type{{Kind: Int}, {Kind: Array, Element: &Type{Kind: Interface}}}}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			callback := Type{Kind: Function, Result: &tc.result}
+			if got := containsNativeInterface(callback); got != tc.want {
+				t.Fatalf("containsNativeInterface(callback) = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestInferTypeArgumentsFromCallbackResults(t *testing.T) {
 	const declarations = `function pair():(int,string){return 7,"ok";} function first<T,U>(f:()=>(T,U)):T{const [value,_]=f();return value;}`
 	for _, expression := range []string{

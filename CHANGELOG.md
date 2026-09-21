@@ -13,6 +13,8 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   including named function values, direct arrows, partially explicit arguments,
   generic methods, nested class arguments and dependent callback contexts.
   Diagnose conflicting results, mismatched arity and unsatisfied constraints.
+  Preserve inferred arguments explicitly in Go output for interfaces nested
+  inside callback result lists, consistently with single-result callbacks.
 
 - Fix identical generic class result-list signatures being rejected for local
   arrows when Go storage types are unavailable. Compare individual result

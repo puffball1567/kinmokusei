@@ -175,7 +175,7 @@ func containsNativeInterface(value Type) bool {
 			}
 		}
 	}
-	for _, group := range [][]Type{value.TypeArguments, value.Parameters} {
+	for _, group := range [][]Type{value.TypeArguments, value.Parameters, value.Results} {
 		for _, nested := range group {
 			if containsNativeInterface(nested) {
 				return true
