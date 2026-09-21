@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Accept sole-call multiple-result arguments in `min`, `max`, and `complex`.
+  Preserve runtime operand types, generic ordered constraints, complex64 width,
+  single evaluation, NaN and signed-zero behavior; reject incompatible result
+  types, wrong arity and spread syntax before Go generation.
+
 - Expand collection built-in tuple arguments through explicit bindings in
   generated Go, avoiding a Go 1.26+ vet panic while retaining single evaluation,
   generic result types and eager capture for deferred calls. Vet remains enabled.

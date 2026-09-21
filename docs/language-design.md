@@ -1151,7 +1151,9 @@ Generic source and Go functions infer type arguments from the returned values;
 explicit type arguments are also supported, including variadic functions.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
-The collection built-ins `append`, `copy`, and `delete` also support expansion.
+The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support
+expansion. For example, `complex(parts())` accepts a function returning two
+matching floating-point values; typed integers are not implicitly converted.
 Other built-ins still require destructuring first. A `go` expression captures
 the callee/receiver and the producer's values before starting its Task, just as
 it captures ordinary arguments; this also applies to generic calls.

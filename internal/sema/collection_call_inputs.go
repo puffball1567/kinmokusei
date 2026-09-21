@@ -45,7 +45,7 @@ func (c *Checker) checkCollectionCallInputs(expr *ast.CallExpr, name string, cou
 	return values, spans
 }
 
-func (c *Checker) recordCollectionMultipleResult(expr *ast.CallExpr, result Type) {
+func (c *Checker) recordBuiltinMultipleResult(expr *ast.CallExpr, result Type) {
 	if expr.MultipleArgumentCount == 0 {
 		return
 	}
