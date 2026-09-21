@@ -1151,10 +1151,22 @@ Generic source and Go functions infer type arguments from the returned values;
 explicit type arguments are also supported, including variadic functions.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
-The collection built-ins `append`, `copy`, and `delete` also support expansion.
+The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support
+expansion. For example, `complex(parts())` accepts a function returning two
+matching floating-point values; typed integers are not implicitly converted.
 Other built-ins still require destructuring first. A `go` expression captures
 the callee/receiver and the producer's values before starting its Task, just as
 it captures ordinary arguments; this also applies to generic calls.
+
+Value-only built-ins such as `min`, `complex`, and `append` require their result
+to be used, or explicitly discarded with `_ = min(values());`. They cannot be
+used directly as `go` or `defer` statements. This restriction also applies when
+their arguments come from a multiple-result call. Side-effect operations such
+as `copy`, `delete`, `clear`, and `closeGoChannel` remain valid statements.
+Type conversions follow the same result-use rule: `int(value);` is invalid,
+while `_ = int(value);` explicitly discards the converted value. Conversions
+are not callable operations for `go` or `defer`; ordinary functions returning
+values remain usable as statements.
 
 ```ts
 const add = (left: int, right: int): int => left + right;
@@ -1225,9 +1237,14 @@ change width, and immutable bindings lowered as Go variables remain typed.
 Multiple Go results are locally destructured:
 
 ```ts
-const [value, err] = strconv.Atoi(text);
+let [value, err] = strconv.Atoi(text);
 [value, err] = strconv.Atoi(other);
 ```
+
+Multiple assignment to existing variables also performs derived-to-base class
+conversions, including nullable and generic classes. The producer is evaluated
+once before any target is updated. This also works with checked map lookups and
+channel receives, blank targets, and assignments in a `for` update clause.
 
 Multi-values are not first-class values and cannot silently discard `error`.
 

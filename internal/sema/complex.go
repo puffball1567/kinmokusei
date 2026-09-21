@@ -261,13 +261,16 @@ func (c *Checker) checkComplexBuiltin(expr *ast.CallExpr, name string) Type {
 	} else if name == "imag" {
 		expr.Builtin = ast.ImagCall
 	}
-	c.checkBuiltinCallShape(expr, name, count, count, 0)
+	values, origins := c.checkNumericCallInputs(expr)
+	shape := *expr
+	shape.Arguments = origins
+	c.checkBuiltinCallShape(&shape, name, count, count, 0)
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/numeric", "numeric")
-	args := make([]goast.Expr, len(expr.Arguments))
+	args := make([]goast.Expr, len(values))
 	parameterTypes := make([]string, len(args))
-	valid := len(expr.Arguments) == count && len(expr.TypeArguments) == 0 && !expr.Expanded
-	for i, argument := range expr.Arguments {
-		actual := c.singleValue(c.checkExpression(argument), argument.GetSpan())
+	valid := len(values) == count && len(expr.TypeArguments) == 0 && !expr.Expanded
+	for i, argument := range origins {
+		actual := values[i]
 		parameterTypes[i] = actual.String()
 		var ok bool
 		args[i], ok = c.numericOperand(pkg, fmt.Sprintf("arg%d", i), argument, actual)
@@ -282,6 +285,9 @@ func (c *Checker) checkComplexBuiltin(expr *ast.CallExpr, name string) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	result := c.finishNumeric(expr, pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: args})
+	if result.Kind != Invalid {
+		c.recordBuiltinMultipleResult(expr, result)
+	}
 	expr.Signature = &ast.CallableSignature{Result: result.String(), ParameterTypes: parameterTypes}
 	for i := range args {
 		expr.Signature.ParameterNames = append(expr.Signature.ParameterNames, fmt.Sprintf("arg%d", i+1))

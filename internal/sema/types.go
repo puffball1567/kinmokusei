@@ -274,7 +274,16 @@ func assignable(target, value Type) bool {
 				return false
 			}
 		}
-		return target.Result != nil && value.Result != nil && sameType(*target.Result, *value.Result)
+		if target.Result == nil || value.Result == nil {
+			return false
+		}
+		if target.Result.Kind == MultiValue || value.Result.Kind == MultiValue {
+			// Generic source classes may not have Go storage types yet. Compare
+			// each result contract rather than treating the list as a value:
+			// standalone MultiValue assignment is intentionally forbidden.
+			return identicalMethodSignature(*target.Result, *value.Result)
+		}
+		return sameType(*target.Result, *value.Result)
 	}
 	if target.Kind == Array || value.Kind == Array || target.Kind == FixedArray || value.Kind == FixedArray {
 		if target.Kind != value.Kind || target.Element == nil || value.Element == nil {

@@ -479,6 +479,7 @@ func (s *IncDecStmt) GetSpan() source.Span { return s.Span }
 
 type MultiAssignmentStmt struct {
 	Bindings []Binding
+	Upcasts  []*ClassUpcastExpr // Per-result source class coercions, when required.
 	Value    Expression
 	Span     source.Span
 }

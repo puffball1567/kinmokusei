@@ -7,6 +7,13 @@ import (
 
 func TestMultipleCallArgumentBoundaries(t *testing.T) {
 	for _, tc := range []struct{ name, source, want string }{
+		{"min mismatched types", `function pair():(int,string){return 1,"x";} function use():void{min(pair());}`, "mismatched types"},
+		{"max unordered", `function pair():(boolean,boolean){return true,false;} function use():void{max(pair());}`, "requires ordered operands"},
+		{"min spread", `function pair():(int,int){return 1,2;} function use():void{min(pair()...);}`, "does not accept spread"},
+		{"complex count", `function pair():(float,float,float){return 1,2,3;} function use():void{complex(pair());}`, "expects 2 arguments"},
+		{"complex typed integers", `function pair():(int,int){return 1,2;} function use():void{complex(pair());}`, "floating-point"},
+		{"complex mixed precision", `function pair():(float32,float64){return 1,2;} function use():void{complex(pair());}`, "mismatched types"},
+		{"real count", `function pair():(complex128,complex128){return 1i,2i;} function use():void{real(pair());}`, "expects 1 arguments"},
 		{"append destination", `function pair():(int,int){return 1,2;} function use():void{append(pair());}`, "append requires a slice"},
 		{"append element", `function pair():(int[],string){return [1],"x";} function use():void{append(pair());}`, "cannot pass result 2"},
 		{"append spread", `function pair():(int[],int){return [1],2;} function use():void{append(pair()...);}`, "require destructuring"},

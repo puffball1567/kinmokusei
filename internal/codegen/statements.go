@@ -222,6 +222,11 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 				}
 			}
 		}
+		for _, upcast := range stmt.Upcasts {
+			if upcast != nil {
+				return generateCoercedMultiAssignment(stmt, targets, value)
+			}
+		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.WhileStmt:
 		condition, err := generateExpression(stmt.Condition)

@@ -50,7 +50,7 @@ feature work without mixing unrelated changes into its implementation.
 | 7 | Constraint intersections and interface composition | Source/imported Go type sets, Go method interfaces, and comparable requirements can be composed; native interface contracts remain |
 | 8 | Remaining constant contexts | Scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` preserve values and types; bounds and size checks consume these constants; further contexts remain |
 | 9 | Source anonymous-interface syntax | Implemented for method-only `interface { name(parameters): result; }` types; exported method sets lower to Go anonymous interfaces |
-| 10 | Source-declared multiple results | Implemented for `(T, U)` signatures, explicit returns, forwarding, contextual callbacks, arrow result inference, try/catch/finally and sole-argument expansion including generic source/Go functions, instance methods, Task launches, and append/copy/delete; named results and other builtin argument expansion remain |
+| 10 | Source-declared multiple results | Implemented for `(T, U)` signatures, explicit returns, forwarding, contextual callbacks, arrow result inference, try/catch/finally and sole-argument expansion including generic source/Go functions, instance methods, Task launches, and append/copy/delete/min/max/complex; named results and an audit of remaining builtin argument forms remain |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
 | 12 | Getter/setter properties | Instance/static accessors and interface contracts implemented, including independent visibility, generic inheritance, virtual/abstract/final instance overrides, DI, ordered updates and editor support |
 | 13 | Static fields and constants | Mutable fields and typed scalar `static const` members implemented, with inherited visibility, generic-independent scope, Go variables/constants and initialization checks |
@@ -58,6 +58,21 @@ feature work without mixing unrelated changes into its implementation.
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
 | 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
+
+Local arrows can return parameterized classes using an enclosing function's
+type parameter in result lists, including inherited classes:
+
+```ts
+class Box<T> { constructor(public value: T) {} }
+function example<T>(value: T): void {
+  const pair = (): (Box<T>, int) => { return new Box<T>(value), 1; };
+}
+```
+
+Result-list signature comparison checks each slot even before a complete Go
+storage type is available. Nominal class identity, type arguments, nullability,
+result count and element types remain checked. Generic inherited-class arrows
+and their use in multiple assignment are covered by runtime tests.
 
 ## Completed through v0.3.0
 

@@ -9,6 +9,31 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Fix identical generic class result-list signatures being rejected for local
+  arrows when Go storage types are unavailable. Compare individual result
+  contracts while retaining nominal identity, type arguments and nullability;
+  cover contextual/inferred arrows and inherited classes with regression tests.
+
+- Apply class upcasts in multiple assignment to existing base-class variables,
+  including generic and nullable classes, checked map lookups and channel
+  receives. Capture results once before converting and assigning them; preserve
+  blank targets, repeated targets, virtual dispatch and for-post use.
+
+- Reject unused type conversions in statement and for-clause positions during
+  source checking, including native, imported Go and type-parameter conversions.
+  Keep explicit discards and ordinary function calls, with evaluation verified
+  against handwritten Go.
+
+- Diagnose unused value-only built-ins (including sole-call result expansion)
+  in expression statements and `go`/`defer` statements before Go generation.
+  Explicit `_ = ...` discards remain available; copy/delete/clear/close and
+  user-defined functions shadowing built-in names retain statement use.
+
+- Accept sole-call multiple-result arguments in `min`, `max`, and `complex`.
+  Preserve runtime operand types, generic ordered constraints, complex64 width,
+  single evaluation, NaN and signed-zero behavior; reject incompatible result
+  types, wrong arity and spread syntax before Go generation.
+
 - Expand collection built-in tuple arguments through explicit bindings in
   generated Go, avoiding a Go 1.26+ vet panic while retaining single evaluation,
   generic result types and eager capture for deferred calls. Vet remains enabled.

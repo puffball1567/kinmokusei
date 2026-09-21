@@ -217,6 +217,11 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(statement.Target)
 		case *ast.MultiAssignmentStmt:
 			visitExpression(statement.Value)
+			for _, upcast := range statement.Upcasts {
+				if upcast != nil {
+					visitExpression(upcast)
+				}
+			}
 		case *ast.WhileStmt:
 			visitExpression(statement.Condition)
 			visitStatement(statement.Body)

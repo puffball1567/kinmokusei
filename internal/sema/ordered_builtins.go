@@ -30,9 +30,10 @@ func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
 		valid = false
 	}
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/ordered", "ordered")
-	arguments := make([]goast.Expr, len(expr.Arguments))
-	for index, argument := range expr.Arguments {
-		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
+	values, origins := c.checkNumericCallInputs(expr)
+	arguments := make([]goast.Expr, len(values))
+	for index, argument := range origins {
+		value := values[index]
 		if value.Kind == Invalid {
 			valid = false
 			continue
@@ -53,5 +54,9 @@ func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	return c.finishNumeric(expr, pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: arguments})
+	result := c.finishNumeric(expr, pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: arguments})
+	if result.Kind != Invalid {
+		c.recordBuiltinMultipleResult(expr, result)
+	}
+	return result
 }
