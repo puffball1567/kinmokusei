@@ -31,6 +31,21 @@ function deref<T>(v:*T):T{return *v;}
 function receive<T>(v:GoChannel<T>):T{return <-v;}
 function transform<T>(v:T[],f:(v:T)=>T):T{return f(v[0]);}
 class Reader{public function first<T>(v:T[]):T{return v[0];}}
+constraint Slice<E>=~E[];
+constraint Mapping<K extends comparable,V>=~Map<K,V>;
+constraint ArrayPair<E>=~[2]E;
+constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;
+function forwardSlice<E,S extends Slice<E>>(v:S):E{return first(v);}
+function forwardMap<K extends comparable,V,M extends Mapping<K,V>>(v:M,key:K):V{return read(v,key);}
+function forwardArray<E,A extends ArrayPair<E>>(v:A):E{return array(v);}
+function readOnly<T>(v:GoReceiveChannel<T>):T{return <-v;}
+function forwardChannel<E,C extends Receiving<E>>(v:C):E{return readOnly(v);}
+function forwardCallback<E,S extends Slice<E>>(v:S):E{return transform(v,(x)=>x);}
+export function Forward():int{
+  const values=Values<int>([13,14]);const m=makeMap<string,int>();m["x"]=15;
+  const pair:[2]int=[16,17];const ch=goChannel<int>(1);ch<-18;
+  return forwardSlice(values)+forwardMap(Lookup(m),"x")+forwardArray(Pair(pair))+forwardChannel(Channel(ch))+forwardCallback(values);
+}
 export function Run():int{
   const values=Values<int>([3,4]);const m=makeMap<string,int>();m["x"]=5;
   const pair:[2]int=[6,7];let n=8;const ch=goChannel<int>(1);ch<-9;
@@ -61,10 +76,18 @@ func array[T any](v [2]T)T{return v[1]}
 func deref[T any](v *T)T{return *v}
 func receive[T any](v chan T)T{return <-v}
 func transform[T any](v []T,f func(T)T)T{return f(v[0])}
+func forwardSlice[E any,S ~[]E](v S)E{return first(v)}
+func forwardMap[K comparable,V any,M ~map[K]V](v M,key K)V{return read(v,key)}
+func forwardArray[E any,A ~[2]E](v A)E{return array(v)}
+func readOnly[T any](v <-chan T)T{return <-v}
+func forwardChannel[E any,C interface{~chan E|~<-chan E}](v C)E{return readOnly(v)}
+func forwardCallback[E any,S ~[]E](v S)E{return transform(v,func(x E)E{return x})}
+func Forward()int{values:=Values[int]{13,14};m:=Lookup{"x":15};pair:=Pair{16,17};ch:=make(Channel,1);ch<-18;return forwardSlice(values)+forwardMap(m,"x")+forwardArray(pair)+forwardChannel(ch)+forwardCallback(values)}
 func Run()int{values:=Values[int]{3,4};m:=Lookup{"x":5};pair:=Pair{6,7};n:=8;ch:=make(Channel,1);ch<-9;return first(values)+named([]int{4,5})+read(m,"x")+array(pair)+deref(Ref(&n))+receive(ch)+transform(values,func(v int)int{return v*2})+first(values)+first(numbers())}
 `
 	comparison := `package collections_test
 import("testing";g "named-collection-inference.test";r "named-collection-inference.test/reference")
-func TestInference(t *testing.T){if got,want:=g.Run(),r.Run();got!=want{t.Fatalf("got %d want %d",got,want)}}`
+func TestInference(t *testing.T){if got,want:=g.Run(),r.Run();got!=want{t.Fatalf("got %d want %d",got,want)}}
+func TestForward(t *testing.T){if got,want:=g.Forward(),r.Forward();got!=want{t.Fatalf("forward got %d want %d",got,want)}}`
 	runGeneratedGoDifferentialTest(t, root, "named-collection-inference.test", generated, reference, comparison)
 }

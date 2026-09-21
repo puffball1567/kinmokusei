@@ -277,7 +277,9 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 	// A named collection is assignable to an unnamed collection with the same
 	// underlying type. Preserve source element contracts while exposing that
 	// shape for inference; do not unwrap two distinct named types.
-	if actual.Kind == GoNamed && unnamedInferenceCollection(formal) {
+	// A caller's type parameter can likewise expose a common collection shape
+	// through its constraint. It remains fixed, not a new inference variable.
+	if (actual.Kind == GoNamed || actual.Kind == TypeParameter) && unnamedInferenceCollection(formal) {
 		actual = c.constraintArgumentShape(actual)
 	} else if formal.Kind == GoNamed && unnamedInferenceCollection(actual) {
 		formal = c.constraintArgumentShape(formal)

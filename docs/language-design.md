@@ -1165,6 +1165,12 @@ pointers and channels. For example, `first<T>(values: T[]): T` can infer `int`
 from a `distinct int[]` argument, including named slices imported from Go.
 Argument compatibility still checks nominal identity, array length, channel
 direction and nullable elements; inference does not insert a type conversion.
+A caller's type parameter constrained to a common slice, array, map or
+receive-capable channel shape can supply these types too. For example,
+`function forward<E, S extends Slice<E>>(values: S): E { return first(values); }`
+works with `constraint Slice<E> = ~E[]`. The inferred element remains the
+caller's `E`; an ambiguous bound such as `~int[] | ~string[]` does not supply
+a single element type.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
 The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support

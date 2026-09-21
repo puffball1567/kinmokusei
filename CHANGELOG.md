@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Infer element/key types when generic wrappers forward constrained slices,
+  arrays, maps and receive-capable channels to native generic helpers. Preserve
+  caller type-parameter identity and contextual callback inference; ambiguous
+  collection bounds and incompatible nullable elements remain rejected.
+
 - Infer native generic arguments between named and unnamed slices, arrays,
   maps, pointers and channels, including imported Go collections and dependent
   callbacks. Keep named identity, array lengths, channel directions and nullable
