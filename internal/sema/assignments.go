@@ -42,6 +42,7 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 	value := c.checkMultipleValueExpression(stmt.Value)
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
+	stmt.Upcasts = make([]*ast.ClassUpcastExpr, len(stmt.Bindings))
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
 		if binding.Name == "_" {
@@ -73,6 +74,9 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 				declared = symbol.typeInfo
 			}
 			c.requireAssignable(declared, results[i], binding.Span)
+			var slot ast.Expression = &ast.IdentifierExpr{Name: "_", Span: binding.Span}
+			c.applyClassUpcast(&slot, declared, results[i])
+			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
 			c.updateIdentifierFlow(binding.Name, binding.Span, results[i])
 			if value.Kind == Result && i == len(results)-1 {
 				c.trackResultError(binding.Name, binding.Span)

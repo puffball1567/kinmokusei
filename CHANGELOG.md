@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Apply class upcasts in multiple assignment to existing base-class variables,
+  including generic and nullable classes, checked map lookups and channel
+  receives. Capture results once before converting and assigning them; preserve
+  blank targets, repeated targets, virtual dispatch and for-post use.
+
 - Reject unused type conversions in statement and for-clause positions during
   source checking, including native, imported Go and type-parameter conversions.
   Keep explicit discards and ordinary function calls, with evaluation verified

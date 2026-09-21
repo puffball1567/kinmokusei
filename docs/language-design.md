@@ -1237,9 +1237,14 @@ change width, and immutable bindings lowered as Go variables remain typed.
 Multiple Go results are locally destructured:
 
 ```ts
-const [value, err] = strconv.Atoi(text);
+let [value, err] = strconv.Atoi(text);
 [value, err] = strconv.Atoi(other);
 ```
+
+Multiple assignment to existing variables also performs derived-to-base class
+conversions, including nullable and generic classes. The producer is evaluated
+once before any target is updated. This also works with checked map lookups and
+channel receives, blank targets, and assignments in a `for` update clause.
 
 Multi-values are not first-class values and cannot silently discard `error`.
 

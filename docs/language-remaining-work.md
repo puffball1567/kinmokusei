@@ -59,6 +59,21 @@ feature work without mixing unrelated changes into its implementation.
 | 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
 
+Known follow-up for result lists: a local arrow returning a parameterized class
+with an enclosing function's type parameter can be rejected as incompatible
+with an identically displayed function type. Reproducer:
+
+```ts
+class Box<T> { constructor(public value: T) {} }
+function example<T>(value: T): void {
+  const pair = (): (Box<T>, int) => { return new Box<T>(value), 1; };
+}
+```
+
+The observed case used a generic subclass with an explicitly forwarding
+constructor. Check both this minimal form and inherited classes. Ordinary
+generic functions returning class result lists are covered by runtime tests.
+
 ## Completed through v0.3.0
 
 - Numeric constants in generic calls: real constant values in Go inference,
