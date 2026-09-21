@@ -9,6 +9,27 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Expand collection built-in tuple arguments through explicit bindings in
+  generated Go, avoiding a Go 1.26+ vet panic while retaining single evaluation,
+  generic result types and eager capture for deferred calls. Vet remains enabled.
+
+- Reuse ordinary call lowering for all Task launches, preserving inferred and
+  explicit generic calls, generic method receivers, spread arguments, and
+  contextual argument types such as `byte` and nil pointers. Generate fresh
+  capture names so user variables cannot be shadowed by Task temporaries.
+
+- Support sole-call multiple-result expansion in `append`, `copy`, and `delete`,
+  retaining slice element and map key checks. Fix Task launch argument capture
+  for multiple-result producers, including generic functions and methods;
+  evaluate the callee/receiver and producer before starting the worker.
+
+- Accept a multiple-result call as the sole unspread argument to functions,
+  methods and variadic callables: `consume(produce())`. Generic source and Go
+  functions support inferred and explicit type arguments. Check result
+  count and each argument type while preserving single evaluation. Calls that
+  need per-value source conversions must destructure first. Generic instance
+  methods capture the receiver before expanding results, including when deferred.
+
 - Add source function, method, arrow and function-type result lists such as
   `function cut(text: string): (string, string, boolean)`. Matching multiple-result
   calls can be forwarded directly, including contextual callbacks and generic
@@ -16,9 +37,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   rename/references. Comma-separated returns (`return a, b`) check each value
   in its declared context, including numeric bounds and class upcasts.
   Multiple-result returns also cross try/catch/finally, preserving evaluation
-  order, typed nil values, generic types and finally overrides. Result-list
-  inference without a contextual signature and multiple-result properties
-  remain unsupported.
+  order, typed nil values, generic types and finally overrides. Arrow result
+  lists can be inferred from forwarded calls or explicit return expressions,
+  including forward dependencies and try/finally. Ambiguous nil/null results,
+  mismatched branches and numeric overflow are diagnosed; multiple-result
+  properties remain unsupported.
 
 - Add method-only anonymous interface type syntax, for example
   `interface { read(offset: int): string; }`. Source declarations preserve

@@ -37,6 +37,9 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 		}
 	}
 	actualTypes := c.checkGenericCallbackArguments(expr, callable, bindings)
+	if len(actualTypes) == 1 && actualTypes[0].Kind == MultiValue {
+		return c.checkNativeGenericMultipleCall(expr, callableName, callable, bindings, actualTypes[0])
+	}
 	numericArguments := c.genericNumericArguments(expr.Arguments, actualTypes)
 	deferredNumeric := map[gotypes.Type]int{}
 	minimumArguments := len(callable.Parameters)
@@ -540,7 +543,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		typeArguments[i] = goType
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, typeArguments)
-	numericArguments := c.genericNumericArguments(expr.Arguments, actualTypes)
+	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
 	instantiatedSignature, err := inferGoGenericCall(signature, actualTypes, typeArguments, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot apply explicit Go type arguments to %s: %v", callableName, err))
@@ -552,6 +555,9 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	c.recordCallSignature(expr, converted)
+	if multiple {
+		c.checkMultipleCallArguments(expr, callableName, converted, Type{Kind: MultiValue, Results: actualTypes})
+	}
 	c.checkGenericShiftArguments(expr, converted)
 	return *converted.Result
 }
@@ -566,7 +572,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, nil)
-	numericArguments := c.genericNumericArguments(expr.Arguments, actualTypes)
+	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
 	instantiated, err := inferGoGenericCall(signature, actualTypes, nil, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot infer Go type arguments for %s: %v", callableName, err))
@@ -578,6 +584,9 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	c.recordCallSignature(expr, converted)
+	if multiple {
+		c.checkMultipleCallArguments(expr, callableName, converted, Type{Kind: MultiValue, Results: actualTypes})
+	}
 	c.checkGenericShiftArguments(expr, converted)
 	return *converted.Result
 }

@@ -42,6 +42,7 @@ type Checker struct {
 	usesExceptions             bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
+	taskLaunchCall             *ast.CallExpr
 	directCallCallee           ast.Expression
 	typeParameterScopes        []map[string]Type
 	deferredParameterBounds    map[*gotypes.TypeParam]bool
@@ -231,13 +232,13 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		if c.inConstructor {
 			c.report(stmt.Span, "constructors cannot return early; use conditional initialization and let the constructor complete")
 		}
-		if len(stmt.AdditionalValues) != 0 {
-			c.checkMultipleReturn(stmt)
+		if c.arrowReturns != nil {
+			c.collectArrowReturn(stmt)
 			c.reportPendingTasksBeforeExit()
 			return
 		}
-		if c.arrowReturns != nil {
-			c.collectArrowReturn(stmt)
+		if len(stmt.AdditionalValues) != 0 {
+			c.checkMultipleReturn(stmt)
 			c.reportPendingTasksBeforeExit()
 			return
 		}

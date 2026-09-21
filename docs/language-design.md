@@ -1113,7 +1113,17 @@ const split: (text: string) => (string, string, boolean) =
 This is a callable result list, not a storable tuple. Destructuring consumes
 its values. Counts, nullable qualifiers and per-element types are checked;
 direct forwarding cannot insert a class upcast for an individual result.
-Use an explicit arrow result annotation or a contextual function signature.
+Arrow result lists can also be inferred from a forwarded call or an explicit
+return list. Block inference takes the first return's result types (defaulting
+untyped literals) and checks subsequent returns against them. It does not widen
+incompatible branches or guess a type for nil/null; use an explicit annotation
+when those types cannot be established. For example:
+
+```typescript
+const pair = (value: int) => { return value, "label"; };
+const split = (text: string) => strings.Cut(text, ":");
+```
+
 Each explicit return expression is checked in its result slot's type context,
 including numeric representability and class upcasts. A result-list call cannot
 be mixed with other expressions in that list. Returns through try/catch/finally
@@ -1121,6 +1131,30 @@ evaluate all values before executing finally. A return or throw in finally
 replaces the pending return. Typed result payloads preserve nil interfaces,
 numeric widths and generic type identity. Getters still return one property value.
 `void`, `Result<T>` and `Task<T>` cannot be elements of a result list.
+
+A multiple-result call can also supply all arguments to a function,
+method or variadic callable, following Go's sole-argument rule:
+
+```typescript
+function inputs(): (string, int) { return "hi", 2; }
+function repeat(text: string, count: int): string {
+  return strings.Repeat(text, count);
+}
+const repeated = repeat(inputs());
+```
+
+The inner call executes once. Its result count and types must match the outer
+call; variadic parameters consume any remaining results. This cannot be mixed
+with other arguments or a spread marker. Per-value class upcasts require
+destructuring before the call. Result effects still require explicit handling.
+Generic source and Go functions infer type arguments from the returned values;
+explicit type arguments are also supported, including variadic functions.
+Generic instance methods also support expansion, evaluating the receiver before
+the producer exactly once. Deferred calls capture both at registration time.
+The collection built-ins `append`, `copy`, and `delete` also support expansion.
+Other built-ins still require destructuring first. A `go` expression captures
+the callee/receiver and the producer's values before starting its Task, just as
+it captures ordinary arguments; this also applies to generic calls.
 
 ```ts
 const add = (left: int, right: int): int => left + right;

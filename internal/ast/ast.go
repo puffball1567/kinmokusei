@@ -808,7 +808,12 @@ type CallExpr struct {
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
 	// structural interface inference cannot recover them from a method set.
 	ResolvedTypeArguments []TypeRef
-	Arguments             []Expression
+	// MultipleArgumentCount records sole-call result expansion for capture lowering.
+	MultipleArgumentCount  int
+	MultipleArgumentResult *TypeRef
+	GenericCall            bool      // Generic functions cannot be captured uninstantiated.
+	CaptureArgumentTypes   []TypeRef // Contextual types for eager Task argument capture.
+	Arguments              []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments []bool

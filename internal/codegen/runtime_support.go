@@ -66,58 +66,53 @@ func taskTypeFromAnnotation(value kinmokuseiAST.TypeRef, resultTask, void bool) 
 }
 
 func generateTaskStart(expr *kinmokuseiAST.TaskStartExpr) (goast.Expr, error) {
-	callee, err := generateExpression(expr.Call.Callee)
+	body, call, err := captureTaskCall(expr.Call)
 	if err != nil {
 		return nil, err
 	}
-	body := &goast.BlockStmt{List: []goast.Stmt{
-		&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("taskFunction")}, Tok: token.DEFINE, Rhs: []goast.Expr{callee}},
-	}}
-	argumentNames := make([]goast.Expr, 0, len(expr.Call.Arguments))
-	for index, argument := range expr.Call.Arguments {
-		value, argumentErr := generateExpression(argument)
-		if argumentErr != nil {
-			return nil, argumentErr
-		}
-		name := fmt.Sprintf("taskArgument%d", index)
-		body.List = append(body.List, &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(name)}, Tok: token.DEFINE, Rhs: []goast.Expr{value}})
-		argumentNames = append(argumentNames, goast.NewIdent(name))
-	}
 	taskType := taskTypeFromAnnotation(expr.ValueType, expr.ResultTask, expr.Void)
+	used := map[string]bool{}
+	goast.Inspect(call, func(node goast.Node) bool {
+		if name, ok := node.(*goast.Ident); ok {
+			used[name.Name] = true
+		}
+		return true
+	})
+	taskName := "task"
+	for i := 0; used[taskName]; i++ {
+		taskName = fmt.Sprintf("__task%d", i)
+	}
+	task := goast.NewIdent(taskName)
 	concreteTaskType := taskType.(*goast.StarExpr).X
 	doneChannelType := &goast.ChanType{Dir: goast.SEND | goast.RECV, Value: &goast.StructType{Fields: &goast.FieldList{}}}
 	taskLiteral := &goast.CompositeLit{Type: concreteTaskType, Elts: []goast.Expr{
 		&goast.KeyValueExpr{Key: goast.NewIdent("done"), Value: &goast.CallExpr{Fun: goast.NewIdent("make"), Args: []goast.Expr{doneChannelType}}},
 	}}
 	body.List = append(body.List, &goast.AssignStmt{
-		Lhs: []goast.Expr{goast.NewIdent("task")}, Tok: token.DEFINE,
+		Lhs: []goast.Expr{task}, Tok: token.DEFINE,
 		Rhs: []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: taskLiteral}},
 	})
-	call := &goast.CallExpr{Fun: goast.NewIdent("taskFunction"), Args: argumentNames}
-	if expr.Call.Expanded {
-		call.Ellipsis = token.Pos(1)
-	}
 	recoverBody := &goast.BlockStmt{List: []goast.Stmt{&goast.AssignStmt{
-		Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("task"), Sel: goast.NewIdent("panicValue")}},
+		Lhs: []goast.Expr{&goast.SelectorExpr{X: task, Sel: goast.NewIdent("panicValue")}},
 		Tok: token.ASSIGN, Rhs: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("recover")}},
 	}}}
 	workerBody := &goast.BlockStmt{List: []goast.Stmt{
-		&goast.DeferStmt{Call: &goast.CallExpr{Fun: goast.NewIdent("close"), Args: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("task"), Sel: goast.NewIdent("done")}}}},
+		&goast.DeferStmt{Call: &goast.CallExpr{Fun: goast.NewIdent("close"), Args: []goast.Expr{&goast.SelectorExpr{X: task, Sel: goast.NewIdent("done")}}}},
 		&goast.DeferStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: recoverBody}}},
 	}}
 	switch {
 	case expr.ResultTask && expr.Void:
-		workerBody.List = append(workerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("task"), Sel: goast.NewIdent("err")}}, Tok: token.ASSIGN, Rhs: []goast.Expr{call}})
+		workerBody.List = append(workerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: task, Sel: goast.NewIdent("err")}}, Tok: token.ASSIGN, Rhs: []goast.Expr{call}})
 	case expr.ResultTask:
-		workerBody.List = append(workerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("task"), Sel: goast.NewIdent("value")}, &goast.SelectorExpr{X: goast.NewIdent("task"), Sel: goast.NewIdent("err")}}, Tok: token.ASSIGN, Rhs: []goast.Expr{call}})
+		workerBody.List = append(workerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: task, Sel: goast.NewIdent("value")}, &goast.SelectorExpr{X: task, Sel: goast.NewIdent("err")}}, Tok: token.ASSIGN, Rhs: []goast.Expr{call}})
 	case expr.Void:
 		workerBody.List = append(workerBody.List, &goast.ExprStmt{X: call})
 	default:
-		workerBody.List = append(workerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("task"), Sel: goast.NewIdent("value")}}, Tok: token.ASSIGN, Rhs: []goast.Expr{call}})
+		workerBody.List = append(workerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: task, Sel: goast.NewIdent("value")}}, Tok: token.ASSIGN, Rhs: []goast.Expr{call}})
 	}
 	body.List = append(body.List,
 		&goast.GoStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: workerBody}}},
-		&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("task")}},
+		&goast.ReturnStmt{Results: []goast.Expr{task}},
 	)
 	return &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: taskType}}}}, Body: body}}, nil
 }

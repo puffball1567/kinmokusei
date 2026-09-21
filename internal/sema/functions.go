@@ -105,7 +105,9 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		}
 		actual := c.checkExpressionExpectedSlot(&expr.ExpressionBody, result)
 		if expr.ReturnType == nil && result.Kind == Invalid {
-			actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())
+			if actual.Kind != MultiValue {
+				actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())
+			}
 			if actual.Kind == Nil {
 				c.report(expr.ExpressionBody.GetSpan(), "cannot infer an arrow function return type from nil")
 				result = Type{Kind: Invalid, Name: "<invalid>"}
