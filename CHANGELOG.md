@@ -15,8 +15,10 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   function aliases. Preserve nullable contracts and type references in editor
   rename/references. Comma-separated returns (`return a, b`) check each value
   in its declared context, including numeric bounds and class upcasts.
-  This is partial multiple-return support: result-list inference without a contextual signature,
-  multiple-result properties, and try blocks in these callables are not supported.
+  Multiple-result returns also cross try/catch/finally, preserving evaluation
+  order, typed nil values, generic types and finally overrides. Result-list
+  inference without a contextual signature and multiple-result properties
+  remain unsupported.
 
 - Add method-only anonymous interface type syntax, for example
   `interface { read(offset: int): string; }`. Source declarations preserve

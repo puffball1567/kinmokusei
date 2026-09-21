@@ -1116,8 +1116,10 @@ direct forwarding cannot insert a class upcast for an individual result.
 Use an explicit arrow result annotation or a contextual function signature.
 Each explicit return expression is checked in its result slot's type context,
 including numeric representability and class upcasts. A result-list call cannot
-be mixed with other expressions in that list. Try blocks inside multiple-result
-callables are not yet supported. Getters still return one property value.
+be mixed with other expressions in that list. Returns through try/catch/finally
+evaluate all values before executing finally. A return or throw in finally
+replaces the pending return. Typed result payloads preserve nil interfaces,
+numeric widths and generic type identity. Getters still return one property value.
 `void`, `Result<T>` and `Task<T>` cannot be elements of a result list.
 
 ```ts

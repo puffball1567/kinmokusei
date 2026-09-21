@@ -18,7 +18,6 @@ func TestMultipleResultBoundaries(t *testing.T) {
 		{"void", `function f():(void,int){return f();}`, "ordinary value types"},
 		{"result", `function f():(Result<int>,int){return f();}`, "ordinary value types"},
 		{"task", `function f():(Task<int>,int){return f();}`, "ordinary value types"},
-		{"try", `function f():(int,string){try{return f();}finally{}}`, "try statements in multiple-result callables"},
 		{"single value", `function f():(int,string){return f();} function g():int{return f();}`, "require destructuring"},
 		{"nullable callback", `class Box {} function f():(Box | null,int){return f();} function use(cb:()=>(Box,int)):void{} function bad():void{use(f);}`, "cannot use"},
 		{"nullable Result callback", `class Box {} function f():Result<Box | null>{return ok(null);} function use(cb:()=>(Box,error)):void{} function bad():void{use(f);}`, "cannot use"},

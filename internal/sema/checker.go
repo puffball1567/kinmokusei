@@ -224,6 +224,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.ReturnStmt:
 		if c.exceptionDepth != 0 {
 			stmt.CrossesTry = true
+			if c.result.Kind == MultiValue {
+				stmt.ResultType = typeRefFromType(c.result, stmt.Span)
+			}
 		}
 		if c.inConstructor {
 			c.report(stmt.Span, "constructors cannot return early; use conditional initialization and let the constructor complete")

@@ -11,6 +11,7 @@ func TestSourceResultForwardingMatchesGo(t *testing.T) {
 	root := t.TempDir()
 	input := `import go strings from "strings";
 import go strconv from "strconv";
+import go errors from "errors";
 import {Split,Tail} from "./types";
 function Cut(s:string):(string,string,boolean){return strings.Cut(s,":");}
 function apply(f:(s:string)=>(string,string,boolean),s:string):(string,string,boolean){return f(s);}
@@ -40,6 +41,16 @@ class Derived extends Base {}
 function construct():(Base,int){return new Derived(),9;}
 function Upcast():int{const [obj,value]=construct();return obj.value()+value;}
 function Narrow():(byte,float32){return 255,16777217;}
+function TryForward(s:string):(string,string,boolean){try{return Cut(s);}finally{trace++;}}
+function TryTyped():(byte,error){try{return 255,nil;}finally{trace++;}}
+function TryCatch(fail:boolean):(int,string){try{if(fail){throw errors.New("bad");}return 1,"ok";}catch(e:error){return 2,e.Error();}finally{trace++;}}
+function Nested():(int,int){trace=0;try{try{return bump(1),bump(2);}finally{trace=trace*10+3;}}finally{trace=trace*10+4;}}
+function Override():(int,int){try{return 1,2;}finally{return 3,4;}}
+function Trace():int{return trace;}
+function genericTry<T>(value:T):(T,T){try{return value,value;}finally{trace++;}}
+function GenericTry(s:string):(string,string){return genericTry(s);}
+function FinallyThrow():(int,string){try{try{return 1,"ignored";}finally{throw errors.New("override");}}catch(e:error){return 2,e.Error();}}
+function RuntimePanic():(int,int){try{let xs:int[]=[];return xs[0],2;}catch(e:error){return 9,9;}finally{trace++;}}
 `
 	path := filepath.Join(root, "entry.km")
 	if err := os.WriteFile(filepath.Join(root, "types.km"), []byte(`alias Split<T>=(s:T)=>(T,T,boolean); function Tail():string{return "tail";}`), 0o644); err != nil {
@@ -66,6 +77,15 @@ func bump(n int)int{trace=trace*10+n;return trace}
 func Ordered()(int,int,int){trace=0;return bump(1),bump(2),trace}
 func Upcast()int{return 7+9}
 func Narrow()(byte,float32){return 255,16777217}
+func TryForward(s string)(string,string,bool){defer func(){trace++}();return Cut(s)}
+func TryTyped()(byte,error){defer func(){trace++}();return 255,nil}
+func TryCatch(fail bool)(int,string){defer func(){trace++}();if fail{return 2,"bad"};return 1,"ok"}
+func Nested()(int,int){trace=0;defer func(){trace=trace*10+4}();return func()(int,int){defer func(){trace=trace*10+3}();return bump(1),bump(2)}()}
+func Override()(a,b int){defer func(){a,b=3,4}();return 1,2}
+func Trace()int{return trace}
+func GenericTry(s string)(string,string){defer func(){trace++}();return s,s}
+func FinallyThrow()(int,string){return 2,"override"}
+func RuntimePanic()(int,int){defer func(){trace++}();xs:=[]int{};return xs[0],2}
 `
 	comparison := `package results_test
 import("testing";g "source-results.test";r "source-results.test/reference")
@@ -83,6 +103,17 @@ func TestExplicitReturns(t *testing.T){
  a,b,c:=g.Ordered();x,y,z:=r.Ordered();if a!=x||b!=y||c!=z{t.Fatal("evaluation order")}
  if g.Upcast()!=r.Upcast(){t.Fatal("class upcast")}
  n,f:=g.Narrow();m,h:=r.Narrow();if n!=m||f!=h{t.Fatal("numeric context")}
+}
+func TestExceptionReturns(t *testing.T){
+ a,b:=g.Nested();x,y:=r.Nested();if a!=x||b!=y||g.Trace()!=r.Trace(){t.Fatal("nested finally and evaluation order")}
+ a,b=g.Override();x,y=r.Override();if a!=x||b!=y{t.Fatal("finally override")}
+ n,e:=g.TryTyped();m,f:=r.TryTyped();if n!=m||e!=f{t.Fatal("typed nil return")}
+ for _,s:=range []string{"a:b","plain"}{a,b,c:=g.TryForward(s);x,y,z:=r.TryForward(s);if a!=x||b!=y||c!=z{t.Fatal("forward through finally")};a,b=g.GenericTry(s);x,y=r.GenericTry(s);if a!=x||b!=y{t.Fatal("generic payload")}}
+ for _,fail:=range []bool{false,true}{a,b:=g.TryCatch(fail);x,y:=r.TryCatch(fail);if a!=x||b!=y{t.Fatal("catch return")}}
+ if g.Trace()!=r.Trace(){t.Fatal("finally execution count")}
+ a,text:=g.FinallyThrow();x,want:=r.FinallyThrow();if a!=x||text!=want{t.Fatal("throw overrides return")}
+ panics:=func(f func()(int,int))(yes bool){defer func(){yes=recover()!=nil}();f();return}
+ gp,rp:=panics(g.RuntimePanic),panics(r.RuntimePanic);if !gp||gp!=rp||g.Trace()!=r.Trace(){t.Fatal("runtime panic must bypass catch and execute finally")}
 }
 `
 	runGeneratedGoDifferentialTest(t, root, "source-results.test", generated, reference, comparison)

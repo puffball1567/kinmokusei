@@ -181,6 +181,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitStatement(child)
 			}
 		case *ast.ReturnStmt:
+			visitType(&statement.ResultType)
 			visitExpression(statement.Value)
 			for _, value := range statement.AdditionalValues {
 				visitExpression(value)
@@ -188,6 +189,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.ThrowStmt:
 			visitExpression(statement.Value)
 		case *ast.TryStmt:
+			visitType(&statement.ReturnType)
 			visitStatement(statement.Body)
 			for _, clause := range statement.Catches {
 				visitType(&clause.Type)

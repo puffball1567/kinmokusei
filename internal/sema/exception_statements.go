@@ -9,9 +9,6 @@ import (
 )
 
 func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
-	if c.result.Kind == MultiValue {
-		c.report(stmt.Span, "try statements in multiple-result callables are not supported yet; move exception handling to a single-result helper")
-	}
 	c.usesExceptions = true
 	stmt.HandlesReturn = c.exceptionDepth == 0
 	if stmt.HandlesReturn {
