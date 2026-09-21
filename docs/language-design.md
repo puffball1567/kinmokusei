@@ -1149,6 +1149,10 @@ with other arguments or a spread marker. Per-value class upcasts require
 destructuring before the call. Result effects still require explicit handling.
 Generic source and Go functions infer type arguments from the returned values;
 explicit type arguments are also supported, including variadic functions.
+Native generic functions also infer from callback result lists: for a parameter
+`produce: () => (T, U)`, passing a function returning `(int, string)` infers
+`T = int` and `U = string`. This applies to direct arrows, generic methods and
+partially explicit type arguments; conflicting results remain errors.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
 The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support

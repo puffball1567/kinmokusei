@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Infer native generic type arguments from each callback result-list slot,
+  including named function values, direct arrows, partially explicit arguments,
+  generic methods, nested class arguments and dependent callback contexts.
+  Diagnose conflicting results, mismatched arity and unsatisfied constraints.
+
 - Fix identical generic class result-list signatures being rejected for local
   arrows when Go storage types are unavailable. Compare individual result
   contracts while retaining nominal identity, type arguments and nullability;

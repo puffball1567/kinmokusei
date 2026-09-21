@@ -276,6 +276,15 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 		actual = ancestor
 	}
 	switch formal.Kind {
+	case MultiValue:
+		if len(formal.Results) != len(actual.Results) {
+			return fmt.Errorf("multiple result count mismatch: got %d results, expected %d", len(actual.Results), len(formal.Results))
+		}
+		for i := range formal.Results {
+			if err := c.inferNativeTypeArguments(formal.Results[i], actual.Results[i], bindings); err != nil {
+				return fmt.Errorf("result %d: %w", i+1, err)
+			}
+		}
 	case Nullable, Array, FixedArray, GoPointer, Result, Task, GoChannel:
 		if formal.Element != nil && actual.Element != nil {
 			return c.inferNativeTypeArguments(*formal.Element, *actual.Element, bindings)
