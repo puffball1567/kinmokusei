@@ -7,6 +7,7 @@ import (
 )
 
 func (c *Checker) checkMultipleCallArguments(expr *ast.CallExpr, name string, callable, values Type) {
+	expr.MultipleArgumentCount = len(values.Results)
 	minimum := len(callable.Parameters)
 	if callable.Variadic {
 		minimum--

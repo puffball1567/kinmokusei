@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support sole-call multiple-result expansion in `append`, `copy`, and `delete`,
+  retaining slice element and map key checks. Fix Task launch argument capture
+  for multiple-result producers, including generic functions and methods;
+  evaluate the callee/receiver and producer before starting the worker.
+
 - Accept a multiple-result call as the sole unspread argument to functions,
   methods and variadic callables: `consume(produce())`. Generic source and Go
   functions support inferred and explicit type arguments. Check result

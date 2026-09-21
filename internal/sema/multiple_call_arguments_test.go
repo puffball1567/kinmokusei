@@ -7,6 +7,12 @@ import (
 
 func TestMultipleCallArgumentBoundaries(t *testing.T) {
 	for _, tc := range []struct{ name, source, want string }{
+		{"append destination", `function pair():(int,int){return 1,2;} function use():void{append(pair());}`, "append requires a slice"},
+		{"append element", `function pair():(int[],string){return [1],"x";} function use():void{append(pair());}`, "cannot pass result 2"},
+		{"append spread", `function pair():(int[],int){return [1],2;} function use():void{append(pair()...);}`, "require destructuring"},
+		{"copy count", `function pair():(int[],int[],int[]){return [1],[2],[3];} function use():void{copy(pair());}`, "copy expects 2 arguments"},
+		{"copy element", `function pair():(int[],string[]){return [1],["x"];} function use():void{copy(pair());}`, "does not match"},
+		{"delete key", `function pair(m:Map<string,int>):(Map<string,int>,int){return m,1;} function use(m:Map<string,int>):void{delete(pair(m));}`, "cannot pass result 2"},
 		{"type", `function pair():(int,string){return 1,"x";} function f(a:int,b:int):void{} function use():void{f(pair());}`, "cannot pass result 2"},
 		{"variadic type", `function pair():(int,string){return 1,"x";} function f(...a:int[]):void{} function use():void{f(pair());}`, "cannot pass result 2"},
 		{"mixed", `function pair():(int,int){return 1,2;} function f(a:int,b:int):void{} function use():void{f(1,pair());}`, "require destructuring"},

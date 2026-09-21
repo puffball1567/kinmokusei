@@ -12,12 +12,17 @@ import (
 // the source call directly. Capture the receiver before evaluating the producer.
 func generateGenericMultipleCall(source *ast.CallExpr, call *goast.CallExpr) goast.Expr {
 	used := map[string]bool{}
-	goast.Inspect(call, func(node goast.Node) bool {
+	results := functionResults(*source.MultipleArgumentResult)
+	reserve := func(node goast.Node) bool {
 		if name, ok := node.(*goast.Ident); ok {
 			used[name.Name] = true
 		}
 		return true
-	})
+	}
+	goast.Inspect(call, reserve)
+	if results != nil {
+		goast.Inspect(results, reserve)
+	}
 	fresh := func(base string) goast.Expr {
 		name := base
 		for i := 1; used[name]; i++ {
@@ -36,7 +41,6 @@ func generateGenericMultipleCall(source *ast.CallExpr, call *goast.CallExpr) goa
 		&goast.AssignStmt{Lhs: values, Tok: token.DEFINE, Rhs: []goast.Expr{call.Args[1]}},
 	}
 	call.Args = append([]goast.Expr{receiver}, values...)
-	results := functionResults(*source.MultipleArgumentResult)
 	var invoke goast.Stmt
 	if results == nil || len(results.List) == 0 {
 		invoke = &goast.ExprStmt{X: call}

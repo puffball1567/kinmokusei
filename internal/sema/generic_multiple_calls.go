@@ -9,6 +9,7 @@ import (
 
 func (c *Checker) genericCallInputs(call *ast.CallExpr, actuals []Type) ([]Type, []gotypes.TypeAndValue, bool) {
 	if len(actuals) == 1 && actuals[0].Kind == MultiValue {
+		call.MultipleArgumentGeneric = true
 		values := actuals[0].Results
 		// Call results have runtime types, never constant argument values.
 		return values, make([]gotypes.TypeAndValue, len(values)), true
@@ -17,6 +18,7 @@ func (c *Checker) genericCallInputs(call *ast.CallExpr, actuals []Type) ([]Type,
 }
 
 func (c *Checker) checkNativeGenericMultipleCall(call *ast.CallExpr, name string, callable Type, bindings nativeTypeBindings, values Type) Type {
+	call.MultipleArgumentGeneric = true
 	minimum := len(callable.Parameters)
 	if callable.Variadic {
 		minimum--

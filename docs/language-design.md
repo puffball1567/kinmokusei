@@ -1151,7 +1151,10 @@ Generic source and Go functions infer type arguments from the returned values;
 explicit type arguments are also supported, including variadic functions.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
-Language built-ins do not yet support this expansion; destructure first.
+The collection built-ins `append`, `copy`, and `delete` also support expansion.
+Other built-ins still require destructuring first. A `go` expression captures
+the callee/receiver and the producer's values before starting its Task, just as
+it captures ordinary arguments; this also applies to generic calls.
 
 ```ts
 const add = (left: int, right: int): int => left + right;
