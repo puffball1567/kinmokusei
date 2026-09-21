@@ -17,10 +17,6 @@ func (c *Checker) genericCallInputs(call *ast.CallExpr, actuals []Type) ([]Type,
 }
 
 func (c *Checker) checkNativeGenericMultipleCall(call *ast.CallExpr, name string, callable Type, bindings nativeTypeBindings, values Type) Type {
-	if member, ok := call.Callee.(*ast.MemberExpr); ok && member.GenericMethod {
-		c.report(call.Span, "multiple-result arguments to generic instance methods require explicit destructuring")
-		return Type{Kind: Invalid}
-	}
 	minimum := len(callable.Parameters)
 	if callable.Variadic {
 		minimum--
@@ -61,6 +57,11 @@ func (c *Checker) checkNativeGenericMultipleCall(call *ast.CallExpr, name string
 	instantiated := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: callable.Variadic, Result: &result}
 	c.recordCallSignature(call, instantiated)
 	c.checkMultipleCallArguments(call, name, instantiated, values)
+	if member, ok := call.Callee.(*ast.MemberExpr); ok && member.GenericMethod {
+		call.MultipleArgumentCount = len(values.Results)
+		ref := typeRefFromType(result, call.Span)
+		call.MultipleArgumentResult = &ref
+	}
 	call.ResolvedTypeArguments = make([]ast.TypeRef, len(arguments))
 	for i, argument := range arguments {
 		call.ResolvedTypeArguments[i] = typeRefFromType(argument, call.Span)

@@ -73,6 +73,20 @@ function twoNumbers():(int,int){trace++;return 3,7;}
 function first<T>(a:T,b:T):T{return a;}
 function firstRest<T>(...values:T[]):T{return values[0];}
 function GenericArguments():int{trace=0;const a=first(twoNumbers());const b=first<int>(twoNumbers());const c=firstRest(numbers());return a*1000+b*100+c*10+trace;}
+class Collector {
+ public function first<T>(a:T,b:T):T{return a;}
+ public function rest<T>(...values:T[]):T{return values[0];}
+ public function both<T>(a:T,b:T):(T,T){return a,b;}
+ public function consume<T>(a:T,b:T):void{trace=trace*10+3;}
+}
+function collector():Collector{trace=trace*10+1;return new Collector();}
+function orderedNumbers():(int,int){trace=trace*10+2;return 3,7;}
+function GenericMethods():int{trace=0;const a=collector().first(orderedNumbers());const b=collector().rest<int>(orderedNumbers());const [c,d]=collector().both(orderedNumbers());collector().consume(orderedNumbers());return trace+a+b+c+d;}
+function GenericMethodShadow():int{const __multipleReceiver=()=>orderedNumbers();return collector().first(__multipleReceiver());}
+function deferredMethod():void{defer collector().consume(orderedNumbers());trace=trace*10+4;}
+function DeferredGenericMethod():int{trace=0;deferredMethod();return trace;}
+class GenericCollector<U>{public function first<T>(a:T,b:T):T{return a;}}
+function GenericReceiverMethod():int{const c=new GenericCollector<string>();return c.first(twoNumbers());}
 function GoGenericArguments():int{trace=0;const a=cmp.Compare(twoNumbers());const b=cmp.Compare<int>(twoNumbers());return a*100+b*10+trace;}
 function twoSlices():(int[],int[]){return [1,2],[3];}
 function GoGenericVariadic():int[]{return slices.Concat(twoSlices());}
@@ -121,6 +135,7 @@ func twoNumbers()(int,int){trace++;return 3,7}
 func first[T any](a,b T)T{return a}
 func firstRest[T any](v ...T)T{return v[0]}
 func GenericArguments()int{trace=0;a:=first(twoNumbers());b:=first[int](twoNumbers());c:=firstRest(numbers());return a*1000+b*100+c*10+trace}
+func GenericMethods()int{return 121212123+3+3+3+7}
 func GoGenericArguments()int{trace=0;a:=cmp.Compare(twoNumbers());b:=cmp.Compare[int](twoNumbers());return a*100+b*10+trace}
 func twoSlices()([]int,[]int){return []int{1,2},[]int{3}}
 func GoGenericVariadic()[]int{return slices.Concat(twoSlices())}
@@ -157,6 +172,7 @@ func TestExceptionReturns(t *testing.T){
 }
 func TestNestedCalls(t *testing.T){for _,s:=range []string{"","abc","日本語"}{for _,f:=range []func(string)string{g.NestedCall,g.GoNestedCall,g.MethodNestedCall}{if got,want:=f(s),r.NestedCall(s);got!=want{t.Fatalf("%q: %q != %q",s,got,want)}}};if g.VariadicCall()!=r.VariadicCall(){t.Fatal("variadic expansion or repeated evaluation")}}
 func TestGenericNestedCalls(t *testing.T){if g.GenericArguments()!=r.GenericArguments(){t.Fatal("native inference, explicit args or evaluation")};if g.GoGenericArguments()!=r.GoGenericArguments(){t.Fatal("Go inference or explicit args")};want:=r.GoGenericVariadic();if !reflect.DeepEqual(g.GoGenericVariadic(),want)||!reflect.DeepEqual(g.GoGenericExplicitVariadic(),want){t.Fatal("variadic inference")}}
+func TestGenericMethodArguments(t *testing.T){if got,want:=g.GenericMethods(),r.GenericMethods();got!=want{t.Fatalf("receiver/result evaluation: got %d want %d",got,want)};if g.GenericMethodShadow()!=3{t.Fatal("temporary captured source binding")};if got:=g.DeferredGenericMethod();got!=1243{t.Fatalf("defer evaluation order: %d",got)};if g.GenericReceiverMethod()!=3{t.Fatal("generic receiver")}}
 `
 	runGeneratedGoDifferentialTest(t, root, "source-results.test", generated, reference, comparison)
 }

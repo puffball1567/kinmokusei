@@ -13,8 +13,8 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   methods and variadic callables: `consume(produce())`. Generic source and Go
   functions support inferred and explicit type arguments. Check result
   count and each argument type while preserving single evaluation. Calls that
-  need per-value source conversions must destructure first, as must calls to
-  generic instance methods whose Go helper adds a receiver argument.
+  need per-value source conversions must destructure first. Generic instance
+  methods capture the receiver before expanding results, including when deferred.
 
 - Add source function, method, arrow and function-type result lists such as
   `function cut(text: string): (string, string, boolean)`. Matching multiple-result

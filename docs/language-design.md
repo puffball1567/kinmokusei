@@ -1149,8 +1149,9 @@ with other arguments or a spread marker. Per-value class upcasts require
 destructuring before the call. Result effects still require explicit handling.
 Generic source and Go functions infer type arguments from the returned values;
 explicit type arguments are also supported, including variadic functions.
-Generic instance methods and language built-ins do not yet support this
-expansion; destructure before calling these targets.
+Generic instance methods also support expansion, evaluating the receiver before
+the producer exactly once. Deferred calls capture both at registration time.
+Language built-ins do not yet support this expansion; destructure first.
 
 ```ts
 const add = (left: int, right: int): int => left + right;

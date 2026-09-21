@@ -808,7 +808,10 @@ type CallExpr struct {
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
 	// structural interface inference cannot recover them from a method set.
 	ResolvedTypeArguments []TypeRef
-	Arguments             []Expression
+	// MultipleArgumentCount requests receiver-first lowering for generic methods.
+	MultipleArgumentCount  int
+	MultipleArgumentResult *TypeRef
+	Arguments              []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments []bool

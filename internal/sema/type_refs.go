@@ -99,6 +99,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitType(&expression.Type)
 		case *ast.CallExpr:
 			visitExpression(expression.Callee)
+			visitType(expression.MultipleArgumentResult)
 			for i := range expression.ResolvedTypeArguments {
 				visitType(&expression.ResolvedTypeArguments[i])
 			}

@@ -233,6 +233,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			args = append(args, generated)
 		}
 		call := &goast.CallExpr{Fun: callee, Args: args}
+		if genericReceiver != nil && expr.MultipleArgumentCount > 0 {
+			return generateGenericMultipleCall(expr, call), nil
+		}
 		if expr.Expanded {
 			call.Ellipsis = token.Pos(1)
 		}

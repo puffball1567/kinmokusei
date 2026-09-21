@@ -18,7 +18,7 @@ func TestMultipleCallArgumentBoundaries(t *testing.T) {
 		{"generic conflicting types", `function pair():(int,string){return 1,"x";} function f<T>(a:T,b:T):T{return a;} function use():void{f(pair());}`, "cannot"},
 		{"generic explicit mismatch", `function pair():(int,int){return 1,2;} function f<T>(a:T,b:T):T{return a;} function use():void{f<string>(pair());}`, "cannot"},
 		{"generic constraint", `constraint N=~int; function pair():(string,string){return "a","b";} function f<T extends N>(a:T,b:T):T{return a;} function use():void{f(pair());}`, "does not satisfy"},
-		{"generic instance method", `function pair():(int,int){return 1,2;} class C{public function f<T>(a:T,b:T):T{return a;}} function use():void{const c=new C();c.f(pair());}`, "generic instance methods require explicit destructuring"},
+		{"generic instance method count", `function pair():(int,int){return 1,2;} class C{public function f<T>(a:T):T{return a;}} function use():void{const c=new C();c.f(pair());}`, "multiple-result argument count mismatch"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := strings.Join(checkSource(t, tc.source), "\n"); !strings.Contains(got, tc.want) {
