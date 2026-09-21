@@ -49,6 +49,15 @@ func TestCallbackResultInferenceBoundaries(t *testing.T) {
 		{"count", `function pair():(int,int,int){return 1,2,3;} function use<T>(f:()=>(T,T)):void{} function run():void{use(pair);}`, "result count mismatch"},
 		{"constraint", `constraint Number=~int; function pair():(string,int){return "x",1;} function use<T extends Number>(f:()=>(T,int)):void{} function run():void{use(pair);}`, "does not satisfy"},
 		{"dependent callback", `function use<T>(f:()=>(T,int),g:(v:T)=>string):string{const [value,_]=f();return g(value);} function run():string{return use(()=>{return "ok",1;},(value)=>value);}`, ""},
+		{"named callback value", `type Pair=distinct ()=>(int,string); function first<T,U>(f:()=>(T,U)):T{const [v,_]=f();return v;} function run(f:Pair):int{return first(f);}`, ""},
+		{"named callback parameter", `type Pair<T,U>=distinct ()=>(T,U); function pair():(int,string){return 7,"ok";} function first<T,U>(f:Pair<T,U>):T{const [v,_]=f();return v;} function run():int{return first(pair);}`, ""},
+		{"named scalar callback", `type Read=distinct ()=>int; function use<T>(f:()=>T):T{return f();} function run(f:Read):int{return use(f);}`, ""},
+		{"named dependent callback", `type Pair=distinct ()=>(int,string); function use<T,U>(f:()=>(T,U),g:(v:T)=>T):T{const [v,_]=f();return g(v);} function run(f:Pair):int{return use(f,(v)=>v+1);}`, ""},
+		{"named callback identity", `type Pair<T,U>=distinct ()=>(T,U); type Other<T,U>=distinct ()=>(T,U); function use<T,U>(f:Pair<T,U>):void{} function run(f:Other<int,string>):void{use(f);}`, "cannot use"},
+		{"named callback result conflict", `type Pair=distinct ()=>(int,string); function use<T>(f:()=>(T,T)):void{} function run(f:Pair):void{use(f);}`, "result 2"},
+		{"named callback nullable contract", `alias Maybe=int[]|null; type Read=distinct ()=>Maybe; function use<T>(f:()=>T):T{return f();} function run(f:Read):int[]{return use(f);}`, "cannot use"},
+		{"named Result callback", `type Read=distinct ()=>Result<int>; function use<T>(f:()=>Result<T>):Result<T>{return f();} function run(f:Read):Result<int>{return use(f);}`, ""},
+		{"named Result effect boundary", `type Read=distinct ()=>Result<int>; function use<T>(f:()=>T):T{return f();} function run(f:Read):void{use(f);}`, "cannot be inferred"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(checkSource(t, tc.source), "\n")

@@ -1153,6 +1153,13 @@ Native generic functions also infer from callback result lists: for a parameter
 `produce: () => (T, U)`, passing a function returning `(int, string)` infers
 `T = int` and `U = string`. This applies to direct arrows, generic methods and
 partially explicit type arguments; conflicting results remain errors.
+Named function types also participate: a value of
+`type Pair = distinct () => (int, string)` can supply the same inference to an
+unnamed callback parameter. Conversely, an ordinary function or arrow can infer
+the arguments of `type Pair<T, U> = distinct () => (T, U)` when used as a
+parameter type. This does not make two different distinct function types
+assignable, erase nullable qualifiers, or turn a `Result<T>` effect into an
+ordinary value.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
 The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support

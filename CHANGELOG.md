@@ -9,6 +9,10 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Infer native generic arguments across named and unnamed callback signatures,
+  including scalar/multiple results, dependent arrows and generic methods.
+  Preserve distinct function identity, nullable contracts and Result effects.
+
 - Infer native generic type arguments from each callback result-list slot,
   including named function values, direct arrows, partially explicit arguments,
   generic methods, nested class arguments and dependent callback contexts.

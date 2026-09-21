@@ -265,6 +265,15 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 		}
 		return nil
 	}
+	// An unnamed function signature can match a defined function type in
+	// either direction. Infer from its source signature without erasing the
+	// nominal identity of two named types or the source Result/nullability
+	// contracts. Final argument checking still decides assignability.
+	if formal.Kind == Function && actual.Kind == GoNamed {
+		actual = c.callableType(actual)
+	} else if formal.Kind == GoNamed && actual.Kind == Function {
+		formal = c.callableType(formal)
+	}
 	if formal.Kind != actual.Kind {
 		return nil
 	}
