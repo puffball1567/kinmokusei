@@ -9,10 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
-- Accept a multiple-result call as the sole unspread argument to nongeneric
-  functions, methods and variadic callables: `consume(produce())`. Check result
+- Accept a multiple-result call as the sole unspread argument to functions,
+  methods and variadic callables: `consume(produce())`. Generic source and Go
+  functions support inferred and explicit type arguments. Check result
   count and each argument type while preserving single evaluation. Calls that
-  need per-value source conversions must destructure first.
+  need per-value source conversions must destructure first, as must calls to
+  generic instance methods whose Go helper adds a receiver argument.
 
 - Add source function, method, arrow and function-type result lists such as
   `function cut(text: string): (string, string, boolean)`. Matching multiple-result

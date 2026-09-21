@@ -1132,7 +1132,7 @@ replaces the pending return. Typed result payloads preserve nil interfaces,
 numeric widths and generic type identity. Getters still return one property value.
 `void`, `Result<T>` and `Task<T>` cannot be elements of a result list.
 
-A multiple-result call can also supply all arguments to a nongeneric function,
+A multiple-result call can also supply all arguments to a function,
 method or variadic callable, following Go's sole-argument rule:
 
 ```typescript
@@ -1147,7 +1147,10 @@ The inner call executes once. Its result count and types must match the outer
 call; variadic parameters consume any remaining results. This cannot be mixed
 with other arguments or a spread marker. Per-value class upcasts require
 destructuring before the call. Result effects still require explicit handling.
-Generic call targets and language built-ins do not yet support this expansion.
+Generic source and Go functions infer type arguments from the returned values;
+explicit type arguments are also supported, including variadic functions.
+Generic instance methods and language built-ins do not yet support this
+expansion; destructure before calling these targets.
 
 ```ts
 const add = (left: int, right: int): int => left + right;

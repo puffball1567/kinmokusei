@@ -12,6 +12,8 @@ func TestSourceResultForwardingMatchesGo(t *testing.T) {
 	input := `import go strings from "strings";
 import go strconv from "strconv";
 import go errors from "errors";
+import go cmp from "cmp";
+import go slices from "slices";
 import {Split,Tail} from "./types";
 function Cut(s:string):(string,string,boolean){return strings.Cut(s,":");}
 function apply(f:(s:string)=>(string,string,boolean),s:string):(string,string,boolean){return f(s);}
@@ -67,6 +69,14 @@ function MethodNestedCall(s:string):string{trace=0;const r=new Repeater();const 
 function numbers():(int,int,int){trace++;return 1,2,3;}
 function sum(...values:int[]):int{let total=0;for(const n of values){total+=n;}return total;}
 function VariadicCall():int{trace=0;return sum(numbers())*10+trace;}
+function twoNumbers():(int,int){trace++;return 3,7;}
+function first<T>(a:T,b:T):T{return a;}
+function firstRest<T>(...values:T[]):T{return values[0];}
+function GenericArguments():int{trace=0;const a=first(twoNumbers());const b=first<int>(twoNumbers());const c=firstRest(numbers());return a*1000+b*100+c*10+trace;}
+function GoGenericArguments():int{trace=0;const a=cmp.Compare(twoNumbers());const b=cmp.Compare<int>(twoNumbers());return a*100+b*10+trace;}
+function twoSlices():(int[],int[]){return [1,2],[3];}
+function GoGenericVariadic():int[]{return slices.Concat(twoSlices());}
+function GoGenericExplicitVariadic():int[]{return slices.Concat<int[]>(twoSlices());}
 `
 	path := filepath.Join(root, "entry.km")
 	if err := os.WriteFile(filepath.Join(root, "types.km"), []byte(`alias Split<T>=(s:T)=>(T,T,boolean); function Tail():string{return "tail";}`), 0o644); err != nil {
@@ -83,7 +93,7 @@ function VariadicCall():int{trace=0;return sum(numbers())*10+trace;}
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
 	reference := `package reference
-import ("strings";"strconv")
+import ("strings";"strconv";"cmp";"slices")
 func Cut(s string)(string,string,bool){return strings.Cut(s,":")}
 func EchoValue(s string)string{return s}
 func Twice(s string)(int,error){value,err:=strconv.Atoi(s);if err!=nil{return 0,err};return value*2,nil}
@@ -107,9 +117,16 @@ func NestedCall(s string)string{trace=0;v:=strings.Repeat(input(s));return v+str
 func numbers()(int,int,int){trace++;return 1,2,3}
 func sum(values ...int)int{total:=0;for _,n:=range values{total+=n};return total}
 func VariadicCall()int{trace=0;return sum(numbers())*10+trace}
+func twoNumbers()(int,int){trace++;return 3,7}
+func first[T any](a,b T)T{return a}
+func firstRest[T any](v ...T)T{return v[0]}
+func GenericArguments()int{trace=0;a:=first(twoNumbers());b:=first[int](twoNumbers());c:=firstRest(numbers());return a*1000+b*100+c*10+trace}
+func GoGenericArguments()int{trace=0;a:=cmp.Compare(twoNumbers());b:=cmp.Compare[int](twoNumbers());return a*100+b*10+trace}
+func twoSlices()([]int,[]int){return []int{1,2},[]int{3}}
+func GoGenericVariadic()[]int{return slices.Concat(twoSlices())}
 `
 	comparison := `package results_test
-import("testing";g "source-results.test";r "source-results.test/reference")
+import("testing";"reflect";g "source-results.test";r "source-results.test/reference")
 func TestForwarding(t *testing.T){for _,s:=range []string{"a:b","missing",":","a:b:c","日本語:値"}{
  a,b,c:=r.Cut(s)
  for _,f:=range []func(string)(string,string,bool){g.Cut,g.Callback,g.Arrow,g.Method,g.Alias,g.Block,g.Interface,g.Anonymous,g.Generic,g.InferredForward}{
@@ -139,6 +156,7 @@ func TestExceptionReturns(t *testing.T){
  gp,rp:=panics(g.RuntimePanic),panics(r.RuntimePanic);if !gp||gp!=rp||g.Trace()!=r.Trace(){t.Fatal("runtime panic must bypass catch and execute finally")}
 }
 func TestNestedCalls(t *testing.T){for _,s:=range []string{"","abc","日本語"}{for _,f:=range []func(string)string{g.NestedCall,g.GoNestedCall,g.MethodNestedCall}{if got,want:=f(s),r.NestedCall(s);got!=want{t.Fatalf("%q: %q != %q",s,got,want)}}};if g.VariadicCall()!=r.VariadicCall(){t.Fatal("variadic expansion or repeated evaluation")}}
+func TestGenericNestedCalls(t *testing.T){if g.GenericArguments()!=r.GenericArguments(){t.Fatal("native inference, explicit args or evaluation")};if g.GoGenericArguments()!=r.GoGenericArguments(){t.Fatal("Go inference or explicit args")};want:=r.GoGenericVariadic();if !reflect.DeepEqual(g.GoGenericVariadic(),want)||!reflect.DeepEqual(g.GoGenericExplicitVariadic(),want){t.Fatal("variadic inference")}}
 `
 	runGeneratedGoDifferentialTest(t, root, "source-results.test", generated, reference, comparison)
 }
