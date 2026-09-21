@@ -16,9 +16,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   rename/references. Comma-separated returns (`return a, b`) check each value
   in its declared context, including numeric bounds and class upcasts.
   Multiple-result returns also cross try/catch/finally, preserving evaluation
-  order, typed nil values, generic types and finally overrides. Result-list
-  inference without a contextual signature and multiple-result properties
-  remain unsupported.
+  order, typed nil values, generic types and finally overrides. Arrow result
+  lists can be inferred from forwarded calls or explicit return expressions,
+  including forward dependencies and try/finally. Ambiguous nil/null results,
+  mismatched branches and numeric overflow are diagnosed; multiple-result
+  properties remain unsupported.
 
 - Add method-only anonymous interface type syntax, for example
   `interface { read(offset: int): string; }`. Source declarations preserve

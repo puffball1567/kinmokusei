@@ -479,7 +479,6 @@ func TestGoMultipleResultFailureMatrix(t *testing.T) {
 		{"single value argument", `import go strconv from "strconv"; function identity(value: int): int { return value; } function value(): int { return identity(strconv.Atoi("1")); }`, "require destructuring"},
 		{"single value array", `import go strconv from "strconv"; function value(): int { const items = [strconv.Atoi("1")]; return 1; }`, "require destructuring"},
 		{"single value object", `import go strconv from "strconv"; function value(): int { const item = { parsed: strconv.Atoi("1") }; return 1; }`, "require destructuring"},
-		{"single value arrow", `import go strconv from "strconv"; function value(): int { const parse = () => strconv.Atoi("1"); return 1; }`, "require destructuring"},
 		{"single value binary", `import go strconv from "strconv"; function value(): int { return strconv.Atoi("1") + 1; }`, "require destructuring"},
 		{"duplicate binding", `import go strconv from "strconv"; function value(): int { const [parsed, parsed] = strconv.Atoi("1"); return parsed; }`, "duplicate local name"},
 		{"assign const", `import go strconv from "strconv"; function value(): int { const parsed = 0; let err: error = nil; [parsed, err] = strconv.Atoi("1"); return parsed; }`, "cannot assign to const"},

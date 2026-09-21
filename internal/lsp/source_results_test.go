@@ -5,6 +5,15 @@ import (
 	"testing"
 )
 
+func TestInferredMultipleResultSignature(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "inferred-results.km")
+	input := `const pair=(value:int)=>{return value,"label";};function use():void{const [n,text]=pair(42);}`
+	label, _, _ := signatureResult(t, signatureHelpAt(t, path, input, positionOf(input, "42", 0)))
+	if label != "pair(arg1: int): (int, string)" {
+		t.Fatalf("signature = %q", label)
+	}
+}
+
 func TestAdditionalReturnExpressionTooling(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "return-list.km")
 	uri := fileURI(path)

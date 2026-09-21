@@ -1113,7 +1113,17 @@ const split: (text: string) => (string, string, boolean) =
 This is a callable result list, not a storable tuple. Destructuring consumes
 its values. Counts, nullable qualifiers and per-element types are checked;
 direct forwarding cannot insert a class upcast for an individual result.
-Use an explicit arrow result annotation or a contextual function signature.
+Arrow result lists can also be inferred from a forwarded call or an explicit
+return list. Block inference takes the first return's result types (defaulting
+untyped literals) and checks subsequent returns against them. It does not widen
+incompatible branches or guess a type for nil/null; use an explicit annotation
+when those types cannot be established. For example:
+
+```typescript
+const pair = (value: int) => { return value, "label"; };
+const split = (text: string) => strings.Cut(text, ":");
+```
+
 Each explicit return expression is checked in its result slot's type context,
 including numeric representability and class upcasts. A result-list call cannot
 be mixed with other expressions in that list. Returns through try/catch/finally
