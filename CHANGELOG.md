@@ -9,6 +9,10 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Expand collection built-in tuple arguments through explicit bindings in
+  generated Go, avoiding a Go 1.26+ vet panic while retaining single evaluation,
+  generic result types and eager capture for deferred calls. Vet remains enabled.
+
 - Reuse ordinary call lowering for all Task launches, preserving inferred and
   explicit generic calls, generic method receivers, spread arguments, and
   contextual argument types such as `byte` and nil pointers. Generate fresh

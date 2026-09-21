@@ -7,14 +7,15 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-// Keep the source argument intact: Go performs the expansion and evaluates the
-// producer once. All expanded slots refer back to that producer for diagnostics.
+// Keep the source argument intact for single-evaluation capture in codegen.
+// All expanded slots refer back to that producer for diagnostics.
 func (c *Checker) checkCollectionCallInputs(expr *ast.CallExpr, name string, count int) ([]Type, []source.Span) {
 	var checked *Type
 	if len(expr.Arguments) == 1 && !expr.Expanded {
 		if _, call := expr.Arguments[0].(*ast.CallExpr); call {
 			value := c.checkExpression(expr.Arguments[0])
 			if value.Kind == MultiValue {
+				expr.MultipleArgumentCount = len(value.Results)
 				if len(expr.TypeArguments) != 0 {
 					c.report(expr.Span, name+" does not accept type arguments")
 				}
@@ -42,4 +43,13 @@ func (c *Checker) checkCollectionCallInputs(expr *ast.CallExpr, name string, cou
 		}
 	}
 	return values, spans
+}
+
+func (c *Checker) recordCollectionMultipleResult(expr *ast.CallExpr, result Type) {
+	if expr.MultipleArgumentCount == 0 {
+		return
+	}
+	c.prepareGoTypeForEmission(&result, expr.Span)
+	ref := typeRefFromType(result, expr.Span)
+	expr.MultipleArgumentResult = &ref
 }

@@ -11,6 +11,12 @@ import (
 // A lowered generic method has an extra receiver argument, so Go cannot expand
 // the source call directly. Capture the receiver before evaluating the producer.
 func generateGenericMultipleCall(source *ast.CallExpr, call *goast.CallExpr) goast.Expr {
+	return generateCapturedMultipleCall(source, call, true)
+}
+
+// Explicit bindings also avoid a Go 1.26+ vet panic when collection built-ins
+// receive a tuple directly. The capture factory preserves go/defer timing.
+func generateCapturedMultipleCall(source *ast.CallExpr, call *goast.CallExpr, hasReceiver bool) goast.Expr {
 	used := map[string]bool{}
 	results := functionResults(*source.MultipleArgumentResult)
 	reserve := func(node goast.Node) bool {
@@ -31,16 +37,21 @@ func generateGenericMultipleCall(source *ast.CallExpr, call *goast.CallExpr) goa
 		used[name] = true
 		return goast.NewIdent(name)
 	}
-	receiver := fresh("__multipleReceiver")
+	var body []goast.Stmt
+	var arguments []goast.Expr
+	producer := call.Args[0]
+	if hasReceiver {
+		receiver := fresh("__multipleReceiver")
+		body = append(body, &goast.AssignStmt{Lhs: []goast.Expr{receiver}, Tok: token.DEFINE, Rhs: []goast.Expr{call.Args[0]}})
+		arguments = append(arguments, receiver)
+		producer = call.Args[1]
+	}
 	values := make([]goast.Expr, source.MultipleArgumentCount)
 	for i := range values {
 		values[i] = fresh("__multipleValue")
 	}
-	body := []goast.Stmt{
-		&goast.AssignStmt{Lhs: []goast.Expr{receiver}, Tok: token.DEFINE, Rhs: []goast.Expr{call.Args[0]}},
-		&goast.AssignStmt{Lhs: values, Tok: token.DEFINE, Rhs: []goast.Expr{call.Args[1]}},
-	}
-	call.Args = append([]goast.Expr{receiver}, values...)
+	body = append(body, &goast.AssignStmt{Lhs: values, Tok: token.DEFINE, Rhs: []goast.Expr{producer}})
+	call.Args = append(arguments, values...)
 	var invoke goast.Stmt
 	if results == nil || len(results.List) == 0 {
 		invoke = &goast.ExprStmt{X: call}
