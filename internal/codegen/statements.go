@@ -129,6 +129,13 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			}
 			result.Results = []goast.Expr{value}
 		}
+		for _, expression := range stmt.AdditionalValues {
+			value, err := generateExpression(expression)
+			if err != nil {
+				return nil, err
+			}
+			result.Results = append(result.Results, value)
+		}
 		return result, nil
 	case *kinmokuseiAST.ThrowStmt:
 		if stmt.Bare {

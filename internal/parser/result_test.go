@@ -12,10 +12,23 @@ func TestMalformedMultipleResultsRetainDiagnostics(t *testing.T) {
 		`function f():(int,string {}`,
 		`function f():(int,[]) {}`,
 		`const f=():(int,)=>0;`,
+		`function f():(int,int){return 1,;}`,
+		`function f():(int,int){return 1,,2;}`,
 	} {
 		if _, count := parseSource(t, input); count == 0 {
 			t.Errorf("missing diagnostic for %s", input)
 		}
+	}
+}
+
+func TestMultipleReturnWithImplicitTerminator(t *testing.T) {
+	program, count := parseSource(t, "function f():(int,string){return 1,\n\"two\"\n}")
+	if count != 0 {
+		t.Fatalf("diagnostics: %d", count)
+	}
+	stmt := program.Declarations[0].(*ast.FunctionDecl).Body.Statements[0].(*ast.ReturnStmt)
+	if stmt.Value == nil || len(stmt.AdditionalValues) != 1 {
+		t.Fatalf("return = %#v", stmt)
 	}
 }
 

@@ -13,8 +13,9 @@ migration notes; corrections rejecting invalid programs are documented fixes.
   `function cut(text: string): (string, string, boolean)`. Matching multiple-result
   calls can be forwarded directly, including contextual callbacks and generic
   function aliases. Preserve nullable contracts and type references in editor
-  rename/references. This is partial multiple-return support: comma-separated
-  return expressions, result-list inference without a contextual signature,
+  rename/references. Comma-separated returns (`return a, b`) check each value
+  in its declared context, including numeric bounds and class upcasts.
+  This is partial multiple-return support: result-list inference without a contextual signature,
   multiple-result properties, and try blocks in these callables are not supported.
 
 - Add method-only anonymous interface type syntax, for example

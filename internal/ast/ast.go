@@ -385,11 +385,14 @@ func (*BlockStmt) statement()             {}
 func (s *BlockStmt) GetSpan() source.Span { return s.Span }
 
 type ReturnStmt struct {
-	Value      Expression
-	ResultKind ResultReturnKind
-	ResultType TypeRef
-	CrossesTry bool
-	Span       source.Span
+	Value Expression
+	// AdditionalValues contains the expressions after the first comma. Value
+	// retains the first expression for single-result and forwarding returns.
+	AdditionalValues []Expression
+	ResultKind       ResultReturnKind
+	ResultType       TypeRef
+	CrossesTry       bool
+	Span             source.Span
 }
 
 type ResultReturnKind int

@@ -8,6 +8,13 @@ import (
 func TestMultipleResultBoundaries(t *testing.T) {
 	for _, tc := range []struct{ name, source, want string }{
 		{"count", `function f():(int,string){return f();} function g():(int,string,int){return f();}`, "multiple result count mismatch"},
+		{"explicit count", `function f():(int,int,int){return 1,2;}`, "multiple result count mismatch"},
+		{"explicit type", `function f():(int,string){return 1,2;}`, "cannot use"},
+		{"explicit overflow", `function f():(int,byte){return 1,256;}`, "cannot be represented"},
+		{"single signature", `function f():int{return 1,2;}`, "multiple-result signature"},
+		{"Result signature", `function f():Result<int>{return 1,nil;}`, "multiple-result signature"},
+		{"inferred arrow", `const f=()=>{return 1,2;};`, "multiple-result signature"},
+		{"no expansion", `function f():(int,int){return 1,2;} function g():(int,int,int){return 0,f();}`, "require destructuring"},
 		{"void", `function f():(void,int){return f();}`, "ordinary value types"},
 		{"result", `function f():(Result<int>,int){return f();}`, "ordinary value types"},
 		{"task", `function f():(Task<int>,int){return f();}`, "ordinary value types"},

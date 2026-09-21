@@ -541,6 +541,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkBlock(statement)
 		case *ast.ReturnStmt:
 			walkExpression(statement.Value)
+			for _, value := range statement.AdditionalValues {
+				walkExpression(value)
+			}
 		case *ast.ThrowStmt:
 			walkExpression(statement.Value)
 		case *ast.TryStmt:

@@ -251,12 +251,21 @@ func (p *Parser) parseReturn(start token.Token) ast.Statement {
 		p.synchronizeStatement()
 		return nil
 	}
+	var additional []ast.Expression
+	for p.match(token.Comma) {
+		next := p.parseExpression()
+		if next == nil {
+			p.synchronizeStatement()
+			return nil
+		}
+		additional = append(additional, next)
+	}
 	end, ok := p.expectTerminator("expected ';' after return value")
 	if !ok {
 		p.synchronizeStatement()
 		end = p.previous()
 	}
-	return &ast.ReturnStmt{Value: value, Span: start.Span.Merge(end.Span)}
+	return &ast.ReturnStmt{Value: value, AdditionalValues: additional, Span: start.Span.Merge(end.Span)}
 }
 
 func (p *Parser) parseIf(start token.Token) ast.Statement {
