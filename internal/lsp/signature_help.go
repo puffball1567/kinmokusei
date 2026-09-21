@@ -750,6 +750,9 @@ func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 			block(value)
 		case *ast.ReturnStmt:
 			expression(value.Value)
+			for _, item := range value.AdditionalValues {
+				expression(item)
+			}
 		case *ast.ThrowStmt:
 			expression(value.Value)
 		case *ast.TryStmt:

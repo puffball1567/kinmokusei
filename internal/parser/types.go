@@ -7,6 +7,42 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
+// parseCallableReturnType accepts the source tuple form `(T, U)` for
+// functions and methods. A parenthesized function type remains handled by
+// parseType, so speculative parsing only commits when a comma is present.
+func (p *Parser) parseCallableReturnType() (ast.TypeRef, bool) {
+	if !p.at(token.LeftParen) {
+		return p.parseType()
+	}
+	checkpoint := p.checkpoint()
+	start := p.advance()
+	first, ok := p.parseType()
+	if !ok || !p.match(token.Comma) {
+		p.restore(checkpoint)
+		return p.parseType()
+	}
+	results := []ast.TypeRef{first}
+	for {
+		result, valid := p.parseType()
+		if !valid {
+			return ast.TypeRef{}, false
+		}
+		results = append(results, result)
+		if !p.match(token.Comma) {
+			break
+		}
+		if p.at(token.RightParen) {
+			p.report(p.peek(), "trailing comma is not allowed in a result list")
+			return ast.TypeRef{}, false
+		}
+	}
+	end, valid := p.expect(token.RightParen, "expected ')' after result list")
+	if !valid {
+		return ast.TypeRef{}, false
+	}
+	return ast.TypeRef{GoResults: results, Span: start.Span.Merge(end.Span)}, true
+}
+
 func (p *Parser) parseType() (ast.TypeRef, bool) {
 	return p.parseTypeInternal(true)
 }
@@ -40,7 +76,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 				p.synchronizeStatement()
 				continue
 			}
-			result, ok := p.parseType()
+			result, ok := p.parseCallableReturnType()
 			if !ok {
 				p.synchronizeStatement()
 				continue
@@ -136,7 +172,7 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		if _, ok = p.expectFatArrow("expected '=>' in function type"); !ok {
 			return ast.TypeRef{}, false
 		}
-		result, ok := p.parseType()
+		result, ok := p.parseCallableReturnType()
 		if !ok {
 			return ast.TypeRef{}, false
 		}

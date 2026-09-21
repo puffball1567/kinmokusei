@@ -91,6 +91,9 @@ func generateExceptionReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error)
 	}
 
 	if stmt.ResultKind == kinmokuseiAST.NormalReturn {
+		if len(stmt.ResultType.GoResults) != 0 {
+			return generateMultipleExceptionReturn(stmt)
+		}
 		if stmt.Value == nil {
 			return returnPanic(nil, nil), nil
 		}

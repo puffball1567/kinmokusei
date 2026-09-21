@@ -17,6 +17,21 @@ func (c *Checker) requireAssignable(target, value Type, span source.Span) {
 		return
 	}
 	if value.Kind == MultiValue {
+		if target.Kind == MultiValue && len(target.Results) != len(value.Results) {
+			c.report(span, fmt.Sprintf("multiple result count mismatch: got %d results, expected %d", len(value.Results), len(target.Results)))
+			return
+		}
+		if target.Kind == MultiValue && len(target.Results) == len(value.Results) {
+			for index := range target.Results {
+				// Forwarding a Go result list cannot insert per-element class
+				// upcasts or other source coercions. Require storage assignability
+				// as well as the source contract.
+				if !c.isAssignable(target.Results[index], value.Results[index]) || !assignable(target.Results[index], value.Results[index]) {
+					c.report(span, fmt.Sprintf("cannot use result %d of %s as %s", index+1, value.String(), target.Results[index].String()))
+				}
+			}
+			return
+		}
 		c.report(span, fmt.Sprintf("multiple values %s require destructuring", value.String()))
 		return
 	}
@@ -119,8 +134,8 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		// Source anonymous interfaces are structural at the value boundary.
 		// Match their exported Go method set against the class's lowered methods
 		// even when the class did not declare a named `implements` contract.
-		if c.classSatisfiesSourceAnonymousInterface(target) && c.classSatisfiesGoInterface(class, target.GoType) {
-			return true
+		if c.classSatisfiesSourceAnonymousInterface(target) {
+			return c.classSatisfiesGoInterface(class, value, target)
 		}
 		for _, declared := range class.goImplements {
 			if gotypes.AssignableTo(declared, target.GoType) || gotypes.Identical(declared, target.GoType) {
@@ -147,17 +162,13 @@ func (c *Checker) classSatisfiesSourceAnonymousInterface(target Type) bool {
 	return false
 }
 
-func (c *Checker) classSatisfiesGoInterface(class *classSymbol, target gotypes.Type) bool {
-	contract := underlyingGoInterface(target)
-	if contract == nil {
-		return false
-	}
-	for index := 0; index < contract.NumMethods(); index++ {
-		required := contract.Method(index)
+func (c *Checker) classSatisfiesGoInterface(class *classSymbol, instance, target Type) bool {
+	bindings := nativeClassBindings(class, instance)
+	for _, required := range target.GoMethods {
 		var provided *methodSymbol
 		for name := range class.methods {
 			method := class.methods[name]
-			if method.goName == required.Name() && !method.static {
+			if method.goName == required.GoName && !method.static {
 				copy := method
 				provided = &copy
 				break
@@ -166,8 +177,8 @@ func (c *Checker) classSatisfiesGoInterface(class *classSymbol, target gotypes.T
 		if provided == nil {
 			return false
 		}
-		actual, ok := goTypeOf(provided.typeInfo)
-		if !ok || !gotypes.Identical(actual, required.Type()) {
+		actual := substituteNativeTypeParameters(provided.typeInfo, bindings)
+		if !identicalMethodSignature(actual, required.Type) {
 			return false
 		}
 	}

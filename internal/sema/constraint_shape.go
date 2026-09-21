@@ -110,7 +110,7 @@ func sameConstraintNullability(expected, actual Type) bool {
 			return false
 		}
 	}
-	for _, pair := range [][2][]Type{{expected.Parameters, actual.Parameters}, {expected.TypeArguments, actual.TypeArguments}} {
+	for _, pair := range [][2][]Type{{expected.Parameters, actual.Parameters}, {expected.TypeArguments, actual.TypeArguments}, {expected.Results, actual.Results}} {
 		if len(pair[0]) == len(pair[1]) {
 			for i := range pair[0] {
 				if !sameConstraintNullability(pair[0][i], pair[1][i]) {

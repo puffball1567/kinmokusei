@@ -63,6 +63,29 @@ func TestGenerateExplicitConversion(t *testing.T) {
 	}
 }
 
+func TestGenerateSourceMultipleResults(t *testing.T) {
+	input := `
+function pair(value: int): (int, string) { return pair(value); }
+const forward = (value: int): (int, string) => pair(value);
+`
+	tokens, lexDiagnostics := lexer.Lex("multiple-results.km", input)
+	program, parseDiagnostics := parser.Parse(tokens)
+	if len(lexDiagnostics)+len(parseDiagnostics) != 0 {
+		t.Fatalf("frontend diagnostics: %v %v", lexDiagnostics, parseDiagnostics)
+	}
+	if diagnostics := sema.Check(program); len(diagnostics) != 0 {
+		t.Fatalf("type diagnostics: %v", diagnostics)
+	}
+	generated, err := Generate(program, "sample")
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := string(generated)
+	if !strings.Contains(output, "func pair(value int) (int, string)") || !strings.Contains(output, "return pair(value)") {
+		t.Fatalf("generated Go missing multiple results:\n%s", output)
+	}
+}
+
 func TestManglesGoKeywordsAndUsesVarForRuntimeConst(t *testing.T) {
 	input := `
 function value(): int { return 42; }

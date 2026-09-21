@@ -95,7 +95,7 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		result = c.resolveType(*expr.ReturnType)
 		c.rejectTaskAPIType(result, expr.ReturnType.Span, "arrow return types")
 		c.result = result
-	} else if expected.Kind == Function && expected.Result != nil && expected.Result.Kind != MultiValue {
+	} else if expected.Kind == Function && expected.Result != nil {
 		result = *expected.Result
 		c.result = result
 	}

@@ -181,10 +181,15 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitStatement(child)
 			}
 		case *ast.ReturnStmt:
+			visitType(&statement.ResultType)
 			visitExpression(statement.Value)
+			for _, value := range statement.AdditionalValues {
+				visitExpression(value)
+			}
 		case *ast.ThrowStmt:
 			visitExpression(statement.Value)
 		case *ast.TryStmt:
+			visitType(&statement.ReturnType)
 			visitStatement(statement.Body)
 			for _, clause := range statement.Catches {
 				visitType(&clause.Type)
@@ -426,6 +431,10 @@ func substituteNativeTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.
 	}
 	result := ref
 	result.LoweredType = nil
+	result.GoResults = append([]ast.TypeRef(nil), ref.GoResults...)
+	for index := range result.GoResults {
+		result.GoResults[index] = substituteNativeTypeRefParameters(result.GoResults[index], bindings)
+	}
 	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
 	for index := range result.GenericArguments {
 		result.GenericArguments[index] = substituteNativeTypeRefParameters(result.GenericArguments[index], bindings)

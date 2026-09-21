@@ -254,6 +254,9 @@ func (linker *sourceLinker) linkStatement(statement ast.Statement, visible modul
 		linker.linkBlock(statement, visible, locals)
 	case *ast.ReturnStmt:
 		linker.linkExpression(statement.Value, visible, locals)
+		for _, value := range statement.AdditionalValues {
+			linker.linkExpression(value, visible, locals)
+		}
 	case *ast.ThrowStmt:
 		linker.linkExpression(statement.Value, visible, locals)
 	case *ast.TryStmt:

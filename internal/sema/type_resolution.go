@@ -32,7 +32,12 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if len(ref.GoResults) != 0 {
 		result := Type{Kind: MultiValue, Name: "multiple values"}
 		for _, item := range ref.GoResults {
-			result.Results = append(result.Results, c.resolveType(item))
+			resolved := c.resolveType(item)
+			if !ref.Go && (resolved.Kind == Void || resolved.Kind == Result || resolved.Kind == MultiValue || containsTaskType(resolved)) {
+				c.report(item.Span, "multiple result elements must be ordinary value types; void, Result and Task are not allowed")
+				resolved = Type{Kind: Invalid}
+			}
+			result.Results = append(result.Results, resolved)
 		}
 		return result
 	}

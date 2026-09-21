@@ -64,7 +64,9 @@ type TypeRef struct {
 	ObjectFields         []ObjectTypeField
 	Object               bool
 	GoStruct             bool
-	// GoInterface and GoResults describe inferred Go types, not source syntax.
+	// GoInterface describes an anonymous interface type. GoResults is also used
+	// for source tuple result types; Go marks results reconstructed from Go
+	// signatures, while source declarations leave it unset.
 	GoInterface   bool
 	GoResults     []TypeRef
 	Struct        bool
@@ -383,11 +385,14 @@ func (*BlockStmt) statement()             {}
 func (s *BlockStmt) GetSpan() source.Span { return s.Span }
 
 type ReturnStmt struct {
-	Value      Expression
-	ResultKind ResultReturnKind
-	ResultType TypeRef
-	CrossesTry bool
-	Span       source.Span
+	Value Expression
+	// AdditionalValues contains the expressions after the first comma. Value
+	// retains the first expression for single-result and forwarding returns.
+	AdditionalValues []Expression
+	ResultKind       ResultReturnKind
+	ResultType       TypeRef
+	CrossesTry       bool
+	Span             source.Span
 }
 
 type ResultReturnKind int
