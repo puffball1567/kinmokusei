@@ -150,6 +150,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 		return false
 	}
+	if value.Kind == TypeParameter && unnamedInferenceCollection(target) {
+		return c.constrainedCollectionAssignable(target, value)
+	}
 	return assignable(target, value)
 }
 

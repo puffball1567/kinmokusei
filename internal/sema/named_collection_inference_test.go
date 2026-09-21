@@ -20,6 +20,7 @@ func TestNamedCollectionArgumentInference(t *testing.T) {
 		`constraint Pair<E>=~[2]E;function first<T>(v:[2]T):T{return v[0];}function run<E,A extends Pair<E>>(v:A):E{return first(v);}`,
 		`constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;function read<T>(v:GoReceiveChannel<T>):T{return <-v;}function run<E,C extends Receiving<E>>(v:C):E{return read(v);}`,
 		`constraint Slice<E>=~E[];function map<T>(v:T[],f:(v:T)=>T):T{return f(v[0]);}function run<E,S extends Slice<E>>(v:S):E{return map(v,(x)=>x);}`,
+		`class Item{public value:int=1;}constraint Items=~Item[];function first<T>(v:T[]):T{return v[0];}function run<S extends Items>(v:S):Item{return first(v);}`,
 	} {
 		t.Run(input, func(t *testing.T) {
 			if got := checkSource(t, input); len(got) != 0 {
@@ -39,9 +40,6 @@ func TestNamedCollectionInferenceBoundaries(t *testing.T) {
 		{"ambiguous constraint", `constraint Mixed=~int[]|~string[];function use<T>(v:T[]):void{}function run<S extends Mixed>(v:S):void{use(v);}`, "cannot infer"},
 		{"constrained nullable elements", `alias Maybe=int[]|null;constraint S=~Maybe[];function first<T>(v:T[]):T{return v[0];}function run<A extends S>(v:A):int[]{return first(v);}`, "cannot use"},
 		{"constrained channel direction", `constraint Sending=~GoSendChannel<int>;function read<T>(v:GoReceiveChannel<T>):T{return <-v;}function run<C extends Sending>(v:C):int{return read(v);}`, "cannot infer"},
-		// Inference finds Item, but concrete class collection storage still
-		// lacks assignment support at this boundary. Keep the diagnostic visible.
-		{"class collection assignment boundary", `class Item{public value:int=1;}constraint Items=~Item[];function first<T>(v:T[]):T{return v[0];}function run<S extends Items>(v:S):Item{return first(v);}`, "cannot use S as Item[]"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(checkSource(t, tc.input), "\n")

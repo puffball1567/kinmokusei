@@ -1171,6 +1171,10 @@ receive-capable channel shape can supply these types too. For example,
 works with `constraint Slice<E> = ~E[]`. The inferred element remains the
 caller's `E`; an ambiguous bound such as `~int[] | ~string[]` does not supply
 a single element type.
+Concrete native class elements are supported at this boundary as well:
+`constraint Items = ~Item[]` permits forwarding an `S extends Items` value to
+an `Item[]` parameter. Collections remain invariant: a `Child[]` cannot become
+an `Item[]`, nor can nullable and non-nullable element contracts be exchanged.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
 The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support

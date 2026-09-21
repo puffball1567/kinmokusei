@@ -35,10 +35,9 @@ that milestone. OOP work continues alongside Go compatibility.
 ## Approved implementation queue
 
 Constrained collection forwarding now infers common slice/array/map/channel
-element types. A remaining assignment boundary is a concrete native class in
-the bound: `S extends Items` with `constraint Items = ~Item[]` still cannot be
-passed to an `Item[]` parameter, even when inference identifies `Item`. Keep
-this rejected until source-aware collection storage assignability is supported.
+element types, including native class elements. Assignment checks both Go
+storage compatibility and source nullable contracts for every constraint term;
+class inheritance does not make writable collections covariant.
 
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support

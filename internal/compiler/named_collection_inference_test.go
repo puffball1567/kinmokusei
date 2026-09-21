@@ -31,6 +31,23 @@ function deref<T>(v:*T):T{return *v;}
 function receive<T>(v:GoChannel<T>):T{return <-v;}
 function transform<T>(v:T[],f:(v:T)=>T):T{return f(v[0]);}
 class Reader{public function first<T>(v:T[]):T{return v[0];}}
+class Item{constructor(public value:int){}}
+constraint Items=~Item[];
+constraint ItemMap=~Map<string,Item>;
+constraint ItemPair=~[2]Item;
+constraint ItemChannel=~GoChannel<Item>|~GoReceiveChannel<Item>;
+function classSlice<S extends Items>(v:S):Item[]{return v;}
+function classMap<M extends ItemMap>(v:M):Map<string,Item>{return v;}
+function classArray<A extends ItemPair>(v:A):[2]Item{return v;}
+function classChannel<C extends ItemChannel>(v:C):GoReceiveChannel<Item>{return v;}
+function classFirst<S extends Items>(v:S):Item{return first(v);}
+export function Classes():int{
+  const item=new Item(21);const values:Item[]=[item];const m=makeMap<string,Item>();m["x"]=item;
+  const pair:[2]Item=[item,item];const ch=goChannel<Item>(2);ch<-item;ch<-item;
+  const fromChannel=<-classChannel(ch);classSlice(values)[0].value=22;
+  const [checked,ok]=<-classChannel(ch);if(!ok){return -1;}
+  return classFirst(values).value+classMap(m)["x"].value+classArray(pair)[1].value+fromChannel.value+checked.value;
+}
 constraint Slice<E>=~E[];
 constraint Mapping<K extends comparable,V>=~Map<K,V>;
 constraint ArrayPair<E>=~[2]E;
@@ -69,6 +86,13 @@ type Lookup map[string]int
 type Pair [2]int
 type Ref *int
 type Channel chan int
+type item struct{value int}
+func classSlice[S ~[]*item](v S)[]*item{return v}
+func classMap[M ~map[string]*item](v M)map[string]*item{return v}
+func classArray[A ~[2]*item](v A)[2]*item{return v}
+func classChannel[C interface{~chan *item|~<-chan *item}](v C)<-chan *item{return v}
+func classFirst[S ~[]*item](v S)*item{return first(v)}
+func Classes()int{x:=&item{21};values:=[]*item{x};m:=map[string]*item{"x":x};pair:=[2]*item{x,x};ch:=make(chan *item,2);ch<-x;ch<-x;fromChannel:=<-classChannel(ch);classSlice(values)[0].value=22;checked,ok:=<-classChannel(ch);if !ok{return -1};return classFirst(values).value+classMap(m)["x"].value+classArray(pair)[1].value+fromChannel.value+checked.value}
 func first[T any](v []T)T{return v[0]}
 func named[T any](v Values[T])T{return v[0]}
 func read[K comparable,V any](v map[K]V,key K)V{return v[key]}
@@ -88,6 +112,7 @@ func Run()int{values:=Values[int]{3,4};m:=Lookup{"x":5};pair:=Pair{6,7};n:=8;ch:
 	comparison := `package collections_test
 import("testing";g "named-collection-inference.test";r "named-collection-inference.test/reference")
 func TestInference(t *testing.T){if got,want:=g.Run(),r.Run();got!=want{t.Fatalf("got %d want %d",got,want)}}
-func TestForward(t *testing.T){if got,want:=g.Forward(),r.Forward();got!=want{t.Fatalf("forward got %d want %d",got,want)}}`
+func TestForward(t *testing.T){if got,want:=g.Forward(),r.Forward();got!=want{t.Fatalf("forward got %d want %d",got,want)}}
+func TestClasses(t *testing.T){if got,want:=g.Classes(),r.Classes();got!=want{t.Fatalf("classes got %d want %d",got,want)}}`
 	runGeneratedGoDifferentialTest(t, root, "named-collection-inference.test", generated, reference, comparison)
 }

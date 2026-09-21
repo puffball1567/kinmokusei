@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Accept constrained collection assignment with native class elements using
+  Go storage compatibility plus per-term source nullability checks. Preserve
+  invariant elements, array lengths and channel directions. Fix direct and
+  checked receives from explicitly typed channels carrying native classes.
+
 - Infer element/key types when generic wrappers forward constrained slices,
   arrays, maps and receive-capable channels to native generic helpers. Preserve
   caller type-parameter identity and contextual callback inference; ambiguous
