@@ -26,7 +26,7 @@ class Box<T>{constructor(public value:T){}}
 class DerivedBox<T> extends Box<T>{constructor(value:T){super(value);}}
 function boxes():(DerivedBox<int>,int){return new DerivedBox<int>(7),3;}
 function genericBoxes<T>(value:T):(DerivedBox<T>,int){return new DerivedBox<T>(value),1;}
-function assigned<T>(value:T):T{let box:Box<T>=new Box<T>(value);let n=0;[box,n]=genericBoxes(value);return box.value;}
+function assigned<T>(value:T):T{let box:Box<T>=new Box<T>(value);let n=0;[box,n]=genericBoxes(value);const pair=():(DerivedBox<T>,int)=>{return new DerivedBox<T>(value),1;};[box,n]=pair();return box.value;}
 function Generic():int{let box:Box<int>=new Box<int>(0);let n=0;[box,n]=boxes();return box.value+n+assigned(5);}
 `
 	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {

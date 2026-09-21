@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Fix identical generic class result-list signatures being rejected for local
+  arrows when Go storage types are unavailable. Compare individual result
+  contracts while retaining nominal identity, type arguments and nullability;
+  cover contextual/inferred arrows and inherited classes with regression tests.
+
 - Apply class upcasts in multiple assignment to existing base-class variables,
   including generic and nullable classes, checked map lookups and channel
   receives. Capture results once before converting and assigning them; preserve
