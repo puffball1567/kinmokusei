@@ -188,6 +188,19 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	} else if callable.Generic {
 		return c.checkInferredGenericCall(expr, callableName, callable)
 	}
+	// Go permits a multi-result call as the sole, unspread argument. Check
+	// that expression once, then reuse its type on the ordinary scalar path.
+	var checkedArgument *Type
+	if !expr.Expanded && len(expr.Arguments) == 1 {
+		if _, call := expr.Arguments[0].(*ast.CallExpr); call {
+			actual := c.checkExpression(expr.Arguments[0])
+			if actual.Kind == MultiValue {
+				c.checkMultipleCallArguments(expr, callableName, callable, actual)
+				return *callable.Result
+			}
+			checkedArgument = &actual
+		}
+	}
 	if expr.Expanded {
 		if !callable.Variadic || len(callable.Parameters) == 0 {
 			c.report(expr.Span, fmt.Sprintf("%s is not variadic and cannot receive a spread argument", callableName))
@@ -239,9 +252,21 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		}
 		if parameterIndex >= 0 && parameterIndex < len(callable.Parameters) {
 			expected := callable.Parameters[parameterIndex]
-			actual := c.checkExpressionExpectedSlot(&expr.Arguments[i], expected)
+			var actual Type
+			if checkedArgument != nil {
+				actual = *checkedArgument
+				if actual.Kind == UntypedInt && expected.IsInteger() {
+					if value, known := c.resolvedIntegerConstantValue(arg); known && !integerConstantFitsFixedType(value, expected) {
+						c.report(arg.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
+					}
+				}
+				c.checkNumericMaterialization(arg, expected)
+				c.applyClassUpcast(&expr.Arguments[i], expected, actual)
+			} else {
+				actual = c.checkExpressionExpectedSlot(&expr.Arguments[i], expected)
+			}
 			c.requireAssignable(expected, actual, arg.GetSpan())
-		} else {
+		} else if checkedArgument == nil {
 			c.checkExpression(arg)
 		}
 	}

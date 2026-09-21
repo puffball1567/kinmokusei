@@ -476,7 +476,7 @@ func TestGoMultipleResultFailureMatrix(t *testing.T) {
 		{"void rhs", `import go runtime from "runtime"; function value(): int { const [first, second] = runtime.GC(); return 1; }`, "got void"},
 		{"single result rhs", `import go strconv from "strconv"; function value(): int { const [text, other] = strconv.Itoa(1); return 1; }`, "requires a multiple-return value"},
 		{"single value inference", `import go strconv from "strconv"; function value(): int { const result = strconv.Atoi("1"); return 1; }`, "require destructuring"},
-		{"single value argument", `import go strconv from "strconv"; function identity(value: int): int { return value; } function value(): int { return identity(strconv.Atoi("1")); }`, "require destructuring"},
+		{"single value argument", `import go strconv from "strconv"; function identity(value: int): int { return value; } function value(): int { return identity(strconv.Atoi("1")); }`, "argument count mismatch"},
 		{"single value array", `import go strconv from "strconv"; function value(): int { const items = [strconv.Atoi("1")]; return 1; }`, "require destructuring"},
 		{"single value object", `import go strconv from "strconv"; function value(): int { const item = { parsed: strconv.Atoi("1") }; return 1; }`, "require destructuring"},
 		{"single value binary", `import go strconv from "strconv"; function value(): int { return strconv.Atoi("1") + 1; }`, "require destructuring"},

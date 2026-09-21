@@ -58,6 +58,15 @@ const Later=(s:string)=>{return s,Tail(),true;};
 function InferredLocal(s:string):(string,string,boolean){const make=()=>{return s,Tail(),true;};return make();}
 const InferredTry=(s:string)=>{try{return s,s;}finally{trace++;}};
 const InferredForwardTry=(s:string)=>{try{return Cut(s);}finally{trace++;}};
+function input(s:string):(string,int){trace++;return s,2;}
+function consume(s:string,n:int):string{return strings.Repeat(s,n);}
+class Repeater{public function repeat(s:string,n:int):string{return consume(s,n);}}
+function NestedCall(s:string):string{trace=0;const value=consume(input(s));return value+strconv.Itoa(trace);}
+function GoNestedCall(s:string):string{trace=0;const value=strings.Repeat(input(s));return value+strconv.Itoa(trace);}
+function MethodNestedCall(s:string):string{trace=0;const r=new Repeater();const value=r.repeat(input(s));return value+strconv.Itoa(trace);}
+function numbers():(int,int,int){trace++;return 1,2,3;}
+function sum(...values:int[]):int{let total=0;for(const n of values){total+=n;}return total;}
+function VariadicCall():int{trace=0;return sum(numbers())*10+trace;}
 `
 	path := filepath.Join(root, "entry.km")
 	if err := os.WriteFile(filepath.Join(root, "types.km"), []byte(`alias Split<T>=(s:T)=>(T,T,boolean); function Tail():string{return "tail";}`), 0o644); err != nil {
@@ -93,6 +102,11 @@ func Trace()int{return trace}
 func GenericTry(s string)(string,string){defer func(){trace++}();return s,s}
 func FinallyThrow()(int,string){return 2,"override"}
 func RuntimePanic()(int,int){defer func(){trace++}();xs:=[]int{};return xs[0],2}
+func input(s string)(string,int){trace++;return s,2}
+func NestedCall(s string)string{trace=0;v:=strings.Repeat(input(s));return v+strconv.Itoa(trace)}
+func numbers()(int,int,int){trace++;return 1,2,3}
+func sum(values ...int)int{total:=0;for _,n:=range values{total+=n};return total}
+func VariadicCall()int{trace=0;return sum(numbers())*10+trace}
 `
 	comparison := `package results_test
 import("testing";g "source-results.test";r "source-results.test/reference")
@@ -124,6 +138,7 @@ func TestExceptionReturns(t *testing.T){
  panics:=func(f func()(int,int))(yes bool){defer func(){yes=recover()!=nil}();f();return}
  gp,rp:=panics(g.RuntimePanic),panics(r.RuntimePanic);if !gp||gp!=rp||g.Trace()!=r.Trace(){t.Fatal("runtime panic must bypass catch and execute finally")}
 }
+func TestNestedCalls(t *testing.T){for _,s:=range []string{"","abc","日本語"}{for _,f:=range []func(string)string{g.NestedCall,g.GoNestedCall,g.MethodNestedCall}{if got,want:=f(s),r.NestedCall(s);got!=want{t.Fatalf("%q: %q != %q",s,got,want)}}};if g.VariadicCall()!=r.VariadicCall(){t.Fatal("variadic expansion or repeated evaluation")}}
 `
 	runGeneratedGoDifferentialTest(t, root, "source-results.test", generated, reference, comparison)
 }

@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Accept a multiple-result call as the sole unspread argument to nongeneric
+  functions, methods and variadic callables: `consume(produce())`. Check result
+  count and each argument type while preserving single evaluation. Calls that
+  need per-value source conversions must destructure first.
+
 - Add source function, method, arrow and function-type result lists such as
   `function cut(text: string): (string, string, boolean)`. Matching multiple-result
   calls can be forwarded directly, including contextual callbacks and generic
