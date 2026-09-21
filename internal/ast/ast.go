@@ -809,10 +809,11 @@ type CallExpr struct {
 	// structural interface inference cannot recover them from a method set.
 	ResolvedTypeArguments []TypeRef
 	// MultipleArgumentCount records sole-call result expansion for capture lowering.
-	MultipleArgumentCount   int
-	MultipleArgumentResult  *TypeRef
-	MultipleArgumentGeneric bool // Generic functions cannot be captured uninstantiated.
-	Arguments               []Expression
+	MultipleArgumentCount  int
+	MultipleArgumentResult *TypeRef
+	GenericCall            bool      // Generic functions cannot be captured uninstantiated.
+	CaptureArgumentTypes   []TypeRef // Contextual types for eager Task argument capture.
+	Arguments              []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments []bool

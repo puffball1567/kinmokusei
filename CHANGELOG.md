@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Reuse ordinary call lowering for all Task launches, preserving inferred and
+  explicit generic calls, generic method receivers, spread arguments, and
+  contextual argument types such as `byte` and nil pointers. Generate fresh
+  capture names so user variables cannot be shadowed by Task temporaries.
+
 - Support sole-call multiple-result expansion in `append`, `copy`, and `delete`,
   retaining slice element and map key checks. Fix Task launch argument capture
   for multiple-result producers, including generic functions and methods;

@@ -42,6 +42,7 @@ type Checker struct {
 	usesExceptions             bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
+	taskLaunchCall             *ast.CallExpr
 	directCallCallee           ast.Expression
 	typeParameterScopes        []map[string]Type
 	deferredParameterBounds    map[*gotypes.TypeParam]bool

@@ -66,36 +66,9 @@ func taskTypeFromAnnotation(value kinmokuseiAST.TypeRef, resultTask, void bool) 
 }
 
 func generateTaskStart(expr *kinmokuseiAST.TaskStartExpr) (goast.Expr, error) {
-	var body *goast.BlockStmt
-	var call *goast.CallExpr
-	if expr.Call.MultipleArgumentCount > 0 {
-		var err error
-		body, call, err = captureMultipleTaskCall(expr.Call)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		callee, err := generateExpression(expr.Call.Callee)
-		if err != nil {
-			return nil, err
-		}
-		body = &goast.BlockStmt{List: []goast.Stmt{
-			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("taskFunction")}, Tok: token.DEFINE, Rhs: []goast.Expr{callee}},
-		}}
-		argumentNames := make([]goast.Expr, 0, len(expr.Call.Arguments))
-		for index, argument := range expr.Call.Arguments {
-			value, argumentErr := generateExpression(argument)
-			if argumentErr != nil {
-				return nil, argumentErr
-			}
-			name := fmt.Sprintf("taskArgument%d", index)
-			body.List = append(body.List, &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(name)}, Tok: token.DEFINE, Rhs: []goast.Expr{value}})
-			argumentNames = append(argumentNames, goast.NewIdent(name))
-		}
-		call = &goast.CallExpr{Fun: goast.NewIdent("taskFunction"), Args: argumentNames}
-		if expr.Call.Expanded {
-			call.Ellipsis = token.Pos(1)
-		}
+	body, call, err := captureTaskCall(expr.Call)
+	if err != nil {
+		return nil, err
 	}
 	taskType := taskTypeFromAnnotation(expr.ValueType, expr.ResultTask, expr.Void)
 	used := map[string]bool{}

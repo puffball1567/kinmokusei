@@ -301,6 +301,17 @@ func (c *Checker) recordCallSignature(expr *ast.CallExpr, callable Type) {
 	if callable.Kind != Function || callable.Result == nil {
 		return
 	}
+	expr.GenericCall = expr.GenericCall || callable.Generic
+	if c.taskLaunchCall == expr && !callable.Generic {
+		expr.CaptureArgumentTypes = make([]ast.TypeRef, len(expr.Arguments))
+		for i := range expr.Arguments {
+			parameter := genericArgumentParameter(callable, expr, i)
+			if parameter.Kind != Invalid {
+				c.prepareGoTypeForEmission(&parameter, expr.Span)
+				expr.CaptureArgumentTypes[i] = typeRefFromType(parameter, expr.Span)
+			}
+		}
+	}
 	signature := &ast.CallableSignature{
 		ParameterNames: make([]string, len(callable.Parameters)),
 		ParameterTypes: make([]string, len(callable.Parameters)),

@@ -10,7 +10,10 @@ import (
 
 func (c *Checker) checkTaskStart(expr *ast.TaskStartExpr) Type {
 	c.usesTasks = true
+	previous := c.taskLaunchCall
+	c.taskLaunchCall = expr.Call
 	result := c.checkExpression(expr.Call)
+	c.taskLaunchCall = previous
 	if expr.Call.Conversion {
 		c.report(expr.Call.Span, "go expression requires a function or method call; type conversions are not calls")
 		return Type{Kind: Invalid, Name: "<invalid>"}
