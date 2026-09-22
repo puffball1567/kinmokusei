@@ -519,11 +519,18 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 	}
 	if t.Kind == GoChannel && t.Element != nil {
 		name := "GoChannel"
-		if channel, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Chan); ok {
-			if channel.Dir() == gotypes.SendOnly {
-				name = "GoSendChannel"
-			} else if channel.Dir() == gotypes.RecvOnly {
-				name = "GoReceiveChannel"
+		if t.Name == "GoSendChannel" || t.Name == "GoReceiveChannel" {
+			name = t.Name
+		}
+		// Substitution may retain only the source channel shape, especially
+		// for native class elements. Cached Go storage is optional.
+		if t.GoType != nil {
+			if channel, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Chan); ok {
+				if channel.Dir() == gotypes.SendOnly {
+					name = "GoSendChannel"
+				} else if channel.Dir() == gotypes.RecvOnly {
+					name = "GoReceiveChannel"
+				}
 			}
 		}
 		return ast.TypeRef{Name: name, GenericArguments: []ast.TypeRef{typeRefFromType(*t.Element, span)}, Go: true, Span: span}

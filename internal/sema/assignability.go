@@ -153,6 +153,13 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	if value.Kind == TypeParameter && unnamedInferenceCollection(target) {
 		return c.constrainedCollectionAssignable(target, value)
 	}
+	if target.Kind == GoChannel && value.Kind == GoChannel {
+		// Generic substitution can discard cached Go storage. Rebuild both
+		// sides while retaining the invariant source element contract.
+		targetStorage, targetOK := c.goTypeForNativeStorage(target)
+		valueStorage, valueOK := c.goTypeForNativeStorage(value)
+		return targetOK && valueOK && sameConstraintNullability(target, value) && gotypes.AssignableTo(valueStorage, targetStorage)
+	}
 	return assignable(target, value)
 }
 

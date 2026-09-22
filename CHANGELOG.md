@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Fix sending, select sending and closing class-valued channels returned by
+  generic helpers. Reconstruct native Go storage without dropping source
+  element types, nullable checks or send/receive direction restrictions.
+  Accept these channels as generic arguments and prevent a compiler panic
+  when storing inferred channels without cached Go storage in local variables.
+
 - Accept constrained collection assignment with native class elements using
   Go storage compatibility plus per-term source nullability checks. Preserve
   invariant elements, array lengths and channel directions. Fix direct and

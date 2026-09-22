@@ -41,6 +41,15 @@ function classMap<M extends ItemMap>(v:M):Map<string,Item>{return v;}
 function classArray<A extends ItemPair>(v:A):[2]Item{return v;}
 function classChannel<C extends ItemChannel>(v:C):GoReceiveChannel<Item>{return v;}
 function classFirst<S extends Items>(v:S):Item{return first(v);}
+constraint SendingItems=~GoChannel<Item>|~GoSendChannel<Item>;
+function channelIdentity<T>(ch:GoChannel<T>):GoChannel<T>{return ch;}
+function sending<C extends SendingItems>(ch:C):GoSendChannel<Item>{return ch;}
+function sendClass(ch:GoSendChannel<Item>,value:Item):void{sending(ch)<-value;closeGoChannel(sending(ch));}
+function selectClass(ch:GoSendChannel<Item>,value:Item):void{select{case sending(ch)<-value{} default{}}}
+export function ChannelOps():int{
+  const item=new Item(23);const ch=channelIdentity(goChannel<Item>(2));selectClass(ch,item);sendClass(ch,item);
+  let total=0;for(const value of ch){total+=value.value;}return total;
+}
 export function Classes():int{
   const item=new Item(21);const values:Item[]=[item];const m=makeMap<string,Item>();m["x"]=item;
   const pair:[2]Item=[item,item];const ch=goChannel<Item>(2);ch<-item;ch<-item;
@@ -92,6 +101,9 @@ func classMap[M ~map[string]*item](v M)map[string]*item{return v}
 func classArray[A ~[2]*item](v A)[2]*item{return v}
 func classChannel[C interface{~chan *item|~<-chan *item}](v C)<-chan *item{return v}
 func classFirst[S ~[]*item](v S)*item{return first(v)}
+func sendClass(ch chan<- *item,value *item){ch<-value;close(ch)}
+func selectClass(ch chan<- *item,value *item){select{case ch<-value:default:}}
+func ChannelOps()int{x:=&item{23};ch:=make(chan *item,2);selectClass(ch,x);sendClass(ch,x);total:=0;for v:=range ch{total+=v.value};return total}
 func Classes()int{x:=&item{21};values:=[]*item{x};m:=map[string]*item{"x":x};pair:=[2]*item{x,x};ch:=make(chan *item,2);ch<-x;ch<-x;fromChannel:=<-classChannel(ch);classSlice(values)[0].value=22;checked,ok:=<-classChannel(ch);if !ok{return -1};return classFirst(values).value+classMap(m)["x"].value+classArray(pair)[1].value+fromChannel.value+checked.value}
 func first[T any](v []T)T{return v[0]}
 func named[T any](v Values[T])T{return v[0]}
@@ -113,6 +125,7 @@ func Run()int{values:=Values[int]{3,4};m:=Lookup{"x":5};pair:=Pair{6,7};n:=8;ch:
 import("testing";g "named-collection-inference.test";r "named-collection-inference.test/reference")
 func TestInference(t *testing.T){if got,want:=g.Run(),r.Run();got!=want{t.Fatalf("got %d want %d",got,want)}}
 func TestForward(t *testing.T){if got,want:=g.Forward(),r.Forward();got!=want{t.Fatalf("forward got %d want %d",got,want)}}
-func TestClasses(t *testing.T){if got,want:=g.Classes(),r.Classes();got!=want{t.Fatalf("classes got %d want %d",got,want)}}`
+func TestClasses(t *testing.T){if got,want:=g.Classes(),r.Classes();got!=want{t.Fatalf("classes got %d want %d",got,want)}}
+func TestChannelOps(t *testing.T){if got,want:=g.ChannelOps(),r.ChannelOps();got!=want{t.Fatalf("channel operations got %d want %d",got,want)}}`
 	runGeneratedGoDifferentialTest(t, root, "named-collection-inference.test", generated, reference, comparison)
 }
