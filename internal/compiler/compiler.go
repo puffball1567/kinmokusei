@@ -551,6 +551,7 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 	l.resolveSourceExports(key, program)
 	l.states[key] = 2
 	l.merged.Imports = append(l.merged.Imports, program.Imports...)
+	l.merged.Decorators = append(l.merged.Decorators, program.Decorators...)
 	l.merged.Declarations = append(l.merged.Declarations, program.Declarations...)
 	l.merged.Exports = append(l.merged.Exports, program.Exports...)
 	return nil

@@ -40,6 +40,7 @@ type Checker struct {
 	memberTypes                map[memberFlowKey]Type
 	usesTasks                  bool
 	usesExceptions             bool
+	usesDecoratorContext       bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
 	taskLaunchCall             *ast.CallExpr
@@ -160,6 +161,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		}
 	}
 	c.checkGlobalInitializationCycles(program)
+	c.checkDecorators(program)
 	c.checkSourceExports(program)
 	c.checkCABIExports(program)
 	c.checkGeneratedNames(program)
@@ -168,6 +170,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
+	program.UsesDecoratorContext = c.usesDecoratorContext
 	return c.diagnostics
 }
 

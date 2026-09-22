@@ -76,6 +76,7 @@ const (
 	RightBracket Kind = "]"
 	Dot          Kind = "."
 	Ellipsis     Kind = "..."
+	At           Kind = "@"
 
 	Assign        Kind = "="
 	PlusAssign    Kind = "+="

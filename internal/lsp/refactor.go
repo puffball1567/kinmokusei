@@ -770,6 +770,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			}
 		}
 	}
+	for _, application := range program.Decorators {
+		walkExpression(application.Expression)
+	}
 
 	sort.SliceStable(result, func(i, j int) bool {
 		left, right := cleanPath(result[i].Span.Path), cleanPath(result[j].Span.Path)

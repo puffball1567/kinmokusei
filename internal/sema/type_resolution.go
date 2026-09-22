@@ -348,6 +348,9 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	if t, ok := LookupType(ref.Name); ok {
+		if ref.Name == ast.DecoratorContextTypeName {
+			c.usesDecoratorContext = true
+		}
 		return t
 	}
 	c.report(ref.Span, fmt.Sprintf("unknown type %q", ref.Name))

@@ -74,6 +74,9 @@ func (l *Lexer) next() token.Token {
 	case ':':
 		l.advance()
 		return l.makeToken(token.Colon, start)
+	case '@':
+		l.advance()
+		return l.makeToken(token.At, start)
 	case ',':
 		l.advance()
 		return l.makeToken(token.Comma, start)

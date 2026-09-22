@@ -28,6 +28,7 @@ func (p *Parser) parseFunctionTail(start, name token.Token, abstract bool) *ast.
 	parametersValid := true
 	if !p.at(token.RightParen) {
 		for {
+			decorators := p.parseDecorators()
 			variadic := p.match(token.Ellipsis)
 			paramName := p.peek()
 			if !p.match(token.Identifier, token.This) {
@@ -59,10 +60,11 @@ func (p *Parser) parseFunctionTail(start, name token.Token, abstract bool) *ast.
 				parametersValid = false
 			}
 			parameters = append(parameters, ast.Parameter{
-				Name:     paramName.Lexeme,
-				Type:     paramType,
-				Variadic: variadic,
-				Span:     paramName.Span.Merge(paramType.Span),
+				Decorators: decorators,
+				Name:       paramName.Lexeme,
+				Type:       paramType,
+				Variadic:   variadic,
+				Span:       paramName.Span.Merge(paramType.Span),
 			})
 			if !p.match(token.Comma) {
 				break
@@ -195,6 +197,7 @@ func (p *Parser) parseParametersWithInference(end token.Kind, infer bool) ([]ast
 		return parameters, true
 	}
 	for {
+		decorators := p.parseDecorators()
 		variadic := p.match(token.Ellipsis)
 		name, ok := p.expect(token.Identifier, "expected parameter name")
 		if !ok {
@@ -218,7 +221,7 @@ func (p *Parser) parseParametersWithInference(end token.Kind, infer bool) ([]ast
 		if typeRef.IsSpecified() {
 			span = span.Merge(typeRef.Span)
 		}
-		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: span})
+		parameters = append(parameters, ast.Parameter{Decorators: decorators, Name: name.Lexeme, Type: typeRef, Variadic: variadic, Span: span})
 		if !p.match(token.Comma) {
 			break
 		}

@@ -836,6 +836,9 @@ func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 			}
 		}
 	}
+	for _, application := range program.Decorators {
+		expression(application.Expression)
+	}
 }
 
 func visibleCallable(program *ast.Program, path string, offset int, name string) (ast.TypeRef, *ast.ArrowExpr, bool) {

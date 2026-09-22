@@ -36,6 +36,13 @@ that milestone. OOP work continues alongside Go compatibility.
 
 ## Approved implementation queue
 
+Decorator language support is now requested in addition to this queue. See
+[decorator design and implementation stages](decorators-design.md). Syntax and
+AST retention, factory expression checking, typed `DecoratorContext` target
+descriptors and Go `init` registration are implemented. Callable constructor and
+method adapters and inheritance policy remain; context type/field completion and
+hover are implemented.
+
 Constrained collection forwarding now infers common slice/array/map/channel
 element types, including native class elements. Assignment checks both Go
 storage compatibility and source nullable contracts for every constraint term;

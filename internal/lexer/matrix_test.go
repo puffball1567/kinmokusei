@@ -136,7 +136,8 @@ func TestLexerBoundaryAndFailureMatrix(t *testing.T) {
 		{"unterminated block comment", "/* open", token.EOF, "unterminated block comment"},
 		{"backslash", `\`, token.Illegal, "unexpected character"},
 		{"double dot", "..", token.Illegal, "unexpected character sequence"},
-		{"unknown punctuation", "@", token.Illegal, "unexpected character"},
+		{"decorator marker", "@", token.At, ""},
+		{"unknown punctuation", "#", token.Illegal, "unexpected character"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

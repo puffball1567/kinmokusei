@@ -195,6 +195,8 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	f.Add(`@api.Controller("/users") export class C{constructor(@Inject("x") private x:int){} @Get("/") public function f(@Param("id") id:string):string{return id;}}`)
+	f.Add(`function f():void{const x=(@D a:int)=>a;} @`)
 	for _, seed := range []string{`const main=()=>{};`, `const f=(n)=>n;`, `const f=(...values)=>{};`, `const f=(a,b:int)=>{return b;};`} {
 		f.Add(seed)
 	}
