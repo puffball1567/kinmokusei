@@ -93,10 +93,12 @@ compiler process.
    Preserve `Result`, visibility, nullable and generic contracts.
 2. Add per-factory target restrictions and define inheritance behavior for
    metadata on overridden/inherited members.
-3. Add reference and rename coverage around imported decorator factories.
-   `DecoratorContext` type/field hover and completion are implemented.
-4. Validate package identity and initialization order across independently
+3. Validate package identity and initialization order across independently
    versioned external packages and repeated builds.
+
+`DecoratorContext` type/field hover and completion are implemented. Imported
+decorator calls participate in ordinary definition, hover, signature, reference
+and rename operations.
 
 The runtime contract is metadata-only and does not promise JavaScript reflection
 or arbitrary declaration rewriting. Unsupported applications must remain hard

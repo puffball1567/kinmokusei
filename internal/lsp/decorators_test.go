@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -48,5 +49,53 @@ func TestDecoratorContextHoverAndCompletion(t *testing.T) {
 	lexical := completionLabels(completionItemsAt(t, path, input, 0, 0))
 	if lexical["DecoratorContext"] == nil {
 		t.Fatalf("missing built-in type completion: %#v", lexical)
+	}
+}
+
+func TestImportedDecoratorFactoryNavigationAndRefactor(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	library := filepath.Join(root, "library.km")
+	entry := filepath.Join(root, "entry.km")
+	libraryText := `export function Route(path:string):(context:DecoratorContext)=>void{return (context)=>{};}`
+	entryText := `import {Route} from "./library";
+@Route("/users") export class Users{}`
+	if err := os.WriteFile(library, []byte(libraryText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(entry, []byte(entryText), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	application := positionOf(entryText, "Route", 1)
+	messages := serveMessages(t, openDocument(fileURI(entry), entryText), openDocument(fileURI(library), libraryText),
+		requestAt("textDocument/definition", 2, fileURI(entry), application, ""),
+		requestAt("textDocument/hover", 3, fileURI(entry), application, ""),
+		requestAt("textDocument/references", 4, fileURI(entry), application, `"context":{"includeDeclaration":true}`),
+		requestAt("textDocument/rename", 5, fileURI(entry), application, `"newName":"Endpoint"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != fileURI(library) {
+		t.Fatalf("definition=%v", messages[2])
+	}
+	hover, ok := messages[3]["result"].(map[string]any)
+	if !ok || !strings.Contains(hover["contents"].(map[string]any)["value"].(string), "Route(path: string)") {
+		t.Fatalf("hover=%v", messages[3])
+	}
+	if references, ok := messages[4]["result"].([]any); !ok || len(references) != 3 {
+		t.Fatalf("references=%v", messages[4])
+	}
+	rename, ok := messages[5]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("rename=%v", messages[5])
+	}
+	changes := rename["changes"].(map[string]any)
+	if len(changes) != 2 || len(changes[fileURI(entry)].([]any)) != 2 || len(changes[fileURI(library)].([]any)) != 1 {
+		t.Fatalf("changes=%v", changes)
+	}
+
+	signaturePosition := positionOf(entryText, `"/users"`, 0)
+	label, _, _ := signatureResult(t, signatureHelpAt(t, entry, entryText, signaturePosition))
+	if !strings.Contains(label, "Route(path: string)") {
+		t.Fatalf("signature=%q", label)
 	}
 }
