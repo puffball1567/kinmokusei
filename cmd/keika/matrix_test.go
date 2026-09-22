@@ -568,7 +568,7 @@ func TestCheckJSONDiagnosticMatrix(t *testing.T) {
 	for path, source := range map[string]string{
 		valid:      `function answer(): int { return 42; }`,
 		additional: `function label(): string { return "ready"; }`,
-		lexical:    `function broken(): void { @ }`,
+		lexical:    `function broken(): void { # }`,
 		semantic:   `function first(): int { return "wrong"; } function second(): boolean { return 42; }`,
 		syntax:     `function broken(values: int[]): int[] { return values[1:2; }`,
 		library:    `function value(): int { return "wrong"; }`,

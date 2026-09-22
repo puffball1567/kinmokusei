@@ -118,9 +118,11 @@ var implementedGoCompatibilityContracts = []string{
 	"string and boolean constant aliases with linked exports and Go constants, named scalar operations, typed-argument-first generic inference, constant-string byte lengths and bounds, lexical captures, named boolean control, and runtime storage and evaluation",
 	"instance and static properties with getter/setter visibility, virtual and abstract instance contracts, final and partial overrides, generic class and diamond interface inheritance, DI, construction phases, source nullability, single-evaluation updates, ordered effects, shared values, public Go APIs, and failure behavior",
 	"static class fields and constants with explicit initialization, shared generic and inherited storage, visibility, addressability, package dependency order, module lexical scope, linked aliases, collection and callable values, narrow updates, typed constant evaluation and rounding, instance serialization isolation, and public Go variables/constants",
+	"typed class, member, accessor, constructor and parameter decorator registration with deterministic factory/application order, external modules, target and nominal type identities, class hierarchy ownership, and repeatable Go initialization",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"decorator-runtime.test":              {implementedGoCompatibilityContracts[102]},
 	"virtual-properties.test":             {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[98]},
 	"interface-properties.test":           {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[3]},
 	"static-properties.test":              {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[57]},
