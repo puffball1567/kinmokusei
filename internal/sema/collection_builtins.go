@@ -45,51 +45,6 @@ func (c *Checker) checkGoChannelMake(expr *ast.CallExpr) Type {
 	return Type{Kind: GoChannel, Name: "GoChannel", Element: &element, GoType: gotypes.NewChan(gotypes.SendRecv, elementGoType), GoQualifier: element.GoQualifier}
 }
 
-func (c *Checker) checkGoChannelClose(expr *ast.CallExpr) Type {
-	expr.Builtin = ast.CloseGoChannelCall
-	if len(expr.TypeArguments) != 0 {
-		c.report(expr.Span, "closeGoChannel does not accept type arguments")
-	}
-	if expr.Expanded {
-		c.report(expr.Span, "closeGoChannel does not accept spread arguments")
-	}
-	if len(expr.Arguments) != 1 {
-		c.report(expr.Span, fmt.Sprintf("closeGoChannel expects one channel argument, got %d", len(expr.Arguments)))
-	}
-	for _, argument := range expr.Arguments {
-		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
-		if value.Kind == Nullable {
-			c.report(argument.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before closing", value.String()))
-			if value.Element == nil {
-				continue
-			}
-			value = *value.Element
-		}
-		goType, ok := c.goTypeForNativeStorage(value)
-		if !ok {
-			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))
-			continue
-		}
-		if _, parameter := gotypes.Unalias(goType).(*gotypes.TypeParam); parameter {
-			// Closing does not inspect elements: unlike send/receive or range,
-			// its type set may contain channels with different element types.
-			if !genericCollectionOperation("close", goType) {
-				c.report(argument.GetSpan(), "closeGoChannel type parameter requires only send-capable channel types")
-			}
-			continue
-		}
-		channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
-		if !ok {
-			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))
-			continue
-		}
-		if channel.Dir() == gotypes.RecvOnly {
-			c.report(argument.GetSpan(), fmt.Sprintf("cannot close receive-only channel %s", value.String()))
-		}
-	}
-	return builtins["void"]
-}
-
 func (c *Checker) checkCollectionLen(expr *ast.CallExpr) Type {
 	expr.Builtin = ast.LenCall
 	c.checkBuiltinCallShape(expr, "len", 1, 1, 0)

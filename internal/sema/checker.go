@@ -516,51 +516,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.prepareGoTypeForEmission(&value, stmt.Span)
 		stmt.ValueType = typeRefFromType(value, stmt.Span)
 	case *ast.ChannelSendStmt:
-		channelType := c.singleValue(c.checkExpression(stmt.Channel), stmt.Channel.GetSpan())
-		if channelType.Kind == Nullable {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before sending", channelType.String()))
-			if channelType.Element == nil {
-				return
-			}
-			channelType = *channelType.Element
-		}
-		goType, ok := c.goTypeForNativeStorage(channelType)
-		if !ok {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel send requires a Go channel, got %s", channelType.String()))
-			c.checkExpression(stmt.Value)
-			return
-		}
-		if parameter, ok := gotypes.Unalias(goType).(*gotypes.TypeParam); ok {
-			element, valid := c.genericChannelElement(parameter, true)
-			if !valid {
-				c.report(stmt.Channel.GetSpan(), "channel send type parameter requires only send-capable channels with identical element types and nullability")
-				c.checkExpression(stmt.Value)
-				return
-			}
-			value := c.checkExpressionExpectedSlot(&stmt.Value, element)
-			c.requireAssignable(element, value, stmt.Value.GetSpan())
-			return
-		}
-		channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
-		if !ok {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel send requires a Go channel, got %s", channelType.String()))
-			c.checkExpression(stmt.Value)
-			return
-		}
-		if channel.Dir() == gotypes.RecvOnly {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("cannot send to receive-only channel %s", channelType.String()))
-		}
-		element, err := kinmokuseiTypeFromGo(channel.Elem())
-		if err != nil {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel element type is not supported: %v", err))
-			c.checkExpression(stmt.Value)
-			return
-		}
-		if channelType.Element != nil {
-			element = *channelType.Element
-		}
-		value := c.checkExpressionExpectedSlot(&stmt.Value, element)
-		c.requireAssignable(element, value, stmt.Value.GetSpan())
+		c.checkChannelSend(stmt)
 	}
 }
 
