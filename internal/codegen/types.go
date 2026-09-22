@@ -113,7 +113,7 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	if ref.LoweredType != nil {
 		return goType(*ref.LoweredType)
 	}
-	if ref.Qualifier == "" && ref.Name == "DecoratorContext" {
+	if ref.Qualifier == "" && ref.Name == kinmokuseiAST.DecoratorContextTypeName {
 		return goast.NewIdent("__kinmokuseiDecoratorContext")
 	}
 	if ref.Name == "Task" && len(ref.GenericArguments) == 1 {

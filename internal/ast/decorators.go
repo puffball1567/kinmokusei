@@ -2,6 +2,24 @@ package ast
 
 import "github.com/puffball1567/kinmokusei/internal/source"
 
+const DecoratorContextTypeName = "DecoratorContext"
+
+// DecoratorContextFields is the single language-level contract shared by
+// semantic checking, Go lowering and editor tooling.
+func DecoratorContextFields() []ObjectTypeField {
+	return []ObjectTypeField{
+		{Name: "kind", Type: TypeRef{Name: "string"}},
+		{Name: "identity", Type: TypeRef{Name: "string"}},
+		{Name: "className", Type: TypeRef{Name: "string"}},
+		{Name: "memberName", Type: TypeRef{Name: "string"}},
+		{Name: "parameterName", Type: TypeRef{Name: "string"}},
+		{Name: "parameterIndex", Type: TypeRef{Name: "int"}},
+		{Name: "static", Type: TypeRef{Name: "boolean"}},
+		{Name: "visibility", Type: TypeRef{Name: "string"}},
+		{Name: "valueType", Type: TypeRef{Name: "string"}},
+	}
+}
+
 // Decorator retains the expression and source location independently of the
 // decorated declaration, so metadata diagnostics can point to the application.
 type Decorator struct {

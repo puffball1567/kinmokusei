@@ -111,6 +111,6 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 
 func isDecoratorCallback(value Type) bool {
 	return value.Kind == Function && !value.Variadic && len(value.Parameters) == 1 &&
-		value.Parameters[0].Kind == Object && value.Parameters[0].Name == "DecoratorContext" &&
+		value.Parameters[0].Kind == Object && value.Parameters[0].Name == ast.DecoratorContextTypeName &&
 		value.Result != nil && value.Result.Kind == Void
 }

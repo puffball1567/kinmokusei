@@ -118,6 +118,24 @@ func enclosingMemberOwner(program *ast.Program, path string, offset int) string 
 }
 
 func visibleValueType(program *ast.Program, path string, offset int, name string) (ast.TypeRef, bool) {
+	var arrowType ast.TypeRef
+	arrowFound := false
+	visitProgramExpressions(program, func(expression ast.Expression) {
+		arrow, ok := expression.(*ast.ArrowExpr)
+		if !ok || !spanContains(arrow.Span, path, offset) {
+			return
+		}
+		if ref, found := visibleValueTypeInBlock(program, arrow.BlockBody, path, offset, name); found {
+			arrowType, arrowFound = ref, true
+			return
+		}
+		if ref, found := parameterType(arrow.Parameters, name); found {
+			arrowType, arrowFound = ref, true
+		}
+	})
+	if arrowFound {
+		return arrowType, true
+	}
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
 			continue
@@ -469,6 +487,14 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 		if !static {
 			add(completionItem{Label: "message", Kind: 5, Detail: "public message: string", SortText: "0_message"})
 			add(completionItem{Label: "error", Kind: 2, Detail: "public function error(): string", SortText: "0_error"})
+		}
+		return
+	}
+	if ref.Name == ast.DecoratorContextTypeName {
+		if !static {
+			for _, field := range ast.DecoratorContextFields() {
+				add(completionItem{Label: field.Name, Kind: 5, Detail: field.Name + ": " + formatTypeRef(field.Type), SortText: "0_" + field.Name})
+			}
 		}
 		return
 	}

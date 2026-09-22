@@ -47,7 +47,7 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	program := s.analyze(doc)
-	if detail, builtin := builtinExceptionHover(program, doc, offset); builtin {
+	if detail, builtin := builtinHover(program, doc, offset); builtin {
 		result := map[string]any{
 			"contents": map[string]any{"kind": "markdown", "value": "```kinmokusei\n" + detail + "\n```"},
 			"range":    s.protocolRangeFor(doc.Path, identifierSpanAt(doc, offset, identifierAt(doc, offset))),
@@ -65,10 +65,17 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 	return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: result})
 }
 
-func builtinExceptionHover(program *ast.Program, doc document, offset int) (string, bool) {
+func builtinHover(program *ast.Program, doc document, offset int) (string, bool) {
 	name := identifierAt(doc, offset)
 	if name == "Exception" {
 		return "class Exception {\n  public message: string;\n  public function error(): string;\n}", true
+	}
+	if name == ast.DecoratorContextTypeName {
+		lines := []string{"type " + ast.DecoratorContextTypeName + " = {"}
+		for _, field := range ast.DecoratorContextFields() {
+			lines = append(lines, "  "+field.Name+": "+formatTypeRef(field.Type)+";")
+		}
+		return strings.Join(append(lines, "}"), "\n"), true
 	}
 	var detail string
 	visitProgramExpressions(program, func(expression ast.Expression) {
@@ -83,6 +90,16 @@ func builtinExceptionHover(program *ast.Program, doc document, offset int) (stri
 		// members with the same generated Go name always carry a declaration span.
 		if member.ResolvedDeclaration.Path != "" {
 			return
+		}
+		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
+			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ref.Name == ast.DecoratorContextTypeName {
+				for _, field := range ast.DecoratorContextFields() {
+					if member.Name == field.Name {
+						detail = field.Name + ": " + formatTypeRef(field.Type)
+						return
+					}
+				}
+			}
 		}
 		switch member.ResolvedName {
 		case "Message":
@@ -100,7 +117,7 @@ func (s *Server) definition(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	program := s.analyze(doc)
-	if _, builtin := builtinExceptionHover(program, doc, offset); builtin {
+	if _, builtin := builtinHover(program, doc, offset); builtin {
 		// Compiler-provided declarations have no source file to navigate to.
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}

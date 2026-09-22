@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
 type TypeKind int
@@ -88,52 +90,49 @@ type GoStructField struct {
 }
 
 var builtins = map[string]Type{
-	"void":             {Kind: Void, Name: "void"},
-	"boolean":          {Kind: Boolean, Name: "boolean"},
-	"string":           {Kind: String, Name: "string"},
-	"int":              {Kind: Int, Name: "int"},
-	"int8":             {Kind: Int8, Name: "int8"},
-	"int16":            {Kind: Int16, Name: "int16"},
-	"int32":            {Kind: Int32, Name: "int32"},
-	"int64":            {Kind: Int64, Name: "int64"},
-	"uint":             {Kind: Uint, Name: "uint"},
-	"uint8":            {Kind: Byte, Name: "byte"},
-	"uint16":           {Kind: Uint16, Name: "uint16"},
-	"uint32":           {Kind: Uint32, Name: "uint32"},
-	"uint64":           {Kind: Uint64, Name: "uint64"},
-	"float32":          {Kind: Float32, Name: "float32"},
-	"float":            {Kind: Float64, Name: "float"},
-	"number":           {Kind: Float64, Name: "float"},
-	"float64":          {Kind: Float64, Name: "float"},
-	"complex64":        {Kind: GoBasic, Name: "complex64", GoType: gotypes.Typ[gotypes.Complex64]},
-	"complex128":       {Kind: GoBasic, Name: "complex128", GoType: gotypes.Typ[gotypes.Complex128]},
-	"byte":             {Kind: Byte, Name: "byte"},
-	"error":            {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
-	"Exception":        {Kind: Class, Name: "Exception"},
-	"DecoratorContext": decoratorContextType(),
+	"void":                       {Kind: Void, Name: "void"},
+	"boolean":                    {Kind: Boolean, Name: "boolean"},
+	"string":                     {Kind: String, Name: "string"},
+	"int":                        {Kind: Int, Name: "int"},
+	"int8":                       {Kind: Int8, Name: "int8"},
+	"int16":                      {Kind: Int16, Name: "int16"},
+	"int32":                      {Kind: Int32, Name: "int32"},
+	"int64":                      {Kind: Int64, Name: "int64"},
+	"uint":                       {Kind: Uint, Name: "uint"},
+	"uint8":                      {Kind: Byte, Name: "byte"},
+	"uint16":                     {Kind: Uint16, Name: "uint16"},
+	"uint32":                     {Kind: Uint32, Name: "uint32"},
+	"uint64":                     {Kind: Uint64, Name: "uint64"},
+	"float32":                    {Kind: Float32, Name: "float32"},
+	"float":                      {Kind: Float64, Name: "float"},
+	"number":                     {Kind: Float64, Name: "float"},
+	"float64":                    {Kind: Float64, Name: "float"},
+	"complex64":                  {Kind: GoBasic, Name: "complex64", GoType: gotypes.Typ[gotypes.Complex64]},
+	"complex128":                 {Kind: GoBasic, Name: "complex128", GoType: gotypes.Typ[gotypes.Complex128]},
+	"byte":                       {Kind: Byte, Name: "byte"},
+	"error":                      {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
+	"Exception":                  {Kind: Class, Name: "Exception"},
+	ast.DecoratorContextTypeName: decoratorContextType(),
 }
 
 func decoratorContextType() Type {
-	fields := map[string]Type{
-		"kind":           builtinsScalar(String, "string"),
-		"identity":       builtinsScalar(String, "string"),
-		"className":      builtinsScalar(String, "string"),
-		"memberName":     builtinsScalar(String, "string"),
-		"parameterName":  builtinsScalar(String, "string"),
-		"parameterIndex": builtinsScalar(Int, "int"),
-		"static":         builtinsScalar(Boolean, "boolean"),
-		"visibility":     builtinsScalar(String, "string"),
-		"valueType":      builtinsScalar(String, "string"),
+	fields := map[string]Type{}
+	fieldNames := map[string]string{}
+	for _, field := range ast.DecoratorContextFields() {
+		var fieldType Type
+		switch field.Type.Name {
+		case "string":
+			fieldType = Type{Kind: String, Name: "string"}
+		case "int":
+			fieldType = Type{Kind: Int, Name: "int"}
+		case "boolean":
+			fieldType = Type{Kind: Boolean, Name: "boolean"}
+		}
+		fields[field.Name] = fieldType
+		fieldNames[field.Name] = memberGoName(field.Name, ast.Public)
 	}
-	fieldNames := map[string]string{
-		"kind": "Kind", "identity": "Identity", "className": "ClassName",
-		"memberName": "MemberName", "parameterName": "ParameterName", "parameterIndex": "ParameterIndex",
-		"static": "Static", "visibility": "Visibility", "valueType": "ValueType",
-	}
-	return Type{Kind: Object, Name: "DecoratorContext", Fields: fields, FieldNames: fieldNames}
+	return Type{Kind: Object, Name: ast.DecoratorContextTypeName, Fields: fields, FieldNames: fieldNames}
 }
-
-func builtinsScalar(kind TypeKind, name string) Type { return Type{Kind: kind, Name: name} }
 
 func LookupType(name string) (Type, bool) {
 	t, ok := builtins[name]

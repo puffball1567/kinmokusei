@@ -12,23 +12,13 @@ import (
 )
 
 func decoratorContextDeclaration() goast.Decl {
-	fields := []struct {
-		name           string
-		typeExpression goast.Expr
-	}{
-		{"Kind", goast.NewIdent("string")},
-		{"Identity", goast.NewIdent("string")},
-		{"ClassName", goast.NewIdent("string")},
-		{"MemberName", goast.NewIdent("string")},
-		{"ParameterName", goast.NewIdent("string")},
-		{"ParameterIndex", goast.NewIdent("int")},
-		{"Static", goast.NewIdent("bool")},
-		{"Visibility", goast.NewIdent("string")},
-		{"ValueType", goast.NewIdent("string")},
-	}
+	fields := kinmokuseiAST.DecoratorContextFields()
 	generated := make([]*goast.Field, 0, len(fields))
 	for _, field := range fields {
-		generated = append(generated, &goast.Field{Names: []*goast.Ident{goast.NewIdent(field.name)}, Type: field.typeExpression})
+		generated = append(generated, &goast.Field{
+			Names: []*goast.Ident{goast.NewIdent(memberName(field.Name, kinmokuseiAST.Public))},
+			Type:  goType(field.Type),
+		})
 	}
 	return &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
 		Name: goast.NewIdent("__kinmokuseiDecoratorContext"),
