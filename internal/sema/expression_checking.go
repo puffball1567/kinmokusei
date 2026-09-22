@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	"go/constant"
 	gotypes "go/types"
 	"math/big"
 
@@ -20,10 +21,20 @@ func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Ty
 		return c.checkObjectLiteralExpected(object, expected)
 	}
 	actual := c.checkExpression(expr)
-	if actual.Kind == UntypedInt && expected.IsInteger() {
-		if value, known := c.resolvedIntegerConstantValue(expr); known && !integerConstantFitsFixedType(value, expected) {
-			c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
-			return Type{Kind: Invalid, Name: "<invalid>"}
+	if actual.Kind == UntypedInt {
+		if value, known := c.resolvedIntegerConstantValue(expr); known {
+			if expected.Kind == TypeParameter && expected.IsInteger() {
+				if target, ok := goTypeOf(expected); ok {
+					info := gotypes.TypeAndValue{Type: gotypes.Typ[gotypes.UntypedInt], Value: constant.Make(value)}
+					if err := checkNumericConstantAssignment(info, target); err != nil {
+						c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented by every type in %s's type set", value.String(), expected.String()))
+						return Type{Kind: Invalid, Name: "<invalid>"}
+					}
+				}
+			} else if expected.IsInteger() && !integerConstantFitsFixedType(value, expected) {
+				c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 		}
 	}
 	if !c.checkNumericMaterialization(expr, expected) {

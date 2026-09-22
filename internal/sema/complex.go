@@ -338,6 +338,16 @@ func (c *Checker) checkGoUnary(expr *ast.UnaryExpr, operand Type) Type {
 func checkNumericConstantAssignment(info gotypes.TypeAndValue, target gotypes.Type) error {
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/numeric", "numeric")
 	pkg.Scope().Insert(gotypes.NewConst(0, pkg, "value", info.Type, info.Value))
+	if _, constrained := gotypes.Unalias(target).(*gotypes.TypeParam); constrained {
+		// A foreign type parameter embedded directly into a synthetic function
+		// signature does not make go/types validate the constant against every
+		// term in its type set. Naming the target and checking the corresponding
+		// conversion exercises the same representability rule as generated Go.
+		pkg.Scope().Insert(gotypes.NewTypeName(0, pkg, "Target", target))
+		pkg.MarkComplete()
+		_, err := evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("Target"), Args: []goast.Expr{goast.NewIdent("value")}})
+		return err
+	}
 	signature := gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(gotypes.NewVar(0, pkg, "", target)), nil, false)
 	pkg.Scope().Insert(gotypes.NewFunc(0, pkg, "accept", signature))
 	pkg.MarkComplete()

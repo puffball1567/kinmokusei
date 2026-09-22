@@ -224,6 +224,7 @@ var pipelineFuzzSeeds = []string{
 	`function collect(values: int[]): int { let total = 0; for (const value of values) { total += value; } return total; }`,
 	`function count(n: int): int { let total = 0; for (const i of n) { total += i; } return total; }`,
 	`constraint Integer = ~int8 | ~int64; function convert<T extends Integer>(value: int): T { return T(value); }`,
+	`constraint B=byte;function A<T extends B>():T{return 700}`,
 	`function values(yield: (value: int) => boolean): void { yield(1); } function sum(): int { let result = 0; for (const value of values) { result += value; } return result; }`,
 	`function ticks(yield: () => boolean): void { yield(); } function use(): void { for (const _ of ticks) {} }`,
 	`interface Child<T> extends Root<T> {} interface Root<T> { function read(): T; } class Value implements Child<int> { public function read(): int { return 1; } } function read<T>(value: Root<T>): T { return value.read(); } function use(): int { return read(new Value()); }`,

@@ -4,6 +4,58 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 
 const DecoratorContextTypeName = "DecoratorContext"
 
+type DecoratorContextDefinition struct {
+	Name        string
+	TargetKinds []string
+}
+
+var decoratorContextDefinitions = []DecoratorContextDefinition{
+	{Name: DecoratorContextTypeName},
+	{Name: "ClassDecoratorContext", TargetKinds: []string{"class"}},
+	{Name: "FieldDecoratorContext", TargetKinds: []string{"field"}},
+	{Name: "ConstructorDecoratorContext", TargetKinds: []string{"constructor"}},
+	{Name: "MethodDecoratorContext", TargetKinds: []string{"method"}},
+	{Name: "GetterDecoratorContext", TargetKinds: []string{"get"}},
+	{Name: "SetterDecoratorContext", TargetKinds: []string{"set"}},
+	{Name: "ParameterDecoratorContext", TargetKinds: []string{"parameter"}},
+}
+
+func DecoratorContextDefinitions() []DecoratorContextDefinition {
+	definitions := make([]DecoratorContextDefinition, len(decoratorContextDefinitions))
+	for index, definition := range decoratorContextDefinitions {
+		definitions[index] = definition
+		definitions[index].TargetKinds = append([]string(nil), definition.TargetKinds...)
+	}
+	return definitions
+}
+
+func IsDecoratorContextTypeName(name string) bool {
+	for _, definition := range decoratorContextDefinitions {
+		if definition.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func DecoratorContextAcceptsTarget(name, kind string) bool {
+	for _, definition := range decoratorContextDefinitions {
+		if definition.Name != name {
+			continue
+		}
+		if len(definition.TargetKinds) == 0 {
+			return true
+		}
+		for _, allowed := range definition.TargetKinds {
+			if allowed == kind {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
 // DecoratorContextFields is the single language-level contract shared by
 // semantic checking, Go lowering and editor tooling.
 func DecoratorContextFields() []ObjectTypeField {
