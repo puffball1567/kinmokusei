@@ -85,6 +85,15 @@ func CheckScopedWithGoImporter(program *ast.Program, allowed map[string]map[stri
 }
 
 func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string]map[string]bool, goImporter gotypes.Importer, policy GoInteropPolicy) []diagnostic.Diagnostic {
+	// Syntax is staged independently of metadata lowering. Never silently
+	// emit undecorated code while that backend is not available.
+	if len(program.Decorators) != 0 {
+		var diagnostics []diagnostic.Diagnostic
+		for _, decorator := range program.Decorators {
+			diagnostics = append(diagnostics, diagnostic.Diagnostic{Span: decorator.Span, Message: "decorator execution and metadata generation are not implemented yet"})
+		}
+		return diagnostics
+	}
 	if goImporter == nil {
 		goImporter = importer.Default()
 	}

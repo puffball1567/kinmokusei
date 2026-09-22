@@ -5,6 +5,9 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 type Node interface{ GetSpan() source.Span }
 
 type Program struct {
+	// Decorators indexes source applications, including parameter applications.
+	// Each entry is also attached to its declaration or parameter.
+	Decorators []*Decorator
 	// TypeParameterMethods is checked editor metadata keyed by parameter
 	// declaration identity. It does not participate in source syntax or emission.
 	TypeParameterMethods map[source.Span][]ObjectTypeField
@@ -107,6 +110,7 @@ func (t TypeRef) IsSpecified() bool {
 }
 
 type Parameter struct {
+	Decorators []*Decorator
 	Name       string
 	Type       TypeRef
 	Variadic   bool
@@ -176,6 +180,7 @@ type CABIExport struct {
 }
 
 type FieldDecl struct {
+	Decorators  []*Decorator
 	Static      bool
 	Constant    bool
 	Name        string
@@ -188,12 +193,14 @@ type FieldDecl struct {
 }
 
 type ConstructorDecl struct {
+	Decorators []*Decorator
 	Parameters []Parameter
 	Body       *BlockStmt
 	Span       source.Span
 }
 
 type MethodDecl struct {
+	Decorators []*Decorator
 	// Accessor is "get" or "set" for class properties; Name remains the source name.
 	Accessor       string
 	Name           string
@@ -226,6 +233,7 @@ func (*MethodDecl) declaration()           {}
 func (d *MethodDecl) GetSpan() source.Span { return d.Span }
 
 type ClassDecl struct {
+	Decorators     []*Decorator
 	Abstract       bool
 	Name           string
 	NameSpan       source.Span

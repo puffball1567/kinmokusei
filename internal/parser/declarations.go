@@ -10,6 +10,12 @@ import (
 )
 
 func (p *Parser) parseDeclaration() ast.Declaration {
+	if p.at(token.At) {
+		decorators := p.parseDecorators()
+		decl := p.parseDeclaration()
+		p.attachDeclarationDecorators(decl, decorators)
+		return decl
+	}
 	switch {
 	case p.match(token.Export):
 		return p.parseCABIExport(p.previous())

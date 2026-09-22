@@ -8,6 +8,7 @@ import (
 )
 
 type Parser struct {
+	decorators                   []*ast.Decorator
 	tokens                       []token.Token
 	current                      int
 	previousToken                token.Token
@@ -30,6 +31,7 @@ func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
 			continue
 		}
 		var decl ast.Declaration
+		decorators := p.parseDecorators()
 		if p.at(token.Export) && !p.atCABIExport() {
 			var exported ast.ExportDecl
 			exported, decl = p.parseSourceExport(p.advance())
@@ -38,12 +40,14 @@ func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
 			decl = p.parseDeclaration()
 		}
 		if decl != nil {
+			p.attachDeclarationDecorators(decl, decorators)
 			program.Declarations = append(program.Declarations, decl)
 		}
 		if p.current == start {
 			p.advance()
 		}
 	}
+	program.Decorators = p.decorators
 	return program, p.diagnostics
 }
 
@@ -162,10 +166,11 @@ type parserTokenEdit struct {
 type parserCheckpoint struct {
 	current, diagnostics, edits int
 	previous                    token.Token
+	decorators                  int
 }
 
 func (p *Parser) checkpoint() parserCheckpoint {
-	return parserCheckpoint{p.current, len(p.diagnostics), len(p.tokenEdits), p.previousToken}
+	return parserCheckpoint{p.current, len(p.diagnostics), len(p.tokenEdits), p.previousToken, len(p.decorators)}
 }
 
 func (p *Parser) restore(checkpoint parserCheckpoint) {
@@ -177,6 +182,7 @@ func (p *Parser) restore(checkpoint parserCheckpoint) {
 	p.current = checkpoint.current
 	p.diagnostics = p.diagnostics[:checkpoint.diagnostics]
 	p.previousToken = checkpoint.previous
+	p.decorators = p.decorators[:checkpoint.decorators]
 }
 
 func (p *Parser) report(tok token.Token, message string) {
