@@ -98,7 +98,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		return nil
 	}
 	typeParameters, typeParametersValid := p.parseTypeParameters("class")
-	class := &ast.ClassDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
+	class := &ast.ClassDecl{Name: name.Lexeme, SourceName: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
 	if p.match(token.Extends) {
 		base, valid := p.parseType()
 		if !valid {

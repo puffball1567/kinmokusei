@@ -1,9 +1,10 @@
 # Decorator language foundation
 
-Status: implementation in progress. Applications retain their targets in the
-AST, and factories now undergo ordinary expression/call checking. Decorated programs are deliberately
-rejected by semantic checking until metadata generation and lowering exist.
-This is not yet a usable decorator feature.
+Status: metadata registration foundation implemented. Applications retain their
+targets in the AST, factories undergo ordinary expression/call checking, and
+generated Go evaluates factories and invokes their callbacks during `init`.
+Callable constructor/method adapters for automatic DI and routing remain future
+work; the current feature is usable for typed metadata collection.
 
 ## Goal
 
@@ -44,30 +45,59 @@ export class Users {
 - Factories are module-scoped expressions. Their names and arguments use normal
   import/re-export linking, expression resolution and argument checks. Member
   and parameter names do not shadow decorator factories. A resolved application
-  must be callable; returning an ordinary value from a factory is diagnosed.
+  must return `(context: DecoratorContext) => void`; returning an ordinary value
+  or an incompatible callback is diagnosed.
 - Applications on other parsed targets (such as local arrow parameters) are
-  explicitly rejected. The callable's compatibility with the future runtime
-  context, generic specialization and permitted per-decorator target kinds
-  remain subsequent work.
+  explicitly rejected.
+
+## Runtime contract
+
+`DecoratorContext` is a compiler-provided value type with these readable fields:
+
+```ts
+kind: string
+identity: string
+className: string
+memberName: string
+parameterName: string
+parameterIndex: int
+static: boolean
+visibility: string
+valueType: string
+```
+
+`identity` is opaque and stable for a target within repeatable builds. The name
+fields preserve source spellings for diagnostics and framework metadata. Empty
+member/parameter names and `parameterIndex == -1` mean that the field does not
+apply to that target.
+
+An external package can define decorators without compiler knowledge of its API:
+
+```ts
+export function Register(label: string): (context: DecoratorContext) => void {
+  return (context) => {
+    registrations = append(registrations, context);
+  };
+}
+```
+
+Factories on one target are evaluated from top to bottom and their callbacks are
+applied from bottom to top. Generated registration runs in Go `init`, after
+package variables have been initialized. Decorator code never runs in the
+compiler process.
 
 ## Remaining implementation
 
-1. Define typed decorator contexts and metadata values usable by ordinary
-   external packages. Preserve owner/member identity, parameter position,
-   declared types, static/instance distinction and constructor information.
-   Names alone must not be used as globally unique type identities.
-2. Resolve and type-check decorator definitions/factories through normal
-   imports and exports. Diagnose unsupported targets, arity and argument types.
-   Specify factory evaluation, application order and inheritance explicitly.
-3. Generate metadata and registration code in Go. Supply callable construction
-   and invocation facilities so DI and routing libraries can operate without
-   users editing generated code. Preserve Result handling, visibility and
-   nullable contracts. Decorators do not run during compiler type checking.
-4. Add cross-package runtime tests with an independent minimal registration/DI
-   consumer, plus editor completion, hover, references and rename support.
-   Validate repeated builds, package identity and initialization order.
+1. Supply checked callable construction and method-invocation adapters so DI and
+   routing libraries can operate without reflection or generated-code edits.
+   Preserve `Result`, visibility, nullable and generic contracts.
+2. Add per-factory target restrictions and define inheritance behavior for
+   metadata on overridden/inherited members.
+3. Extend editor completion/hover for `DecoratorContext`, and add reference and
+   rename coverage around imported decorator factories.
+4. Validate package identity and initialization order across independently
+   versioned external packages and repeated builds.
 
-The initial syntax/AST commit intentionally does not invent a string-only
-metadata registry or promise JavaScript runtime compatibility. Remove the
-temporary semantic rejection only when a checked application has a defined
-Go lowering; do not silently ignore unsupported applications.
+The runtime contract is metadata-only and does not promise JavaScript reflection
+or arbitrary declaration rewriting. Unsupported applications must remain hard
+errors rather than silently producing undecorated Go.

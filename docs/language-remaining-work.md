@@ -38,9 +38,9 @@ that milestone. OOP work continues alongside Go compatibility.
 
 Decorator language support is now requested in addition to this queue. See
 [decorator design and implementation stages](decorators-design.md). Syntax and
-AST retention, factory expression checking and compiler-side target descriptors
-are implemented; execution/runtime metadata remain gated with an
-explicit diagnostic until the typed library-facing API and Go lowering exist.
+AST retention, factory expression checking, typed `DecoratorContext` target
+descriptors and Go `init` registration are implemented. Callable constructor and
+method adapters, inheritance policy and richer editor support remain.
 
 Constrained collection forwarding now infers common slice/array/map/channel
 element types, including native class elements. Assignment checks both Go

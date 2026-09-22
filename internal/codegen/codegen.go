@@ -58,12 +58,22 @@ func GenerateWithImporter(program *kinmokuseiAST.Program, packageName string, go
 		}
 		file.Decls = append(file.Decls, runtimeDeclarations...)
 	}
+	if program.UsesDecoratorContext || len(program.Decorators) != 0 {
+		file.Decls = append(file.Decls, decoratorContextDeclaration())
+	}
 	for _, decl := range program.Declarations {
 		generated, err := generateDeclaration(decl)
 		if err != nil {
 			return nil, err
 		}
 		file.Decls = append(file.Decls, generated...)
+	}
+	decoratorInit, err := generateDecoratorInit(program)
+	if err != nil {
+		return nil, err
+	}
+	if decoratorInit != nil {
+		file.Decls = append(file.Decls, decoratorInit)
 	}
 	set := token.NewFileSet()
 	var output bytes.Buffer

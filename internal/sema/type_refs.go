@@ -535,6 +535,9 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 		}
 		return ast.TypeRef{Name: name, GenericArguments: []ast.TypeRef{typeRefFromType(*t.Element, span)}, Go: true, Span: span}
 	}
+	if t.Kind == Object && t.Name == "DecoratorContext" {
+		return ast.TypeRef{Name: "DecoratorContext", Span: span}
+	}
 	if t.Kind == Object {
 		names := make([]string, 0, len(t.Fields))
 		for name := range t.Fields {

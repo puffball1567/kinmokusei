@@ -20,6 +20,7 @@ type Program struct {
 	CABIExports          []CABIExport
 	UsesTasks            bool
 	UsesExceptions       bool
+	UsesDecoratorContext bool
 }
 
 type ImportDecl struct {
@@ -233,9 +234,12 @@ func (*MethodDecl) declaration()           {}
 func (d *MethodDecl) GetSpan() source.Span { return d.Span }
 
 type ClassDecl struct {
-	Decorators     []*Decorator
-	Abstract       bool
-	Name           string
+	Decorators []*Decorator
+	Abstract   bool
+	Name       string
+	// SourceName remains the spelling written by the user after source modules
+	// are flattened and Name is changed to a collision-free Go binding.
+	SourceName     string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
 	Final          bool

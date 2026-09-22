@@ -235,7 +235,7 @@ func importAliasSpan(program *ast.Program, alias string) source.Span {
 
 func isReservedLanguageTypeName(name string) bool {
 	switch name {
-	case "void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Map", "Result":
+	case "void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "byte", "error", "Map", "Result", "Task", "DecoratorContext":
 		return true
 	default:
 		return false

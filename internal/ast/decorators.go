@@ -14,8 +14,14 @@ type Decorator struct {
 // Declaration spans identify targets independently of module-local spelling.
 // ParameterIndex is zero-based for parameters and -1 for other targets.
 type DecoratorTarget struct {
-	Kind           string
-	Name           string
+	Kind string
+	Name string
+	// Identity is an opaque, build-stable identifier. The remaining names are
+	// source spellings intended for framework diagnostics and registration.
+	Identity       string
+	ClassName      string
+	MemberName     string
+	ParameterName  string
 	Owner          source.Span
 	Declaration    source.Span
 	ParameterIndex int
