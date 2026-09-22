@@ -175,7 +175,7 @@ func containsNativeInterface(value Type) bool {
 			}
 		}
 	}
-	for _, group := range [][]Type{value.TypeArguments, value.Parameters} {
+	for _, group := range [][]Type{value.TypeArguments, value.Parameters, value.Results} {
 		for _, nested := range group {
 			if containsNativeInterface(nested) {
 				return true
@@ -265,6 +265,25 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 		}
 		return nil
 	}
+	// An unnamed function signature can match a defined function type in
+	// either direction. Infer from its source signature without erasing the
+	// nominal identity of two named types or the source Result/nullability
+	// contracts. Final argument checking still decides assignability.
+	if formal.Kind == Function && actual.Kind == GoNamed {
+		actual = c.callableType(actual)
+	} else if formal.Kind == GoNamed && actual.Kind == Function {
+		formal = c.callableType(formal)
+	}
+	// A named collection is assignable to an unnamed collection with the same
+	// underlying type. Preserve source element contracts while exposing that
+	// shape for inference; do not unwrap two distinct named types.
+	// A caller's type parameter can likewise expose a common collection shape
+	// through its constraint. It remains fixed, not a new inference variable.
+	if (actual.Kind == GoNamed || actual.Kind == TypeParameter) && unnamedInferenceCollection(formal) {
+		actual = c.constraintArgumentShape(actual)
+	} else if formal.Kind == GoNamed && unnamedInferenceCollection(actual) {
+		formal = c.constraintArgumentShape(formal)
+	}
 	if formal.Kind != actual.Kind {
 		return nil
 	}
@@ -276,6 +295,15 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 		actual = ancestor
 	}
 	switch formal.Kind {
+	case MultiValue:
+		if len(formal.Results) != len(actual.Results) {
+			return fmt.Errorf("multiple result count mismatch: got %d results, expected %d", len(actual.Results), len(formal.Results))
+		}
+		for i := range formal.Results {
+			if err := c.inferNativeTypeArguments(formal.Results[i], actual.Results[i], bindings); err != nil {
+				return fmt.Errorf("result %d: %w", i+1, err)
+			}
+		}
 	case Nullable, Array, FixedArray, GoPointer, Result, Task, GoChannel:
 		if formal.Element != nil && actual.Element != nil {
 			return c.inferNativeTypeArguments(*formal.Element, *actual.Element, bindings)
@@ -323,6 +351,15 @@ func (c *Checker) inferNativeTypeArguments(formal, actual Type, bindings nativeT
 		}
 	}
 	return nil
+}
+
+func unnamedInferenceCollection(value Type) bool {
+	switch value.Kind {
+	case Array, FixedArray, Map, GoChannel, GoPointer:
+		return true
+	default:
+		return false
+	}
 }
 
 func substituteNativeTypeParameters(value Type, bindings nativeTypeBindings) Type {

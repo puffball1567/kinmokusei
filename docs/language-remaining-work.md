@@ -34,6 +34,11 @@ that milestone. OOP work continues alongside Go compatibility.
 
 ## Approved implementation queue
 
+Constrained collection forwarding now infers common slice/array/map/channel
+element types, including native class elements. Assignment checks both Go
+storage compatibility and source nullable contracts for every constraint term;
+class inheritance does not make writable collections covariant.
+
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
 where applicable, and documentation. Refactoring can accompany the relevant

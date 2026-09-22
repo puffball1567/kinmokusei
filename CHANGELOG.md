@@ -9,6 +9,38 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Fix sending, select sending and closing class-valued channels returned by
+  generic helpers. Reconstruct native Go storage without dropping source
+  element types, nullable checks or send/receive direction restrictions.
+  Accept these channels as generic arguments and prevent a compiler panic
+  when storing inferred channels without cached Go storage in local variables.
+
+- Accept constrained collection assignment with native class elements using
+  Go storage compatibility plus per-term source nullability checks. Preserve
+  invariant elements, array lengths and channel directions. Fix direct and
+  checked receives from explicitly typed channels carrying native classes.
+
+- Infer element/key types when generic wrappers forward constrained slices,
+  arrays, maps and receive-capable channels to native generic helpers. Preserve
+  caller type-parameter identity and contextual callback inference; ambiguous
+  collection bounds and incompatible nullable elements remain rejected.
+
+- Infer native generic arguments between named and unnamed slices, arrays,
+  maps, pointers and channels, including imported Go collections and dependent
+  callbacks. Keep named identity, array lengths, channel directions and nullable
+  element checks enforced by argument compatibility.
+
+- Infer native generic arguments across named and unnamed callback signatures,
+  including scalar/multiple results, dependent arrows and generic methods.
+  Preserve distinct function identity, nullable contracts and Result effects.
+
+- Infer native generic type arguments from each callback result-list slot,
+  including named function values, direct arrows, partially explicit arguments,
+  generic methods, nested class arguments and dependent callback contexts.
+  Diagnose conflicting results, mismatched arity and unsatisfied constraints.
+  Preserve inferred arguments explicitly in Go output for interfaces nested
+  inside callback result lists, consistently with single-result callbacks.
+
 - Fix identical generic class result-list signatures being rejected for local
   arrows when Go storage types are unavailable. Compare individual result
   contracts while retaining nominal identity, type arguments and nullability;

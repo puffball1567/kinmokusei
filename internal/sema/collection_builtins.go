@@ -65,7 +65,7 @@ func (c *Checker) checkGoChannelClose(expr *ast.CallExpr) Type {
 			}
 			value = *value.Element
 		}
-		goType, ok := goTypeOf(value)
+		goType, ok := c.goTypeForNativeStorage(value)
 		if !ok {
 			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))
 			continue

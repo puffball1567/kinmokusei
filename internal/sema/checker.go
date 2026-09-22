@@ -524,7 +524,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			}
 			channelType = *channelType.Element
 		}
-		goType, ok := goTypeOf(channelType)
+		goType, ok := c.goTypeForNativeStorage(channelType)
 		if !ok {
 			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel send requires a Go channel, got %s", channelType.String()))
 			c.checkExpression(stmt.Value)

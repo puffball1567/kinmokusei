@@ -1149,6 +1149,32 @@ with other arguments or a spread marker. Per-value class upcasts require
 destructuring before the call. Result effects still require explicit handling.
 Generic source and Go functions infer type arguments from the returned values;
 explicit type arguments are also supported, including variadic functions.
+Native generic functions also infer from callback result lists: for a parameter
+`produce: () => (T, U)`, passing a function returning `(int, string)` infers
+`T = int` and `U = string`. This applies to direct arrows, generic methods and
+partially explicit type arguments; conflicting results remain errors.
+Named function types also participate: a value of
+`type Pair = distinct () => (int, string)` can supply the same inference to an
+unnamed callback parameter. Conversely, an ordinary function or arrow can infer
+the arguments of `type Pair<T, U> = distinct () => (T, U)` when used as a
+parameter type. This does not make two different distinct function types
+assignable, erase nullable qualifiers, or turn a `Result<T>` effect into an
+ordinary value.
+The same named/unnamed inference applies to slices, fixed arrays, maps,
+pointers and channels. For example, `first<T>(values: T[]): T` can infer `int`
+from a `distinct int[]` argument, including named slices imported from Go.
+Argument compatibility still checks nominal identity, array length, channel
+direction and nullable elements; inference does not insert a type conversion.
+A caller's type parameter constrained to a common slice, array, map or
+receive-capable channel shape can supply these types too. For example,
+`function forward<E, S extends Slice<E>>(values: S): E { return first(values); }`
+works with `constraint Slice<E> = ~E[]`. The inferred element remains the
+caller's `E`; an ambiguous bound such as `~int[] | ~string[]` does not supply
+a single element type.
+Concrete native class elements are supported at this boundary as well:
+`constraint Items = ~Item[]` permits forwarding an `S extends Items` value to
+an `Item[]` parameter. Collections remain invariant: a `Child[]` cannot become
+an `Item[]`, nor can nullable and non-nullable element contracts be exchanged.
 Generic instance methods also support expansion, evaluating the receiver before
 the producer exactly once. Deferred calls capture both at registration time.
 The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support

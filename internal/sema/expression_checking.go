@@ -231,7 +231,7 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 	if operand.Kind == Invalid {
 		return operand
 	}
-	goType, ok := goTypeOf(operand)
+	goType, ok := c.goTypeForNativeStorage(operand)
 	if !ok {
 		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
