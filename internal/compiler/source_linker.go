@@ -76,6 +76,7 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		linker.linkBlock(declaration.Body, methodVisible, locals)
 	case *ast.ClassDecl:
 		original := declaration.Name
+		linker.linkClassDecorators(declaration, visible)
 		classVisible := cloneModuleNames(visible)
 		for _, parameter := range declaration.TypeParameters {
 			delete(classVisible, parameter.Name)

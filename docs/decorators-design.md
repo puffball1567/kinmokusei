@@ -1,7 +1,7 @@
 # Decorator language foundation
 
-Status: implementation in progress. The first slice recognizes applications
-and retains their targets in the AST. Decorated programs are deliberately
+Status: implementation in progress. Applications retain their targets in the
+AST, and factories now undergo ordinary expression/call checking. Decorated programs are deliberately
 rejected by semantic checking until metadata generation and lowering exist.
 This is not yet a usable decorator feature.
 
@@ -37,8 +37,18 @@ export class Users {
   with token changes and diagnostics.
 - The program application index survives source module linking, so a decorator
   in a dependency cannot silently disappear and produce undecorated Go output.
-- Recognition does not establish which targets a particular decorator accepts.
-  Target validation and executable declaration syntax are subsequent work.
+- Class/member/constructor/method-parameter applications now carry checked
+  compiler metadata: declaration identity, owning declaration, parameter index,
+  static/visibility flags and the declared value or callable signature.
+  These descriptors are not yet runtime contexts accessible to library code.
+- Factories are module-scoped expressions. Their names and arguments use normal
+  import/re-export linking, expression resolution and argument checks. Member
+  and parameter names do not shadow decorator factories. A resolved application
+  must be callable; returning an ordinary value from a factory is diagnosed.
+- Applications on other parsed targets (such as local arrow parameters) are
+  explicitly rejected. The callable's compatibility with the future runtime
+  context, generic specialization and permitted per-decorator target kinds
+  remain subsequent work.
 
 ## Remaining implementation
 
