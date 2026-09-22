@@ -19,7 +19,9 @@ Callable return/control-transfer state now has a shared entry and restoration
 boundary, with nested-callable regression coverage. The parser has been split
 into grammar-focused files while retaining shared token state and recovery.
 Go generation likewise has responsibility-focused files, retaining identical
-lowering and runtime helpers. Lexical/capture/nullable state still needs further
+lowering and runtime helpers. Channel send/receive/close checking is now grouped
+in a dedicated semantic-checking module without changing operation-specific
+diagnostics or source type rules. Lexical/capture/nullable state still needs further
 decomposition.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor

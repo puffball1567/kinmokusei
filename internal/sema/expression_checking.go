@@ -219,57 +219,6 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 	}
 }
 
-func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
-	operand := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
-	if operand.Kind == Nullable {
-		c.report(expr.Operand.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before receiving", operand.String()))
-		if operand.Element == nil {
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		operand = *operand.Element
-	}
-	if operand.Kind == Invalid {
-		return operand
-	}
-	goType, ok := c.goTypeForNativeStorage(operand)
-	if !ok {
-		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if parameter, ok := gotypes.Unalias(goType).(*gotypes.TypeParam); ok {
-		element, valid := c.genericChannelElement(parameter, false)
-		if !valid {
-			c.report(expr.Span, "channel receive type parameter requires only receive-capable channels with identical element types and nullability")
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		if checked {
-			return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
-		}
-		return element
-	}
-	channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
-	if !ok {
-		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if channel.Dir() == gotypes.SendOnly {
-		c.report(expr.Span, fmt.Sprintf("cannot receive from send-only channel %s", operand.String()))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	element, err := kinmokuseiTypeFromGo(channel.Elem())
-	if err != nil {
-		c.report(expr.Span, fmt.Sprintf("channel element type is not supported: %v", err))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if operand.Element != nil {
-		element = *operand.Element
-	}
-	if checked {
-		return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
-	}
-	return element
-}
-
 func (c *Checker) isAddressableExpression(expression ast.Expression) bool {
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
