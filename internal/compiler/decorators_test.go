@@ -100,6 +100,29 @@ func TestDecoratorTargetIdentitySurvivesSameNamedDependencyClasses(t *testing.T)
 	}
 }
 
+func TestDecoratorTargetCarriesClassAndBaseIdentity(t *testing.T) {
+	entry := filepath.Join(t.TempDir(), "main.km")
+	checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: `
+function D(context:DecoratorContext):void{}
+class Base{}
+@D class Child extends Base{
+ constructor(){super();}
+ @D public function run():void{}
+}`})
+	if err != nil || len(checked.Diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, checked.Diagnostics)
+	}
+	if len(checked.Program.Decorators) != 2 {
+		t.Fatalf("decorators=%d", len(checked.Program.Decorators))
+	}
+	for _, application := range checked.Program.Decorators {
+		target := application.Target
+		if target == nil || target.ClassIdentity != "type|Child" || target.BaseIdentity != "type|Base" {
+			t.Fatalf("inheritance identity=%+v", target)
+		}
+	}
+}
+
 func TestDecoratorFactoryDiagnostics(t *testing.T) {
 	for _, tc := range []struct{ input, want string }{
 		{`@Unknown class C{}`, "undefined name"},

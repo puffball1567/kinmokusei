@@ -87,11 +87,13 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 	values := []struct{ name, value string }{
 		{"Kind", target.Kind},
 		{"Identity", target.Identity},
+		{"ClassIdentity", target.ClassIdentity},
+		{"BaseIdentity", target.BaseIdentity},
 		{"ClassName", target.ClassName},
 		{"MemberName", target.MemberName},
 		{"ParameterName", target.ParameterName},
 	}
-	elements := make([]goast.Expr, 0, 9)
+	elements := make([]goast.Expr, 0, len(kinmokuseiAST.DecoratorContextFields()))
 	for _, value := range values {
 		elements = append(elements, &goast.KeyValueExpr{Key: goast.NewIdent(value.name), Value: stringLiteral(value.value)})
 	}

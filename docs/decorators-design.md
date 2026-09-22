@@ -57,6 +57,8 @@ export class Users {
 ```ts
 kind: string
 identity: string
+classIdentity: string
+baseIdentity: string
 className: string
 memberName: string
 parameterName: string
@@ -67,8 +69,10 @@ valueType: string
 valueIdentity: string
 ```
 
-`identity` is opaque and stable for a target within repeatable builds. The name
-fields preserve source spellings for diagnostics and framework metadata. Empty
+`identity` is opaque and stable for a target within repeatable builds.
+`classIdentity` identifies the declaring class without requiring consumers to
+parse a member identity, and `baseIdentity` identifies its direct base class
+when one exists. The name fields preserve source spellings for diagnostics and framework metadata. Empty
 member/parameter names and `parameterIndex == -1` mean that the field does not
 apply to that target. `valueType` is the readable declared type. For nominal
 Kinmokusei class, interface and struct values, `valueIdentity` supplies a stable

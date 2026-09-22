@@ -38,12 +38,12 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			}
 		}
 	}
-	parameters := func(parameters []ast.Parameter, className, memberName, ownerID string, owner source.Span, static bool, visibility ast.Visibility) {
+	parameters := func(parameters []ast.Parameter, className, classID, baseID, memberName, ownerID string, owner source.Span, static bool, visibility ast.Visibility) {
 		for i := range parameters {
 			parameter := &parameters[i]
 			attach(parameter.Decorators, ast.DecoratorTarget{
 				Kind: "parameter", Name: parameter.Name, Identity: fmt.Sprintf("%s|parameter|%d", ownerID, i),
-				ClassName: className, MemberName: memberName, ParameterName: parameter.Name,
+				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: memberName, ParameterName: parameter.Name,
 				Owner: owner, Declaration: parameter.Span, ParameterIndex: i, Static: static, Visibility: visibility, ValueType: &parameter.Type,
 			})
 		}
@@ -66,19 +66,23 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			className = class.Name
 		}
 		classID := "type|" + class.Name
+		baseID := ""
+		if class.Base != nil && c.classes[class.Base.Name] != nil {
+			baseID = "type|" + class.Base.Name
+		}
 		classType := &ast.TypeRef{Name: className, Span: class.NameSpan}
 		for _, parameter := range class.TypeParameters {
 			classType.GenericArguments = append(classType.GenericArguments, ast.TypeRef{Name: parameter.Name, TypeParameter: true, Span: parameter.Span})
 		}
 		attach(class.Decorators, ast.DecoratorTarget{
-			Kind: "class", Name: className, Identity: classID, ClassName: className, ValueIdentity: classID,
+			Kind: "class", Name: className, Identity: classID, ClassIdentity: classID, BaseIdentity: baseID, ClassName: className, ValueIdentity: classID,
 			Declaration: class.NameSpan, ParameterIndex: -1, Visibility: ast.Public, ValueType: classType,
 		})
 		for i := range class.Fields {
 			field := &class.Fields[i]
 			attach(field.Decorators, ast.DecoratorTarget{
 				Kind: "field", Name: field.Name, Identity: classID + "|field|" + field.Name,
-				ClassName: className, MemberName: field.Name,
+				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: field.Name,
 				Owner: class.NameSpan, Declaration: field.NameSpan, ParameterIndex: -1, Static: field.Static, Visibility: field.Visibility, ValueType: &field.Type,
 			})
 		}
@@ -86,10 +90,10 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			constructorID := classID + "|constructor"
 			attach(constructor.Decorators, ast.DecoratorTarget{
 				Kind: "constructor", Name: "constructor", Identity: constructorID,
-				ClassName: className, MemberName: "constructor",
+				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: "constructor",
 				Owner: class.NameSpan, Declaration: constructor.Span, ParameterIndex: -1, Visibility: ast.Public, ValueType: signature(constructor.Parameters, classType),
 			})
-			parameters(constructor.Parameters, className, "constructor", constructorID, constructor.Span, false, ast.Public)
+			parameters(constructor.Parameters, className, classID, baseID, "constructor", constructorID, constructor.Span, false, ast.Public)
 		}
 		for _, method := range class.Methods {
 			kind := "method"
@@ -99,10 +103,10 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			methodID := classID + "|" + kind + "|" + method.Name
 			attach(method.Decorators, ast.DecoratorTarget{
 				Kind: kind, Name: method.Name, Identity: methodID,
-				ClassName: className, MemberName: method.Name,
+				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: method.Name,
 				Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
 			})
-			parameters(method.Parameters, className, method.Name, methodID, method.NameSpan, method.Static, method.Visibility)
+			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, method.NameSpan, method.Static, method.Visibility)
 		}
 	}
 	for _, application := range program.Decorators {

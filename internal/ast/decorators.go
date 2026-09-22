@@ -10,6 +10,8 @@ func DecoratorContextFields() []ObjectTypeField {
 	return []ObjectTypeField{
 		{Name: "kind", Type: TypeRef{Name: "string"}},
 		{Name: "identity", Type: TypeRef{Name: "string"}},
+		{Name: "classIdentity", Type: TypeRef{Name: "string"}},
+		{Name: "baseIdentity", Type: TypeRef{Name: "string"}},
 		{Name: "className", Type: TypeRef{Name: "string"}},
 		{Name: "memberName", Type: TypeRef{Name: "string"}},
 		{Name: "parameterName", Type: TypeRef{Name: "string"}},
@@ -38,6 +40,8 @@ type DecoratorTarget struct {
 	// Identity is an opaque, build-stable identifier. The remaining names are
 	// source spellings intended for framework diagnostics and registration.
 	Identity       string
+	ClassIdentity  string
+	BaseIdentity   string
 	ClassName      string
 	MemberName     string
 	ParameterName  string
