@@ -18,6 +18,9 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 		application.Target = nil
 	}
 	attach := func(list []*ast.Decorator, target ast.DecoratorTarget) {
+		if target.ValueIdentity == "" {
+			target.ValueIdentity = c.decoratorValueIdentity(target.ValueType)
+		}
 		for _, application := range list {
 			copy := target
 			application.Target = &copy
@@ -62,13 +65,13 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 		if className == "" {
 			className = class.Name
 		}
-		classID := "class|" + class.Name
+		classID := "type|" + class.Name
 		classType := &ast.TypeRef{Name: className, Span: class.NameSpan}
 		for _, parameter := range class.TypeParameters {
 			classType.GenericArguments = append(classType.GenericArguments, ast.TypeRef{Name: parameter.Name, TypeParameter: true, Span: parameter.Span})
 		}
 		attach(class.Decorators, ast.DecoratorTarget{
-			Kind: "class", Name: className, Identity: classID, ClassName: className,
+			Kind: "class", Name: className, Identity: classID, ClassName: className, ValueIdentity: classID,
 			Declaration: class.NameSpan, ParameterIndex: -1, Visibility: ast.Public, ValueType: classType,
 		})
 		for i := range class.Fields {
@@ -107,6 +110,22 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			c.report(application.Span, "decorator target must be a class, class member, or constructor/method parameter")
 		}
 	}
+}
+
+func (c *Checker) decoratorValueIdentity(ref *ast.TypeRef) string {
+	if ref == nil || ref.Qualifier != "" || ref.Name == "" || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.GoInterface || len(ref.GoResults) != 0 {
+		return ""
+	}
+	if c.classes[ref.Name] != nil {
+		return "type|" + ref.Name
+	}
+	if c.interfaces[ref.Name] != nil {
+		return "interface|" + ref.Name
+	}
+	if c.structs[ref.Name] != nil {
+		return "struct|" + ref.Name
+	}
+	return ""
 }
 
 func isDecoratorCallback(value Type) bool {

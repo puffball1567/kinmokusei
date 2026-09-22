@@ -64,12 +64,16 @@ parameterIndex: int
 static: boolean
 visibility: string
 valueType: string
+valueIdentity: string
 ```
 
 `identity` is opaque and stable for a target within repeatable builds. The name
 fields preserve source spellings for diagnostics and framework metadata. Empty
 member/parameter names and `parameterIndex == -1` mean that the field does not
-apply to that target.
+apply to that target. `valueType` is the readable declared type. For nominal
+Kinmokusei class, interface and struct values, `valueIdentity` supplies a stable
+opaque type key; it is empty for structural and primitive values. DI containers
+must match this key rather than parsing `valueType` or comparing display names.
 
 An external package can define decorators without compiler knowledge of its API:
 

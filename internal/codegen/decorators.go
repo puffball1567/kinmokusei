@@ -100,6 +100,7 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		&goast.KeyValueExpr{Key: goast.NewIdent("Static"), Value: goast.NewIdent(static)},
 		&goast.KeyValueExpr{Key: goast.NewIdent("Visibility"), Value: stringLiteral(decoratorVisibility(target.Visibility))},
 		&goast.KeyValueExpr{Key: goast.NewIdent("ValueType"), Value: stringLiteral(valueType)},
+		&goast.KeyValueExpr{Key: goast.NewIdent("ValueIdentity"), Value: stringLiteral(target.ValueIdentity)},
 	)
 	return &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiDecoratorContext"), Elts: elements}
 }

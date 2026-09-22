@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,14 +135,16 @@ func TestDecoratorRuntimeRegistrationMatchesIndependentGo(t *testing.T) {
 		library: `let trace:string="";
 export function Mark(label:string):(context:DecoratorContext)=>void{
  trace+="F"+label;
- return (context)=>{trace+="A"+label+":"+context.kind+":"+context.className+":"+context.memberName+":"+context.parameterName+":"+context.valueType+";";};
+ return (context)=>{trace+="A"+label+":"+context.kind+":"+context.className+":"+context.memberName+":"+context.parameterName+":"+context.valueType+":"+context.valueIdentity+";";};
 }
-export function Trace():string{return trace;}`,
-		entry: `import {Mark,Trace} from "./decorators";
+export function Trace():string{return trace;}
+@Mark("library-class") export class Library{}`,
+		entry: `import {Library,Mark,Trace} from "./decorators";
+class Dependency{}
 @Mark("class-first") @Mark("class-second")
 export class Service{
  @Mark("field") public static count:int=0;
- constructor(@Mark("constructor-parameter") private name:string){}
+ constructor(@Mark("constructor-parameter") dependency:Dependency,private name:string){}
  @Mark("method") public function run(@Mark("method-parameter") value:int):string{return this.name;}
 }
 export function Snapshot():string{return Trace();}`,
@@ -155,12 +158,16 @@ export function Snapshot():string{return Trace();}`,
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
+	generatedAgain, repeatedDiagnostics, repeatedErr := EmitGo([]string{entry}, "decorators")
+	if repeatedErr != nil || len(repeatedDiagnostics) != 0 || !bytes.Equal(generated, generatedAgain) {
+		t.Fatalf("decorator output is not repeatable: err=%v diagnostics=%v equal=%v", repeatedErr, repeatedDiagnostics, bytes.Equal(generated, generatedAgain))
+	}
 	text := string(generated)
 	if !strings.Contains(text, "type __kinmokuseiDecoratorContext struct") || !strings.Contains(text, "func init()") {
 		t.Fatalf("missing decorator runtime lowering:\n%s", generated)
 	}
 	reference := `package reference
-var trace="Fclass-firstFclass-secondAclass-second:class:Service:::Service;Aclass-first:class:Service:::Service;FfieldAfield:field:Service:count::int;Fconstructor-parameterAconstructor-parameter:parameter:Service:constructor:name:string;FmethodAmethod:method:Service:run::(int) => string;Fmethod-parameterAmethod-parameter:parameter:Service:run:value:int;"
+	var trace="Flibrary-classAlibrary-class:class:Library:::Library:type|Library;Fclass-firstFclass-secondAclass-second:class:Service:::Service:type|Service;Aclass-first:class:Service:::Service:type|Service;FfieldAfield:field:Service:count::int:;Fconstructor-parameterAconstructor-parameter:parameter:Service:constructor:dependency:Dependency:type|Dependency;FmethodAmethod:method:Service:run::(int) => string:;Fmethod-parameterAmethod-parameter:parameter:Service:run:value:int:;"
 func Snapshot()string{return trace}
 `
 	comparison := `package decorators_test

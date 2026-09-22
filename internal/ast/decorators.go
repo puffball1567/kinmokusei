@@ -17,6 +17,7 @@ func DecoratorContextFields() []ObjectTypeField {
 		{Name: "static", Type: TypeRef{Name: "boolean"}},
 		{Name: "visibility", Type: TypeRef{Name: "string"}},
 		{Name: "valueType", Type: TypeRef{Name: "string"}},
+		{Name: "valueIdentity", Type: TypeRef{Name: "string"}},
 	}
 }
 
@@ -40,6 +41,7 @@ type DecoratorTarget struct {
 	ClassName      string
 	MemberName     string
 	ParameterName  string
+	ValueIdentity  string
 	Owner          source.Span
 	Declaration    source.Span
 	ParameterIndex int
