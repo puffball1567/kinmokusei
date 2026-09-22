@@ -490,7 +490,7 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 		}
 		return
 	}
-	if ref.Name == ast.DecoratorContextTypeName {
+	if ast.IsDecoratorContextTypeName(ref.Name) {
 		if !static {
 			for _, field := range ast.DecoratorContextFields() {
 				add(completionItem{Label: field.Name, Kind: 5, Detail: field.Name + ": " + formatTypeRef(field.Type), SortText: "0_" + field.Name})

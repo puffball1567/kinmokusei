@@ -2,6 +2,11 @@ package compiler
 
 import (
 	"bytes"
+	goast "go/ast"
+	"go/importer"
+	"go/parser"
+	"go/token"
+	"go/types"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,6 +151,120 @@ func TestDecoratorFactoryDiagnostics(t *testing.T) {
 			}
 			t.Fatalf("want %q, got %v", tc.want, checked.Diagnostics)
 		})
+	}
+}
+
+func TestDecoratorTargetSpecificContexts(t *testing.T) {
+	entry := filepath.Join(t.TempDir(), "main.km")
+	input := `
+function ClassOnly(context:ClassDecoratorContext):void{}
+function FieldOnly(context:FieldDecoratorContext):void{}
+function ConstructorOnly(context:ConstructorDecoratorContext):void{}
+function MethodOnly(context:MethodDecoratorContext):void{}
+function GetterOnly(context:GetterDecoratorContext):void{}
+function SetterOnly(context:SetterDecoratorContext):void{}
+function ParameterOnly(context:ParameterDecoratorContext):void{}
+@ClassOnly class Service {
+ @FieldOnly public value:int=0;
+ @ConstructorOnly constructor(@ParameterOnly dependency:int){}
+ @MethodOnly public function run(@ParameterOnly argument:int):void{}
+ @GetterOnly public get item():int{return this.value;}
+ @SetterOnly public set item(value:int){this.value=value;}
+}
+function main():void{}
+`
+	checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: input})
+	if err != nil || len(checked.Diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, checked.Diagnostics)
+	}
+	if err := os.WriteFile(entry, []byte(input), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	generated, diagnostics, err := EmitGo([]string{entry}, "decorator_targets")
+	if err != nil || len(diagnostics) != 0 || !strings.Contains(string(generated), "func init()") {
+		t.Fatalf("emit err=%v diagnostics=%v\n%s", err, diagnostics, generated)
+	}
+	for _, context := range []string{"ClassDecoratorContext", "FieldDecoratorContext", "ConstructorDecoratorContext", "MethodDecoratorContext", "GetterDecoratorContext", "SetterDecoratorContext", "ParameterDecoratorContext"} {
+		if strings.Contains(string(generated), context) {
+			t.Fatalf("source-only context %s leaked into generated Go:\n%s", context, generated)
+		}
+	}
+	files := token.NewFileSet()
+	file, parseErr := parser.ParseFile(files, "generated.go", generated, 0)
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	config := types.Config{Importer: importer.Default()}
+	if _, typeErr := config.Check("decorator_targets", files, []*goast.File{file}, nil); typeErr != nil {
+		t.Fatalf("generated Go does not type-check: %v\n%s", typeErr, generated)
+	}
+}
+
+func TestDecoratorTargetSpecificContextDiagnostics(t *testing.T) {
+	for _, tc := range []struct{ context, target, input string }{
+		{"ClassDecoratorContext", "method", `class C{@D public function run():void{}}`},
+		{"FieldDecoratorContext", "class", `@D class C{}`},
+		{"ConstructorDecoratorContext", "field", `class C{@D public value:int=0;}`},
+		{"MethodDecoratorContext", "get", `class C{@D public get value():int{return 1;}}`},
+		{"GetterDecoratorContext", "set", `class C{@D public set value(v:int){}}`},
+		{"SetterDecoratorContext", "parameter", `class C{public function run(@D value:int):void{}}`},
+		{"ParameterDecoratorContext", "constructor", `class C{@D constructor(){}}`},
+	} {
+		t.Run(tc.context+"_on_"+tc.target, func(t *testing.T) {
+			entry := filepath.Join(t.TempDir(), "main.km")
+			input := "function D(context:" + tc.context + "):void{}" + tc.input
+			checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: input})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := "using " + tc.context + " cannot be applied to " + tc.target + " target"
+			for _, diagnostic := range checked.Diagnostics {
+				if strings.Contains(diagnostic.Message, want) {
+					return
+				}
+			}
+			t.Fatalf("want %q, got %v", want, checked.Diagnostics)
+		})
+	}
+}
+
+func TestDecoratorTargetContextRestrictionsCannotBeErased(t *testing.T) {
+	for _, input := range []string{
+		`function ClassOnly(context:ClassDecoratorContext):void{} const D:(context:DecoratorContext)=>void=ClassOnly;`,
+		`function Factory():(context:ClassDecoratorContext)=>void{return (context:DecoratorContext)=>{};}`,
+	} {
+		t.Run(input, func(t *testing.T) {
+			entry := filepath.Join(t.TempDir(), "main.km")
+			checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: input})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, diagnostic := range checked.Diagnostics {
+				if strings.Contains(diagnostic.Message, "cannot use") || strings.Contains(diagnostic.Message, "does not match") {
+					return
+				}
+			}
+			t.Fatalf("target restriction was structurally erased: %v", checked.Diagnostics)
+		})
+	}
+}
+
+func TestImportedDecoratorRetainsTargetContext(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "main.km")
+	library := filepath.Join(root, "library.km")
+	files := map[string]string{
+		library: `export function Controller(path:string):(context:ClassDecoratorContext)=>void{return (context)=>{};}`,
+		entry: `import {Controller} from "./library";
+@Controller("/valid") class Valid{}
+class Invalid{@Controller("/invalid") public function run():void{}}`,
+	}
+	checked, err := CheckFilesWithOverlay([]string{entry}, files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(checked.Diagnostics) != 1 || !strings.Contains(checked.Diagnostics[0].Message, "using ClassDecoratorContext cannot be applied to method target") {
+		t.Fatalf("imported target restriction diagnostics=%v", checked.Diagnostics)
 	}
 }
 

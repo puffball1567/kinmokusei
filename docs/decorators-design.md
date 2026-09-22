@@ -1,8 +1,9 @@
 # Decorator language foundation
 
 Status: metadata registration foundation implemented. Applications retain their
-targets in the AST, factories undergo ordinary expression/call checking, and
-generated Go evaluates factories and invokes their callbacks during `init`.
+targets in the AST, factories undergo ordinary expression/call checking,
+target-specific callback types reject invalid applications, and generated Go
+evaluates factories and invokes their callbacks during `init`.
 Callable constructor/method adapters for automatic DI and routing remain future
 work; the current feature is usable for typed metadata collection.
 
@@ -45,8 +46,9 @@ export class Users {
 - Factories are module-scoped expressions. Their names and arguments use normal
   import/re-export linking, expression resolution and argument checks. Member
   and parameter names do not shadow decorator factories. A resolved application
-  must return `(context: DecoratorContext) => void`; returning an ordinary value
-  or an incompatible callback is diagnosed.
+  must return `(context: DecoratorContext) => void` or one of the target-specific
+  context callbacks below; returning an ordinary value or an incompatible
+  callback is diagnosed.
 - Applications on other parsed targets (such as local arrow parameters) are
   explicitly rejected.
 
@@ -67,6 +69,36 @@ static: boolean
 visibility: string
 valueType: string
 valueIdentity: string
+```
+
+Factories that only support one declaration kind should use its nominal context
+type instead of the unrestricted `DecoratorContext`:
+
+| Context type | Accepted target |
+|---|---|
+| `ClassDecoratorContext` | class |
+| `FieldDecoratorContext` | field |
+| `ConstructorDecoratorContext` | constructor |
+| `MethodDecoratorContext` | ordinary method |
+| `GetterDecoratorContext` | getter |
+| `SetterDecoratorContext` | setter |
+| `ParameterDecoratorContext` | constructor or method parameter |
+
+All context types expose the same fields for a stable library-facing metadata
+contract, but they are nominally distinct. Assigning a target-specific callback
+to an unrestricted callback type is an error, so a restriction cannot be erased
+through a function variable or returned callback.
+
+```ts
+export function Controller(path: string):
+    (context: ClassDecoratorContext) => void {
+  return (context) => registerController(path, context.classIdentity);
+}
+
+export function Get(path: string):
+    (context: MethodDecoratorContext) => void {
+  return (context) => registerRoute(path, context.identity);
+}
 ```
 
 `identity` is opaque and stable for a target within repeatable builds.
@@ -99,12 +131,11 @@ compiler process.
 1. Supply checked callable construction and method-invocation adapters so DI and
    routing libraries can operate without reflection or generated-code edits.
    Preserve `Result`, visibility, nullable and generic contracts.
-2. Add per-factory target restrictions and define inheritance behavior for
-   metadata on overridden/inherited members.
+2. Define inheritance behavior for metadata on overridden/inherited members.
 3. Validate package identity and initialization order across independently
    versioned external packages and repeated builds.
 
-`DecoratorContext` type/field hover and completion are implemented. Imported
+All decorator context types provide type/field hover and completion. Imported
 decorator calls participate in ordinary definition, hover, signature, reference
 and rename operations.
 

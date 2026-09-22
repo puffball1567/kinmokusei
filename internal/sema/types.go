@@ -90,32 +90,37 @@ type GoStructField struct {
 }
 
 var builtins = map[string]Type{
-	"void":                       {Kind: Void, Name: "void"},
-	"boolean":                    {Kind: Boolean, Name: "boolean"},
-	"string":                     {Kind: String, Name: "string"},
-	"int":                        {Kind: Int, Name: "int"},
-	"int8":                       {Kind: Int8, Name: "int8"},
-	"int16":                      {Kind: Int16, Name: "int16"},
-	"int32":                      {Kind: Int32, Name: "int32"},
-	"int64":                      {Kind: Int64, Name: "int64"},
-	"uint":                       {Kind: Uint, Name: "uint"},
-	"uint8":                      {Kind: Byte, Name: "byte"},
-	"uint16":                     {Kind: Uint16, Name: "uint16"},
-	"uint32":                     {Kind: Uint32, Name: "uint32"},
-	"uint64":                     {Kind: Uint64, Name: "uint64"},
-	"float32":                    {Kind: Float32, Name: "float32"},
-	"float":                      {Kind: Float64, Name: "float"},
-	"number":                     {Kind: Float64, Name: "float"},
-	"float64":                    {Kind: Float64, Name: "float"},
-	"complex64":                  {Kind: GoBasic, Name: "complex64", GoType: gotypes.Typ[gotypes.Complex64]},
-	"complex128":                 {Kind: GoBasic, Name: "complex128", GoType: gotypes.Typ[gotypes.Complex128]},
-	"byte":                       {Kind: Byte, Name: "byte"},
-	"error":                      {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
-	"Exception":                  {Kind: Class, Name: "Exception"},
-	ast.DecoratorContextTypeName: decoratorContextType(),
+	"void":       {Kind: Void, Name: "void"},
+	"boolean":    {Kind: Boolean, Name: "boolean"},
+	"string":     {Kind: String, Name: "string"},
+	"int":        {Kind: Int, Name: "int"},
+	"int8":       {Kind: Int8, Name: "int8"},
+	"int16":      {Kind: Int16, Name: "int16"},
+	"int32":      {Kind: Int32, Name: "int32"},
+	"int64":      {Kind: Int64, Name: "int64"},
+	"uint":       {Kind: Uint, Name: "uint"},
+	"uint8":      {Kind: Byte, Name: "byte"},
+	"uint16":     {Kind: Uint16, Name: "uint16"},
+	"uint32":     {Kind: Uint32, Name: "uint32"},
+	"uint64":     {Kind: Uint64, Name: "uint64"},
+	"float32":    {Kind: Float32, Name: "float32"},
+	"float":      {Kind: Float64, Name: "float"},
+	"number":     {Kind: Float64, Name: "float"},
+	"float64":    {Kind: Float64, Name: "float"},
+	"complex64":  {Kind: GoBasic, Name: "complex64", GoType: gotypes.Typ[gotypes.Complex64]},
+	"complex128": {Kind: GoBasic, Name: "complex128", GoType: gotypes.Typ[gotypes.Complex128]},
+	"byte":       {Kind: Byte, Name: "byte"},
+	"error":      {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
+	"Exception":  {Kind: Class, Name: "Exception"},
 }
 
-func decoratorContextType() Type {
+func init() {
+	for _, definition := range ast.DecoratorContextDefinitions() {
+		builtins[definition.Name] = decoratorContextType(definition.Name)
+	}
+}
+
+func decoratorContextType(name string) Type {
 	fields := map[string]Type{}
 	fieldNames := map[string]string{}
 	for _, field := range ast.DecoratorContextFields() {
@@ -131,7 +136,7 @@ func decoratorContextType() Type {
 		fields[field.Name] = fieldType
 		fieldNames[field.Name] = memberGoName(field.Name, ast.Public)
 	}
-	return Type{Kind: Object, Name: ast.DecoratorContextTypeName, Fields: fields, FieldNames: fieldNames}
+	return Type{Kind: Object, Name: name, Fields: fields, FieldNames: fieldNames}
 }
 
 func LookupType(name string) (Type, bool) {
@@ -203,6 +208,9 @@ func (t Type) isComparable(visiting map[string]bool) bool {
 func assignable(target, value Type) bool {
 	if target.Kind == Invalid || value.Kind == Invalid {
 		return true
+	}
+	if decoratorContextContractMismatch(target, value) {
+		return false
 	}
 	if target.Kind == MultiValue || value.Kind == MultiValue {
 		return false
@@ -323,6 +331,13 @@ func assignable(target, value Type) bool {
 		if target.Kind != Object || value.Kind != Object || len(target.Fields) != len(value.Fields) {
 			return false
 		}
+		// Decorator target contexts deliberately remain nominal even though
+		// their runtime fields currently match. Structural assignment would let
+		// a class-only callback be widened to DecoratorContext and then applied
+		// to methods or parameters, silently erasing its target restriction.
+		if ast.IsDecoratorContextTypeName(target.Name) || ast.IsDecoratorContextTypeName(value.Name) {
+			return target.Name == value.Name
+		}
 		for name, targetField := range target.Fields {
 			valueField, ok := value.Fields[name]
 			if !ok || !sameType(targetField, valueField) {
@@ -357,6 +372,26 @@ func assignable(target, value Type) bool {
 		return true
 	}
 	return value.Kind == UntypedInt && target.IsNumeric()
+}
+
+func decoratorContextContractMismatch(left, right Type) bool {
+	leftContext := left.Kind == Object && ast.IsDecoratorContextTypeName(left.Name)
+	rightContext := right.Kind == Object && ast.IsDecoratorContextTypeName(right.Name)
+	if leftContext || rightContext {
+		return !leftContext || !rightContext || left.Name != right.Name
+	}
+	if left.Kind != Function || right.Kind != Function {
+		return false
+	}
+	if len(left.Parameters) != len(right.Parameters) {
+		return false
+	}
+	for index := range left.Parameters {
+		if decoratorContextContractMismatch(left.Parameters[index], right.Parameters[index]) {
+			return true
+		}
+	}
+	return left.Result != nil && right.Result != nil && decoratorContextContractMismatch(*left.Result, *right.Result)
 }
 
 func sameType(left, right Type) bool {
@@ -412,6 +447,9 @@ func (t Type) String() string {
 				}
 			}
 		case Object:
+			if ast.IsDecoratorContextTypeName(t.Name) {
+				return t.Name
+			}
 			names := make([]string, 0, len(t.Fields))
 			for name := range t.Fields {
 				names = append(names, name)

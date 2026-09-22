@@ -47,8 +47,20 @@ func TestDecoratorContextHoverAndCompletion(t *testing.T) {
 		}
 	}
 	lexical := completionLabels(completionItemsAt(t, path, input, 0, 0))
-	if lexical["DecoratorContext"] == nil {
-		t.Fatalf("missing built-in type completion: %#v", lexical)
+	for _, name := range []string{"DecoratorContext", "ClassDecoratorContext", "FieldDecoratorContext", "ConstructorDecoratorContext", "MethodDecoratorContext", "GetterDecoratorContext", "SetterDecoratorContext", "ParameterDecoratorContext"} {
+		if lexical[name] == nil {
+			t.Fatalf("missing %s built-in type completion: %#v", name, lexical)
+		}
+	}
+
+	targetInput := strings.Replace(input, "DecoratorContext", "ClassDecoratorContext", 1)
+	targetPosition := positionOf(targetInput, "ClassDecoratorContext", 0)
+	targetMessages := serveMessages(t, openDocument(uri, targetInput),
+		requestAt("textDocument/hover", 2, uri, targetPosition, ""),
+	)
+	targetHover := targetMessages[2]["result"].(map[string]any)["contents"].(map[string]any)["value"].(string)
+	if !strings.Contains(targetHover, "type ClassDecoratorContext") || !strings.Contains(targetHover, "classIdentity: string") {
+		t.Fatalf("target context hover=%q", targetHover)
 	}
 }
 

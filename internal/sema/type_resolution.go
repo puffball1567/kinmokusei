@@ -348,7 +348,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	if t, ok := LookupType(ref.Name); ok {
-		if ref.Name == ast.DecoratorContextTypeName {
+		if ast.IsDecoratorContextTypeName(ref.Name) {
 			c.usesDecoratorContext = true
 		}
 		return t

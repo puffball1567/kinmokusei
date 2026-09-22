@@ -70,8 +70,8 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 	if name == "Exception" {
 		return "class Exception {\n  public message: string;\n  public function error(): string;\n}", true
 	}
-	if name == ast.DecoratorContextTypeName {
-		lines := []string{"type " + ast.DecoratorContextTypeName + " = {"}
+	if ast.IsDecoratorContextTypeName(name) {
+		lines := []string{"type " + name + " = {"}
 		for _, field := range ast.DecoratorContextFields() {
 			lines = append(lines, "  "+field.Name+": "+formatTypeRef(field.Type)+";")
 		}
@@ -92,7 +92,7 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 			return
 		}
 		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
-			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ref.Name == ast.DecoratorContextTypeName {
+			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ast.IsDecoratorContextTypeName(ref.Name) {
 				for _, field := range ast.DecoratorContextFields() {
 					if member.Name == field.Name {
 						detail = field.Name + ": " + formatTypeRef(field.Type)

@@ -33,8 +33,13 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				c.report(application.Span, "decorator application must resolve to a function; factories must return a function")
 				continue
 			}
-			if !isDecoratorCallback(value) {
-				c.report(application.Span, "decorator callback must have type (context: DecoratorContext) => void")
+			contextName, valid := decoratorCallbackContext(value)
+			if !valid {
+				c.report(application.Span, "decorator callback must have type (context: DecoratorContext) => void or use a target-specific decorator context")
+				continue
+			}
+			if !ast.DecoratorContextAcceptsTarget(contextName, target.Kind) {
+				c.report(application.Span, fmt.Sprintf("decorator callback using %s cannot be applied to %s target", contextName, target.Kind))
 			}
 		}
 	}
@@ -132,8 +137,11 @@ func (c *Checker) decoratorValueIdentity(ref *ast.TypeRef) string {
 	return ""
 }
 
-func isDecoratorCallback(value Type) bool {
-	return value.Kind == Function && !value.Variadic && len(value.Parameters) == 1 &&
-		value.Parameters[0].Kind == Object && value.Parameters[0].Name == ast.DecoratorContextTypeName &&
-		value.Result != nil && value.Result.Kind == Void
+func decoratorCallbackContext(value Type) (string, bool) {
+	if value.Kind != Function || value.Variadic || len(value.Parameters) != 1 ||
+		value.Parameters[0].Kind != Object || !ast.IsDecoratorContextTypeName(value.Parameters[0].Name) ||
+		value.Result == nil || value.Result.Kind != Void {
+		return "", false
+	}
+	return value.Parameters[0].Name, true
 }
