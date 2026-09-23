@@ -43,8 +43,8 @@ descriptors, per-factory target restrictions and Go `init` registration are
 implemented. Override chains are exposed without implicitly replaying inherited
 decorators. Canonical external-package identities and dependency-first
 registration are verified across checkout paths and import aliases. Checked
-fixed-arity constructor adapters are implemented for concrete classes. Method
-adapters, variadic constructors and concrete generic instantiations remain;
+constructor adapters are implemented for concrete classes, including variadic
+constructors. Method adapters and concrete generic instantiations remain;
 context type/field completion and hover are implemented.
 
 Constrained collection forwarding now infers common slice/array/map/channel

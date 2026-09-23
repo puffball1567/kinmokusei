@@ -434,12 +434,24 @@ let trace:string="";
 @Injectable() class Service{
  constructor(public dependency:Dependency){trace+="service;";}
 }
+@Injectable() class Batch{
+ constructor(...dependencies:Dependency[]){trace+="batch;";if(len(dependencies)==2){trace+="two;";}}
+}
+@Injectable() class Message{
+ constructor(public text:string){trace+=text+";";}
+}
 export function Build():Result<string>{
  const dependency=Construct(0,[])?;
  const service=Construct(1,[dependency])?;
- return ok(trace+dependency.typeIdentity+";"+service.typeIdentity);
+ const batch=Construct(2,[dependency,dependency])?;
+ const text=decoratorValue("boxed");
+ const message=Construct(3,[text])?;
+ const unboxed=decoratorValueAs<string>(text)?;
+ return ok(trace+dependency.typeIdentity+";"+service.typeIdentity+";"+batch.typeIdentity+";"+message.typeIdentity+";"+text.typeIdentity+";"+unboxed);
 }
 export function BadArity():Result<DecoratorValue>{return Construct(1,[]);}
+export function BadVariadicType():Result<DecoratorValue>{const dependency=Construct(0,[])?;const service=Construct(1,[dependency])?;return Construct(2,[service]);}
+export function BadUnbox():Result<int>{const text=decoratorValue("text");return decoratorValueAs<int>(text);}
 `
 	if err := os.WriteFile(library, []byte(librarySource), 0o644); err != nil {
 		t.Fatal(err)
@@ -452,14 +464,16 @@ export function BadArity():Result<DecoratorValue>{return Construct(1,[]);}
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
 	text := string(generated)
-	for _, fragment := range []string{"type __kinmokuseiDecoratorValue struct", "Constructible: true", "NewDependency()", "NewService(argument0)"} {
+	for _, fragment := range []string{"type __kinmokuseiDecoratorValue struct", "Constructible: true", "NewDependency()", "NewService(argument0)", "NewBatch(variadicArguments...)", "NewMessage(argument0)"} {
 		if !strings.Contains(text, fragment) {
 			t.Fatalf("missing %q in generated adapter:\n%s", fragment, generated)
 		}
 	}
 	reference := `package reference
-func Build()(string,error){return "dependency;service;type|Dependency;type|Service",nil}
+func Build()(string,error){return "dependency;service;batch;two;boxed;type|Dependency;type|Service;type|Batch;type|Message;string;boxed",nil}
 func BadArity()error{return errorString("decorator constructor for Service expects 1 argument")}
+func BadVariadicType()error{return errorString("decorator constructor for Batch variadic arguments expect Dependency")}
+func BadUnbox()error{return errorString("decorator value does not contain int")}
 type errorString string
 func(e errorString)Error()string{return string(e)}
 `
@@ -468,6 +482,8 @@ import("testing";g "decorator-adapters.test";r "decorator-adapters.test/referenc
 func TestAdapters(t *testing.T){
  got,err:=g.Build();want,werr:=r.Build();if err!=nil||werr!=nil||got!=want{t.Fatalf("Build=%q,%v want %q,%v",got,err,want,werr)}
  _,err=g.BadArity();wantErr:=r.BadArity();if err==nil||err.Error()!=wantErr.Error(){t.Fatalf("BadArity=%v want %v",err,wantErr)}
+ _,err=g.BadVariadicType();wantErr=r.BadVariadicType();if err==nil||err.Error()!=wantErr.Error(){t.Fatalf("BadVariadicType=%v want %v",err,wantErr)}
+ _,err=g.BadUnbox();wantErr=r.BadUnbox();if err==nil||err.Error()!=wantErr.Error(){t.Fatalf("BadUnbox=%v want %v",err,wantErr)}
 }
 `
 	runGeneratedGoDifferentialTest(t, root, "decorator-adapters.test", generated, reference, comparison)
@@ -494,15 +510,18 @@ func TestDecoratorConstructorAdapterAvailabilityAndOpacity(t *testing.T) {
 	wantReasons := []string{
 		"abstract classes cannot be constructed",
 		"generic classes require concrete type arguments",
-		"variadic constructors are not yet supported by decorator adapters",
 	}
-	if len(checked.Program.Decorators) != len(wantReasons) {
+	if len(checked.Program.Decorators) != len(wantReasons)+1 {
 		t.Fatalf("decorators=%d", len(checked.Program.Decorators))
 	}
-	for index, application := range checked.Program.Decorators {
+	for index, application := range checked.Program.Decorators[:len(wantReasons)] {
 		if application.Target == nil || application.Target.Constructible || application.Target.ConstructUnavailableReason != wantReasons[index] {
 			t.Errorf("target %d=%+v", index, application.Target)
 		}
+	}
+	variadic := checked.Program.Decorators[len(wantReasons)].Target
+	if variadic == nil || !variadic.Constructible || !variadic.ConstructorVariadic {
+		t.Errorf("variadic target=%+v", variadic)
 	}
 
 	for _, name := range []string{"DecoratorValue", "ClassDecoratorContext"} {

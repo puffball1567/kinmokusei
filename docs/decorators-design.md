@@ -87,6 +87,19 @@ assertion for every constructor argument before calling the ordinary typed
 `Result`; it does not panic or fall back to reflection. Object literals cannot
 forge `DecoratorValue` or any decorator context.
 
+Ordinary runtime values cross the same boundary through two compiler built-ins:
+
+```ts
+const boxed = decoratorValue("route parameter");
+const text = decoratorValueAs<string>(boxed)?;
+```
+
+`decoratorValue` infers its payload type (or accepts one explicit type
+argument). `decoratorValueAs<T>` requires an explicit target and returns
+`Result<T>`; a mismatched payload is an error rather than a panic or zero-value
+substitution. This is the scalar path needed by routing libraries and is also
+available for nominal, collection and callable values that have Go storage.
+
 Factories that only support one declaration kind should use its nominal context
 type instead of the unrestricted `DecoratorContext`:
 
@@ -160,9 +173,10 @@ export function Injectable():
 }
 ```
 
-Concrete, non-generic classes with fixed-arity constructors are constructible,
-including zero-argument classes. Abstract classes, generic classes without
-concrete type arguments and variadic constructors expose `constructible ==
+Concrete, non-generic classes are constructible, including zero-argument and
+variadic constructors. Variadic arguments are checked individually against the
+declared element type before the typed Go call is expanded. Abstract classes
+and generic classes without concrete type arguments expose `constructible ==
 false` with a stable human-readable reason. Calling their adapter still returns
 that failure as a `Result`, so a framework does not need an unchecked branch.
 
@@ -176,8 +190,7 @@ compiler process.
 1. Add checked method-invocation adapters so routing libraries can call methods
    without reflection or generated-code edits. Preserve `Result`, visibility,
    nullable and generic contracts.
-2. Extend constructor adapters to variadic constructors and explicit concrete
-   generic instantiations.
+2. Extend constructor adapters to explicit concrete generic instantiations.
 
 All decorator context types provide type/field hover and completion. Imported
 decorator calls participate in ordinary definition, hover, signature, reference

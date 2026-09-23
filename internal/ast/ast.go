@@ -829,17 +829,18 @@ type CallExpr struct {
 	Arguments              []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
-	IntegerSizeArguments []bool
-	MakeSliceTarget      bool // make[T] has a checked slice target, not a map hint or channel capacity.
-	Expanded             bool
-	Conversion           bool
-	GoConstant           bool // Checked calls/conversions that Go evaluates at compile time.
-	ConversionType       *TypeRef
-	Builtin              BuiltinCallKind
-	Signature            *CallableSignature
-	SuperConstructor     bool
-	SuperBase            string
-	Span                 source.Span
+	IntegerSizeArguments   []bool
+	MakeSliceTarget        bool // make[T] has a checked slice target, not a map hint or channel capacity.
+	Expanded               bool
+	Conversion             bool
+	GoConstant             bool // Checked calls/conversions that Go evaluates at compile time.
+	ConversionType         *TypeRef
+	DecoratorValueIdentity string
+	Builtin                BuiltinCallKind
+	Signature              *CallableSignature
+	SuperConstructor       bool
+	SuperBase              string
+	Span                   source.Span
 }
 
 type CallableSignature struct {
@@ -884,6 +885,8 @@ const (
 	UnsafeStringDataCall
 	ResultOKCall
 	ResultFailCall
+	DecoratorValueCall
+	DecoratorValueAsCall
 )
 
 type ArrowExpr struct {

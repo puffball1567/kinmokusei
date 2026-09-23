@@ -38,6 +38,10 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		}
 		if !c.hasCallBinding(name.Name, name.Span) {
 			switch name.Name {
+			case "decoratorValue":
+				return c.checkDecoratorValueBuiltin(expr, false)
+			case "decoratorValueAs":
+				return c.checkDecoratorValueBuiltin(expr, true)
 			case "ok":
 				return c.checkResultConstructor(expr, true)
 			case "fail":
