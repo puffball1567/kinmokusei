@@ -125,6 +125,7 @@ type DecoratorTarget struct {
 	RuntimeClassName           string
 	ConstructUnavailableReason string
 	ConstructorParameters      []TypeRef
+	ConstructorVariadic        bool
 	Owner                      source.Span
 	Declaration                source.Span
 	ParameterIndex             int

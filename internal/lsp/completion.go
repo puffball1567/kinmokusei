@@ -189,7 +189,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, name := range builtinTypes {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
-	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "make", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
+	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "make", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail", "decoratorValue", "decoratorValueAs"} {
 		add(completionItem{Label: name, Kind: 3, Detail: "compiler built-in", SortText: "2_" + name})
 	}
 	for _, imported := range program.Imports {

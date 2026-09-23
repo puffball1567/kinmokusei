@@ -93,10 +93,6 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			constructible = false
 			constructUnavailableReason = "generic classes require concrete type arguments"
 		} else if class.Constructor != nil {
-			if hasVariadicParameter(class.Constructor.Parameters) {
-				constructible = false
-				constructUnavailableReason = "variadic constructors are not yet supported by decorator adapters"
-			}
 			for _, parameter := range class.Constructor.Parameters {
 				constructorParameters = append(constructorParameters, parameter.Type)
 			}
@@ -104,7 +100,8 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 		attach(class.Decorators, ast.DecoratorTarget{
 			Kind: "class", Name: className, Identity: classID, ClassIdentity: classID, BaseIdentity: baseID, ClassName: className, ValueIdentity: classID,
 			RuntimeClassName: class.Name, Constructible: constructible, ConstructUnavailableReason: constructUnavailableReason, ConstructorParameters: constructorParameters,
-			Declaration: class.NameSpan, ParameterIndex: -1, Visibility: ast.Public, ValueType: classType,
+			ConstructorVariadic: class.Constructor != nil && hasVariadicParameter(class.Constructor.Parameters),
+			Declaration:         class.NameSpan, ParameterIndex: -1, Visibility: ast.Public, ValueType: classType,
 		})
 		for i := range class.Fields {
 			field := &class.Fields[i]
@@ -120,7 +117,8 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				Kind: "constructor", Name: "constructor", Identity: constructorID,
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: "constructor",
 				RuntimeClassName: class.Name, Constructible: constructible, ConstructUnavailableReason: constructUnavailableReason, ConstructorParameters: constructorParameters,
-				Owner: class.NameSpan, Declaration: constructor.Span, ParameterIndex: -1, Visibility: ast.Public, ValueType: signature(constructor.Parameters, classType),
+				ConstructorVariadic: hasVariadicParameter(constructor.Parameters),
+				Owner:               class.NameSpan, Declaration: constructor.Span, ParameterIndex: -1, Visibility: ast.Public, ValueType: signature(constructor.Parameters, classType),
 			})
 			parameters(constructor.Parameters, className, classID, baseID, "constructor", constructorID, nil, constructor.Span, false, ast.Public)
 		}
