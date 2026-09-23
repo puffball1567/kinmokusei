@@ -1,11 +1,10 @@
 # Decorator language foundation
 
-Status: metadata registration foundation implemented. Applications retain their
-targets in the AST, factories undergo ordinary expression/call checking,
-target-specific callback types reject invalid applications, and generated Go
-evaluates factories and invokes their callbacks during `init`.
-Callable constructor/method adapters for automatic DI and routing remain future
-work; the current feature is usable for typed metadata collection.
+Status: metadata registration and checked constructor adapters are implemented.
+Applications retain their targets in the AST, factories undergo ordinary
+expression/call checking, target-specific callback types reject invalid
+applications, and generated Go evaluates factories and invokes their callbacks
+during `init`. Method-invocation adapters for routing remain future work.
 
 ## Goal
 
@@ -41,8 +40,8 @@ export class Users {
   in a dependency cannot silently disappear and produce undecorated Go output.
 - Class/member/constructor/method-parameter applications now carry checked
   compiler metadata: declaration identity, owning declaration, parameter index,
-  static/visibility flags and the declared value or callable signature.
-  These descriptors are not yet runtime contexts accessible to library code.
+  static/visibility flags and the declared value or callable signature. These
+  descriptors are supplied to library code as runtime contexts.
 - Factories are module-scoped expressions. Their names and arguments use normal
   import/re-export linking, expression resolution and argument checks. Member
   and parameter names do not shadow decorator factories. A resolved application
@@ -70,7 +69,23 @@ static: boolean
 visibility: string
 valueType: string
 valueIdentity: string
+constructible: boolean
+constructUnavailableReason: string
+construct: (arguments: DecoratorValue[]) => Result<DecoratorValue>
 ```
+
+`DecoratorValue` is a compiler-owned opaque value with one readable field:
+
+```ts
+typeIdentity: string
+```
+
+Its payload is not exposed to source code. A framework can retain and pass the
+value to another checked adapter, while generated Go performs an exact type
+assertion for every constructor argument before calling the ordinary typed
+`New<Class>` function. A mismatch or wrong argument count is returned through
+`Result`; it does not panic or fall back to reflection. Object literals cannot
+forge `DecoratorValue` or any decorator context.
 
 Factories that only support one declaration kind should use its nominal context
 type instead of the unrestricted `DecoratorContext`:
@@ -126,6 +141,31 @@ export function Register(label: string): (context: DecoratorContext) => void {
 }
 ```
 
+A DI library can retain constructor adapters and compose them without generated
+code edits or Go reflection:
+
+```ts
+alias ConstructorAdapter =
+  (arguments: DecoratorValue[]) => Result<DecoratorValue>;
+
+let constructors: ConstructorAdapter[] = [];
+
+export function Injectable():
+    (context: ClassDecoratorContext) => void {
+  return (context) => {
+    if (context.constructible) {
+      constructors = append(constructors, context.construct);
+    }
+  };
+}
+```
+
+Concrete, non-generic classes with fixed-arity constructors are constructible,
+including zero-argument classes. Abstract classes, generic classes without
+concrete type arguments and variadic constructors expose `constructible ==
+false` with a stable human-readable reason. Calling their adapter still returns
+that failure as a `Result`, so a framework does not need an unchecked branch.
+
 Factories on one target are evaluated from top to bottom and their callbacks are
 applied from bottom to top. Generated registration runs in Go `init`, after
 package variables have been initialized. Decorator code never runs in the
@@ -133,9 +173,11 @@ compiler process.
 
 ## Remaining implementation
 
-1. Supply checked callable construction and method-invocation adapters so DI and
-   routing libraries can operate without reflection or generated-code edits.
-   Preserve `Result`, visibility, nullable and generic contracts.
+1. Add checked method-invocation adapters so routing libraries can call methods
+   without reflection or generated-code edits. Preserve `Result`, visibility,
+   nullable and generic contracts.
+2. Extend constructor adapters to variadic constructors and explicit concrete
+   generic instantiations.
 
 All decorator context types provide type/field hover and completion. Imported
 decorator calls participate in ordinary definition, hover, signature, reference

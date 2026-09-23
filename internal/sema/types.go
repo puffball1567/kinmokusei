@@ -115,8 +115,17 @@ var builtins = map[string]Type{
 }
 
 func init() {
+	builtins[ast.DecoratorValueTypeName] = decoratorValueType()
 	for _, definition := range ast.DecoratorContextDefinitions() {
 		builtins[definition.Name] = decoratorContextType(definition.Name)
+	}
+}
+
+func decoratorValueType() Type {
+	return Type{
+		Kind: Object, Name: ast.DecoratorValueTypeName,
+		Fields:     map[string]Type{"typeIdentity": builtins["string"]},
+		FieldNames: map[string]string{"typeIdentity": memberGoName("typeIdentity", ast.Public)},
 	}
 }
 
@@ -135,6 +144,11 @@ func decoratorContextType(name string) Type {
 			fieldType = Type{Kind: Int, Name: "int"}
 		case field.Type.Name == "boolean":
 			fieldType = Type{Kind: Boolean, Name: "boolean"}
+		case field.Type.IsFunction():
+			value := decoratorValueType()
+			arguments := Type{Kind: Array, Name: "array", Element: &value}
+			result := Type{Kind: Result, Name: "Result", Element: &value}
+			fieldType = Type{Kind: Function, Name: "function", Parameters: []Type{arguments}, Result: &result}
 		}
 		fields[field.Name] = fieldType
 		fieldNames[field.Name] = memberGoName(field.Name, ast.Public)
@@ -338,7 +352,7 @@ func assignable(target, value Type) bool {
 		// their runtime fields currently match. Structural assignment would let
 		// a class-only callback be widened to DecoratorContext and then applied
 		// to methods or parameters, silently erasing its target restriction.
-		if ast.IsDecoratorContextTypeName(target.Name) || ast.IsDecoratorContextTypeName(value.Name) {
+		if ast.IsDecoratorBuiltinObjectTypeName(target.Name) || ast.IsDecoratorBuiltinObjectTypeName(value.Name) {
 			return target.Name == value.Name
 		}
 		for name, targetField := range target.Fields {
@@ -450,7 +464,7 @@ func (t Type) String() string {
 				}
 			}
 		case Object:
-			if ast.IsDecoratorContextTypeName(t.Name) {
+			if ast.IsDecoratorBuiltinObjectTypeName(t.Name) {
 				return t.Name
 			}
 			names := make([]string, 0, len(t.Fields))

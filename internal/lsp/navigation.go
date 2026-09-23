@@ -77,6 +77,13 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 		}
 		return strings.Join(append(lines, "}"), "\n"), true
 	}
+	if name == ast.DecoratorValueTypeName {
+		lines := []string{"type " + name + " = {"}
+		for _, field := range ast.DecoratorValueFields() {
+			lines = append(lines, "  "+field.Name+": "+formatTypeRef(field.Type)+";")
+		}
+		return strings.Join(append(lines, "}"), "\n"), true
+	}
 	var detail string
 	visitProgramExpressions(program, func(expression ast.Expression) {
 		if detail != "" {
@@ -92,8 +99,12 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 			return
 		}
 		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
-			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ast.IsDecoratorContextTypeName(ref.Name) {
-				for _, field := range ast.DecoratorContextFields() {
+			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ast.IsDecoratorBuiltinObjectTypeName(ref.Name) {
+				fields := ast.DecoratorContextFields()
+				if ref.Name == ast.DecoratorValueTypeName {
+					fields = ast.DecoratorValueFields()
+				}
+				for _, field := range fields {
 					if member.Name == field.Name {
 						detail = field.Name + ": " + formatTypeRef(field.Type)
 						return

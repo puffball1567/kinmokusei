@@ -498,6 +498,14 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 		}
 		return
 	}
+	if ref.Name == ast.DecoratorValueTypeName {
+		if !static {
+			for _, field := range ast.DecoratorValueFields() {
+				add(completionItem{Label: field.Name, Kind: 5, Detail: field.Name + ": " + formatTypeRef(field.Type), SortText: "0_" + field.Name})
+			}
+		}
+		return
+	}
 	if ref.Name == "error" {
 		if !static {
 			add(completionItem{Label: "Error", Kind: 2, Detail: "function Error(): string", SortText: "0_Error"})

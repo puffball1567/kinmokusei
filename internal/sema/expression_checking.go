@@ -18,6 +18,11 @@ func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Ty
 		return c.checkArrayLiteralExpected(array, expected)
 	}
 	if object, ok := expr.(*ast.ObjectLiteralExpr); ok && expected.Kind == Object {
+		if ast.IsDecoratorBuiltinObjectTypeName(expected.Name) {
+			c.checkObjectLiteral(object)
+			c.report(object.Span, fmt.Sprintf("%s is compiler-owned and cannot be constructed with an object literal", expected.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
 		return c.checkObjectLiteralExpected(object, expected)
 	}
 	actual := c.checkExpression(expr)
