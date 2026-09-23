@@ -79,6 +79,7 @@ func DecoratorContextFields() []ObjectTypeField {
 	result := TypeRef{Name: "Result", GenericArguments: []TypeRef{value}}
 	construct := TypeRef{Parameters: []TypeRef{arguments}, Return: &result}
 	invoke := TypeRef{Parameters: []TypeRef{value, arguments}, Return: &result}
+	invokeStatic := TypeRef{Parameters: []TypeRef{arguments}, Return: &result}
 	return []ObjectTypeField{
 		{Name: "kind", Type: TypeRef{Name: "string"}},
 		{Name: "identity", Type: TypeRef{Name: "string"}},
@@ -99,6 +100,9 @@ func DecoratorContextFields() []ObjectTypeField {
 		{Name: "invocable", Type: TypeRef{Name: "boolean"}},
 		{Name: "invokeUnavailableReason", Type: TypeRef{Name: "string"}},
 		{Name: "invoke", Type: invoke},
+		{Name: "staticInvocable", Type: TypeRef{Name: "boolean"}},
+		{Name: "staticInvokeUnavailableReason", Type: TypeRef{Name: "string"}},
+		{Name: "invokeStatic", Type: invokeStatic},
 	}
 }
 
@@ -118,32 +122,34 @@ type DecoratorTarget struct {
 	Name string
 	// Identity is an opaque, build-stable identifier. The remaining names are
 	// source spellings intended for framework diagnostics and registration.
-	Identity                   string
-	ClassIdentity              string
-	BaseIdentity               string
-	OverrideChain              []string
-	ClassName                  string
-	MemberName                 string
-	ParameterName              string
-	ValueIdentity              string
-	RuntimeClassName           string
-	ConstructUnavailableReason string
-	ConstructorParameters      []TypeRef
-	ConstructorVariadic        bool
-	Invocable                  bool
-	InvokeUnavailableReason    string
-	RuntimeMethodName          string
-	MethodParameters           []TypeRef
-	MethodVariadic             bool
-	MethodResult               *TypeRef
-	MethodResultIdentity       string
-	Owner                      source.Span
-	Declaration                source.Span
-	ParameterIndex             int
-	Static                     bool
-	Visibility                 Visibility
-	ValueType                  *TypeRef
-	Constructible              bool
+	Identity                      string
+	ClassIdentity                 string
+	BaseIdentity                  string
+	OverrideChain                 []string
+	ClassName                     string
+	MemberName                    string
+	ParameterName                 string
+	ValueIdentity                 string
+	RuntimeClassName              string
+	ConstructUnavailableReason    string
+	ConstructorParameters         []TypeRef
+	ConstructorVariadic           bool
+	Invocable                     bool
+	InvokeUnavailableReason       string
+	StaticInvocable               bool
+	StaticInvokeUnavailableReason string
+	RuntimeMethodName             string
+	MethodParameters              []TypeRef
+	MethodVariadic                bool
+	MethodResult                  *TypeRef
+	MethodResultIdentity          string
+	Owner                         source.Span
+	Declaration                   source.Span
+	ParameterIndex                int
+	Static                        bool
+	Visibility                    Visibility
+	ValueType                     *TypeRef
+	Constructible                 bool
 }
 
 func (d *Decorator) GetSpan() source.Span { return d.Span }

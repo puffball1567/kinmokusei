@@ -630,7 +630,7 @@ class Service{
 	if err != nil || len(checked.Diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, checked.Diagnostics)
 	}
-	want := []string{"method is not public", "static method invocation adapters are not yet supported", "generic methods require concrete type arguments", ""}
+	want := []string{"method is not public", "static method requires invokeStatic", "generic methods require concrete type arguments", ""}
 	if len(checked.Program.Decorators) != len(want) {
 		t.Fatalf("decorators=%d", len(checked.Program.Decorators))
 	}
@@ -639,7 +639,83 @@ class Service{
 		if target == nil || target.Invocable != (want[index] == "") || target.InvokeUnavailableReason != want[index] {
 			t.Errorf("target %d=%+v, want reason %q", index, target, want[index])
 		}
+		if target != nil && (target.StaticInvocable != (index == 1) || (index == 1 && target.StaticInvokeUnavailableReason != "")) {
+			t.Errorf("target %d static invocation=%+v", index, target)
+		}
 	}
+}
+
+func TestDecoratorStaticMethodAdaptersMatchIndependentGo(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	library := filepath.Join(root, "routes.km")
+	entry := filepath.Join(root, "entry.km")
+	files := map[string]string{
+		library: `alias Invoker=(arguments:DecoratorValue[])=>Result<DecoratorValue>;
+alias InstanceInvoker=(receiver:DecoratorValue,arguments:DecoratorValue[])=>Result<DecoratorValue>;
+let invokers:Invoker[]=[];
+let instanceInvokers:InstanceInvoker[]=[];
+export function Route():(context:MethodDecoratorContext)=>void{return (context)=>{invokers=append(invokers,context.invokeStatic);instanceInvokers=append(instanceInvokers,context.invoke);};}
+export function Call(index:int,arguments:DecoratorValue[]):Result<DecoratorValue>{const invoke=invokers[index];return invoke(arguments);}
+export function CallInstance(index:int,receiver:DecoratorValue,arguments:DecoratorValue[]):Result<DecoratorValue>{const invoke=instanceInvokers[index];return invoke(receiver,arguments);}`,
+		entry: `import {Route,Call,CallInstance} from "./routes";
+import go errors from "errors";
+import go strconv from "strconv";
+class Formatter{
+ @Route() public static function greet(name:string):Result<string>{if(name=="blocked"){return fail(errors.New("blocked"));}return ok("hello "+name);}
+ @Route() public static function sum(...values:int[]):int{let total=0;for(const value of values){total+=value;}return total;}
+ @Route() public static function ping():void{}
+ @Route() public static function finish():Result<void>{return ok();}
+}
+export function Run():Result<string>{
+ const greetingValue=Call(0,[decoratorValue("world")])?;
+ const greeting=decoratorValueAs<string>(greetingValue)?;
+ const totalValue=Call(1,[decoratorValue(2),decoratorValue(3)])?;
+ const total=decoratorValueAs<int>(totalValue)?;
+ const ping=Call(2,[])?;
+ const finish=Call(3,[])?;
+ return ok(greeting+":"+strconv.Itoa(total)+":"+ping.typeIdentity+":"+finish.typeIdentity);
+}
+export function WrongArity():Result<DecoratorValue>{return Call(0,[]);}
+export function WrongArgument():Result<DecoratorValue>{return Call(0,[decoratorValue(1)]);}
+export function PropagatedError():Result<DecoratorValue>{return Call(0,[decoratorValue("blocked")]);}
+export function WrongAdapter():Result<DecoratorValue>{return CallInstance(0,decoratorValue(1),[]);}
+`,
+	}
+	for path, contents := range files {
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	generated, diagnostics, err := EmitGo([]string{entry}, "decoratorstaticmethods")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
+	}
+	for _, fragment := range []string{"StaticInvocable: true", "FormatterGreet(argument0)", "FormatterSum(variadicArguments...)"} {
+		if !strings.Contains(string(generated), fragment) {
+			t.Fatalf("missing %q in generated static adapter:\n%s", fragment, generated)
+		}
+	}
+	reference := `package reference
+func Run()(string,error){return "hello world:5:void:void",nil}
+func WrongArity()error{return errorString("decorator method Formatter.greet expects 1 argument")}
+func WrongArgument()error{return errorString("decorator method Formatter.greet argument 0 expects string")}
+func PropagatedError()error{return errorString("blocked")}
+func WrongAdapter()error{return errorString("static method requires invokeStatic")}
+type errorString string
+func(e errorString)Error()string{return string(e)}
+`
+	comparison := `package decoratorstaticmethods_test
+import("testing";g "decorator-static-methods.test";r "decorator-static-methods.test/reference")
+func TestMethods(t *testing.T){
+ got,err:=g.Run();want,werr:=r.Run();if err!=nil||werr!=nil||got!=want{t.Fatalf("Run=%q,%v want %q,%v",got,err,want,werr)}
+ _,err=g.WrongArity();if want:=r.WrongArity();err==nil||err.Error()!=want.Error(){t.Fatalf("WrongArity=%v want %v",err,want)}
+ _,err=g.WrongArgument();if want:=r.WrongArgument();err==nil||err.Error()!=want.Error(){t.Fatalf("WrongArgument=%v want %v",err,want)}
+ _,err=g.PropagatedError();if want:=r.PropagatedError();err==nil||err.Error()!=want.Error(){t.Fatalf("PropagatedError=%v want %v",err,want)}
+ _,err=g.WrongAdapter();if want:=r.WrongAdapter();err==nil||err.Error()!=want.Error(){t.Fatalf("WrongAdapter=%v want %v",err,want)}
+}
+`
+	runGeneratedGoDifferentialTest(t, root, "decorator-static-methods.test", generated, reference, comparison)
 }
 
 func TestExternalDecoratorPackageIdentityAndInitialization(t *testing.T) {

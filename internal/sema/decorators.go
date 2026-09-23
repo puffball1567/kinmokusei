@@ -129,18 +129,24 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			}
 			methodID := classID + "|" + kind + "|" + method.Name
 			overrideChain := c.decoratorOverrideChain(class, method, kind)
-			invocable, reason := true, ""
+			eligible, reason := true, ""
 			switch {
 			case kind != "method":
-				invocable, reason = false, "only ordinary methods have invocation adapters"
+				eligible, reason = false, "only ordinary methods have invocation adapters"
 			case method.Visibility != ast.Public:
-				invocable, reason = false, "method is not public"
+				eligible, reason = false, "method is not public"
 			case method.Abstract:
-				invocable, reason = false, "abstract methods cannot be invoked"
+				eligible, reason = false, "abstract methods cannot be invoked"
 			case len(class.TypeParameters) != 0 || len(method.TypeParameters) != 0:
-				invocable, reason = false, "generic methods require concrete type arguments"
-			case method.Static:
-				invocable, reason = false, "static method invocation adapters are not yet supported"
+				eligible, reason = false, "generic methods require concrete type arguments"
+			}
+			invocable := eligible && !method.Static
+			staticInvocable := eligible && method.Static
+			invokeReason, staticInvokeReason := reason, reason
+			if eligible && method.Static {
+				invokeReason = "static method requires invokeStatic"
+			} else if eligible {
+				staticInvokeReason = "method is not static"
 			}
 			runtimeMethodName := method.GoName
 			if runtimeMethodName == "" {
@@ -154,7 +160,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				methodResult = methodResult.GenericArguments[0]
 			}
 			resultIdentity := ""
-			if invocable {
+			if eligible {
 				resultIdentity = decoratorValueRuntimeIdentity(c.resolveType(methodResult))
 			}
 			var methodParameters []ast.TypeRef
@@ -164,7 +170,8 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			attach(method.Decorators, ast.DecoratorTarget{
 				Kind: kind, Name: method.Name, Identity: methodID,
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: method.Name,
-				RuntimeClassName: class.Name, Invocable: invocable, InvokeUnavailableReason: reason,
+				RuntimeClassName: class.Name, Invocable: invocable, InvokeUnavailableReason: invokeReason,
+				StaticInvocable: staticInvocable, StaticInvokeUnavailableReason: staticInvokeReason,
 				RuntimeMethodName: runtimeMethodName, MethodParameters: methodParameters,
 				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &method.ReturnType,
 				MethodResultIdentity: resultIdentity,
