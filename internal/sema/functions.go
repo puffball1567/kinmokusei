@@ -38,6 +38,10 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 }
 
 func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
+	if c.inFieldInitializer {
+		c.fieldInitializerArrowDepth++
+		defer func() { c.fieldInitializerArrowDepth-- }()
+	}
 	expected = c.arrowContext(expected)
 	inferredParameters := c.inferArrowParameters(expr, expected)
 	// Returns and super-constructor calls belong to the current callable, even

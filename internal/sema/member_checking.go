@@ -14,7 +14,15 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
-			c.report(identifier.Span, "class field initializers cannot reference this or super; use the constructor")
+			class := c.classes[c.currentClass]
+			if !write && !c.fieldInitializerStatic && c.fieldInitializerArrowDepth == 0 && c.fieldInitializerAvailable[expr.Name] && class != nil {
+				if field, exists := class.fields[expr.Name]; exists && !field.static && field.declaringClass == c.currentClass {
+					expr.ResolvedName = field.goName
+					expr.ResolvedDeclaration = field.declarationSpan
+					return field.typeInfo
+				}
+			}
+			c.report(identifier.Span, "instance field initializers may read only earlier initialized fields through this; use the constructor otherwise")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if identifier.Name == "super" {

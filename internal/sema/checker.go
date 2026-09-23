@@ -31,6 +31,9 @@ type Checker struct {
 	allowUnsafeGo              bool
 	inConstructor              bool
 	inFieldInitializer         bool
+	fieldInitializerAvailable  map[string]bool
+	fieldInitializerStatic     bool
+	fieldInitializerArrowDepth int
 	callableScopeBases         []int
 	capturedWrites             []map[source.Span]source.Span
 	loopFlowContexts           []loopFlowContext

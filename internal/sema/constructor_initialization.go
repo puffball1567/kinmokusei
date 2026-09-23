@@ -8,18 +8,21 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-// Initializers have module lexical bindings, but no receiver or constructor
-// parameters. Only instance initializers have class type parameters. Callbacks
-// cannot capture a partially initialized receiver through this context.
+// Initializers have module lexical bindings but no constructor parameters.
+// Instance initializers may read only earlier initialized fields on this.
+// Callbacks cannot capture a partially initialized receiver through this context.
 func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 	previousInitializer, previousConstructor := c.inFieldInitializer, c.inConstructor
+	previousAvailable, previousStatic, previousArrowDepth := c.fieldInitializerAvailable, c.fieldInitializerStatic, c.fieldInitializerArrowDepth
 	previousFlow, previousResult := c.memberFlow, c.result
 	c.inFieldInitializer, c.inConstructor = true, false
+	c.fieldInitializerAvailable, c.fieldInitializerStatic, c.fieldInitializerArrowDepth = map[string]bool{}, false, 0
 	c.memberFlow, c.result = map[memberFlowKey]memberFlowState{}, builtins["void"]
 	c.pushScope()
 	defer func() {
 		c.popScope()
 		c.inFieldInitializer, c.inConstructor = previousInitializer, previousConstructor
+		c.fieldInitializerAvailable, c.fieldInitializerStatic, c.fieldInitializerArrowDepth = previousAvailable, previousStatic, previousArrowDepth
 		c.memberFlow, c.result = previousFlow, previousResult
 	}()
 	for i := range decl.Fields {
@@ -31,6 +34,7 @@ func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 			c.ensureClassConstantChecked(decl.Name, field)
 			continue
 		}
+		c.fieldInitializerStatic = field.Static
 		previousScopes, previousDependency := c.typeParameterScopes, c.globalDependencyOwner
 		if field.Static {
 			c.typeParameterScopes = nil
@@ -40,6 +44,9 @@ func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 		actual := c.checkExpressionExpectedSlot(&field.Initializer, expected)
 		c.requireAssignable(expected, actual, field.Initializer.GetSpan())
 		c.typeParameterScopes, c.globalDependencyOwner = previousScopes, previousDependency
+		if !field.Static {
+			c.fieldInitializerAvailable[field.Name] = true
+		}
 	}
 }
 
