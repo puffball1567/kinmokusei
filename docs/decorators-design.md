@@ -76,6 +76,9 @@ construct: (arguments: DecoratorValue[]) => Result<DecoratorValue>
 invocable: boolean
 invokeUnavailableReason: string
 invoke: (receiver: DecoratorValue, arguments: DecoratorValue[]) => Result<DecoratorValue>
+staticInvocable: boolean
+staticInvokeUnavailableReason: string
+invokeStatic: (arguments: DecoratorValue[]) => Result<DecoratorValue>
 ```
 
 `DecoratorValue` is a compiler-owned opaque value with one readable field:
@@ -193,10 +196,12 @@ individually. Virtual methods retain their existing dispatch behavior. A
 receiver boxed as a derived type must be explicitly upcast before use with a
 base class method adapter.
 
-Private and protected methods, abstract methods, static methods, and methods
-whose class or signature still requires generic type arguments expose
-`invocable == false` and `invokeUnavailableReason`. Invoking one returns that
-reason through `Result`.
+Static methods use `invokeStatic(arguments)` and require no receiver. The
+`invocable` field refers only to instance invocation; `staticInvocable` refers
+only to static invocation. Calling the wrong adapter returns its unavailable
+reason through `Result`. Private and protected methods, abstract methods, and
+methods whose class or signature still requires generic type arguments expose
+both flags as false with a human-readable reason.
 
 Factories on one target are evaluated from top to bottom and their callbacks are
 applied from bottom to top. Generated registration runs in Go `init`, after
@@ -207,7 +212,6 @@ compiler process.
 
 1. Extend constructor and method adapters to explicit concrete generic
    instantiations.
-2. Add static method invocation adapters with an explicit receiver policy.
 
 All decorator context types provide type/field hover and completion. Imported
 decorator calls participate in ordinary definition, hover, signature, reference

@@ -18,15 +18,34 @@ func decoratorInvokeUnavailableReason(target *kinmokuseiAST.DecoratorTarget) str
 	return "decorator target is not an invocable method"
 }
 
+func decoratorStaticInvokeUnavailableReason(target *kinmokuseiAST.DecoratorTarget) string {
+	if target.StaticInvocable {
+		return ""
+	}
+	if target.StaticInvokeUnavailableReason != "" {
+		return target.StaticInvokeUnavailableReason
+	}
+	return "decorator target is not an invocable static method"
+}
+
 func decoratorInvokeAdapter(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
+	return decoratorMethodAdapter(target, false)
+}
+
+func decoratorStaticInvokeAdapter(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
+	return decoratorMethodAdapter(target, true)
+}
+
+func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) goast.Expr {
 	receiver := goast.NewIdent("receiver")
 	arguments := goast.NewIdent("arguments")
 	valueType := goast.NewIdent("__kinmokuseiDecoratorValue")
+	parameters := []*goast.Field{{Names: []*goast.Ident{arguments}, Type: &goast.ArrayType{Elt: valueType}}}
+	if !static {
+		parameters = append([]*goast.Field{{Names: []*goast.Ident{receiver}, Type: valueType}}, parameters...)
+	}
 	functionType := &goast.FuncType{
-		Params: &goast.FieldList{List: []*goast.Field{
-			{Names: []*goast.Ident{receiver}, Type: valueType},
-			{Names: []*goast.Ident{arguments}, Type: &goast.ArrayType{Elt: valueType}},
-		}},
+		Params:  &goast.FieldList{List: parameters},
 		Results: &goast.FieldList{List: []*goast.Field{{Type: valueType}, {Type: goast.NewIdent("error")}}},
 	}
 	failure := func(message string) *goast.ReturnStmt {
@@ -36,26 +55,36 @@ func decoratorInvokeAdapter(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		}}
 	}
 	body := &goast.BlockStmt{}
-	if !target.Invocable {
-		body.List = append(body.List, failure(decoratorInvokeUnavailableReason(target)))
+	available, reason := target.Invocable, decoratorInvokeUnavailableReason(target)
+	if static {
+		available, reason = target.StaticInvocable, decoratorStaticInvokeUnavailableReason(target)
+	}
+	if !available {
+		body.List = append(body.List, failure(reason))
 		return &goast.FuncLit{Type: functionType, Body: body}
 	}
 	label := fmt.Sprintf("decorator method %s.%s", target.ClassName, target.MemberName)
-	actualReceiver := goast.NewIdent("typedReceiver")
-	receiverOK := goast.NewIdent("receiverOK")
-	body.List = append(body.List,
-		&goast.AssignStmt{Lhs: []goast.Expr{actualReceiver, receiverOK}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{
-			X:    &goast.SelectorExpr{X: receiver, Sel: goast.NewIdent("value")},
-			Type: &goast.StarExpr{X: goast.NewIdent(target.RuntimeClassName)},
-		}}},
-		&goast.IfStmt{Cond: &goast.BinaryExpr{
-			X: &goast.UnaryExpr{Op: token.NOT, X: receiverOK}, Op: token.LOR,
-			Y: &goast.BinaryExpr{X: actualReceiver, Op: token.EQL, Y: goast.NewIdent("nil")},
-		}, Body: &goast.BlockStmt{List: []goast.Stmt{failure(label + " expects a non-null " + target.ClassName + " receiver")}}},
-	)
+	var callee goast.Expr
+	if static {
+		callee = goast.NewIdent(staticMethodName(target.RuntimeClassName, target.RuntimeMethodName, target.Visibility))
+	} else {
+		actualReceiver := goast.NewIdent("typedReceiver")
+		receiverOK := goast.NewIdent("receiverOK")
+		body.List = append(body.List,
+			&goast.AssignStmt{Lhs: []goast.Expr{actualReceiver, receiverOK}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{
+				X:    &goast.SelectorExpr{X: receiver, Sel: goast.NewIdent("value")},
+				Type: &goast.StarExpr{X: goast.NewIdent(target.RuntimeClassName)},
+			}}},
+			&goast.IfStmt{Cond: &goast.BinaryExpr{
+				X: &goast.UnaryExpr{Op: token.NOT, X: receiverOK}, Op: token.LOR,
+				Y: &goast.BinaryExpr{X: actualReceiver, Op: token.EQL, Y: goast.NewIdent("nil")},
+			}, Body: &goast.BlockStmt{List: []goast.Stmt{failure(label + " expects a non-null " + target.ClassName + " receiver")}}},
+		)
+		callee = &goast.SelectorExpr{X: actualReceiver, Sel: goast.NewIdent(goName(target.RuntimeMethodName))}
+	}
 	checks, callArguments := decoratorCheckedArguments(label, target.MethodParameters, target.MethodVariadic, arguments, failure)
 	body.List = append(body.List, checks...)
-	call := &goast.CallExpr{Fun: &goast.SelectorExpr{X: actualReceiver, Sel: goast.NewIdent(goName(target.RuntimeMethodName))}, Args: callArguments}
+	call := &goast.CallExpr{Fun: callee, Args: callArguments}
 	if target.MethodVariadic {
 		call.Ellipsis = token.Pos(1)
 	}

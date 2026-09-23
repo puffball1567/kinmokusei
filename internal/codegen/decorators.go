@@ -127,6 +127,9 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		&goast.KeyValueExpr{Key: goast.NewIdent("Invocable"), Value: goast.NewIdent(strconv.FormatBool(target.Invocable))},
 		&goast.KeyValueExpr{Key: goast.NewIdent("InvokeUnavailableReason"), Value: stringLiteral(decoratorInvokeUnavailableReason(target))},
 		&goast.KeyValueExpr{Key: goast.NewIdent("Invoke"), Value: decoratorInvokeAdapter(target)},
+		&goast.KeyValueExpr{Key: goast.NewIdent("StaticInvocable"), Value: goast.NewIdent(strconv.FormatBool(target.StaticInvocable))},
+		&goast.KeyValueExpr{Key: goast.NewIdent("StaticInvokeUnavailableReason"), Value: stringLiteral(decoratorStaticInvokeUnavailableReason(target))},
+		&goast.KeyValueExpr{Key: goast.NewIdent("InvokeStatic"), Value: decoratorStaticInvokeAdapter(target)},
 	)
 	return &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiDecoratorContext"), Elts: elements}
 }
