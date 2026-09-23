@@ -43,13 +43,17 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			}
 		}
 	}
-	parameters := func(parameters []ast.Parameter, className, classID, baseID, memberName, ownerID string, owner source.Span, static bool, visibility ast.Visibility) {
+	parameters := func(parameters []ast.Parameter, className, classID, baseID, memberName, ownerID string, overrideChain []string, owner source.Span, static bool, visibility ast.Visibility) {
 		for i := range parameters {
 			parameter := &parameters[i]
+			parameterOverrideChain := make([]string, len(overrideChain))
+			for index, identity := range overrideChain {
+				parameterOverrideChain[index] = fmt.Sprintf("%s|parameter|%d", identity, i)
+			}
 			attach(parameter.Decorators, ast.DecoratorTarget{
 				Kind: "parameter", Name: parameter.Name, Identity: fmt.Sprintf("%s|parameter|%d", ownerID, i),
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: memberName, ParameterName: parameter.Name,
-				Owner: owner, Declaration: parameter.Span, ParameterIndex: i, Static: static, Visibility: visibility, ValueType: &parameter.Type,
+				OverrideChain: parameterOverrideChain, Owner: owner, Declaration: parameter.Span, ParameterIndex: i, Static: static, Visibility: visibility, ValueType: &parameter.Type,
 			})
 		}
 	}
@@ -98,7 +102,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: "constructor",
 				Owner: class.NameSpan, Declaration: constructor.Span, ParameterIndex: -1, Visibility: ast.Public, ValueType: signature(constructor.Parameters, classType),
 			})
-			parameters(constructor.Parameters, className, classID, baseID, "constructor", constructorID, constructor.Span, false, ast.Public)
+			parameters(constructor.Parameters, className, classID, baseID, "constructor", constructorID, nil, constructor.Span, false, ast.Public)
 		}
 		for _, method := range class.Methods {
 			kind := "method"
@@ -106,12 +110,13 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				kind = method.Accessor
 			}
 			methodID := classID + "|" + kind + "|" + method.Name
+			overrideChain := c.decoratorOverrideChain(class, method, kind)
 			attach(method.Decorators, ast.DecoratorTarget{
 				Kind: kind, Name: method.Name, Identity: methodID,
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: method.Name,
-				Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
+				OverrideChain: overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
 			})
-			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, method.NameSpan, method.Static, method.Visibility)
+			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, overrideChain, method.NameSpan, method.Static, method.Visibility)
 		}
 	}
 	for _, application := range program.Decorators {
@@ -119,6 +124,30 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			c.report(application.Span, "decorator target must be a class, class member, or constructor/method parameter")
 		}
 	}
+}
+
+func (c *Checker) decoratorOverrideChain(class *ast.ClassDecl, method *ast.MethodDecl, kind string) []string {
+	if class.Base == nil {
+		return nil
+	}
+	key := method.Name
+	if method.Accessor != "" {
+		key = method.Accessor + " " + method.Name
+	}
+	var identities []string
+	seen := map[string]bool{}
+	for name := class.Base.Name; name != ""; {
+		base := c.classes[name]
+		if base == nil {
+			break
+		}
+		if inherited, exists := base.methods[key]; exists && !seen[inherited.declaringClass] {
+			seen[inherited.declaringClass] = true
+			identities = append(identities, "type|"+inherited.declaringClass+"|"+kind+"|"+method.Name)
+		}
+		name = base.base
+	}
+	return identities
 }
 
 func (c *Checker) decoratorValueIdentity(ref *ast.TypeRef) string {

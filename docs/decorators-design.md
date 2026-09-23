@@ -61,6 +61,7 @@ kind: string
 identity: string
 classIdentity: string
 baseIdentity: string
+overrideChain: string[]
 className: string
 memberName: string
 parameterName: string
@@ -104,7 +105,11 @@ export function Get(path: string):
 `identity` is opaque and stable for a target within repeatable builds.
 `classIdentity` identifies the declaring class without requiring consumers to
 parse a member identity, and `baseIdentity` identifies its direct base class
-when one exists. The name fields preserve source spellings for diagnostics and framework metadata. Empty
+when one exists. For an overriding method, getter or setter, `overrideChain`
+lists overridden target identities from the nearest declaration to the oldest
+declaration. Parameter targets carry the corresponding parameter target chain
+by position. Other targets use an empty list. The name fields preserve source
+spellings for diagnostics and framework metadata. Empty
 member/parameter names and `parameterIndex == -1` mean that the field does not
 apply to that target. `valueType` is the readable declared type. For nominal
 Kinmokusei class, interface and struct values, `valueIdentity` supplies a stable
@@ -131,9 +136,6 @@ compiler process.
 1. Supply checked callable construction and method-invocation adapters so DI and
    routing libraries can operate without reflection or generated-code edits.
    Preserve `Result`, visibility, nullable and generic contracts.
-2. Define inheritance behavior for metadata on overridden/inherited members.
-3. Validate package identity and initialization order across independently
-   versioned external packages and repeated builds.
 
 All decorator context types provide type/field hover and completion. Imported
 decorator calls participate in ordinary definition, hover, signature, reference
@@ -142,3 +144,16 @@ and rename operations.
 The runtime contract is metadata-only and does not promise JavaScript reflection
 or arbitrary declaration rewriting. Unsupported applications must remain hard
 errors rather than silently producing undecorated Go.
+
+Decorators execute only for declarations on which they are written. An override
+does not implicitly execute or copy decorators from a base declaration. A
+framework may use `overrideChain` to look up registered base metadata and apply
+its own merge, replacement or inheritance policy without relying on parsed
+identity strings.
+
+External-package target identities use the package graph's canonical module and
+source identity when a linked name is required. Moving a checkout or selecting
+a consumer-local import alias therefore leaves generated output and identities
+unchanged. Registration follows dependency order before consumer modules; this
+ordering and repeated-build output are covered across independently versioned
+source packages.

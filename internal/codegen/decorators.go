@@ -98,6 +98,7 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		elements = append(elements, &goast.KeyValueExpr{Key: goast.NewIdent(value.name), Value: stringLiteral(value.value)})
 	}
 	elements = append(elements,
+		&goast.KeyValueExpr{Key: goast.NewIdent("OverrideChain"), Value: decoratorStringSlice(target.OverrideChain)},
 		&goast.KeyValueExpr{Key: goast.NewIdent("ParameterIndex"), Value: &goast.BasicLit{Kind: token.INT, Value: parameterIndex}},
 		&goast.KeyValueExpr{Key: goast.NewIdent("Static"), Value: goast.NewIdent(static)},
 		&goast.KeyValueExpr{Key: goast.NewIdent("Visibility"), Value: stringLiteral(decoratorVisibility(target.Visibility))},
@@ -105,6 +106,14 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		&goast.KeyValueExpr{Key: goast.NewIdent("ValueIdentity"), Value: stringLiteral(target.ValueIdentity)},
 	)
 	return &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiDecoratorContext"), Elts: elements}
+}
+
+func decoratorStringSlice(values []string) goast.Expr {
+	elements := make([]goast.Expr, len(values))
+	for index, value := range values {
+		elements[index] = stringLiteral(value)
+	}
+	return &goast.CompositeLit{Type: &goast.ArrayType{Elt: goast.NewIdent("string")}, Elts: elements}
 }
 
 func stringLiteral(value string) goast.Expr {

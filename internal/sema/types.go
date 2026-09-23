@@ -125,12 +125,15 @@ func decoratorContextType(name string) Type {
 	fieldNames := map[string]string{}
 	for _, field := range ast.DecoratorContextFields() {
 		var fieldType Type
-		switch field.Type.Name {
-		case "string":
+		switch {
+		case field.Type.IsArray() && field.Type.Element != nil && field.Type.Element.Name == "string":
+			element := Type{Kind: String, Name: "string"}
+			fieldType = Type{Kind: Array, Name: "array", Element: &element}
+		case field.Type.Name == "string":
 			fieldType = Type{Kind: String, Name: "string"}
-		case "int":
+		case field.Type.Name == "int":
 			fieldType = Type{Kind: Int, Name: "int"}
-		case "boolean":
+		case field.Type.Name == "boolean":
 			fieldType = Type{Kind: Boolean, Name: "boolean"}
 		}
 		fields[field.Name] = fieldType
