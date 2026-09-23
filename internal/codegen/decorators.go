@@ -124,6 +124,9 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		&goast.KeyValueExpr{Key: goast.NewIdent("Constructible"), Value: goast.NewIdent(strconv.FormatBool(target.Constructible))},
 		&goast.KeyValueExpr{Key: goast.NewIdent("ConstructUnavailableReason"), Value: stringLiteral(decoratorConstructUnavailableReason(target))},
 		&goast.KeyValueExpr{Key: goast.NewIdent("Construct"), Value: decoratorConstructAdapter(target)},
+		&goast.KeyValueExpr{Key: goast.NewIdent("Invocable"), Value: goast.NewIdent(strconv.FormatBool(target.Invocable))},
+		&goast.KeyValueExpr{Key: goast.NewIdent("InvokeUnavailableReason"), Value: stringLiteral(decoratorInvokeUnavailableReason(target))},
+		&goast.KeyValueExpr{Key: goast.NewIdent("Invoke"), Value: decoratorInvokeAdapter(target)},
 	)
 	return &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiDecoratorContext"), Elts: elements}
 }
@@ -156,89 +159,8 @@ func decoratorConstructAdapter(target *kinmokuseiAST.DecoratorTarget) goast.Expr
 		body.List = append(body.List, failure(decoratorConstructUnavailableReason(target)))
 		return &goast.FuncLit{Type: functionType, Body: body}
 	}
-	expectedCount := len(target.ConstructorParameters)
-	fixedCount := expectedCount
-	if target.ConstructorVariadic {
-		fixedCount--
-	}
-	argumentLabel := "arguments"
-	if fixedCount == 1 {
-		argumentLabel = "argument"
-	}
-	arityOperator := token.NEQ
-	arityText := fmt.Sprintf("expects %d %s", expectedCount, argumentLabel)
-	if target.ConstructorVariadic {
-		arityOperator = token.LSS
-		arityText = fmt.Sprintf("expects at least %d %s", fixedCount, argumentLabel)
-	}
-	body.List = append(body.List, &goast.IfStmt{
-		Cond: &goast.BinaryExpr{
-			X:  &goast.CallExpr{Fun: goast.NewIdent("len"), Args: []goast.Expr{arguments}},
-			Op: arityOperator,
-			Y:  &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(fixedCount)},
-		},
-		Body: &goast.BlockStmt{List: []goast.Stmt{failure(fmt.Sprintf("decorator constructor for %s %s", target.ClassName, arityText))}},
-	})
-	constructorArguments := make([]goast.Expr, 0, expectedCount)
-	for index, parameter := range target.ConstructorParameters[:fixedCount] {
-		name := goast.NewIdent(fmt.Sprintf("argument%d", index))
-		ok := goast.NewIdent(fmt.Sprintf("argument%dOK", index))
-		body.List = append(body.List,
-			&goast.AssignStmt{
-				Lhs: []goast.Expr{name, ok}, Tok: token.DEFINE,
-				Rhs: []goast.Expr{&goast.TypeAssertExpr{
-					X:    &goast.SelectorExpr{X: &goast.IndexExpr{X: arguments, Index: &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(index)}}, Sel: goast.NewIdent("value")},
-					Type: goType(parameter),
-				}},
-			},
-			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: ok}, Body: &goast.BlockStmt{List: []goast.Stmt{
-				failure(fmt.Sprintf("decorator constructor for %s argument %d expects %s", target.ClassName, index, decoratorTypeLabel(parameter))),
-			}}},
-		)
-		constructorArguments = append(constructorArguments, name)
-	}
-	if target.ConstructorVariadic {
-		parameter := target.ConstructorParameters[expectedCount-1]
-		restName := goast.NewIdent("variadicArguments")
-		restCount := goast.NewIdent("variadicCount")
-		restIndex := goast.NewIdent("variadicIndex")
-		restValue := goast.NewIdent("variadicValue")
-		restOK := goast.NewIdent("variadicValueOK")
-		body.List = append(body.List,
-			&goast.AssignStmt{
-				Lhs: []goast.Expr{restCount}, Tok: token.DEFINE,
-				Rhs: []goast.Expr{&goast.BinaryExpr{X: &goast.CallExpr{Fun: goast.NewIdent("len"), Args: []goast.Expr{arguments}}, Op: token.SUB, Y: &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(fixedCount)}}},
-			},
-			&goast.AssignStmt{
-				Lhs: []goast.Expr{restName}, Tok: token.DEFINE,
-				Rhs: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("make"), Args: []goast.Expr{goType(parameter), restCount}}},
-			},
-		)
-		element := parameter
-		if parameter.Element != nil {
-			element = *parameter.Element
-		}
-		argumentIndex := &goast.BinaryExpr{X: &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(fixedCount)}, Op: token.ADD, Y: restIndex}
-		loopBody := &goast.BlockStmt{List: []goast.Stmt{
-			&goast.AssignStmt{
-				Lhs: []goast.Expr{restValue, restOK}, Tok: token.DEFINE,
-				Rhs: []goast.Expr{&goast.TypeAssertExpr{
-					X: &goast.SelectorExpr{X: &goast.IndexExpr{X: arguments, Index: argumentIndex}, Sel: goast.NewIdent("value")}, Type: goType(element),
-				}},
-			},
-			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: restOK}, Body: &goast.BlockStmt{List: []goast.Stmt{
-				failure(fmt.Sprintf("decorator constructor for %s variadic arguments expect %s", target.ClassName, decoratorTypeLabel(element))),
-			}}},
-			&goast.AssignStmt{Lhs: []goast.Expr{&goast.IndexExpr{X: restName, Index: restIndex}}, Tok: token.ASSIGN, Rhs: []goast.Expr{restValue}},
-		}}
-		body.List = append(body.List, &goast.ForStmt{
-			Init: &goast.AssignStmt{Lhs: []goast.Expr{restIndex}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.BasicLit{Kind: token.INT, Value: "0"}}},
-			Cond: &goast.BinaryExpr{X: restIndex, Op: token.LSS, Y: restCount},
-			Post: &goast.IncDecStmt{X: restIndex, Tok: token.INC},
-			Body: loopBody,
-		})
-		constructorArguments = append(constructorArguments, restName)
-	}
+	checks, constructorArguments := decoratorCheckedArguments("decorator constructor for "+target.ClassName, target.ConstructorParameters, target.ConstructorVariadic, arguments, failure)
+	body.List = append(body.List, checks...)
 	constructed := &goast.CallExpr{Fun: goast.NewIdent("New" + target.RuntimeClassName), Args: constructorArguments}
 	if target.ConstructorVariadic {
 		constructed.Ellipsis = token.Pos(1)

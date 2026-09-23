@@ -44,8 +44,10 @@ implemented. Override chains are exposed without implicitly replaying inherited
 decorators. Canonical external-package identities and dependency-first
 registration are verified across checkout paths and import aliases. Checked
 constructor adapters are implemented for concrete classes, including variadic
-constructors. Method adapters and concrete generic instantiations remain;
-context type/field completion and hover are implemented.
+constructors. Public instance method adapters are implemented with checked
+receivers and arguments, Result propagation, and virtual dispatch. Static method
+adapters and concrete generic instantiations remain; context type/field
+completion and hover are implemented.
 
 Constrained collection forwarding now infers common slice/array/map/channel
 element types, including native class elements. Assignment checks both Go

@@ -532,6 +532,116 @@ func TestDecoratorConstructorAdapterAvailabilityAndOpacity(t *testing.T) {
 	}
 }
 
+func TestDecoratorMethodAdaptersMatchIndependentGo(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	library := filepath.Join(root, "routes.km")
+	entry := filepath.Join(root, "entry.km")
+	files := map[string]string{
+		library: `alias Invoker=(receiver:DecoratorValue,arguments:DecoratorValue[])=>Result<DecoratorValue>;
+let invokers:Invoker[]=[];
+export function Route():(context:MethodDecoratorContext)=>void{return (context)=>{invokers=append(invokers,context.invoke);};}
+export function Call(index:int,receiver:DecoratorValue,arguments:DecoratorValue[]):Result<DecoratorValue>{const invoke=invokers[index];return invoke(receiver,arguments);}`,
+		entry: `import {Route,Call} from "./routes";
+import go errors from "errors";
+import go strconv from "strconv";
+let trace:string="";
+class Controller{
+ constructor(public prefix:string){}
+ @Route() public function greet(name:string):Result<string>{if(name=="blocked"){return fail(errors.New("blocked"));}return ok(this.prefix+name);}
+ @Route() public function total(...numbers:int[]):int{let sum=0;for(const item of numbers){sum+=item;}return sum;}
+ @Route() public function ping():void{trace+="ping;";}
+ @Route() public function finish():Result<void>{trace+="finish;";return ok();}
+}
+class Base{
+ @Route() public virtual function message():string{return "base";}
+}
+class Child extends Base{
+ constructor(){super();}
+ public override function message():string{return "child";}
+}
+export function Run():Result<string>{
+ const controller=decoratorValue(new Controller("hello "));
+ const greetingValue=Call(0,controller,[decoratorValue("world")])?;
+ const greeting=decoratorValueAs<string>(greetingValue)?;
+ const totalValue=Call(1,controller,[decoratorValue(2),decoratorValue(3)])?;
+ const total=decoratorValueAs<int>(totalValue)?;
+ const ping=Call(2,controller,[])?;
+ const finished=Call(3,controller,[])?;
+ const base:Base=new Child();
+ const messageValue=Call(4,decoratorValue(base),[])?;
+ const message=decoratorValueAs<string>(messageValue)?;
+ return ok(greeting+";"+strconv.Itoa(total)+";"+trace+ping.typeIdentity+";"+finished.typeIdentity+";"+message);
+}
+export function WrongReceiver():Result<DecoratorValue>{return Call(0,decoratorValue("wrong"),[decoratorValue("name")]);}
+export function WrongArity():Result<DecoratorValue>{return Call(0,decoratorValue(new Controller("x")),[]);}
+export function WrongArgument():Result<DecoratorValue>{return Call(0,decoratorValue(new Controller("x")),[decoratorValue(1)]);}
+export function PropagatedError():Result<DecoratorValue>{return Call(0,decoratorValue(new Controller("x")),[decoratorValue("blocked")]);}
+`,
+	}
+	for path, contents := range files {
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	generated, diagnostics, err := EmitGo([]string{entry}, "decoratormethods")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
+	}
+	for _, fragment := range []string{"Invocable: true", "typedReceiver.Greet(argument0)", "typedReceiver.Total(variadicArguments...)", "typedReceiver.Message()"} {
+		if !strings.Contains(string(generated), fragment) {
+			t.Fatalf("missing %q in generated method adapter:\n%s", fragment, generated)
+		}
+	}
+	reference := `package reference
+func Run()(string,error){return "hello world;5;ping;finish;void;void;child",nil}
+func WrongReceiver()error{return errorString("decorator method Controller.greet expects a non-null Controller receiver")}
+func WrongArity()error{return errorString("decorator method Controller.greet expects 1 argument")}
+func WrongArgument()error{return errorString("decorator method Controller.greet argument 0 expects string")}
+func PropagatedError()error{return errorString("blocked")}
+type errorString string
+func(e errorString)Error()string{return string(e)}
+`
+	comparison := `package decoratormethods_test
+import("testing";g "decorator-methods.test";r "decorator-methods.test/reference")
+func TestMethods(t *testing.T){
+ got,err:=g.Run();want,werr:=r.Run();if err!=nil||werr!=nil||got!=want{t.Fatalf("Run=%q,%v want %q,%v",got,err,want,werr)}
+ _,err=g.WrongReceiver();if want:=r.WrongReceiver();err==nil||err.Error()!=want.Error(){t.Fatalf("WrongReceiver=%v want %v",err,want)}
+ _,err=g.WrongArity();if want:=r.WrongArity();err==nil||err.Error()!=want.Error(){t.Fatalf("WrongArity=%v want %v",err,want)}
+ _,err=g.WrongArgument();if want:=r.WrongArgument();err==nil||err.Error()!=want.Error(){t.Fatalf("WrongArgument=%v want %v",err,want)}
+ _,err=g.PropagatedError();if want:=r.PropagatedError();err==nil||err.Error()!=want.Error(){t.Fatalf("PropagatedError=%v want %v",err,want)}
+}
+`
+	runGeneratedGoDifferentialTest(t, root, "decorator-methods.test", generated, reference, comparison)
+}
+
+func TestDecoratorMethodAdapterAvailability(t *testing.T) {
+	t.Parallel()
+	entry := filepath.Join(t.TempDir(), "entry.km")
+	checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: `
+function D(context:MethodDecoratorContext):void{}
+class Service{
+ @D private function hidden():void{}
+ @D public static function shared():void{}
+ @D public function generic<T>(value:T):T{return value;}
+ @D public function available():void{}
+}
+`})
+	if err != nil || len(checked.Diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, checked.Diagnostics)
+	}
+	want := []string{"method is not public", "static method invocation adapters are not yet supported", "generic methods require concrete type arguments", ""}
+	if len(checked.Program.Decorators) != len(want) {
+		t.Fatalf("decorators=%d", len(checked.Program.Decorators))
+	}
+	for index, application := range checked.Program.Decorators {
+		target := application.Target
+		if target == nil || target.Invocable != (want[index] == "") || target.InvokeUnavailableReason != want[index] {
+			t.Errorf("target %d=%+v, want reason %q", index, target, want[index])
+		}
+	}
+}
+
 func TestExternalDecoratorPackageIdentityAndInitialization(t *testing.T) {
 	var previousGenerated []byte
 	var previousIdentities []string

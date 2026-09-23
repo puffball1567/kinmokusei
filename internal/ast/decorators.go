@@ -78,6 +78,7 @@ func DecoratorContextFields() []ObjectTypeField {
 	arguments := TypeRef{Element: &value}
 	result := TypeRef{Name: "Result", GenericArguments: []TypeRef{value}}
 	construct := TypeRef{Parameters: []TypeRef{arguments}, Return: &result}
+	invoke := TypeRef{Parameters: []TypeRef{value, arguments}, Return: &result}
 	return []ObjectTypeField{
 		{Name: "kind", Type: TypeRef{Name: "string"}},
 		{Name: "identity", Type: TypeRef{Name: "string"}},
@@ -95,6 +96,9 @@ func DecoratorContextFields() []ObjectTypeField {
 		{Name: "constructible", Type: TypeRef{Name: "boolean"}},
 		{Name: "constructUnavailableReason", Type: TypeRef{Name: "string"}},
 		{Name: "construct", Type: construct},
+		{Name: "invocable", Type: TypeRef{Name: "boolean"}},
+		{Name: "invokeUnavailableReason", Type: TypeRef{Name: "string"}},
+		{Name: "invoke", Type: invoke},
 	}
 }
 
@@ -126,6 +130,13 @@ type DecoratorTarget struct {
 	ConstructUnavailableReason string
 	ConstructorParameters      []TypeRef
 	ConstructorVariadic        bool
+	Invocable                  bool
+	InvokeUnavailableReason    string
+	RuntimeMethodName          string
+	MethodParameters           []TypeRef
+	MethodVariadic             bool
+	MethodResult               *TypeRef
+	MethodResultIdentity       string
 	Owner                      source.Span
 	Declaration                source.Span
 	ParameterIndex             int

@@ -148,7 +148,11 @@ func decoratorContextType(name string) Type {
 			value := decoratorValueType()
 			arguments := Type{Kind: Array, Name: "array", Element: &value}
 			result := Type{Kind: Result, Name: "Result", Element: &value}
-			fieldType = Type{Kind: Function, Name: "function", Parameters: []Type{arguments}, Result: &result}
+			parameters := []Type{arguments}
+			if field.Name == "invoke" {
+				parameters = []Type{value, arguments}
+			}
+			fieldType = Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
 		}
 		fields[field.Name] = fieldType
 		fieldNames[field.Name] = memberGoName(field.Name, ast.Public)
