@@ -64,6 +64,7 @@ func DecoratorContextFields() []ObjectTypeField {
 		{Name: "identity", Type: TypeRef{Name: "string"}},
 		{Name: "classIdentity", Type: TypeRef{Name: "string"}},
 		{Name: "baseIdentity", Type: TypeRef{Name: "string"}},
+		{Name: "overrideChain", Type: TypeRef{Element: &TypeRef{Name: "string"}}},
 		{Name: "className", Type: TypeRef{Name: "string"}},
 		{Name: "memberName", Type: TypeRef{Name: "string"}},
 		{Name: "parameterName", Type: TypeRef{Name: "string"}},
@@ -94,6 +95,7 @@ type DecoratorTarget struct {
 	Identity       string
 	ClassIdentity  string
 	BaseIdentity   string
+	OverrideChain  []string
 	ClassName      string
 	MemberName     string
 	ParameterName  string

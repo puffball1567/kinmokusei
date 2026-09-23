@@ -122,6 +122,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"decorator-packages.test":             {implementedGoCompatibilityContracts[102]},
 	"decorator-runtime.test":              {implementedGoCompatibilityContracts[102]},
 	"virtual-properties.test":             {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[98]},
 	"interface-properties.test":           {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[3]},

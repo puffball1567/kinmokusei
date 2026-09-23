@@ -26,7 +26,7 @@ func TestDecoratorContextHoverAndCompletion(t *testing.T) {
 		requestAt("textDocument/definition", 4, uri, typePosition, ""),
 	)
 	typeHover := messages[2]["result"].(map[string]any)["contents"].(map[string]any)["value"].(string)
-	if !strings.Contains(typeHover, "type DecoratorContext") || !strings.Contains(typeHover, "parameterIndex: int") {
+	if !strings.Contains(typeHover, "type DecoratorContext") || !strings.Contains(typeHover, "parameterIndex: int") || !strings.Contains(typeHover, "overrideChain: string[]") {
 		t.Fatalf("type hover=%q", typeHover)
 	}
 	memberHover := messages[3]["result"].(map[string]any)["contents"].(map[string]any)["value"].(string)
@@ -41,7 +41,7 @@ func TestDecoratorContextHoverAndCompletion(t *testing.T) {
 	position := positionOf(completion, "context.", 0)
 	position.Character += len("context.")
 	items := completionLabels(completionItemsAt(t, path, completion, position.Line, position.Character))
-	for _, field := range []string{"kind", "identity", "classIdentity", "baseIdentity", "className", "memberName", "parameterName", "parameterIndex", "static", "visibility", "valueType", "valueIdentity"} {
+	for _, field := range []string{"kind", "identity", "classIdentity", "baseIdentity", "overrideChain", "className", "memberName", "parameterName", "parameterIndex", "static", "visibility", "valueType", "valueIdentity"} {
 		if items[field] == nil {
 			t.Errorf("missing %s completion: %#v", field, items)
 		}

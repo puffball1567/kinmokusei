@@ -9,10 +9,12 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
 func TestDependencyDecoratorsAreChecked(t *testing.T) {
@@ -125,6 +127,99 @@ class Base{}
 		if target == nil || target.ClassIdentity != "type|Child" || target.BaseIdentity != "type|Base" {
 			t.Fatalf("inheritance identity=%+v", target)
 		}
+	}
+}
+
+func TestDecoratorTargetCarriesOverrideChain(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "main.km")
+	input := `
+function D(context:DecoratorContext):void{}
+class Base{
+ @D public virtual function run(@D value:int):int{return value;}
+ @D public virtual get item():int{return 1;}
+}
+class Middle extends Base{
+ @D public override function run(@D renamed:int):int{return renamed;}
+ @D public override get item():int{return 2;}
+}
+class Leaf extends Middle{
+ @D public override function run(@D last:int):int{return last;}
+ @D public override get item():int{return 3;}
+}`
+	checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: input})
+	if err != nil || len(checked.Diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, checked.Diagnostics)
+	}
+	targets := map[string]*ast.DecoratorTarget{}
+	for _, application := range checked.Program.Decorators {
+		if application.Target != nil {
+			targets[application.Target.Identity] = application.Target
+		}
+	}
+	assertChain := func(identity string, want ...string) {
+		t.Helper()
+		target := targets[identity]
+		if target == nil || strings.Join(target.OverrideChain, ",") != strings.Join(want, ",") {
+			t.Fatalf("%s override chain=%v want=%v", identity, target, want)
+		}
+	}
+	assertChain("type|Base|method|run")
+	assertChain("type|Middle|method|run", "type|Base|method|run")
+	assertChain("type|Leaf|method|run", "type|Middle|method|run", "type|Base|method|run")
+	assertChain("type|Leaf|method|run|parameter|0", "type|Middle|method|run|parameter|0", "type|Base|method|run|parameter|0")
+	assertChain("type|Leaf|get|item", "type|Middle|get|item", "type|Base|get|item")
+
+	if err := os.WriteFile(entry, []byte(input), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	generated, diagnostics, err := EmitGo([]string{entry}, "decorator_override")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("emit err=%v diagnostics=%v", err, diagnostics)
+	}
+	text := string(generated)
+	for _, identity := range []string{"type|Middle|method|run", "type|Base|method|run", "type|Middle|get|item", "type|Base|get|item"} {
+		if !strings.Contains(text, strconv.Quote(identity)) {
+			t.Fatalf("generated Go does not retain override identity %q:\n%s", identity, generated)
+		}
+	}
+}
+
+func TestDecoratorOverrideChainSurvivesModuleLinking(t *testing.T) {
+	root := t.TempDir()
+	entry := filepath.Join(root, "main.km")
+	library := filepath.Join(root, "library.km")
+	checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{
+		library: `export function D(context:DecoratorContext):void{}
+export class Base{@D public virtual function run(@D value:int):int{return value;}}`,
+		entry: `import {Base,D} from "./library";
+class Child extends Base{@D public override function run(@D renamed:int):int{return renamed;}}`,
+	})
+	if err != nil || len(checked.Diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, checked.Diagnostics)
+	}
+	var baseMethod, baseParameter, childMethod, childParameter *ast.DecoratorTarget
+	for _, application := range checked.Program.Decorators {
+		target := application.Target
+		if target == nil {
+			continue
+		}
+		switch target.ClassName + ":" + target.Kind {
+		case "Base:method":
+			baseMethod = target
+		case "Base:parameter":
+			baseParameter = target
+		case "Child:method":
+			childMethod = target
+		case "Child:parameter":
+			childParameter = target
+		}
+	}
+	if baseMethod == nil || childMethod == nil || len(childMethod.OverrideChain) != 1 || childMethod.OverrideChain[0] != baseMethod.Identity {
+		t.Fatalf("linked method chain: base=%+v child=%+v", baseMethod, childMethod)
+	}
+	if baseParameter == nil || childParameter == nil || len(childParameter.OverrideChain) != 1 || childParameter.OverrideChain[0] != baseParameter.Identity {
+		t.Fatalf("linked parameter chain: base=%+v child=%+v", baseParameter, childParameter)
 	}
 }
 
@@ -277,7 +372,7 @@ func TestDecoratorRuntimeRegistrationMatchesIndependentGo(t *testing.T) {
 		library: `let trace:string="";
 export function Mark(label:string):(context:DecoratorContext)=>void{
  trace+="F"+label;
- return (context)=>{trace+="A"+label+":"+context.kind+":"+context.className+":"+context.memberName+":"+context.parameterName+":"+context.valueType+":"+context.valueIdentity+";";};
+ return (context)=>{if(len(context.overrideChain)>0){trace+=context.overrideChain[0];}trace+="A"+label+":"+context.kind+":"+context.className+":"+context.memberName+":"+context.parameterName+":"+context.valueType+":"+context.valueIdentity+";";};
 }
 export function Trace():string{return trace;}
 @Mark("library-class") export class Library{}`,
@@ -317,4 +412,92 @@ import("testing";g "decorator-runtime.test";r "decorator-runtime.test/reference"
 func TestRegistration(t *testing.T){if got,want:=g.Snapshot(),r.Snapshot();got!=want{t.Fatalf("trace=%q want %q",got,want)}}
 `
 	runGeneratedGoDifferentialTest(t, root, "decorator-runtime.test", generated, reference, comparison)
+}
+
+func TestExternalDecoratorPackageIdentityAndInitialization(t *testing.T) {
+	var previousGenerated []byte
+	var previousIdentities []string
+	for attempt := 0; attempt < 2; attempt++ {
+		base := t.TempDir()
+		root := filepath.Join(base, "app")
+		files := map[string]string{
+			"app/kinmokusei.toml": externalManifest("decorator-packages.test", false) + `[dependencies]
+"pkg.test/library" = "v0.1.0"
+[replace]
+"pkg.test/library" = "../library"
+"pkg.test/registry" = "../registry"
+`,
+			"registry/kinmokusei.toml": externalManifest("pkg.test/registry", true),
+			"registry/index.km": `let trace:string="";
+export function Mark(label:string):(context:ClassDecoratorContext)=>void{return (context)=>{trace+=label+";";};}
+export function Trace():string{return trace;}
+@Mark("registry") class Marker{}`,
+			"library/kinmokusei.toml": externalManifest("pkg.test/library", true) + `[dependencies]
+"pkg.test/registry" = "v0.1.0"
+`,
+			"library/index.km": `import {Mark,Trace} from "pkg.test/registry";
+export {Mark,Trace};
+@Mark("library") class Marker{}`,
+			"app/main.km": `import {Mark,Trace} from "pkg.test/library";
+@Mark("app") class Marker{}
+export function Snapshot():string{return Trace();}`,
+		}
+		if attempt == 1 {
+			files["app/kinmokusei.toml"] += "[imports]\n\"framework\" = \"pkg.test/library\"\n"
+			files["app/main.km"] = strings.Replace(files["app/main.km"], `"pkg.test/library"`, `"framework"`, 1)
+		}
+		for name, contents := range files {
+			path := filepath.Join(base, filepath.FromSlash(name))
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := project.LockDependencies(root, true); err != nil {
+			t.Fatal(err)
+		}
+		entry := filepath.Join(root, "main.km")
+		checked, err := CheckFiles([]string{entry})
+		if err != nil || len(checked.Diagnostics) != 0 {
+			t.Fatalf("attempt %d err=%v diagnostics=%v", attempt, err, checked.Diagnostics)
+		}
+		identities := make([]string, 0, len(checked.Program.Decorators))
+		for _, application := range checked.Program.Decorators {
+			if application.Target == nil {
+				t.Fatal("external decorator target was not checked")
+			}
+			identities = append(identities, application.Target.Identity)
+		}
+		if len(identities) != 3 || identities[0] == identities[1] || identities[1] == identities[2] || identities[0] == identities[2] {
+			t.Fatalf("external decorator identities=%v", identities)
+		}
+		directory, diagnostics, err := WriteGeneratedModule([]string{entry}, "decoratorpackages")
+		if err != nil || len(diagnostics) != 0 {
+			t.Fatalf("attempt %d emit err=%v diagnostics=%v", attempt, err, diagnostics)
+		}
+		generated, err := os.ReadFile(filepath.Join(directory, "generated.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if attempt != 0 {
+			if !bytes.Equal(generated, previousGenerated) {
+				t.Fatal("decorator output depends on checkout path or import alias")
+			}
+			if strings.Join(identities, ",") != strings.Join(previousIdentities, ",") {
+				t.Fatalf("decorator identities changed: first=%v second=%v", previousIdentities, identities)
+			}
+		}
+		previousGenerated = append([]byte(nil), generated...)
+		previousIdentities = append([]string(nil), identities...)
+		reference := `package reference
+func Snapshot()string{return "registry;library;app;"}
+`
+		comparison := `package decoratorpackages_test
+import("testing";g "decorator-packages.test";r "decorator-packages.test/reference")
+func TestRegistration(t *testing.T){if got,want:=g.Snapshot(),r.Snapshot();got!=want{t.Fatalf("got %q want %q",got,want)}}
+`
+		runGeneratedGoDifferentialTestInExistingModule(t, directory, "decorator-packages.test", generated, reference, comparison, []string{"test", "-mod=readonly", "./..."}, []string{"GOPROXY=off"})
+	}
 }
