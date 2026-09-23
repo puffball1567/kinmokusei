@@ -42,9 +42,10 @@ AST retention, factory expression checking, typed decorator context target
 descriptors, per-factory target restrictions and Go `init` registration are
 implemented. Override chains are exposed without implicitly replaying inherited
 decorators. Canonical external-package identities and dependency-first
-registration are verified across checkout paths and import aliases. Callable
-constructor and method adapters remain; context type/field completion and hover
-are implemented.
+registration are verified across checkout paths and import aliases. Checked
+fixed-arity constructor adapters are implemented for concrete classes. Method
+adapters, variadic constructors and concrete generic instantiations remain;
+context type/field completion and hover are implemented.
 
 Constrained collection forwarding now infers common slice/array/map/channel
 element types, including native class elements. Assignment checks both Go

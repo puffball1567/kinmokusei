@@ -414,6 +414,105 @@ func TestRegistration(t *testing.T){if got,want:=g.Snapshot(),r.Snapshot();got!=
 	runGeneratedGoDifferentialTest(t, root, "decorator-runtime.test", generated, reference, comparison)
 }
 
+func TestDecoratorConstructorAdaptersMatchIndependentGo(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	library := filepath.Join(root, "container.km")
+	entry := filepath.Join(root, "entry.km")
+	librarySource := `alias ConstructorAdapter=(arguments:DecoratorValue[])=>Result<DecoratorValue>;
+let constructors:ConstructorAdapter[]=[];
+export function Injectable(): (context:ClassDecoratorContext)=>void {
+ return (context)=>{constructors=append(constructors,context.construct);};
+}
+export function Construct(index:int,arguments:DecoratorValue[]):Result<DecoratorValue>{const adapter=constructors[index];return adapter(arguments);}
+`
+	source := `import {Injectable,Construct} from "./container";
+let trace:string="";
+@Injectable() class Dependency{
+ constructor(){trace+="dependency;";}
+}
+@Injectable() class Service{
+ constructor(public dependency:Dependency){trace+="service;";}
+}
+export function Build():Result<string>{
+ const dependency=Construct(0,[])?;
+ const service=Construct(1,[dependency])?;
+ return ok(trace+dependency.typeIdentity+";"+service.typeIdentity);
+}
+export function BadArity():Result<DecoratorValue>{return Construct(1,[]);}
+`
+	if err := os.WriteFile(library, []byte(librarySource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(entry, []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	generated, diagnostics, err := EmitGo([]string{entry}, "decoratoradapters")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
+	}
+	text := string(generated)
+	for _, fragment := range []string{"type __kinmokuseiDecoratorValue struct", "Constructible: true", "NewDependency()", "NewService(argument0)"} {
+		if !strings.Contains(text, fragment) {
+			t.Fatalf("missing %q in generated adapter:\n%s", fragment, generated)
+		}
+	}
+	reference := `package reference
+func Build()(string,error){return "dependency;service;type|Dependency;type|Service",nil}
+func BadArity()error{return errorString("decorator constructor for Service expects 1 argument")}
+type errorString string
+func(e errorString)Error()string{return string(e)}
+`
+	comparison := `package decoratoradapters_test
+import("testing";g "decorator-adapters.test";r "decorator-adapters.test/reference")
+func TestAdapters(t *testing.T){
+ got,err:=g.Build();want,werr:=r.Build();if err!=nil||werr!=nil||got!=want{t.Fatalf("Build=%q,%v want %q,%v",got,err,want,werr)}
+ _,err=g.BadArity();wantErr:=r.BadArity();if err==nil||err.Error()!=wantErr.Error(){t.Fatalf("BadArity=%v want %v",err,wantErr)}
+}
+`
+	runGeneratedGoDifferentialTest(t, root, "decorator-adapters.test", generated, reference, comparison)
+}
+
+func TestDecoratorConstructorAdapterAvailabilityAndOpacity(t *testing.T) {
+	t.Parallel()
+	check := func(source string) Result {
+		path := filepath.Join(t.TempDir(), "main.km")
+		checked, err := CheckFilesWithOverlay([]string{path}, map[string]string{path: source})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return checked
+	}
+	checked := check(`function D(context:ClassDecoratorContext):void{}
+@D abstract class AbstractService{public abstract function run():void;}
+@D class GenericService<T>{}
+@D class VariadicService{constructor(...values:int[]){}}
+`)
+	if len(checked.Diagnostics) != 0 {
+		t.Fatalf("diagnostics=%v", checked.Diagnostics)
+	}
+	wantReasons := []string{
+		"abstract classes cannot be constructed",
+		"generic classes require concrete type arguments",
+		"variadic constructors are not yet supported by decorator adapters",
+	}
+	if len(checked.Program.Decorators) != len(wantReasons) {
+		t.Fatalf("decorators=%d", len(checked.Program.Decorators))
+	}
+	for index, application := range checked.Program.Decorators {
+		if application.Target == nil || application.Target.Constructible || application.Target.ConstructUnavailableReason != wantReasons[index] {
+			t.Errorf("target %d=%+v", index, application.Target)
+		}
+	}
+
+	for _, name := range []string{"DecoratorValue", "ClassDecoratorContext"} {
+		forged := check("const value:" + name + `={typeIdentity:"forged"};`)
+		if len(forged.Diagnostics) == 0 || !strings.Contains(forged.Diagnostics[0].Message, "compiler-owned") {
+			t.Errorf("%s diagnostics=%v", name, forged.Diagnostics)
+		}
+	}
+}
+
 func TestExternalDecoratorPackageIdentityAndInitialization(t *testing.T) {
 	var previousGenerated []byte
 	var previousIdentities []string

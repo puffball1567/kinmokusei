@@ -2,7 +2,10 @@ package ast
 
 import "github.com/puffball1567/kinmokusei/internal/source"
 
-const DecoratorContextTypeName = "DecoratorContext"
+const (
+	DecoratorContextTypeName = "DecoratorContext"
+	DecoratorValueTypeName   = "DecoratorValue"
+)
 
 type DecoratorContextDefinition struct {
 	Name        string
@@ -38,6 +41,18 @@ func IsDecoratorContextTypeName(name string) bool {
 	return false
 }
 
+func IsDecoratorBuiltinObjectTypeName(name string) bool {
+	return IsDecoratorContextTypeName(name) || name == DecoratorValueTypeName
+}
+
+// DecoratorValueFields is intentionally small. The compiler owns the hidden
+// payload used by callable adapters; source packages can inspect its stable
+// type identity and pass the value to another checked adapter, but cannot
+// perform an unchecked cast.
+func DecoratorValueFields() []ObjectTypeField {
+	return []ObjectTypeField{{Name: "typeIdentity", Type: TypeRef{Name: "string"}}}
+}
+
 func DecoratorContextAcceptsTarget(name, kind string) bool {
 	for _, definition := range decoratorContextDefinitions {
 		if definition.Name != name {
@@ -59,6 +74,10 @@ func DecoratorContextAcceptsTarget(name, kind string) bool {
 // DecoratorContextFields is the single language-level contract shared by
 // semantic checking, Go lowering and editor tooling.
 func DecoratorContextFields() []ObjectTypeField {
+	value := TypeRef{Name: DecoratorValueTypeName}
+	arguments := TypeRef{Element: &value}
+	result := TypeRef{Name: "Result", GenericArguments: []TypeRef{value}}
+	construct := TypeRef{Parameters: []TypeRef{arguments}, Return: &result}
 	return []ObjectTypeField{
 		{Name: "kind", Type: TypeRef{Name: "string"}},
 		{Name: "identity", Type: TypeRef{Name: "string"}},
@@ -73,6 +92,9 @@ func DecoratorContextFields() []ObjectTypeField {
 		{Name: "visibility", Type: TypeRef{Name: "string"}},
 		{Name: "valueType", Type: TypeRef{Name: "string"}},
 		{Name: "valueIdentity", Type: TypeRef{Name: "string"}},
+		{Name: "constructible", Type: TypeRef{Name: "boolean"}},
+		{Name: "constructUnavailableReason", Type: TypeRef{Name: "string"}},
+		{Name: "construct", Type: construct},
 	}
 }
 
@@ -92,20 +114,24 @@ type DecoratorTarget struct {
 	Name string
 	// Identity is an opaque, build-stable identifier. The remaining names are
 	// source spellings intended for framework diagnostics and registration.
-	Identity       string
-	ClassIdentity  string
-	BaseIdentity   string
-	OverrideChain  []string
-	ClassName      string
-	MemberName     string
-	ParameterName  string
-	ValueIdentity  string
-	Owner          source.Span
-	Declaration    source.Span
-	ParameterIndex int
-	Static         bool
-	Visibility     Visibility
-	ValueType      *TypeRef
+	Identity                   string
+	ClassIdentity              string
+	BaseIdentity               string
+	OverrideChain              []string
+	ClassName                  string
+	MemberName                 string
+	ParameterName              string
+	ValueIdentity              string
+	RuntimeClassName           string
+	ConstructUnavailableReason string
+	ConstructorParameters      []TypeRef
+	Owner                      source.Span
+	Declaration                source.Span
+	ParameterIndex             int
+	Static                     bool
+	Visibility                 Visibility
+	ValueType                  *TypeRef
+	Constructible              bool
 }
 
 func (d *Decorator) GetSpan() source.Span { return d.Span }

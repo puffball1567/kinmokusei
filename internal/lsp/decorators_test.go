@@ -41,13 +41,13 @@ func TestDecoratorContextHoverAndCompletion(t *testing.T) {
 	position := positionOf(completion, "context.", 0)
 	position.Character += len("context.")
 	items := completionLabels(completionItemsAt(t, path, completion, position.Line, position.Character))
-	for _, field := range []string{"kind", "identity", "classIdentity", "baseIdentity", "overrideChain", "className", "memberName", "parameterName", "parameterIndex", "static", "visibility", "valueType", "valueIdentity"} {
+	for _, field := range []string{"kind", "identity", "classIdentity", "baseIdentity", "overrideChain", "className", "memberName", "parameterName", "parameterIndex", "static", "visibility", "valueType", "valueIdentity", "constructible", "constructUnavailableReason", "construct"} {
 		if items[field] == nil {
 			t.Errorf("missing %s completion: %#v", field, items)
 		}
 	}
 	lexical := completionLabels(completionItemsAt(t, path, input, 0, 0))
-	for _, name := range []string{"DecoratorContext", "ClassDecoratorContext", "FieldDecoratorContext", "ConstructorDecoratorContext", "MethodDecoratorContext", "GetterDecoratorContext", "SetterDecoratorContext", "ParameterDecoratorContext"} {
+	for _, name := range []string{"DecoratorContext", "ClassDecoratorContext", "FieldDecoratorContext", "ConstructorDecoratorContext", "MethodDecoratorContext", "GetterDecoratorContext", "SetterDecoratorContext", "ParameterDecoratorContext", "DecoratorValue"} {
 		if lexical[name] == nil {
 			t.Fatalf("missing %s built-in type completion: %#v", name, lexical)
 		}

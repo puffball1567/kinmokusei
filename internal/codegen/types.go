@@ -116,6 +116,9 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	if ref.Qualifier == "" && kinmokuseiAST.IsDecoratorContextTypeName(ref.Name) {
 		return goast.NewIdent("__kinmokuseiDecoratorContext")
 	}
+	if ref.Qualifier == "" && ref.Name == kinmokuseiAST.DecoratorValueTypeName {
+		return goast.NewIdent("__kinmokuseiDecoratorValue")
+	}
 	if ref.Name == "Task" && len(ref.GenericArguments) == 1 {
 		return taskGoType(ref.GenericArguments[0])
 	}

@@ -11,7 +11,23 @@ import (
 	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-func decoratorContextDeclaration() goast.Decl {
+func decoratorRuntimeDeclarations() []goast.Decl {
+	valueDeclaration := &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
+		Name: goast.NewIdent("__kinmokuseiDecoratorValue"),
+		Type: &goast.StructType{Fields: &goast.FieldList{List: []*goast.Field{
+			{Names: []*goast.Ident{goast.NewIdent("TypeIdentity")}, Type: goast.NewIdent("string")},
+			{Names: []*goast.Ident{goast.NewIdent("value")}, Type: goast.NewIdent("any")},
+		}}},
+	}}}
+	errorDeclaration := &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
+		Name: goast.NewIdent("__kinmokuseiDecoratorAdapterError"), Type: goast.NewIdent("string"),
+	}}}
+	errorMethod := &goast.FuncDecl{
+		Recv: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("err")}, Type: goast.NewIdent("__kinmokuseiDecoratorAdapterError")}}},
+		Name: goast.NewIdent("Error"),
+		Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: goast.NewIdent("string")}}}},
+		Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("string"), Args: []goast.Expr{goast.NewIdent("err")}}}}}},
+	}
 	fields := kinmokuseiAST.DecoratorContextFields()
 	generated := make([]*goast.Field, 0, len(fields))
 	for _, field := range fields {
@@ -20,10 +36,11 @@ func decoratorContextDeclaration() goast.Decl {
 			Type:  goType(field.Type),
 		})
 	}
-	return &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
+	contextDeclaration := &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{&goast.TypeSpec{
 		Name: goast.NewIdent("__kinmokuseiDecoratorContext"),
 		Type: &goast.StructType{Fields: &goast.FieldList{List: generated}},
 	}}}
+	return []goast.Decl{valueDeclaration, errorDeclaration, errorMethod, contextDeclaration}
 }
 
 // Decorator expressions are evaluated from top to bottom. Callbacks for the
@@ -104,8 +121,81 @@ func decoratorContextLiteral(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
 		&goast.KeyValueExpr{Key: goast.NewIdent("Visibility"), Value: stringLiteral(decoratorVisibility(target.Visibility))},
 		&goast.KeyValueExpr{Key: goast.NewIdent("ValueType"), Value: stringLiteral(valueType)},
 		&goast.KeyValueExpr{Key: goast.NewIdent("ValueIdentity"), Value: stringLiteral(target.ValueIdentity)},
+		&goast.KeyValueExpr{Key: goast.NewIdent("Constructible"), Value: goast.NewIdent(strconv.FormatBool(target.Constructible))},
+		&goast.KeyValueExpr{Key: goast.NewIdent("ConstructUnavailableReason"), Value: stringLiteral(decoratorConstructUnavailableReason(target))},
+		&goast.KeyValueExpr{Key: goast.NewIdent("Construct"), Value: decoratorConstructAdapter(target)},
 	)
 	return &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiDecoratorContext"), Elts: elements}
+}
+
+func decoratorConstructUnavailableReason(target *kinmokuseiAST.DecoratorTarget) string {
+	if target.Constructible {
+		return ""
+	}
+	if target.ConstructUnavailableReason != "" {
+		return target.ConstructUnavailableReason
+	}
+	return "decorator target is not constructible"
+}
+
+func decoratorConstructAdapter(target *kinmokuseiAST.DecoratorTarget) goast.Expr {
+	arguments := goast.NewIdent("arguments")
+	valueType := goast.NewIdent("__kinmokuseiDecoratorValue")
+	functionType := &goast.FuncType{
+		Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{arguments}, Type: &goast.ArrayType{Elt: valueType}}}},
+		Results: &goast.FieldList{List: []*goast.Field{{Type: valueType}, {Type: goast.NewIdent("error")}}},
+	}
+	failure := func(message string) *goast.ReturnStmt {
+		return &goast.ReturnStmt{Results: []goast.Expr{
+			&goast.CompositeLit{Type: valueType},
+			&goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiDecoratorAdapterError"), Args: []goast.Expr{stringLiteral(message)}},
+		}}
+	}
+	body := &goast.BlockStmt{}
+	if !target.Constructible {
+		body.List = append(body.List, failure(decoratorConstructUnavailableReason(target)))
+		return &goast.FuncLit{Type: functionType, Body: body}
+	}
+	expectedCount := len(target.ConstructorParameters)
+	argumentLabel := "arguments"
+	if expectedCount == 1 {
+		argumentLabel = "argument"
+	}
+	body.List = append(body.List, &goast.IfStmt{
+		Cond: &goast.BinaryExpr{
+			X:  &goast.CallExpr{Fun: goast.NewIdent("len"), Args: []goast.Expr{arguments}},
+			Op: token.NEQ,
+			Y:  &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(expectedCount)},
+		},
+		Body: &goast.BlockStmt{List: []goast.Stmt{failure(fmt.Sprintf("decorator constructor for %s expects %d %s", target.ClassName, expectedCount, argumentLabel))}},
+	})
+	constructorArguments := make([]goast.Expr, 0, expectedCount)
+	for index, parameter := range target.ConstructorParameters {
+		name := goast.NewIdent(fmt.Sprintf("argument%d", index))
+		ok := goast.NewIdent(fmt.Sprintf("argument%dOK", index))
+		body.List = append(body.List,
+			&goast.AssignStmt{
+				Lhs: []goast.Expr{name, ok}, Tok: token.DEFINE,
+				Rhs: []goast.Expr{&goast.TypeAssertExpr{
+					X:    &goast.SelectorExpr{X: &goast.IndexExpr{X: arguments, Index: &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(index)}}, Sel: goast.NewIdent("value")},
+					Type: goType(parameter),
+				}},
+			},
+			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: ok}, Body: &goast.BlockStmt{List: []goast.Stmt{
+				failure(fmt.Sprintf("decorator constructor for %s argument %d expects %s", target.ClassName, index, decoratorTypeLabel(parameter))),
+			}}},
+		)
+		constructorArguments = append(constructorArguments, name)
+	}
+	constructed := &goast.CallExpr{Fun: goast.NewIdent("New" + target.RuntimeClassName), Args: constructorArguments}
+	body.List = append(body.List, &goast.ReturnStmt{Results: []goast.Expr{
+		&goast.CompositeLit{Type: valueType, Elts: []goast.Expr{
+			&goast.KeyValueExpr{Key: goast.NewIdent("TypeIdentity"), Value: stringLiteral(target.ClassIdentity)},
+			&goast.KeyValueExpr{Key: goast.NewIdent("value"), Value: constructed},
+		}},
+		goast.NewIdent("nil"),
+	}})
+	return &goast.FuncLit{Type: functionType, Body: body}
 }
 
 func decoratorStringSlice(values []string) goast.Expr {

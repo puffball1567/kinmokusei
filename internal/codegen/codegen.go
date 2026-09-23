@@ -59,7 +59,7 @@ func GenerateWithImporter(program *kinmokuseiAST.Program, packageName string, go
 		file.Decls = append(file.Decls, runtimeDeclarations...)
 	}
 	if program.UsesDecoratorContext || len(program.Decorators) != 0 {
-		file.Decls = append(file.Decls, decoratorContextDeclaration())
+		file.Decls = append(file.Decls, decoratorRuntimeDeclarations()...)
 	}
 	for _, decl := range program.Declarations {
 		generated, err := generateDeclaration(decl)
