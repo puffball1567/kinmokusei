@@ -1,10 +1,11 @@
 # Decorator language foundation
 
-Status: metadata registration and checked constructor adapters are implemented.
+Status: metadata registration, checked constructor adapters and checked method
+invocation adapters are implemented.
 Applications retain their targets in the AST, factories undergo ordinary
 expression/call checking, target-specific callback types reject invalid
 applications, and generated Go evaluates factories and invokes their callbacks
-during `init`. Method-invocation adapters for routing remain future work.
+during `init`.
 
 ## Goal
 
@@ -72,6 +73,9 @@ valueIdentity: string
 constructible: boolean
 constructUnavailableReason: string
 construct: (arguments: DecoratorValue[]) => Result<DecoratorValue>
+invocable: boolean
+invokeUnavailableReason: string
+invoke: (receiver: DecoratorValue, arguments: DecoratorValue[]) => Result<DecoratorValue>
 ```
 
 `DecoratorValue` is a compiler-owned opaque value with one readable field:
@@ -180,6 +184,20 @@ and generic classes without concrete type arguments expose `constructible ==
 false` with a stable human-readable reason. Calling their adapter still returns
 that failure as a `Result`, so a framework does not need an unchecked branch.
 
+For a public instance method, `invoke` accepts a boxed receiver and boxed
+arguments. It verifies the receiver's concrete Go type and non-null value,
+checks each argument, and calls the generated Go method. A method returning
+`Result<T>` forwards its error; plain and `Result<void>` methods return a
+`DecoratorValue` whose `typeIdentity` is `void`. Variadic arguments are checked
+individually. Virtual methods retain their existing dispatch behavior. A
+receiver boxed as a derived type must be explicitly upcast before use with a
+base class method adapter.
+
+Private and protected methods, abstract methods, static methods, and methods
+whose class or signature still requires generic type arguments expose
+`invocable == false` and `invokeUnavailableReason`. Invoking one returns that
+reason through `Result`.
+
 Factories on one target are evaluated from top to bottom and their callbacks are
 applied from bottom to top. Generated registration runs in Go `init`, after
 package variables have been initialized. Decorator code never runs in the
@@ -187,18 +205,18 @@ compiler process.
 
 ## Remaining implementation
 
-1. Add checked method-invocation adapters so routing libraries can call methods
-   without reflection or generated-code edits. Preserve `Result`, visibility,
-   nullable and generic contracts.
-2. Extend constructor adapters to explicit concrete generic instantiations.
+1. Extend constructor and method adapters to explicit concrete generic
+   instantiations.
+2. Add static method invocation adapters with an explicit receiver policy.
 
 All decorator context types provide type/field hover and completion. Imported
 decorator calls participate in ordinary definition, hover, signature, reference
 and rename operations.
 
-The runtime contract is metadata-only and does not promise JavaScript reflection
-or arbitrary declaration rewriting. Unsupported applications must remain hard
-errors rather than silently producing undecorated Go.
+The runtime contract does not promise JavaScript reflection or arbitrary
+declaration rewriting. Unsupported decorator applications remain hard errors;
+unsupported callable targets report their unavailability through checked
+context fields and `Result`.
 
 Decorators execute only for declarations on which they are written. An override
 does not implicitly execute or copy decorators from a base declaration. A

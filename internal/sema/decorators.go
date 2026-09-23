@@ -129,10 +129,46 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			}
 			methodID := classID + "|" + kind + "|" + method.Name
 			overrideChain := c.decoratorOverrideChain(class, method, kind)
+			invocable, reason := true, ""
+			switch {
+			case kind != "method":
+				invocable, reason = false, "only ordinary methods have invocation adapters"
+			case method.Visibility != ast.Public:
+				invocable, reason = false, "method is not public"
+			case method.Abstract:
+				invocable, reason = false, "abstract methods cannot be invoked"
+			case len(class.TypeParameters) != 0 || len(method.TypeParameters) != 0:
+				invocable, reason = false, "generic methods require concrete type arguments"
+			case method.Static:
+				invocable, reason = false, "static method invocation adapters are not yet supported"
+			}
+			runtimeMethodName := method.GoName
+			if runtimeMethodName == "" {
+				runtimeMethodName = method.Name
+			}
+			if method.Override {
+				runtimeMethodName = "__kinmokusei" + method.VirtualOwner + runtimeMethodName
+			}
+			methodResult := method.ReturnType
+			if methodResult.Name == "Result" && len(methodResult.GenericArguments) == 1 {
+				methodResult = methodResult.GenericArguments[0]
+			}
+			resultIdentity := ""
+			if invocable {
+				resultIdentity = decoratorValueRuntimeIdentity(c.resolveType(methodResult))
+			}
+			var methodParameters []ast.TypeRef
+			for _, parameter := range method.Parameters {
+				methodParameters = append(methodParameters, parameter.Type)
+			}
 			attach(method.Decorators, ast.DecoratorTarget{
 				Kind: kind, Name: method.Name, Identity: methodID,
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: method.Name,
-				OverrideChain: overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
+				RuntimeClassName: class.Name, Invocable: invocable, InvokeUnavailableReason: reason,
+				RuntimeMethodName: runtimeMethodName, MethodParameters: methodParameters,
+				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &method.ReturnType,
+				MethodResultIdentity: resultIdentity,
+				OverrideChain:        overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
 			})
 			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, overrideChain, method.NameSpan, method.Static, method.Visibility)
 		}

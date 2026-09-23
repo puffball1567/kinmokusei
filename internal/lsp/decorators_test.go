@@ -41,7 +41,7 @@ func TestDecoratorContextHoverAndCompletion(t *testing.T) {
 	position := positionOf(completion, "context.", 0)
 	position.Character += len("context.")
 	items := completionLabels(completionItemsAt(t, path, completion, position.Line, position.Character))
-	for _, field := range []string{"kind", "identity", "classIdentity", "baseIdentity", "overrideChain", "className", "memberName", "parameterName", "parameterIndex", "static", "visibility", "valueType", "valueIdentity", "constructible", "constructUnavailableReason", "construct"} {
+	for _, field := range []string{"kind", "identity", "classIdentity", "baseIdentity", "overrideChain", "className", "memberName", "parameterName", "parameterIndex", "static", "visibility", "valueType", "valueIdentity", "constructible", "constructUnavailableReason", "construct", "invocable", "invokeUnavailableReason", "invoke"} {
 		if items[field] == nil {
 			t.Errorf("missing %s completion: %#v", field, items)
 		}
