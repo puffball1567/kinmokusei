@@ -1,7 +1,7 @@
 # Decorator language foundation
 
 Status: metadata registration, checked constructor adapters and checked method
-invocation adapters are implemented.
+and accessor invocation adapters are implemented.
 Applications retain their targets in the AST, factories undergo ordinary
 expression/call checking, target-specific callback types reject invalid
 applications, and generated Go evaluates factories and invokes their callbacks
@@ -218,6 +218,35 @@ only to static invocation. Calling the wrong adapter returns its unavailable
 reason through `Result`. Private and protected methods, abstract methods, and
 methods whose class or signature still requires generic type arguments expose
 both flags as false with a human-readable reason.
+
+Public getters and setters use the same adapters on their respective
+`GetterDecoratorContext` and `SetterDecoratorContext`. A getter takes no
+arguments and returns its boxed property value. A setter takes one boxed value
+of the exact declared property type and returns the `void` marker. Instance
+accessors use `invoke(receiver, arguments)`; static accessors use
+`invokeStatic(arguments)`. Visibility is checked independently for each
+accessor: a public getter does not expose a private or protected setter.
+Virtual/override accessors preserve ordinary property dispatch, including
+explicitly upcast base receivers.
+
+```ts
+alias Setter = (receiver: DecoratorValue, arguments: DecoratorValue[]) => Result<DecoratorValue>;
+let setters: Setter[] = [];
+
+function CaptureSetter(context: SetterDecoratorContext): void {
+  // A framework can retain this checked operation for later property injection.
+  if (context.invocable) {
+    setters = append(setters, context.invoke);
+  }
+}
+```
+
+Static accessors on generic classes are also invocable: they belong to the
+class declaration and cannot use its type parameters. Generic instance
+accessors still require concrete receiver specialization. Multiple-result
+methods cannot currently be represented by the single boxed return value;
+their adapters expose both availability flags as false with an explicit reason.
+Their ordinary typed calls and metadata registration remain available.
 
 Factories on one target are evaluated from top to bottom and their callbacks are
 applied from bottom to top. Generated registration runs in Go `init`, after

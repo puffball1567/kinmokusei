@@ -141,14 +141,29 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			overrideChain := c.decoratorOverrideChain(class, method, kind)
 			eligible, reason := true, ""
 			switch {
-			case kind != "method":
-				eligible, reason = false, "only ordinary methods have invocation adapters"
 			case method.Visibility != ast.Public:
 				eligible, reason = false, "method is not public"
 			case method.Abstract:
 				eligible, reason = false, "abstract methods cannot be invoked"
-			case len(class.TypeParameters) != 0 || len(method.TypeParameters) != 0:
+			case len(method.TypeParameters) != 0 || len(class.TypeParameters) != 0 && !(method.Static && method.Accessor != ""):
 				eligible, reason = false, "generic methods require concrete type arguments"
+			}
+			// Static properties belong to the declaration, not a generic class
+			// instance. Their signatures are already checked without owner type
+			// parameters and can use the same receiver-free adapter as methods.
+			methodResult := method.ReturnType
+			payloadType := Type{Kind: Invalid}
+			if eligible {
+				result := c.resolveType(method.ReturnType)
+				c.prepareGoTypeForEmission(&result, method.ReturnType.Span)
+				methodResult = typeRefFromType(result, method.ReturnType.Span)
+				payloadType = result
+				if result.Kind == Result && result.Element != nil {
+					payloadType = *result.Element
+				}
+				if payloadType.Kind != Void && !decoratorValuePayloadType(payloadType) {
+					eligible, reason = false, fmt.Sprintf("method result %s cannot be stored in DecoratorValue", payloadType.String())
+				}
 			}
 			invocable := eligible && !method.Static
 			staticInvocable := eligible && method.Static
@@ -165,15 +180,11 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			if method.Override {
 				runtimeMethodName = "__kinmokusei" + method.VirtualOwner + runtimeMethodName
 			}
-			methodResult := method.ReturnType
-			if methodResult.Name == "Result" && len(methodResult.GenericArguments) == 1 {
-				methodResult = methodResult.GenericArguments[0]
-			}
 			resultIdentity := ""
 			resultContract := ""
 			if eligible {
-				resultIdentity = decoratorValueRuntimeIdentity(c.resolveType(methodResult))
-				resultContract = decoratorValueContract(c.resolveType(methodResult))
+				resultIdentity = decoratorValueRuntimeIdentity(payloadType)
+				resultContract = decoratorValueContract(payloadType)
 			}
 			var methodParameters []ast.TypeRef
 			var methodContracts []string
@@ -195,7 +206,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				StaticInvocable: staticInvocable, StaticInvokeUnavailableReason: staticInvokeReason,
 				RuntimeMethodName: runtimeMethodName, MethodParameters: methodParameters,
 				MethodContracts: methodContracts, ClassContract: classContract,
-				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &method.ReturnType,
+				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &methodResult,
 				MethodResultIdentity: resultIdentity,
 				MethodResultContract: resultContract,
 				OverrideChain:        overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),

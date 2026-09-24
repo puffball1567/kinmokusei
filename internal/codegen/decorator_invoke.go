@@ -64,6 +64,9 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 		return &goast.FuncLit{Type: functionType, Body: body}
 	}
 	label := fmt.Sprintf("decorator method %s.%s", target.ClassName, target.MemberName)
+	if target.Kind == "get" || target.Kind == "set" {
+		label = fmt.Sprintf("decorator %s %s.%s", target.Kind, target.ClassName, target.MemberName)
+	}
 	var callee goast.Expr
 	if static {
 		callee = goast.NewIdent(staticMethodName(target.RuntimeClassName, target.RuntimeMethodName, target.Visibility))

@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support checked decorator invocation of public getters and setters, including
+  static properties, virtual overrides, and generic-independent static
+  accessors. Preserve independent visibility, exact property types, receiver
+  checks and arity checks. Multiple-result methods retain decorator metadata
+  but report unavailable single-value adapters instead of generating invalid Go.
+
 - Harden external package source boundaries: reject entries, exports and
   relative imports under unhashed metadata directories, including symlink and
   case/trailing-dot aliases of `.git` and `.kinmokusei`.

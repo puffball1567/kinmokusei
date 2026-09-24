@@ -46,7 +46,11 @@ registration are verified across checkout paths and import aliases. Checked
 constructor adapters are implemented for concrete classes, including variadic
 constructors. Public instance method adapters are implemented with checked
 receivers and arguments, Result propagation, and virtual dispatch. Static method
-adapters use a separate receiver-free call. Concrete generic instantiations
+adapters use a separate receiver-free call. Public getter/setter adapters reuse
+these checked calls, preserving independent visibility and virtual dispatch;
+generic-independent static accessors are supported as well. Multiple-result
+methods retain registration but report unavailable single-value adapters.
+Concrete generic instantiations
 remain; context type/field completion and hover are implemented.
 
 Constrained collection forwarding now infers common slice/array/map/channel
