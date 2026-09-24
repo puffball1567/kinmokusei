@@ -1,7 +1,7 @@
 # Decorator language foundation
 
 Status: metadata registration, checked constructor adapters and checked method
-invocation adapters are implemented.
+and accessor invocation adapters are implemented.
 Applications retain their targets in the AST, factories undergo ordinary
 expression/call checking, target-specific callback types reject invalid
 applications, and generated Go evaluates factories and invokes their callbacks
@@ -212,12 +212,62 @@ individually. Virtual methods retain their existing dispatch behavior. A
 receiver boxed as a derived type must be explicitly upcast before use with a
 base class method adapter.
 
+For a method returning a result list such as `(int, string)`, the adapter calls
+the method once and returns a boxed `DecoratorValue[]` in declaration order.
+Each array element retains its own exact declared type and source contract,
+including numeric widths, nullable values, interfaces, collections and concrete
+generic instances. A consumer first extracts the array and then its slots:
+
+```ts
+function DecodePair(boxed: DecoratorValue): Result<string> {
+  const values = decoratorValueAs<DecoratorValue[]>(boxed)?;
+  const id = decoratorValueAs<int>(values[0])?;
+  const name = decoratorValueAs<string>(values[1])?;
+  return ok(name);
+}
+```
+
+The outer `typeIdentity` is `DecoratorValue[]`; the target's `valueType` still
+describes the original method signature. This packaging is specific to dynamic
+invocation and does not introduce first-class tuple values or change ordinary
+typed calls. An `error` in an ordinary `(T, error)` result list remains a boxed
+slot, including a nil error. It is not automatically propagated, discarded or
+reinterpreted as a `Result<T>` effect. `Result<T>` methods retain their existing
+error propagation instead of becoming two-element arrays. Instance, static,
+variadic and virtual methods all use the same result-list representation.
+
 Static methods use `invokeStatic(arguments)` and require no receiver. The
 `invocable` field refers only to instance invocation; `staticInvocable` refers
 only to static invocation. Calling the wrong adapter returns its unavailable
 reason through `Result`. Private and protected methods, abstract methods, and
 methods whose class or signature still requires generic type arguments expose
 both flags as false with a human-readable reason.
+
+Public getters and setters use the same adapters on their respective
+`GetterDecoratorContext` and `SetterDecoratorContext`. A getter takes no
+arguments and returns its boxed property value. A setter takes one boxed value
+of the exact declared property type and returns the `void` marker. Instance
+accessors use `invoke(receiver, arguments)`; static accessors use
+`invokeStatic(arguments)`. Visibility is checked independently for each
+accessor: a public getter does not expose a private or protected setter.
+Virtual/override accessors preserve ordinary property dispatch, including
+explicitly upcast base receivers.
+
+```ts
+alias Setter = (receiver: DecoratorValue, arguments: DecoratorValue[]) => Result<DecoratorValue>;
+let setters: Setter[] = [];
+
+function CaptureSetter(context: SetterDecoratorContext): void {
+  // A framework can retain this checked operation for later property injection.
+  if (context.invocable) {
+    setters = append(setters, context.invoke);
+  }
+}
+```
+
+Static accessors on generic classes are also invocable: they belong to the
+class declaration and cannot use its type parameters. Generic instance
+accessors still require concrete receiver specialization.
 
 Factories on one target are evaluated from top to bottom and their callbacks are
 applied from bottom to top. Generated registration runs in Go `init`, after

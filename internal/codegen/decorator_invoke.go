@@ -64,6 +64,9 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 		return &goast.FuncLit{Type: functionType, Body: body}
 	}
 	label := fmt.Sprintf("decorator method %s.%s", target.ClassName, target.MemberName)
+	if target.Kind == "get" || target.Kind == "set" {
+		label = fmt.Sprintf("decorator %s %s.%s", target.Kind, target.ClassName, target.MemberName)
+	}
 	var callee goast.Expr
 	if static {
 		callee = goast.NewIdent(staticMethodName(target.RuntimeClassName, target.RuntimeMethodName, target.Visibility))
@@ -84,6 +87,10 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 	call := &goast.CallExpr{Fun: callee, Args: callArguments}
 	if target.MethodVariadic {
 		call.Ellipsis = token.Pos(1)
+	}
+	if len(target.MethodResultSlots) != 0 {
+		body.List = append(body.List, decoratorMultipleResultReturn(target, call)...)
+		return &goast.FuncLit{Type: functionType, Body: body}
 	}
 	resultType := *target.MethodResult
 	fallible := resultType.Name == "Result" && len(resultType.GenericArguments) == 1

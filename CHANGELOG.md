@@ -9,6 +9,17 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support checked decorator invocation of public getters and setters, including
+  static properties, virtual overrides, and generic-independent static
+  accessors. Preserve independent visibility, exact property types, receiver
+  checks and arity checks.
+
+- Support result-list methods through decorator invocation adapters. Return
+  an ordered boxed `DecoratorValue[]` with exact per-slot contracts, preserving
+  narrow types, nullable values, interfaces and concrete generic values. Keep
+  ordinary error result slots separate from Result failure propagation and
+  invoke instance/static, variadic and virtual methods exactly once.
+
 - Harden external package source boundaries: reject entries, exports and
   relative imports under unhashed metadata directories, including symlink and
   case/trailing-dot aliases of `.git` and `.kinmokusei`.

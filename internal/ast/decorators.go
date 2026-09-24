@@ -147,6 +147,7 @@ type DecoratorTarget struct {
 	MethodResult                  *TypeRef
 	MethodResultIdentity          string
 	MethodResultContract          string
+	MethodResultSlots             []DecoratorResultSlot
 	Owner                         source.Span
 	Declaration                   source.Span
 	ParameterIndex                int
@@ -157,3 +158,11 @@ type DecoratorTarget struct {
 }
 
 func (d *Decorator) GetSpan() source.Span { return d.Span }
+
+// Result-list slots retain their own source contracts when the invocation
+// adapter packages them as an ordered array of opaque values.
+type DecoratorResultSlot struct {
+	Type     TypeRef
+	Identity string
+	Contract string
+}
