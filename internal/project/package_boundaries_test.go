@@ -3,6 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -37,12 +38,19 @@ func TestSourcePackageExcludedDirectoryBoundary(t *testing.T) {
 		t.Run(directory, func(t *testing.T) {
 			root := t.TempDir()
 			source := directory + "/hidden.km"
-			packageFiles(t, root, map[string]string{"index.km": "", source: "original"})
+			storageDirectory := directory
+			if runtime.GOOS == "windows" {
+				// Windows cannot reliably create a literal trailing-space directory.
+				// Create the canonical target while still testing the alias spelling.
+				storageDirectory = strings.TrimRight(directory, ". ")
+			}
+			storedSource := storageDirectory + "/hidden.km"
+			packageFiles(t, root, map[string]string{"index.km": "", storedSource: "original"})
 			before, err := hashSourcePackage(root)
 			if err != nil {
 				t.Fatal(err)
 			}
-			packageFiles(t, root, map[string]string{source: "changed"})
+			packageFiles(t, root, map[string]string{storedSource: "changed"})
 			after, err := hashSourcePackage(root)
 			if err != nil {
 				t.Fatal(err)
@@ -65,7 +73,7 @@ func TestSourcePackageExcludedDirectoryBoundary(t *testing.T) {
 				t.Error("relative import of unhashed source accepted")
 			}
 			link := filepath.Join(root, "alias.km")
-			if err := os.Symlink(filepath.Join(root, filepath.FromSlash(source)), link); err != nil {
+			if err := os.Symlink(filepath.Join(root, filepath.FromSlash(storedSource)), link); err != nil {
 				t.Skipf("symlinks unavailable: %v", err)
 			}
 			if _, err := packageSourceFile(root, "alias.km"); err == nil {
