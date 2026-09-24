@@ -19,14 +19,20 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 			class := c.classes[c.currentClass]
-			if !write && c.fieldInitializerArrowDepth == 0 && c.fieldInitializerAvailable[expr.Name] && class != nil {
-				if field, exists := class.fields[expr.Name]; exists && !field.static && field.declaringClass == c.currentClass {
-					expr.ResolvedName = field.goName
-					expr.ResolvedDeclaration = field.declarationSpan
-					return field.typeInfo
+			if !write && c.fieldInitializerArrowDepth == 0 && class != nil {
+				if field, exists := class.fields[expr.Name]; exists && !field.static {
+					if field.declaringClass != c.currentClass && !c.canAccessClassMember(field.visibility, field.declaringClass) {
+						c.reportInaccessibleClassMember(expr.Span, "field", expr.Name, field.visibility)
+						return Type{Kind: Invalid, Name: "<invalid>"}
+					}
+					if field.declaringClass != c.currentClass || c.fieldInitializerAvailable[expr.Name] {
+						expr.ResolvedName = field.goName
+						expr.ResolvedDeclaration = field.declarationSpan
+						return field.typeInfo
+					}
 				}
 			}
-			c.report(identifier.Span, "instance field initializers may read only earlier initialized fields through this; use the constructor otherwise")
+			c.report(identifier.Span, "instance field initializers may read only earlier initialized fields or accessible inherited fields through this; use the constructor otherwise")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if identifier.Name == "super" {
