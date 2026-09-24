@@ -109,3 +109,33 @@ func TestEarlierClassFieldInitializerNavigation(t *testing.T) {
 		t.Fatalf("rename edits = %d, want 2", got)
 	}
 }
+
+func TestInheritedClassFieldInitializerNavigation(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	dependency := filepath.Join(root, "base.km")
+	entry := filepath.Join(root, "entry.km")
+	if err := os.WriteFile(dependency, []byte(`export class Base { public value: int = 3; }`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	uri := fileURI(entry)
+	input := `import { Base } from "./base";
+class Child extends Base { public next: int = this.value + 1; }`
+	reference := positionOf(input, "value", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, reference, ""),
+		requestAt("textDocument/rename", 3, uri, reference, `"newName":"initial"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != fileURI(dependency) {
+		t.Fatalf("definition = %#v", messages[2])
+	}
+	rename, ok := messages[3]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("rename = %#v", messages[3])
+	}
+	changes := rename["changes"].(map[string]any)
+	if len(changes[uri].([]any)) != 1 || len(changes[fileURI(dependency)].([]any)) != 1 {
+		t.Fatalf("rename = %#v", rename)
+	}
+}

@@ -16,7 +16,7 @@ func TestSemanticDiagnosticContracts(t *testing.T) {
 		line, column int
 	}{
 		{"incompatible constrained range", "constraint Values = ~int[] | ~[2]int;\nfunction use<T extends Values>(values: T): void {\n  for (const value of values) {}\n}", "range type parameter requires a common underlying range type or compatible receive-capable channels", 3, 23},
-		{"class field initializer scope", "class Box {\n  public value: int = this.other;\n  public other: int;\n}", "instance field initializers may read only earlier initialized fields through this; use the constructor otherwise", 2, 23},
+		{"class field initializer scope", "class Box {\n  public value: int = this.other;\n  public other: int;\n}", "instance field initializers may read only earlier initialized fields or accessible inherited fields through this; use the constructor otherwise", 2, 23},
 		{"undefined name", `function value(): int { return missing; }`, `undefined name "missing"`, 1, 32},
 		{"type parameter constant overflow", "constraint Small = ~int8 | ~int64;\nfunction use<T extends Small>(): T { return T(128); }", "integer constant 128 cannot be converted to every type in T's type set", 2, 47},
 		{"zero-yield iterator binding", "function ticks(yield: () => boolean): void {}\nfunction use(): void {\n  for (const value of ticks) {}\n}", "zero-value iterator range requires a single untyped '_' binding", 3, 3},

@@ -56,3 +56,55 @@ func TestOrderedDefaults(t *testing.T){got,want:=g.Run(),r.Run();if !reflect.Dee
 `
 	runGeneratedGoDifferentialTest(t, root, "ordered-fields.test", generated, reference, comparison)
 }
+
+func TestInheritedClassFieldDefaultsMatchIndependentGo(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	base := filepath.Join(root, "base.km")
+	entry := filepath.Join(root, "entry.km")
+	files := map[string]string{
+		base: `export class Base<T>{
+ protected value:T;
+ public count:int=4;
+ constructor(value:T){this.value=value;}
+}
+export class Middle<U> extends Base<U>{
+ public extra:int=this.count+1;
+ constructor(value:U){super(value);}
+}`,
+		entry: `import {Middle} from "./base";
+class Leaf extends Middle<int>{
+ public result:int=this.value+this.extra;
+ constructor(value:int){super(value);}
+}
+export function Run():int[]{const leaf=new Leaf(7);return [leaf.count,leaf.extra,leaf.result];}`,
+	}
+	for path, contents := range files {
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	generated, diagnostics, err := EmitGo([]string{entry}, "inheritedfields")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
+	}
+	for _, fragment := range []string{"this.Extra = this.Count + 1", "this.Result = this.value + this.Extra"} {
+		if !strings.Contains(string(generated), fragment) {
+			t.Fatalf("missing %q in generated defaults:\n%s", fragment, generated)
+		}
+	}
+	reference := `package reference
+type Base[T any] struct{ value T;Count int }
+func initBase[T any](base *Base[T],value T){base.Count=4;base.value=value}
+type Middle[U any] struct{ Base[U];Extra int }
+func initMiddle[U any](middle *Middle[U],value U){initBase(&middle.Base,value);middle.Extra=middle.Count+1}
+type Leaf struct{ Middle[int];Result int }
+func newLeaf(value int)*Leaf{leaf:=&Leaf{};initMiddle(&leaf.Middle,value);leaf.Result=leaf.value+leaf.Extra;return leaf}
+func Run()[]int{leaf:=newLeaf(7);return []int{leaf.Count,leaf.Extra,leaf.Result}}
+`
+	comparison := `package inheritedfields_test
+import("reflect";"testing";g "inherited-fields.test";r "inherited-fields.test/reference")
+func TestInheritedDefaults(t *testing.T){got,want:=g.Run(),r.Run();if !reflect.DeepEqual(got,want){t.Fatalf("got %v want %v",got,want)}}
+`
+	runGeneratedGoDifferentialTest(t, root, "inherited-fields.test", generated, reference, comparison)
+}

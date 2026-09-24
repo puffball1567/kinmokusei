@@ -9,7 +9,8 @@ import (
 )
 
 // Initializers have module lexical bindings but no constructor parameters.
-// Instance initializers may read only earlier initialized fields on this.
+// Instance initializers may read initialized inherited fields and earlier
+// initialized fields of their own class through this.
 // Callbacks cannot capture a partially initialized receiver through this context.
 func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 	previousInitializer, previousConstructor := c.inFieldInitializer, c.inConstructor
