@@ -25,7 +25,7 @@ func TestClassFieldInitializerSemanticMatrix(t *testing.T) {
 		{"this field", `class Box { public number: int = this.other; public other: int = 3; }`, "instance field initializers may read only earlier initialized fields"},
 		{"uninitialized earlier field", `class Box { public first: int; public second: int = this.first; }`, "instance field initializers may read only earlier initialized fields"},
 		{"self field", `class Box { public value: int = this.value; }`, "instance field initializers may read only earlier initialized fields"},
-		{"static initializer receiver", `class Box { public first: int = 1; public static second: int = this.first; }`, "instance field initializers may read only earlier initialized fields"},
+		{"static initializer receiver", `class Box { public first: int = 1; public static second: int = this.first; }`, "static field initializers cannot reference this"},
 		{"captured earlier field", `class Box { public first: int = 1; public callback: () => int = (): int => this.first; }`, "instance field initializers may read only earlier initialized fields"},
 		{"this capture", `class Box { public callback: () => int = (): int => this.read(); public function read(): int { return 1; } }`, "instance field initializers may read only earlier initialized fields"},
 		{"super method", `class Base { public function read(): int { return 1; } } class Box extends Base { public value: int = super.read(); }`, "class field initializers cannot reference this or super"},

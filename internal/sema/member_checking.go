@@ -14,8 +14,12 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
+			if c.fieldInitializerStatic {
+				c.report(identifier.Span, "static field initializers cannot reference this; use the class name")
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 			class := c.classes[c.currentClass]
-			if !write && !c.fieldInitializerStatic && c.fieldInitializerArrowDepth == 0 && c.fieldInitializerAvailable[expr.Name] && class != nil {
+			if !write && c.fieldInitializerArrowDepth == 0 && c.fieldInitializerAvailable[expr.Name] && class != nil {
 				if field, exists := class.fields[expr.Name]; exists && !field.static && field.declaringClass == c.currentClass {
 					expr.ResolvedName = field.goName
 					expr.ResolvedDeclaration = field.declarationSpan
