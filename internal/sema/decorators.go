@@ -153,17 +153,13 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			// parameters and can use the same receiver-free adapter as methods.
 			methodResult := method.ReturnType
 			payloadType := Type{Kind: Invalid}
+			var resultSlots []ast.DecoratorResultSlot
 			if eligible {
 				result := c.resolveType(method.ReturnType)
 				c.prepareGoTypeForEmission(&result, method.ReturnType.Span)
 				methodResult = typeRefFromType(result, method.ReturnType.Span)
-				payloadType = result
-				if result.Kind == Result && result.Element != nil {
-					payloadType = *result.Element
-				}
-				if payloadType.Kind != Void && !decoratorValuePayloadType(payloadType) {
-					eligible, reason = false, fmt.Sprintf("method result %s cannot be stored in DecoratorValue", payloadType.String())
-				}
+				payloadType, resultSlots, reason = decoratorInvocationResult(result, method.ReturnType.Span)
+				eligible = reason == ""
 			}
 			invocable := eligible && !method.Static
 			staticInvocable := eligible && method.Static
@@ -209,6 +205,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &methodResult,
 				MethodResultIdentity: resultIdentity,
 				MethodResultContract: resultContract,
+				MethodResultSlots:    resultSlots,
 				OverrideChain:        overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
 			})
 			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, overrideChain, method.NameSpan, method.Static, method.Visibility)

@@ -50,7 +50,7 @@ class Guarded{
 }
 class Pair{@Method public static function split():(int,string){return 1,"pair";}}
 export function TypedPair():string{const [count,text]=Pair.split();return strconv.Itoa(count)+text;}
-export function MultipleResults():Result<DecoratorValue>{return CallStatic(10,[]);}
+export function MultipleResults():Result<string>{const boxed=CallStatic(10,[])?;const values=decoratorValueAs<DecoratorValue[]>(boxed)?;const count=decoratorValueAs<int>(values[0])?;const text=decoratorValueAs<string>(values[1])?;return ok(strconv.Itoa(count)+text);}
 export function Run():Result<string>{
  const child=new Child();
  const base=decoratorValue<Base>(child);
@@ -107,7 +107,6 @@ func Errors()[]string{return []string{
  "static method requires invokeStatic",
  "decorator get Base.title expects a non-null Base receiver",
  "method is not public",
- "method result (int, string) cannot be stored in DecoratorValue",
 }}
 `
 	comparison := `package accessors_test
@@ -115,8 +114,9 @@ import("testing";g "decorator-accessors.test";r "decorator-accessors.test/refere
 func TestAccessors(t *testing.T){
  if got,err:=g.Run();err!=nil||got!=r.Run(){t.Fatalf("Run=%q,%v want %q",got,err,r.Run())}
  if got:=g.TypedPair();got!=r.TypedPair(){t.Fatalf("TypedPair=%q want %q",got,r.TypedPair())}
- _,a:=g.WrongReceiver();_,b:=g.WrongGetterArity();_,c:=g.WrongSetterType();_,d:=g.WrongSetterArity();_,e:=g.WrongAdapter();_,f:=g.NullReceiver();_,h:=g.PrivateSetter();_,j:=g.MultipleResults();
- for i,err:=range []error{a,b,c,d,e,f,h,j}{if want:=r.Errors()[i];err==nil||err.Error()!=want{t.Errorf("error %d=%v want %s",i,err,want)}}
+ if got,err:=g.MultipleResults();err!=nil||got!=r.TypedPair(){t.Errorf("MultipleResults=%q,%v",got,err)}
+ _,a:=g.WrongReceiver();_,b:=g.WrongGetterArity();_,c:=g.WrongSetterType();_,d:=g.WrongSetterArity();_,e:=g.WrongAdapter();_,f:=g.NullReceiver();_,h:=g.PrivateSetter();
+ for i,err:=range []error{a,b,c,d,e,f,h}{if want:=r.Errors()[i];err==nil||err.Error()!=want{t.Errorf("error %d=%v want %s",i,err,want)}}
 }
 `
 	runGeneratedGoDifferentialTest(t, root, "decorator-accessors.test", generated, reference, comparison)
@@ -137,8 +137,8 @@ func TestDecoratorCallableAvailabilityBoundaries(t *testing.T) {
 		{"generic receiver", `class C<T>{@D public get value():int{return 1;}}`, "generic methods require concrete type arguments", false, false},
 		{"generic static getter", `class C<T>{@D public static get value():int{return 1;}}`, "", false, true},
 		{"generic static setter", `class C<T>{@D public static set value(next:int){}}`, "", false, true},
-		{"multiple results", `class C{@D public function pair():(int,string){return 1,"x";}}`, "method result (int, string) cannot be stored in DecoratorValue", false, false},
-		{"static multiple results", `class C{@D public static function pair():(int,string){return 1,"x";}}`, "method result (int, string) cannot be stored in DecoratorValue", false, false},
+		{"multiple results", `class C{@D public function pair():(int,string){return 1,"x";}}`, "", true, false},
+		{"static multiple results", `class C{@D public static function pair():(int,string){return 1,"x";}}`, "", false, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			entry := filepath.Join(t.TempDir(), "entry.km")

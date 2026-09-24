@@ -212,6 +212,30 @@ individually. Virtual methods retain their existing dispatch behavior. A
 receiver boxed as a derived type must be explicitly upcast before use with a
 base class method adapter.
 
+For a method returning a result list such as `(int, string)`, the adapter calls
+the method once and returns a boxed `DecoratorValue[]` in declaration order.
+Each array element retains its own exact declared type and source contract,
+including numeric widths, nullable values, interfaces, collections and concrete
+generic instances. A consumer first extracts the array and then its slots:
+
+```ts
+function DecodePair(boxed: DecoratorValue): Result<string> {
+  const values = decoratorValueAs<DecoratorValue[]>(boxed)?;
+  const id = decoratorValueAs<int>(values[0])?;
+  const name = decoratorValueAs<string>(values[1])?;
+  return ok(name);
+}
+```
+
+The outer `typeIdentity` is `DecoratorValue[]`; the target's `valueType` still
+describes the original method signature. This packaging is specific to dynamic
+invocation and does not introduce first-class tuple values or change ordinary
+typed calls. An `error` in an ordinary `(T, error)` result list remains a boxed
+slot, including a nil error. It is not automatically propagated, discarded or
+reinterpreted as a `Result<T>` effect. `Result<T>` methods retain their existing
+error propagation instead of becoming two-element arrays. Instance, static,
+variadic and virtual methods all use the same result-list representation.
+
 Static methods use `invokeStatic(arguments)` and require no receiver. The
 `invocable` field refers only to instance invocation; `staticInvocable` refers
 only to static invocation. Calling the wrong adapter returns its unavailable
@@ -243,10 +267,7 @@ function CaptureSetter(context: SetterDecoratorContext): void {
 
 Static accessors on generic classes are also invocable: they belong to the
 class declaration and cannot use its type parameters. Generic instance
-accessors still require concrete receiver specialization. Multiple-result
-methods cannot currently be represented by the single boxed return value;
-their adapters expose both availability flags as false with an explicit reason.
-Their ordinary typed calls and metadata registration remain available.
+accessors still require concrete receiver specialization.
 
 Factories on one target are evaluated from top to bottom and their callbacks are
 applied from bottom to top. Generated registration runs in Go `init`, after

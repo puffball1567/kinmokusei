@@ -88,6 +88,10 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 	if target.MethodVariadic {
 		call.Ellipsis = token.Pos(1)
 	}
+	if len(target.MethodResultSlots) != 0 {
+		body.List = append(body.List, decoratorMultipleResultReturn(target, call)...)
+		return &goast.FuncLit{Type: functionType, Body: body}
+	}
 	resultType := *target.MethodResult
 	fallible := resultType.Name == "Result" && len(resultType.GenericArguments) == 1
 	if fallible {

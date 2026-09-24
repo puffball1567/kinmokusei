@@ -49,7 +49,9 @@ receivers and arguments, Result propagation, and virtual dispatch. Static method
 adapters use a separate receiver-free call. Public getter/setter adapters reuse
 these checked calls, preserving independent visibility and virtual dispatch;
 generic-independent static accessors are supported as well. Multiple-result
-methods retain registration but report unavailable single-value adapters.
+methods return an ordered array of individually checked boxed values through
+the same invocation adapters, preserving error slots separately from Result
+propagation and leaving ordinary typed calls unchanged.
 Concrete generic instantiations
 remain; context type/field completion and hover are implemented.
 
