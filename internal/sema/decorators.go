@@ -173,8 +173,9 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			if runtimeMethodName == "" {
 				runtimeMethodName = method.Name
 			}
-			if method.Override {
-				runtimeMethodName = "__kinmokusei" + method.VirtualOwner + runtimeMethodName
+			virtualOwner := ""
+			if method.Virtual || method.Override {
+				virtualOwner = method.VirtualOwner
 			}
 			resultIdentity := ""
 			resultContract := ""
@@ -201,7 +202,8 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				RuntimeClassName: class.Name, Invocable: invocable, InvokeUnavailableReason: invokeReason,
 				StaticInvocable: staticInvocable, StaticInvokeUnavailableReason: staticInvokeReason,
 				RuntimeMethodName: runtimeMethodName, MethodParameters: methodParameters,
-				MethodContracts: methodContracts, ClassContract: classContract,
+				MethodVirtualOwner: virtualOwner,
+				MethodContracts:    methodContracts, ClassContract: classContract,
 				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &methodResult,
 				MethodResultIdentity: resultIdentity,
 				MethodResultContract: resultContract,

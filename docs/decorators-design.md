@@ -212,6 +212,15 @@ individually. Virtual methods retain their existing dispatch behavior. A
 receiver boxed as a derived type must be explicitly upcast before use with a
 base class method adapter.
 
+An override adapter also dispatches to the receiver's current implementation;
+it does not act as a `super` call to the decorated method body. For example,
+an adapter registered on `Middle extends Base` still invokes the override in
+`Leaf extends Middle` when passed `decoratorValue<Middle>(new Leaf())`.
+This applies equally to getters, setters and methods, without replaying the
+ancestor's decorator on the derived declaration. Virtual receivers created
+through Go interop without running a generated constructor are rejected through
+`Result` when their dispatch state is uninitialized.
+
 For a method returning a result list such as `(int, string)`, the adapter calls
 the method once and returns a boxed `DecoratorValue[]` in declaration order.
 Each array element retains its own exact declared type and source contract,

@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Fix decorated overrides bypassing further-derived implementations. Method,
+  getter and setter adapters now use the ordinary virtual dispatch slot across
+  multiple inheritance levels, preserving Result failures and multiple returns.
+  Reject uninitialized virtual receivers supplied through Go interop before
+  calling a method body.
+
 - Support checked decorator invocation of public getters and setters, including
   static properties, virtual overrides, and generic-independent static
   accessors. Preserve independent visibility, exact property types, receiver

@@ -51,7 +51,9 @@ these checked calls, preserving independent visibility and virtual dispatch;
 generic-independent static accessors are supported as well. Multiple-result
 methods return an ordered array of individually checked boxed values through
 the same invocation adapters, preserving error slots separately from Result
-propagation and leaving ordinary typed calls unchanged.
+propagation and leaving ordinary typed calls unchanged. Override adapters
+preserve dispatch through further-derived implementations, including accessors;
+uninitialized virtual receivers supplied by Go interop are rejected.
 Concrete generic instantiations
 remain; context type/field completion and hover are implemented.
 

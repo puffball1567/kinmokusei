@@ -71,16 +71,9 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 	if static {
 		callee = goast.NewIdent(staticMethodName(target.RuntimeClassName, target.RuntimeMethodName, target.Visibility))
 	} else {
-		actualReceiver := goast.NewIdent("typedReceiver")
-		receiverOK := goast.NewIdent("receiverOK")
-		body.List = append(body.List,
-			&goast.AssignStmt{Lhs: []goast.Expr{actualReceiver, receiverOK}, Tok: token.DEFINE, Rhs: []goast.Expr{decoratorDecode(receiver, kinmokuseiAST.TypeRef{Name: target.RuntimeClassName}, target.ClassContract)}},
-			&goast.IfStmt{Cond: &goast.BinaryExpr{
-				X: &goast.UnaryExpr{Op: token.NOT, X: receiverOK}, Op: token.LOR,
-				Y: &goast.BinaryExpr{X: actualReceiver, Op: token.EQL, Y: goast.NewIdent("nil")},
-			}, Body: &goast.BlockStmt{List: []goast.Stmt{failure(label + " expects a non-null " + target.ClassName + " receiver")}}},
-		)
-		callee = &goast.SelectorExpr{X: actualReceiver, Sel: goast.NewIdent(goName(target.RuntimeMethodName))}
+		var checks []goast.Stmt
+		checks, callee = decoratorCheckedReceiver(target, receiver, label, failure)
+		body.List = append(body.List, checks...)
 	}
 	checks, callArguments := decoratorCheckedArguments(label, target.MethodParameters, target.MethodContracts, target.MethodVariadic, arguments, failure)
 	body.List = append(body.List, checks...)

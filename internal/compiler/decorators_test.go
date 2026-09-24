@@ -588,7 +588,7 @@ export function PropagatedError():Result<DecoratorValue>{return Call(0,decorator
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, fragment := range []string{"Invocable: true", "typedReceiver.Greet(argument0)", "typedReceiver.Total(variadicArguments...)", "typedReceiver.Message()"} {
+	for _, fragment := range []string{"Invocable: true", "typedReceiver.Greet(argument0)", "typedReceiver.Total(variadicArguments...)", "dispatchReceiver.__kinmokuseiBaseMessage()"} {
 		if !strings.Contains(string(generated), fragment) {
 			t.Fatalf("missing %q in generated method adapter:\n%s", fragment, generated)
 		}
