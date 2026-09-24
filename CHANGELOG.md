@@ -9,6 +9,23 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Harden external package source boundaries: reject entries, exports and
+  relative imports under unhashed metadata directories, including symlink and
+  case/trailing-dot aliases of `.git` and `.kinmokusei`.
+
+- Preserve declared storage and source contracts across decorator values and
+  all callable adapters. Fix numeric-width and typed-nil round-trips; reject
+  nullable/context contract confusion, including nested collections/callbacks.
+  Interface DI uses an explicitly boxed interface contract; open type-parameter
+  payloads now produce a source diagnostic instead of erasing their contract.
+  Resolve adapter parameter types before Go generation, including interfaces.
+
+- Accept keyword-named members after `.` so decorator metadata such as
+  `context.static` is accessible without special-case parsing.
+
+- Bound LSP header size independently of payload size and reject duplicate
+  Content-Length headers, including identical duplicates.
+
 - Fix sending, select sending and closing class-valued channels returned by
   generic helpers. Reconstruct native Go storage without dropping source
   element types, nullable checks or send/receive direction restrictions.

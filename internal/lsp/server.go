@@ -23,6 +23,7 @@ import (
 )
 
 const maxMessageSize = 16 << 20
+const maxHeaderSize = 16 << 10
 
 const (
 	requestCancelledCode = -32800
@@ -749,11 +750,25 @@ func pathURI(path string) string {
 
 func readMessage(reader *bufio.Reader) ([]byte, error) {
 	contentLength := -1
+	headerBytes := 0
 	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			return nil, err
+		var lineBytes []byte
+		for {
+			fragment, err := reader.ReadSlice('\n')
+			headerBytes += len(fragment)
+			if headerBytes > maxHeaderSize {
+				return nil, errors.New("LSP headers exceed size limit")
+			}
+			lineBytes = append(lineBytes, fragment...)
+			if err == bufio.ErrBufferFull {
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			break
 		}
+		line := string(lineBytes)
 		line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		if line == "" {
 			break
@@ -763,6 +778,9 @@ func readMessage(reader *bufio.Reader) ([]byte, error) {
 			return nil, fmt.Errorf("invalid LSP header %q", line)
 		}
 		if strings.EqualFold(strings.TrimSpace(name), "Content-Length") {
+			if contentLength >= 0 {
+				return nil, errors.New("duplicate LSP Content-Length")
+			}
 			parsed, parseErr := strconv.Atoi(strings.TrimSpace(value))
 			if parseErr != nil || parsed < 0 || parsed > maxMessageSize {
 				return nil, fmt.Errorf("invalid LSP Content-Length %q", strings.TrimSpace(value))

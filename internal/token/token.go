@@ -180,6 +180,15 @@ func LookupIdentifier(text string) Kind {
 	return Identifier
 }
 
+// Keywords are reserved in declarations, but can name a selected member.
+func IsIdentifierName(kind Kind) bool {
+	if kind == Identifier {
+		return true
+	}
+	_, keyword := keywords[string(kind)]
+	return keyword
+}
+
 type Token struct {
 	Kind   Kind
 	Lexeme string

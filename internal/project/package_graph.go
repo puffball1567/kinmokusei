@@ -240,6 +240,10 @@ func packageSourceFile(root, relative string) (string, error) {
 	if !pathWithin(base, resolved) {
 		return "", fmt.Errorf("package source %q escapes its package root", relative)
 	}
+	canonical, err := filepath.Rel(base, resolved)
+	if err != nil || !validPackageSource(filepath.ToSlash(canonical)) {
+		return "", fmt.Errorf("invalid resolved package source path %q", relative)
+	}
 	info, err := os.Stat(resolved)
 	if err != nil {
 		return "", err

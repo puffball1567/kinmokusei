@@ -96,10 +96,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			if err != nil {
 				return nil, err
 			}
-			return &goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiDecoratorValue"), Elts: []goast.Expr{
-				&goast.KeyValueExpr{Key: goast.NewIdent("TypeIdentity"), Value: stringLiteral(expr.DecoratorValueIdentity)},
-				&goast.KeyValueExpr{Key: goast.NewIdent("value"), Value: value},
-			}}, nil
+			return decoratorBox(value, expr.ResolvedTypeArguments[0], expr.DecoratorValueIdentity, expr.DecoratorValueContract), nil
 		}
 		if expr.Builtin == kinmokuseiAST.DecoratorValueAsCall {
 			if len(expr.ResolvedTypeArguments) != 1 || len(expr.Arguments) != 1 {
@@ -113,9 +110,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			decoded := goast.NewIdent("decoded")
 			ok := goast.NewIdent("ok")
 			body := &goast.BlockStmt{List: []goast.Stmt{
-				&goast.AssignStmt{Lhs: []goast.Expr{decoded, ok}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{
-					X: &goast.SelectorExpr{X: value, Sel: goast.NewIdent("value")}, Type: goType(target),
-				}}},
+				&goast.AssignStmt{Lhs: []goast.Expr{decoded, ok}, Tok: token.DEFINE, Rhs: []goast.Expr{decoratorDecode(value, target, expr.DecoratorValueContract)}},
 				&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: ok}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{
 					zeroValue(target), &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiDecoratorAdapterError"), Args: []goast.Expr{stringLiteral("decorator value does not contain " + expr.DecoratorValueIdentity)}},
 				}}}}},

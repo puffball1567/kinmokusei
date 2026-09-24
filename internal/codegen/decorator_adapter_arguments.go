@@ -10,7 +10,7 @@ import (
 )
 
 // Every dynamic argument crosses this checked boundary before a typed Go call.
-func decoratorCheckedArguments(label string, parameters []kinmokuseiAST.TypeRef, variadic bool, arguments *goast.Ident, failure func(string) *goast.ReturnStmt) ([]goast.Stmt, []goast.Expr) {
+func decoratorCheckedArguments(label string, parameters []kinmokuseiAST.TypeRef, contracts []string, variadic bool, arguments *goast.Ident, failure func(string) *goast.ReturnStmt) ([]goast.Stmt, []goast.Expr) {
 	expectedCount := len(parameters)
 	fixedCount := expectedCount
 	if variadic {
@@ -41,10 +41,7 @@ func decoratorCheckedArguments(label string, parameters []kinmokuseiAST.TypeRef,
 		statements = append(statements,
 			&goast.AssignStmt{
 				Lhs: []goast.Expr{name, ok}, Tok: token.DEFINE,
-				Rhs: []goast.Expr{&goast.TypeAssertExpr{
-					X:    &goast.SelectorExpr{X: &goast.IndexExpr{X: arguments, Index: &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(index)}}, Sel: goast.NewIdent("value")},
-					Type: goType(parameter),
-				}},
+				Rhs: []goast.Expr{decoratorDecode(&goast.IndexExpr{X: arguments, Index: &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(index)}}, parameter, contracts[index])},
 			},
 			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: ok}, Body: &goast.BlockStmt{List: []goast.Stmt{
 				failure(fmt.Sprintf("%s argument %d expects %s", label, index, decoratorTypeLabel(parameter))),
@@ -77,9 +74,7 @@ func decoratorCheckedArguments(label string, parameters []kinmokuseiAST.TypeRef,
 		loopBody := &goast.BlockStmt{List: []goast.Stmt{
 			&goast.AssignStmt{
 				Lhs: []goast.Expr{restValue, restOK}, Tok: token.DEFINE,
-				Rhs: []goast.Expr{&goast.TypeAssertExpr{
-					X: &goast.SelectorExpr{X: &goast.IndexExpr{X: arguments, Index: argumentIndex}, Sel: goast.NewIdent("value")}, Type: goType(element),
-				}},
+				Rhs: []goast.Expr{decoratorDecode(&goast.IndexExpr{X: arguments, Index: argumentIndex}, element, contracts[expectedCount-1])},
 			},
 			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: restOK}, Body: &goast.BlockStmt{List: []goast.Stmt{
 				failure(fmt.Sprintf("%s variadic arguments expect %s", label, decoratorTypeLabel(element))),

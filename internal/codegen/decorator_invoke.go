@@ -71,10 +71,7 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 		actualReceiver := goast.NewIdent("typedReceiver")
 		receiverOK := goast.NewIdent("receiverOK")
 		body.List = append(body.List,
-			&goast.AssignStmt{Lhs: []goast.Expr{actualReceiver, receiverOK}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{
-				X:    &goast.SelectorExpr{X: receiver, Sel: goast.NewIdent("value")},
-				Type: &goast.StarExpr{X: goast.NewIdent(target.RuntimeClassName)},
-			}}},
+			&goast.AssignStmt{Lhs: []goast.Expr{actualReceiver, receiverOK}, Tok: token.DEFINE, Rhs: []goast.Expr{decoratorDecode(receiver, kinmokuseiAST.TypeRef{Name: target.RuntimeClassName}, target.ClassContract)}},
 			&goast.IfStmt{Cond: &goast.BinaryExpr{
 				X: &goast.UnaryExpr{Op: token.NOT, X: receiverOK}, Op: token.LOR,
 				Y: &goast.BinaryExpr{X: actualReceiver, Op: token.EQL, Y: goast.NewIdent("nil")},
@@ -82,7 +79,7 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 		)
 		callee = &goast.SelectorExpr{X: actualReceiver, Sel: goast.NewIdent(goName(target.RuntimeMethodName))}
 	}
-	checks, callArguments := decoratorCheckedArguments(label, target.MethodParameters, target.MethodVariadic, arguments, failure)
+	checks, callArguments := decoratorCheckedArguments(label, target.MethodParameters, target.MethodContracts, target.MethodVariadic, arguments, failure)
 	body.List = append(body.List, checks...)
 	call := &goast.CallExpr{Fun: callee, Args: callArguments}
 	if target.MethodVariadic {
@@ -110,11 +107,11 @@ func decoratorMethodAdapter(target *kinmokuseiAST.DecoratorTarget, static bool) 
 	} else {
 		body.List = append(body.List, &goast.AssignStmt{Lhs: []goast.Expr{result}, Tok: token.DEFINE, Rhs: []goast.Expr{call}})
 	}
-	wrapped := &goast.CompositeLit{Type: valueType, Elts: []goast.Expr{
+	var wrapped goast.Expr = &goast.CompositeLit{Type: valueType, Elts: []goast.Expr{
 		&goast.KeyValueExpr{Key: goast.NewIdent("TypeIdentity"), Value: stringLiteral(target.MethodResultIdentity)},
 	}}
 	if !void {
-		wrapped.Elts = append(wrapped.Elts, &goast.KeyValueExpr{Key: goast.NewIdent("value"), Value: result})
+		wrapped = decoratorBox(result, resultType, target.MethodResultIdentity, target.MethodResultContract)
 	}
 	body.List = append(body.List, &goast.ReturnStmt{Results: []goast.Expr{wrapped, goast.NewIdent("nil")}})
 	return &goast.FuncLit{Type: functionType, Body: body}

@@ -836,6 +836,7 @@ type CallExpr struct {
 	GoConstant             bool // Checked calls/conversions that Go evaluates at compile time.
 	ConversionType         *TypeRef
 	DecoratorValueIdentity string
+	DecoratorValueContract string
 	Builtin                BuiltinCallKind
 	Signature              *CallableSignature
 	SuperConstructor       bool

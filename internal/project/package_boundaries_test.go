@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 func TestSourcePackageDependencyBoundaries(t *testing.T) {
@@ -24,6 +26,53 @@ func TestSourcePackageDependencyBoundaries(t *testing.T) {
 			packageFiles(t, filepath.Join(base, "secret"), map[string]string{"kinmokusei.toml": packageManifest("pkg.test/private"), "index.km": ""})
 			if _, err := LockDependencies(root, true); err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("err=%v want=%s", err, test.want)
+			}
+		})
+	}
+}
+
+func TestSourcePackageExcludedDirectoryBoundary(t *testing.T) {
+	t.Parallel()
+	for _, directory := range []string{".git", product.StateDirectoryName, "nested/.git", "nested/" + product.StateDirectoryName, ".GIT", ".KINMOKUSEI", ".git.", ".kinmokusei "} {
+		t.Run(directory, func(t *testing.T) {
+			root := t.TempDir()
+			source := directory + "/hidden.km"
+			packageFiles(t, root, map[string]string{"index.km": "", source: "original"})
+			before, err := hashSourcePackage(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			packageFiles(t, root, map[string]string{source: "changed"})
+			after, err := hashSourcePackage(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if before != after {
+				t.Fatal("metadata directories must remain excluded from the package hash")
+			}
+			if validPackageSource(source) {
+				t.Error("unhashed source accepted by manifest validation")
+			}
+			if _, err := packageSourceFile(root, source); err == nil {
+				t.Error("unhashed source accepted as an entry/export")
+			}
+			canonical, err := filepath.EvalSymlinks(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			graph := &PackageGraph{Packages: map[string]*SourcePackage{"pkg.test/lib": {Directory: canonical}}}
+			if err := graph.ValidateRelativeImport(filepath.Join(root, "index.km"), filepath.Join(root, filepath.FromSlash(source))); err == nil {
+				t.Error("relative import of unhashed source accepted")
+			}
+			link := filepath.Join(root, "alias.km")
+			if err := os.Symlink(filepath.Join(root, filepath.FromSlash(source)), link); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			if _, err := packageSourceFile(root, "alias.km"); err == nil {
+				t.Error("symlink to unhashed source accepted")
+			}
+			if err := graph.ValidateRelativeImport(filepath.Join(root, "index.km"), link); err == nil {
+				t.Error("relative symlink to unhashed source accepted")
 			}
 		})
 	}

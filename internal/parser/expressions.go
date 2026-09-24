@@ -123,10 +123,12 @@ func (p *Parser) parseCall() ast.Expression {
 			}
 			expr = &ast.CallExpr{Callee: expr, Arguments: args, Expanded: expanded, Span: expr.GetSpan().Merge(end.Span)}
 		case p.match(token.Dot):
-			name, ok := p.expect(token.Identifier, "expected member name after '.'")
-			if !ok {
+			name := p.peek()
+			if !token.IsIdentifierName(name.Kind) {
+				p.expect(token.Identifier, "expected member name after '.'")
 				return expr
 			}
+			p.advance()
 			expr = &ast.MemberExpr{Object: expr, Name: name.Lexeme, NameSpan: name.Span, Span: expr.GetSpan().Merge(name.Span)}
 		case p.at(token.LeftBracket) && isExplicitTypeArgumentCallee(expr):
 			checkpoint := p.checkpoint()
