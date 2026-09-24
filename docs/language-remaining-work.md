@@ -74,7 +74,7 @@ feature work without mixing unrelated changes into its implementation.
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
 | 12 | Getter/setter properties | Instance/static accessors and interface contracts implemented, including independent visibility, generic inheritance, virtual/abstract/final instance overrides, DI, ordered updates and editor support |
 | 13 | Static fields and constants | Mutable fields and typed scalar `static const` members implemented, with inherited visibility, generic-independent scope, Go variables/constants and initialization checks |
-| 14 | Receiver/constructor-dependent field initializers | Queued |
+| 14 | Receiver/constructor-dependent field initializers | Earlier initialized fields of the same class may be read through `this`; constructor parameters, inherited fields and receiver capture remain |
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
 | 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
@@ -368,7 +368,7 @@ complex cases follow Go's first-match behavior. The existing duplicate
 
 | Area | Current state | Required work |
 |---|---|---|
-| Receiver-dependent field initializers | Module-scope defaults are implemented; `this`, `super`, and constructor parameters are intentionally unavailable in defaults | Any expansion needs read-before-initialization and receiver-escape rules; use the constructor today |
+| Receiver-dependent field initializers | Module-scope defaults and reads of earlier initialized fields through `this.field` are implemented; later/inherited fields, `super`, constructor parameters and receiver capture remain unavailable | Extend only with explicit initialization-order and receiver-escape rules; use the constructor for other dependencies |
 | Go interface inheritance boundary | Exported runtime contracts are supported; private methods, type-set-only bases, and unsupported interop signatures are rejected | Expand anonymous interface interop independently; preserve package identity and unsafe policy |
 | Go 1.23 comparable-bound import order | Forward comparable-dependent bounds are semantically checked, but Go 1.23 vet can panic while importing their export data | Write comparable element parameters before dependent bounds when targeting Go 1.23 tooling |
 | Recursive comparable source bounds | Array/struct comparability that depends on a still-resolving parameter is diagnosed rather than allowed to deadlock Go type resolution; recursive pointer and method contracts remain supported | Break the dependency with an independently constrained element parameter; broader cyclic value-bound solving remains unsupported |

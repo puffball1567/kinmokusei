@@ -44,9 +44,12 @@ parameter assignments, and finally its constructor body. An exception or panic
 stops that sequence; later fields and bodies are not evaluated.
 
 Initializers can use module bindings, ordinary function calls, accessible static
-methods, class type parameters, allocations, and callbacks. They cannot reference
-`this`, `super`, or constructor-local parameters, including through a callback;
-receiver-dependent initialization belongs in the constructor. A module binding
+methods, class type parameters, allocations, and callbacks. An instance
+initializer may read an earlier explicitly initialized field of the same class
+with `this.field`. It cannot assign to an instance field, read a later or
+uninitialized field, capture `this` in a callback, or use `super` or
+constructor-local parameters; other receiver-dependent initialization belongs
+in the constructor. A module binding
 with the same name as a constructor parameter still resolves to the module
 binding in a field initializer. Fields with valid initializers satisfy definite
 initialization checks, while other non-null reference fields still need a
