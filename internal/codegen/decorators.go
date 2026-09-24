@@ -16,6 +16,7 @@ func decoratorRuntimeDeclarations() []goast.Decl {
 		Name: goast.NewIdent("__kinmokuseiDecoratorValue"),
 		Type: &goast.StructType{Fields: &goast.FieldList{List: []*goast.Field{
 			{Names: []*goast.Ident{goast.NewIdent("TypeIdentity")}, Type: goast.NewIdent("string")},
+			{Names: []*goast.Ident{goast.NewIdent("contract")}, Type: goast.NewIdent("string")},
 			{Names: []*goast.Ident{goast.NewIdent("value")}, Type: goast.NewIdent("any")},
 		}}},
 	}}}
@@ -162,17 +163,14 @@ func decoratorConstructAdapter(target *kinmokuseiAST.DecoratorTarget) goast.Expr
 		body.List = append(body.List, failure(decoratorConstructUnavailableReason(target)))
 		return &goast.FuncLit{Type: functionType, Body: body}
 	}
-	checks, constructorArguments := decoratorCheckedArguments("decorator constructor for "+target.ClassName, target.ConstructorParameters, target.ConstructorVariadic, arguments, failure)
+	checks, constructorArguments := decoratorCheckedArguments("decorator constructor for "+target.ClassName, target.ConstructorParameters, target.ConstructorContracts, target.ConstructorVariadic, arguments, failure)
 	body.List = append(body.List, checks...)
 	constructed := &goast.CallExpr{Fun: goast.NewIdent("New" + target.RuntimeClassName), Args: constructorArguments}
 	if target.ConstructorVariadic {
 		constructed.Ellipsis = token.Pos(1)
 	}
 	body.List = append(body.List, &goast.ReturnStmt{Results: []goast.Expr{
-		&goast.CompositeLit{Type: valueType, Elts: []goast.Expr{
-			&goast.KeyValueExpr{Key: goast.NewIdent("TypeIdentity"), Value: stringLiteral(target.ClassIdentity)},
-			&goast.KeyValueExpr{Key: goast.NewIdent("value"), Value: constructed},
-		}},
+		decoratorBox(constructed, kinmokuseiAST.TypeRef{Name: target.RuntimeClassName}, target.ClassIdentity, target.ClassContract),
 		goast.NewIdent("nil"),
 	}})
 	return &goast.FuncLit{Type: functionType, Body: body}

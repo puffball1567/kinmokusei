@@ -133,6 +133,8 @@ type DecoratorTarget struct {
 	RuntimeClassName              string
 	ConstructUnavailableReason    string
 	ConstructorParameters         []TypeRef
+	ConstructorContracts          []string
+	ClassContract                 string
 	ConstructorVariadic           bool
 	Invocable                     bool
 	InvokeUnavailableReason       string
@@ -140,9 +142,11 @@ type DecoratorTarget struct {
 	StaticInvokeUnavailableReason string
 	RuntimeMethodName             string
 	MethodParameters              []TypeRef
+	MethodContracts               []string
 	MethodVariadic                bool
 	MethodResult                  *TypeRef
 	MethodResultIdentity          string
+	MethodResultContract          string
 	Owner                         source.Span
 	Declaration                   source.Span
 	ParameterIndex                int

@@ -86,6 +86,8 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 		constructible := true
 		constructUnavailableReason := ""
 		var constructorParameters []ast.TypeRef
+		var constructorContracts []string
+		classContract := decoratorValueContract(Type{Kind: Class, Name: class.Name})
 		if class.Abstract {
 			constructible = false
 			constructUnavailableReason = "abstract classes cannot be constructed"
@@ -94,12 +96,19 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			constructUnavailableReason = "generic classes require concrete type arguments"
 		} else if class.Constructor != nil {
 			for _, parameter := range class.Constructor.Parameters {
-				constructorParameters = append(constructorParameters, parameter.Type)
+				parameterType := c.resolveType(parameter.Type)
+				c.prepareGoTypeForEmission(&parameterType, parameter.Span)
+				constructorParameters = append(constructorParameters, typeRefFromType(parameterType, parameter.Type.Span))
+				if parameter.Variadic && parameterType.Element != nil {
+					parameterType = *parameterType.Element
+				}
+				constructorContracts = append(constructorContracts, decoratorValueContract(parameterType))
 			}
 		}
 		attach(class.Decorators, ast.DecoratorTarget{
 			Kind: "class", Name: className, Identity: classID, ClassIdentity: classID, BaseIdentity: baseID, ClassName: className, ValueIdentity: classID,
 			RuntimeClassName: class.Name, Constructible: constructible, ConstructUnavailableReason: constructUnavailableReason, ConstructorParameters: constructorParameters,
+			ConstructorContracts: constructorContracts, ClassContract: classContract,
 			ConstructorVariadic: class.Constructor != nil && hasVariadicParameter(class.Constructor.Parameters),
 			Declaration:         class.NameSpan, ParameterIndex: -1, Visibility: ast.Public, ValueType: classType,
 		})
@@ -117,6 +126,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				Kind: "constructor", Name: "constructor", Identity: constructorID,
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: "constructor",
 				RuntimeClassName: class.Name, Constructible: constructible, ConstructUnavailableReason: constructUnavailableReason, ConstructorParameters: constructorParameters,
+				ConstructorContracts: constructorContracts, ClassContract: classContract,
 				ConstructorVariadic: hasVariadicParameter(constructor.Parameters),
 				Owner:               class.NameSpan, Declaration: constructor.Span, ParameterIndex: -1, Visibility: ast.Public, ValueType: signature(constructor.Parameters, classType),
 			})
@@ -160,12 +170,23 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				methodResult = methodResult.GenericArguments[0]
 			}
 			resultIdentity := ""
+			resultContract := ""
 			if eligible {
 				resultIdentity = decoratorValueRuntimeIdentity(c.resolveType(methodResult))
+				resultContract = decoratorValueContract(c.resolveType(methodResult))
 			}
 			var methodParameters []ast.TypeRef
+			var methodContracts []string
 			for _, parameter := range method.Parameters {
-				methodParameters = append(methodParameters, parameter.Type)
+				if eligible {
+					parameterType := c.resolveType(parameter.Type)
+					c.prepareGoTypeForEmission(&parameterType, parameter.Span)
+					methodParameters = append(methodParameters, typeRefFromType(parameterType, parameter.Type.Span))
+					if parameter.Variadic && parameterType.Element != nil {
+						parameterType = *parameterType.Element
+					}
+					methodContracts = append(methodContracts, decoratorValueContract(parameterType))
+				}
 			}
 			attach(method.Decorators, ast.DecoratorTarget{
 				Kind: kind, Name: method.Name, Identity: methodID,
@@ -173,8 +194,10 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				RuntimeClassName: class.Name, Invocable: invocable, InvokeUnavailableReason: invokeReason,
 				StaticInvocable: staticInvocable, StaticInvokeUnavailableReason: staticInvokeReason,
 				RuntimeMethodName: runtimeMethodName, MethodParameters: methodParameters,
+				MethodContracts: methodContracts, ClassContract: classContract,
 				MethodVariadic: hasVariadicParameter(method.Parameters), MethodResult: &method.ReturnType,
 				MethodResultIdentity: resultIdentity,
+				MethodResultContract: resultContract,
 				OverrideChain:        overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
 			})
 			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, overrideChain, method.NameSpan, method.Static, method.Visibility)

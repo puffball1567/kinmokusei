@@ -125,6 +125,8 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"decorator-methods.test":              {implementedGoCompatibilityContracts[102]},
 	"decorator-static-methods.test":       {implementedGoCompatibilityContracts[102]},
 	"decorator-adapters.test":             {implementedGoCompatibilityContracts[102]},
+	"decorator-contracts.test":            {implementedGoCompatibilityContracts[102]},
+	"decorator-values.test":               {implementedGoCompatibilityContracts[102]},
 	"decorator-packages.test":             {implementedGoCompatibilityContracts[102]},
 	"decorator-runtime.test":              {implementedGoCompatibilityContracts[102]},
 	"virtual-properties.test":             {implementedGoCompatibilityContracts[100], implementedGoCompatibilityContracts[98]},

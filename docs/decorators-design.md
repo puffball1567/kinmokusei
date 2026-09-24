@@ -107,6 +107,22 @@ argument). `decoratorValueAs<T>` requires an explicit target and returns
 substitution. This is the scalar path needed by routing libraries and is also
 available for nominal, collection and callable values that have Go storage.
 
+The boundary preserves the **declared storage type**, not just the dynamic Go
+value. Numeric literals retain explicit widths (`decoratorValue<int8>(1)`),
+nullable values (including nil interfaces) round-trip, and source contracts
+remain distinct even when Go lowers them to identical types. This also applies
+inside collections, callbacks and generic instantiations. A nullable payload
+cannot be extracted as non-null, nor can one nominal context type be extracted
+as another. Constructor and method adapters use the same checks.
+
+Box at the contract expected by the consumer. For interface-based DI, use
+`decoratorValue<Service>(implementation)`; boxing the concrete class and then
+extracting a different interface contract is not an implicit conversion.
+Concrete generic types such as `Box<int>` are supported. Boxing/extracting an
+open type parameter such as `T` or `T[]` is a compile-time error until its full
+source contract can be preserved across generic Go lowering. The public
+`typeIdentity` is descriptive metadata, not the authority for runtime checks.
+
 Factories that only support one declaration kind should use its nominal context
 type instead of the unrestricted `DecoratorContext`:
 

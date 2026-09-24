@@ -11,8 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 func packageCommandEnvironment(offline bool) []string {
@@ -110,7 +108,7 @@ func hashSourcePackage(root string) (string, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if file != root && (entry.Name() == ".git" || entry.Name() == product.StateDirectoryName) {
+			if file != root && excludedPackageDirectory(entry.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
