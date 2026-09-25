@@ -31,12 +31,12 @@ func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Ty
 			if expected.Kind == TypeParameter && expected.IsInteger() {
 				if target, ok := goTypeOf(expected); ok {
 					info := gotypes.TypeAndValue{Type: gotypes.Typ[gotypes.UntypedInt], Value: constant.Make(value)}
-					if err := checkNumericConstantAssignment(info, target); err != nil {
+					if err := c.checkNumericConstantAssignment(info, target); err != nil {
 						c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented by every type in %s's type set", value.String(), expected.String()))
 						return Type{Kind: Invalid, Name: "<invalid>"}
 					}
 				}
-			} else if expected.IsInteger() && !integerConstantFitsFixedType(value, expected) {
+			} else if expected.IsInteger() && !c.integerConstantFitsFixedType(value, expected) {
 				c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
@@ -487,7 +487,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		if constant, known := c.integerContextValue(bound.expression); known {
 			if constant.Sign() < 0 {
 				c.report(bound.expression.GetSpan(), fmt.Sprintf("slice %s bound cannot be negative", bound.name))
-			} else if !constant.IsInt64() {
+			} else if !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 				c.report(bound.expression.GetSpan(), fmt.Sprintf("slice %s bound is out of range", bound.name))
 			}
 		}
@@ -653,7 +653,7 @@ func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Ty
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if right.Kind == UntypedInt && left.Kind != UntypedInt {
-			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !integerConstantFitsFixedType(value, left) {
+			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !c.integerConstantFitsFixedType(value, left) {
 				c.report(expr.Right.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), left.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
@@ -674,13 +674,13 @@ func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Ty
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if left.Kind == UntypedInt && right.Kind != UntypedInt {
-			if value, known := c.resolvedIntegerConstantValue(expr.Left); known && !integerConstantFitsFixedType(value, right) {
+			if value, known := c.resolvedIntegerConstantValue(expr.Left); known && !c.integerConstantFitsFixedType(value, right) {
 				c.report(expr.Left.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), right.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 		}
 		if right.Kind == UntypedInt && left.Kind != UntypedInt {
-			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !integerConstantFitsFixedType(value, left) {
+			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !c.integerConstantFitsFixedType(value, left) {
 				c.report(expr.Right.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), left.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}

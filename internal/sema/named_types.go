@@ -328,7 +328,7 @@ func (c *Checker) checkEnum(declaration *ast.EnumDecl) {
 			}
 			value.Set(resolved)
 		}
-		if typeInfo.Kind != Invalid && !integerConstantFitsFixedType(value, typeInfo) {
+		if typeInfo.Kind != Invalid && !c.integerConstantFitsFixedType(value, typeInfo) {
 			c.report(member.Span, fmt.Sprintf("enum value %s cannot be represented as %s", value.String(), declaration.Name))
 		}
 		member.ResolvedValue = value.String()

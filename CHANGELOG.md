@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check machine-width integer constants against the selected Go target before
+  generation, including conversions, generic arguments, indices, array lengths,
+  collection sizes and unsafe offsets. Preserve target-dependent unsigned
+  complements and contextual runtime shifts. Use the same target sizes for
+  generated Go validation; a locked target takes precedence over ambient GOARCH.
+
 - Restore member completion while editing inside an existing selector, including
   imported generic classes and Go values. Recover unfinished calls, indexes and
   bodies at EOF without modifying the document, changing source offsets or

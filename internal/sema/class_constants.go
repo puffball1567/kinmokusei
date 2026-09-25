@@ -28,7 +28,7 @@ func (c *Checker) ensureClassConstantChecked(owner string, field *ast.FieldDecl)
 			} else if info, known := dependency.scalarConstant(field.Initializer); !known || !initializerEmitsConstant(field.Initializer) {
 				dependency.report(field.Initializer.GetSpan(), "class constant initializer must be a compile-time constant")
 			} else if target, ok := goTypeOf(expected); ok {
-				if value, err := convertNumericConstant(info, target); err == nil {
+				if value, err := c.convertNumericConstant(info, target); err == nil {
 					c.classConstantValues[field] = value
 				} else {
 					dependency.report(field.Initializer.GetSpan(), err.Error())

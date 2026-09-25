@@ -180,10 +180,10 @@ func (c *Checker) checkUnsafeIntegerArgument(name, role string, expression ast.E
 	if nonnegative {
 		if constant, known := c.integerContextValue(expression); known && constant.Sign() < 0 {
 			c.report(expression.GetSpan(), fmt.Sprintf("%s %s cannot be negative", name, role))
-		} else if known && !constant.IsInt64() {
+		} else if known && !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 			c.report(expression.GetSpan(), fmt.Sprintf("%s %s is out of range", name, role))
 		}
-	} else if constant, known := c.integerContextValue(expression); known && !constant.IsInt64() {
+	} else if constant, known := c.integerContextValue(expression); known && !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 		c.report(expression.GetSpan(), fmt.Sprintf("%s %s is out of range", name, role))
 	}
 }

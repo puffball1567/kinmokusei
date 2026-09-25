@@ -35,7 +35,7 @@ func (c *Checker) checkGoChannelMake(expr *ast.CallExpr) Type {
 		}
 		if constant, known := c.integerContextValue(argument); known && constant.Sign() < 0 {
 			c.report(argument.GetSpan(), "goChannel capacity cannot be negative")
-		} else if known && !constant.IsInt64() {
+		} else if known && !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 			c.report(argument.GetSpan(), "goChannel capacity is out of range")
 		}
 	}
@@ -191,7 +191,7 @@ func (c *Checker) checkCollectionDelete(expr *ast.CallExpr) Type {
 	c.requireAssignable(key, values[1], spans[1])
 	if info, known := c.checkedNumericConstant(expr.Arguments[1], values[1]); known && key.IsNumeric() {
 		if target, ok := goTypeOf(key); ok {
-			if err := checkNumericConstantAssignment(info, target); err != nil {
+			if err := c.checkNumericConstantAssignment(info, target); err != nil {
 				c.report(expr.Arguments[1].GetSpan(), err.Error())
 			}
 		}
@@ -364,7 +364,7 @@ func (c *Checker) checkMakeSizeArguments(expr *ast.CallExpr, name string, minimu
 		if constant, known := c.integerContextValue(argument); known {
 			if constant.Sign() < 0 {
 				c.report(argument.GetSpan(), fmt.Sprintf("%s size cannot be negative", name))
-			} else if !constant.IsInt64() {
+			} else if !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 				c.report(argument.GetSpan(), fmt.Sprintf("%s size is out of range", name))
 			}
 		}

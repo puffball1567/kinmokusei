@@ -3,6 +3,7 @@ package sema
 import (
 	"fmt"
 	gotypes "go/types"
+	"math/big"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -94,6 +95,10 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if ref.IsFixedArray() {
+			if !c.integerConstantFitsFixedType(big.NewInt(*ref.FixedLength), builtins["int"]) {
+				c.report(ref.Span, "array length is out of range for int")
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 			if element.Kind == Invalid {
 				return element
 			}

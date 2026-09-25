@@ -7,6 +7,7 @@ import (
 	gotypes "go/types"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -24,6 +25,7 @@ type Result struct {
 	Program     *ast.Program
 	Diagnostics []diagnostic.Diagnostic
 	goImporter  gotypes.Importer
+	goSizes     gotypes.Sizes
 }
 
 type GoExport struct {
@@ -454,14 +456,22 @@ func CheckFilesWithOverlayInProject(paths []string, overlay map[string]string, p
 		}
 	}
 	goImporter := goImporterForProgram(loader.merged, ordered, lockedRoot, lockedTarget)
+	goarch := runtime.GOARCH
+	if lockedTarget != nil {
+		goarch = lockedTarget.GOARCH
+	}
+	sizes := gotypes.SizesFor("gc", goarch)
+	if sizes == nil {
+		return Result{}, fmt.Errorf("unsupported Go target architecture %q", goarch)
+	}
 	if len(loader.diagnostics) == 0 {
 		allowed := loader.linkModules(ordered)
 		if len(loader.diagnostics) == 0 {
-			loader.diagnostics = append(loader.diagnostics, sema.CheckScopedWithGoImporterAndPolicy(loader.merged, allowed, goImporter, sema.GoInteropPolicy{AllowUnsafe: allowUnsafeGo})...)
-			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter}, nil
+			loader.diagnostics = append(loader.diagnostics, sema.CheckScopedWithGoImporterAndPolicy(loader.merged, allowed, goImporter, sema.GoInteropPolicy{AllowUnsafe: allowUnsafeGo, Sizes: sizes})...)
+			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes}, nil
 		}
 	}
-	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter}, nil
+	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes}, nil
 }
 
 func goImporterForProgram(program *ast.Program, rootPaths []string, lockedRoot string, lockedTarget *project.BuildTarget) gotypes.Importer {
@@ -617,7 +627,7 @@ func EmitGo(paths []string, packageName string) ([]byte, []diagnostic.Diagnostic
 	if len(result.Diagnostics) != 0 {
 		return nil, result.Diagnostics, nil
 	}
-	generated, err := codegen.GenerateWithImporter(result.Program, packageName, result.goImporter)
+	generated, err := codegen.GenerateWithTarget(result.Program, packageName, result.goImporter, result.goSizes)
 	return generated, nil, err
 }
 
@@ -631,7 +641,7 @@ func EmitCABI(paths []string) (CABIArtifacts, []diagnostic.Diagnostic, error) {
 	if len(result.Diagnostics) != 0 {
 		return CABIArtifacts{}, result.Diagnostics, nil
 	}
-	generated, err := codegen.GenerateWithImporter(result.Program, "main", result.goImporter)
+	generated, err := codegen.GenerateWithTarget(result.Program, "main", result.goImporter, result.goSizes)
 	if err != nil {
 		return CABIArtifacts{}, nil, err
 	}

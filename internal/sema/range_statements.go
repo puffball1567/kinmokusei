@@ -25,7 +25,7 @@ func (c *Checker) prepareForRange(stmt *ast.ForRangeStmt) []Type {
 		}
 		if integer, known := c.resolvedIntegerConstantValue(stmt.Source); known {
 			stmt.GuaranteedNonEmpty = integer.Sign() > 0
-			if !integerConstantFitsFixedType(integer, value) || sourceType.Kind == UntypedInt && !integer.IsInt64() {
+			if !c.integerConstantFitsFixedType(integer, value) || sourceType.Kind == UntypedInt && !integer.IsInt64() {
 				c.report(stmt.Source.GetSpan(), fmt.Sprintf("integer range bound overflows %s", value.String()))
 			}
 		}

@@ -13,7 +13,7 @@ func (c *Checker) checkSwitchTag(expression ast.Expression, actual Type) Type {
 	target := defaultLiteralType(actual)
 	if info, known := c.checkedNumericConstant(expression, actual); known {
 		if gt, ok := goTypeOf(target); ok {
-			if err := checkNumericConstantAssignment(info, gt); err != nil {
+			if err := c.checkNumericConstantAssignment(info, gt); err != nil {
 				c.report(expression.GetSpan(), err.Error())
 				return Type{Kind: Invalid}
 			}
@@ -56,13 +56,13 @@ func (c *Checker) checkSwitchCaseConstant(expression ast.Expression, actual, tar
 				// Go's case checker keeps the exact value here, assigning only
 				// its default dynamic type. Do not introduce extra rounding.
 				gt = gotypes.Default(info.Type)
-				if err := checkNumericConstantAssignment(info, gt); err != nil {
+				if err := c.checkNumericConstantAssignment(info, gt); err != nil {
 					c.report(expression.GetSpan(), err.Error())
 					return
 				}
 				info.Type = gt
 			} else {
-				converted, err := convertNumericConstant(info, gt)
+				converted, err := c.convertNumericConstant(info, gt)
 				if err != nil || converted.Value == nil {
 					return
 				}

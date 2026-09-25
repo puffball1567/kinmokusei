@@ -202,6 +202,11 @@ Semantic analysis is organized within `internal/sema` by responsibility:
 - `constructor_range_proofs.go` derives non-empty collection facts keyed by
   declaration identity; `constant_expressions.go` evaluates constant expressions
   used by control-flow and numeric checks.
+- `target_numeric.go` checks numeric expressions with the selected Go target's
+  `types.Sizes`. The compiler shares these sizes between semantic checking and
+  generated Go validation. Since `types.CheckExpr` assumes 64-bit integers,
+  32-bit checks use synthetic declarations without executing source expressions;
+  untyped runtime shifts retain their destination-dependent type until used.
 - `label_validation.go`, `return_flow.go`, and `nullable_flow.go` contain label
   resolution, termination predicates, and nullable/task-flow snapshot joins.
   Nullable joins retain their existing checker integration; this extraction

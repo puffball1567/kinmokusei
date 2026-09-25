@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/importer"
 	gotypes "go/types"
+	"runtime"
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
@@ -29,6 +30,7 @@ type Checker struct {
 	goNamedImports             map[string]map[string]goNamedImport
 	goImporter                 gotypes.Importer
 	allowUnsafeGo              bool
+	goSizes                    gotypes.Sizes
 	inConstructor              bool
 	inFieldInitializer         bool
 	fieldInitializerAvailable  map[string]bool
@@ -74,6 +76,9 @@ type Checker struct {
 
 type GoInteropPolicy struct {
 	AllowUnsafe bool
+	// Sizes describes the selected Go target, not necessarily the compiler host.
+	// A nil value uses the host architecture.
+	Sizes gotypes.Sizes
 }
 
 func Check(program *ast.Program) []diagnostic.Diagnostic {
@@ -92,10 +97,13 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	if goImporter == nil {
 		goImporter = importer.Default()
 	}
+	if policy.Sizes == nil {
+		policy.Sizes = gotypes.SizesFor("gc", runtime.GOARCH)
+	}
 	c := &Checker{
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
-		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe,
+		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
 		goNamedImports: map[string]map[string]goNamedImport{},
 		memberFlow:     map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
