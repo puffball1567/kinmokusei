@@ -238,6 +238,20 @@ Supported special built-ins have dedicated type rules rather than guessed functi
 
 They are not first-class function values. `Offsetof` accepts a Go struct field selector and rejects invalid pointer-embedding paths. Named pointer/slice underlying types determine element types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic behavior remain exactly as unsafe Go; enabling the capability does not make them safe.
 
+`Sizeof`, `Alignof` and `Offsetof` retain typed `uintptr` constants when the
+operand's storage layout is fixed. Sizes, alignment and field offsets use the
+selected Go target, including 32-bit targets. Constant references, source
+exports, static constants, bounds checks and duplicate switch checks preserve
+those values. Their operands are not executed, including function calls,
+channel receives and nil-pointer field selections permitted by source typing.
+Untyped arguments must still fit their default Go type.
+
+Following [Go's layout rules](https://go.dev/ref/spec#Package_unsafe), a type
+parameter or an array/struct containing variable-size elements produces a
+nonconstant result. Concrete pointer and slice headers remain fixed-size even
+when their element is a type parameter. `Offsetof` still requires an imported
+Go struct selector; native source fields are not added by this change.
+
 `Slice` and `SliceData` also accept constrained pointer/slice parameters with a
 common underlying shape and identical source element contracts. Source class
 elements and their nullability survive both operations; conflicting element

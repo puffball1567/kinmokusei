@@ -48,6 +48,7 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	member.ResolvedName = member.Name
 	imported.declaration.Used = true
 	qualifiedName := identifier.Name + "." + member.Name
+	diagnosticStart := len(c.diagnostics)
 	wantArguments := 1
 	if member.Name == "Add" || member.Name == "Slice" || member.Name == "String" {
 		wantArguments = 2
@@ -71,10 +72,13 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	switch member.Name {
 	case "Sizeof", "Alignof":
 		value, exists := argument(0)
-		if exists && value.Kind == Nil {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a typed value, got nil", qualifiedName))
+		if exists && (value.Kind == Nil || value.Kind == Null) {
+			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a typed value, got %s", qualifiedName, value.String()))
 		} else if exists && value.Kind == Void {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a value, got void", qualifiedName))
+		}
+		if exists && len(c.diagnostics) == diagnosticStart && c.checkNumericMaterialization(expr.Arguments[0], defaultLiteralType(value)) {
+			c.checkUnsafeLayoutConstant(expr, member.Name, value)
 		}
 		return uintptrType, true
 	case "Offsetof":
@@ -85,6 +89,9 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a Go struct field selector", qualifiedName))
 			} else if field.GoFieldViaPointer {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s field cannot be embedded through a pointer", qualifiedName))
+			}
+			if len(c.diagnostics) == diagnosticStart {
+				c.checkUnsafeLayoutConstant(expr, member.Name, arguments[0])
 			}
 		}
 		return uintptrType, true

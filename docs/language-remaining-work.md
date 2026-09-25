@@ -300,6 +300,13 @@ Negative/nil-invalid runtime lengths are checked in ordinary runs; race runs
 retain valid operations because Go checkptr makes those failures unrecoverable.
 The explicit unsafe permission and its lifetime/pointer obligations are unchanged.
 
+Permitted `unsafe.Sizeof`, `Alignof` and `Offsetof` now retain target-dependent
+`uintptr` constants for fixed layouts. Variable-size generic operands remain
+nonconstant; concrete pointer/slice headers keep fixed sizes. Source and class
+constant aliases, Go export constants, promoted Go fields, unevaluated operands
+and nested `len` classification are checked in `unsafe_layout_constants_test.go`.
+Native source field selectors for `Offsetof` remain outside the accepted surface.
+
 After v0.4.3, `make[T](...)` allocates concrete, named and constrained slices,
 maps and channels without losing target identity. Source and imported bounds,
 generic class methods, nullable elements, integer-valued constant sizes,
@@ -363,7 +370,7 @@ these constants; differential coverage is in `nullable_array_constants_test.go`.
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, linked export aliases and provably disjoint parameter-dependent collection shapes | Add native source interface contracts; preserve source-only method argument shapes; handle intersections whose overlap depends on later substitution |
-| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); machine-width constants use selected target sizes in semantic and generated Go checking (`target_integer_constants_test.go`); type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining contextual-expression combinations, constant layout intrinsics and remaining constant contexts without treating immutable runtime bindings as Go constants |
+| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); machine-width and unsafe layout constants use selected target sizes in semantic and generated Go checking; type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining contextual-expression combinations and constant contexts without treating immutable runtime bindings as Go constants; native source fields in `Offsetof` and nonliteral array type lengths remain |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs, inference and source method-only `interface { ... }` type literals | Source fields, private method identities and richer anonymous-interface members remain rejected |
 | Source-declared multiple results | Source functions, methods, arrows and function types accept `(T, U)` signatures, explicit returns and forwarding, including try/catch/finally; arrow result inference preserves per-slot types; explicit values support contextual checks and class upcasts, while forwarding requires direct Go assignability | Inference rejects ambiguous nil/null slots and incompatible branches; named results and multiple-result properties are not supported |
 

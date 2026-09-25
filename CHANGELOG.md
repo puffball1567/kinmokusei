@@ -9,6 +9,15 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Preserve compile-time `uintptr` values from permitted `unsafe.Sizeof`,
+  `Alignof` and `Offsetof` calls using the selected Go target. Support constant
+  aliases, exported/class constants, bounds checks and duplicate switch cases;
+  variable-size generic results remain runtime values. Keep Go's unevaluated
+  operands and nested `len`/`cap` constant-classification rules.
+
+- Preserve selected target sizes while checking global and class constant
+  initializers, including forward dependencies and unsigned complements.
+
 - Check machine-width integer constants against the selected Go target before
   generation, including conversions, generic arguments, indices, array lengths,
   collection sizes and unsafe offsets. Preserve target-dependent unsigned

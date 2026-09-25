@@ -940,10 +940,13 @@ let [nextValue, nextPresent] = lookup["next"];
   typed `int` constant values when the operand contains no runtime calls or
   channel receives. Such operands are not evaluated, including pointer
   dereferences, indexing, and slice-to-array conversions. No user function is
-  run at compile time. Checked constant calls and uncalled arrow bodies do not
-  force evaluation. Aliases preserve the resulting constant for bounds/size
-  checks; taking its address is rejected. Nullable wrappers and constant
-  intrinsics not yet recognized by semantic analysis remain further work.
+  run at compile time. Uncalled arrow bodies and nested constant `len`/`cap`
+  do not force evaluation. Go's call scan still sees calls/receives inside
+  unsafe layout arguments, including through constant conversions, so an outer
+  `len`/`cap` can remain nonconstant even though `Sizeof` itself is constant.
+  Aliases preserve the resulting constant for bounds/size checks; taking its
+  address is rejected. Nullable array pointers follow the same rules without
+  establishing a non-null proof.
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
 - `append`/`copy` accept type parameters with one common underlying slice type,

@@ -78,7 +78,9 @@ func TestArrayLengthOperandClassification(t *testing.T) {
 	}{
 		{"identifier", value, true},
 		{"literal", &ast.LiteralExpr{Kind: ast.IntegerLiteral, Text: "1"}, true},
-		{"constant call", &ast.CallExpr{GoConstant: true, Arguments: []ast.Expression{call}}, true},
+		{"constant length", &ast.CallExpr{Builtin: ast.LenCall, GoConstant: true, Arguments: []ast.Expression{call}}, true},
+		{"constant layout containing call", &ast.CallExpr{Builtin: ast.UnsafeSizeofCall, GoConstant: true, Arguments: []ast.Expression{call}}, false},
+		{"constant conversion containing call", &ast.CallExpr{Conversion: true, GoConstant: true, Arguments: []ast.Expression{call}}, false},
 		{"runtime call", call, false},
 		{"closure body", &ast.ArrowExpr{ExpressionBody: call}, true},
 		{"dereference", &ast.UnaryExpr{Operator: "*", Operand: value}, true},

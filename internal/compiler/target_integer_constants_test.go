@@ -53,7 +53,7 @@ func TestLockedTargetIntegerDiagnostics(t *testing.T) {
 					t.Fatalf("non-source diagnostic: %v", d)
 				}
 			}
-			if err := os.WriteFile(path, []byte(`export function Run():uint32{return uint32(^uint(0));}`), 0o644); err != nil {
+			if err := os.WriteFile(path, []byte(`const mask=^uint(0);export function Run():uint32{return uint32(mask);}`), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			_, diagnostics, err := EmitGo([]string{path}, "targetconstants")

@@ -262,11 +262,11 @@ func compilePipelinePropertyWithPolicy(input string, policy sema.GoInteropPolicy
 	if diagnostics := sema.CheckScopedWithGoImporterAndPolicy(program, nil, goImporter, policy); len(diagnostics) != 0 {
 		return nil, false, nil
 	}
-	first, err := codegen.GenerateWithImporter(program, "fuzzpkg", goImporter)
+	first, err := codegen.GenerateWithTarget(program, "fuzzpkg", goImporter, policy.Sizes)
 	if err != nil {
 		return nil, true, err
 	}
-	second, err := codegen.GenerateWithImporter(program, "fuzzpkg", goImporter)
+	second, err := codegen.GenerateWithTarget(program, "fuzzpkg", goImporter, policy.Sizes)
 	if err != nil {
 		return nil, true, err
 	}
