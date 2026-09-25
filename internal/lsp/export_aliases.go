@@ -35,13 +35,19 @@ type exportAliasReference struct {
 
 // Runtime references retain the original declaration. Rename instead follows
 // the imported public spelling, and stops at each explicit `as` boundary.
-func (s *Server) importedExportAliases(program *ast.Program) map[exportAliasReference]source.Span {
+func (s *Server) importedExportAliases(program *ast.Program, textByPath map[string]string) map[exportAliasReference]source.Span {
 	result := map[exportAliasReference]source.Span{}
 	for _, imported := range program.Imports {
 		if imported.Go {
 			continue
 		}
-		for _, name := range imported.Names {
+		for index, name := range imported.Names {
+			if imported.HasNameAlias(index) {
+				if origin, ok := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, textByPath); ok {
+					result[exportAliasReference{cleanPath(imported.Span.Path), imported.BindingName(index), spanKey(origin)}] = imported.BindingSpan(index)
+				}
+				continue
+			}
 			if selected, ok := sourcePublicExport(program, imported.ResolvedPath, name); ok {
 				public := selected.PublicDeclaration()
 				if !sameSourceSpan(public, selected.ResolvedDeclaration) {

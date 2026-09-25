@@ -200,14 +200,16 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			if len(imported.Names) == 0 {
 				add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
 			} else {
-				for _, name := range imported.Names {
+				for index := range imported.Names {
+					name := imported.BindingName(index)
 					add(completionItem{Label: name, Kind: 9, Detail: "Go export from " + imported.Path, SortText: "1_" + name})
 				}
 			}
 			continue
 		}
-		for _, name := range imported.Names {
-			if !sourceImportVisible(program, imported.ResolvedPath, name) {
+		for index, selected := range imported.Names {
+			name := imported.BindingName(index)
+			if !sourceImportVisible(program, imported.ResolvedPath, selected) {
 				continue
 			}
 			add(completionItem{Label: name, Kind: 9, Detail: "imported from " + imported.Path, SortText: "1_" + name})

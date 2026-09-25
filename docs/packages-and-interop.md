@@ -97,6 +97,8 @@ The lock's target controls export loading, checking, and building. Cross-build i
 import { User, findUser } from "./users";
 import { Router } from "kinmokusei/http";
 import go http from "net/http";
+import { User as Account } from "./users";
+import go { Println as println } from "fmt";
 ```
 
 - Each `.km` file has an independent module scope.
@@ -104,13 +106,28 @@ import go http from "net/http";
 - Transitive imports do not leak names.
 - Import aliases, imported names, and local declarations share collision checks.
 - Multiple root files never share names implicitly.
-- Go symbols are always referenced through their alias namespace.
+- Go symbols can be selected by named imports or referenced through a package
+  alias namespace.
 - `kinmokusei/*` is reserved for standard/compiler-managed packages. The exact
   `kinmokusei/http` package is implemented and embedded in the compiler; unknown,
   differently cased, traversal-like, or otherwise noncanonical `kinmokusei/*`
   paths are rejected rather than normalized or fetched.
 
 Go package internals may use reflection, unsafe, assembly, generated code, or CGO if the selected Go target can build them. Only public boundary types affect Kinmokusei source compatibility.
+
+`as` introduces a file-local binding: `Account` and `println` above do not also
+introduce `User` and `Println`. Different local names can select the same export;
+they keep its nominal type and mutable storage identity without wrappers or
+copies. Source aliases can be re-exported with `export { Account }`. Local
+declarations/imports cannot collide, and aliases cannot replace reserved types,
+channel helpers or compiler-internal names. A local variable or parameter may
+shadow an imported value. Go imports retain the same visibility and `unsafe`
+permission checks regardless of spelling.
+
+Editor rename stops at explicit `as` boundaries: renaming a local alias updates
+its uses, not the imported declaration. Renaming the selected source export
+updates its import selectors without changing local aliases. This is separate
+from manifest `[imports]`, which shortens module paths rather than symbol names.
 
 ## Direct Go interop model
 

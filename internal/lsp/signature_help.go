@@ -179,14 +179,15 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 			if !imported.Go || !samePath(imported.Span.Path, doc.Path) {
 				continue
 			}
-			for _, name := range imported.Names {
-				if name != context.Name {
+			for index, name := range imported.Names {
+				if imported.BindingName(index) != context.Name {
 					continue
 				}
 				signature, found, err := result.GoPackageFunctionSignature(imported.Path, name)
 				if err == nil && found {
 					return ast.CallableSignature{ParameterNames: signature.ParameterNames, ParameterTypes: signature.ParameterTypes, Result: signature.Result, Variadic: signature.Variadic}, true
 				}
+				return ast.CallableSignature{}, false
 			}
 		}
 	}
@@ -209,6 +210,9 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 				Variadic:       goSignature.Variadic,
 			}, true
 		}
+	}
+	if context.Qualifier == "" {
+		return builtinSignature(context.Name)
 	}
 	return ast.CallableSignature{}, false
 }
@@ -271,8 +275,8 @@ func (s *Server) sourceSignature(program *ast.Program, path string, context call
 		if imported.Go || !samePath(imported.Span.Path, path) {
 			continue
 		}
-		for _, name := range imported.Names {
-			if name != context.Name {
+		for index, name := range imported.Names {
+			if imported.BindingName(index) != context.Name {
 				continue
 			}
 			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, nil)
@@ -283,9 +287,6 @@ func (s *Server) sourceSignature(program *ast.Program, path string, context call
 				}
 			}
 		}
-	}
-	if signature, ok := builtinSignature(context.Name); ok {
-		return signature, true
 	}
 	return ast.CallableSignature{}, false
 }
@@ -326,11 +327,11 @@ func sourceClassDeclaration(s *Server, program *ast.Program, path, name string) 
 		if imported.Go || !samePath(imported.Span.Path, path) {
 			continue
 		}
-		for _, importedName := range imported.Names {
-			if importedName != name {
+		for index, importedName := range imported.Names {
+			if imported.BindingName(index) != name {
 				continue
 			}
-			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, name, nil)
+			target, found := s.topLevelDeclarationSpan(program, imported.ResolvedPath, importedName, nil)
 			for _, declaration := range program.Declarations {
 				class, ok := declaration.(*ast.ClassDecl)
 				if ok && found && sameSourceSpan(class.NameSpan, target) {

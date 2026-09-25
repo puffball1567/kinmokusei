@@ -22,6 +22,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			} else if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok && ref.Name != "" {
 				ref.ResolvedDeclaration = imported.span
 				lowered := *ref
+				lowered.Name = imported.name
 				lowered.LoweredType = nil
 				lowered.Qualifier = imported.pack.declaration.ResolvedAlias
 				if lowered.Qualifier == "" {

@@ -176,6 +176,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			}
 		}
 		if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok {
+			ref.Name = imported.name
 			ref.Qualifier = imported.pack.declaration.ResolvedAlias
 			if ref.Qualifier == "" {
 				ref.Qualifier = imported.pack.declaration.Alias

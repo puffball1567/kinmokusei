@@ -587,11 +587,12 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 	}
 	seen := map[string]bool{}
 	for index, name := range imported.Names {
-		if seen[name] {
-			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate imported name %q", name), Span: imported.Span})
+		local := imported.BindingName(index)
+		if seen[local] {
+			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate imported name %q", local), Span: imported.BindingSpan(index)})
 			continue
 		}
-		seen[name] = true
+		seen[local] = true
 		if !available[name] {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
 				Message: fmt.Sprintf("module %q does not declare %q", imported.Path, name), Span: imported.Span,

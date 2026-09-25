@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support local aliases in source and named Go imports (`import { A as B }`
+  and `import go { Sprint as render }`). Preserve original type/storage identity,
+  generic calls, source re-exports and unsafe permissions. Add editor completion,
+  navigation, signature help and alias-local rename with collision checks.
+
 - Fix decorator field/parameter type identities losing transparent aliases and
   conflating different generic instances. Use checked nominal types across
   class, interface and struct aliases/re-exports; preserve nullable contracts

@@ -271,6 +271,10 @@ relative to v0.3.0:
   Rename follows each explicit alias boundary independently of runtime identity.
   Pipeline, handwritten-Go differential, and editor tests in
   `export_aliases_test.go` and `export_aliases_runtime_test.go` cover the addition.
+  Local named-import aliases (`import { A as B }`, including `import go`)
+  preserve original type/storage identity and support generic values and source
+  re-exports. Compiler differential and editor tests in `import_aliases_test.go`
+  cover alias boundaries, collisions, shadowing and unsafe permissions.
   Any source export
   opts that file into explicit visibility; `export {}` exposes none. Files
   without source exports retain legacy selective imports. Source visibility

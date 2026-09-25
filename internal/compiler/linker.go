@@ -10,6 +10,7 @@ import (
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/sema"
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
@@ -98,7 +99,8 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 		}
 		for _, imported := range program.Imports {
 			if imported.Go {
-				for _, name := range imported.Names {
+				for index := range imported.Names {
+					name := imported.BindingName(index)
 					if _, local := bindings[path][name]; local {
 						l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("imported name %q conflicts with a declaration in the same module", name), Span: imported.Span})
 					}
@@ -113,7 +115,12 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 				continue
 			}
 			targetBindings := exportedBindings[imported.ResolvedPath]
-			for _, name := range imported.Names {
+			for index, selected := range imported.Names {
+				name := imported.BindingName(index)
+				if imported.HasNameAlias(index) && sema.IsReservedImportAlias(name) {
+					l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("import alias %q conflicts with a compiler built-in", name), Span: imported.BindingSpan(index)})
+					continue
+				}
 				if _, local := bindings[path][name]; local {
 					l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
 						Message: fmt.Sprintf("imported name %q conflicts with a declaration in the same module", name), Span: imported.Span,
@@ -125,7 +132,7 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 					continue
 				}
 				seenImports[name] = true
-				if linked, exists := targetBindings[name]; exists {
+				if linked, exists := targetBindings[selected]; exists {
 					moduleBindings[name] = linked
 					moduleAllowed[linked] = true
 				}
