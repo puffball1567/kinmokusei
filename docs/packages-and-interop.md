@@ -236,7 +236,12 @@ Supported special built-ins have dedicated type rules rather than guessed functi
 - `String` -> `string`
 - `StringData` -> `*byte`
 
-They are not first-class function values. `Offsetof` accepts a Go struct field selector and rejects invalid pointer-embedding paths. Named pointer/slice underlying types determine element types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic behavior remain exactly as unsafe Go; enabling the capability does not make them safe.
+They are not first-class function values. `Offsetof` accepts source struct,
+structural-object and imported Go struct field selectors, and rejects invalid
+pointer-embedding paths. Named pointer/slice underlying types determine element
+types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic
+behavior remain exactly as unsafe Go; enabling the capability does not make
+them safe.
 
 `Sizeof`, `Alignof` and `Offsetof` retain typed `uintptr` constants when the
 operand's storage layout is fixed. Sizes, alignment and field offsets use the
@@ -249,8 +254,28 @@ Untyped arguments must still fit their default Go type.
 Following [Go's layout rules](https://go.dev/ref/spec#Package_unsafe), a type
 parameter or an array/struct containing variable-size elements produces a
 nonconstant result. Concrete pointer and slice headers remain fixed-size even
-when their element is a type parameter. `Offsetof` still requires an imported
-Go struct selector; native source fields are not added by this change.
+when their element is a type parameter. Source struct aliases, distinct types,
+pointers and generic instances use their actual generated field order and
+types. Structural-object layout uses its deterministic generated field order,
+not literal property order. Source private fields retain their package-private
+Go names; imported Go private fields remain inaccessible. Class storage,
+properties and methods are not accepted as `Offsetof` selectors.
+
+```ts
+import go { Offsetof } from "unsafe";
+struct Packet {
+  public tag: byte;
+  public value: int64;
+}
+function valueOffset(packet: *Packet): int {
+  const offset = Offsetof(packet.value);
+  return int(offset);
+}
+```
+
+The offset includes target-specific alignment padding; this expression does
+not dereference `packet` at runtime. Source nullable pointers still require a
+non-null proof before field selection.
 
 `Slice` and `SliceData` also accept constrained pointer/slice parameters with a
 common underlying shape and identical source element contracts. Source class

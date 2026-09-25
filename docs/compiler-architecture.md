@@ -208,10 +208,15 @@ Semantic analysis is organized within `internal/sema` by responsibility:
   32-bit checks use synthetic declarations without executing source expressions;
   untyped runtime shifts retain their destination-dependent type until used.
 - `unsafe_layout_constants.go` uses Go's builtin layout checker with those
-  same target sizes. Checked Go field receivers are retained for `Offsetof`,
+  same target sizes. Checked Go-storage field receivers are retained for `Offsetof`,
   avoiding a second semantic traversal of its operand. Constant results enter
   the shared scalar-value cache; variable-size generic layouts do not become
   constants. Initializer checkers inherit target sizes and checked field metadata.
+  Source struct/object receivers keep ordinary native member-flow flags. For
+  layout probes only, already-checked native selectors are projected onto a
+  struct with exported field names and identical field order/types/tags; this
+  avoids synthetic-package privacy mismatches without changing generated code
+  or weakening imported Go field visibility.
 - `label_validation.go`, `return_flow.go`, and `nullable_flow.go` contain label
   resolution, termination predicates, and nullable/task-flow snapshot joins.
   Nullable joins retain their existing checker integration; this extraction

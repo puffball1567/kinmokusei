@@ -85,8 +85,8 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 		_, exists := argument(0)
 		if exists {
 			field, fieldOK := expr.Arguments[0].(*ast.MemberExpr)
-			if !fieldOK || !field.GoField {
-				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a Go struct field selector", qualifiedName))
+			if !fieldOK || !field.GoField && c.goFieldReceivers[field] == nil {
+				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a struct field selector", qualifiedName))
 			} else if field.GoFieldViaPointer {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s field cannot be embedded through a pointer", qualifiedName))
 			}
