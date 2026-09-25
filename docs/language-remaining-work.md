@@ -53,7 +53,10 @@ methods return an ordered array of individually checked boxed values through
 the same invocation adapters, preserving error slots separately from Result
 propagation and leaving ordinary typed calls unchanged. Override adapters
 preserve dispatch through further-derived implementations, including accessors;
-uninitialized virtual receivers supplied by Go interop are rejected.
+uninitialized virtual receivers supplied by Go interop are rejected. Field and
+parameter nominal identities resolve transparent aliases and distinguish
+concrete generic arguments, including nested nullable contracts; open generic
+consumers do not claim concrete DI keys.
 Concrete generic instantiations
 remain; context type/field completion and hover are implemented.
 

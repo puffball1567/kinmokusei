@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Fix decorator field/parameter type identities losing transparent aliases and
+  conflating different generic instances. Use checked nominal types across
+  class, interface and struct aliases/re-exports; preserve nullable contracts
+  in generic arguments and leave unresolved generic consumer keys empty.
+
 - Fix decorated overrides bypassing further-derived implementations. Method,
   getter and setter adapters now use the ordinary virtual dispatch slot across
   multiple inheritance levels, preserving Result failures and multiple returns.

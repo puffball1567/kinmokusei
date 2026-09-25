@@ -167,6 +167,18 @@ Kinmokusei class, interface and struct values, `valueIdentity` supplies a stable
 opaque type key; it is empty for structural and primitive values. DI containers
 must match this key rather than parsing `valueType` or comparing display names.
 
+Field and parameter keys come from their checked types. Transparent aliases
+and re-exports retain the same key as the original nominal type. Concrete
+generic instances have distinct keys: `Box<int>` and `Box<string>` do not share
+a provider key, and aliases of `Box<int>` retain its key. The same rule applies
+to generic interfaces and structs, including nested source nullability in
+their type arguments. An outer nullable consumer such as `Service | null`
+uses the `Service` provider key; this does not change the exact nullable
+contract checked by invocation adapters. Collection/callable types and open
+generic consumers such as `Box<T>` expose an empty key, not a misleading
+concrete provider identity. A generic class declaration's own context still
+identifies the declaration, rather than an unspecified concrete instance.
+
 An external package can define decorators without compiler knowledge of its API:
 
 ```ts

@@ -18,9 +18,6 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 		application.Target = nil
 	}
 	attach := func(list []*ast.Decorator, target ast.DecoratorTarget) {
-		if target.ValueIdentity == "" {
-			target.ValueIdentity = c.decoratorValueIdentity(target.ValueType)
-		}
 		for _, application := range list {
 			copy := target
 			application.Target = &copy
@@ -43,9 +40,13 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			}
 		}
 	}
-	parameters := func(parameters []ast.Parameter, className, classID, baseID, memberName, ownerID string, overrideChain []string, owner source.Span, static bool, visibility ast.Visibility) {
+	parameters := func(parameters []ast.Parameter, types []Type, className, classID, baseID, memberName, ownerID string, overrideChain []string, owner source.Span, static bool, visibility ast.Visibility) {
 		for i := range parameters {
 			parameter := &parameters[i]
+			valueIdentity := ""
+			if i < len(types) && !parameter.Variadic {
+				valueIdentity = decoratorNominalIdentity(types[i])
+			}
 			parameterOverrideChain := make([]string, len(overrideChain))
 			for index, identity := range overrideChain {
 				parameterOverrideChain[index] = fmt.Sprintf("%s|parameter|%d", identity, i)
@@ -53,6 +54,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			attach(parameter.Decorators, ast.DecoratorTarget{
 				Kind: "parameter", Name: parameter.Name, Identity: fmt.Sprintf("%s|parameter|%d", ownerID, i),
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: memberName, ParameterName: parameter.Name,
+				ValueIdentity: valueIdentity,
 				OverrideChain: parameterOverrideChain, Owner: owner, Declaration: parameter.Span, ParameterIndex: i, Static: static, Visibility: visibility, ValueType: &parameter.Type,
 			})
 		}
@@ -68,6 +70,10 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 	for _, declaration := range program.Declarations {
 		class, ok := declaration.(*ast.ClassDecl)
 		if !ok {
+			continue
+		}
+		symbol := c.classes[class.Name]
+		if symbol == nil {
 			continue
 		}
 		className := class.SourceName
@@ -117,7 +123,8 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 			attach(field.Decorators, ast.DecoratorTarget{
 				Kind: "field", Name: field.Name, Identity: classID + "|field|" + field.Name,
 				ClassName: className, ClassIdentity: classID, BaseIdentity: baseID, MemberName: field.Name,
-				Owner: class.NameSpan, Declaration: field.NameSpan, ParameterIndex: -1, Static: field.Static, Visibility: field.Visibility, ValueType: &field.Type,
+				ValueIdentity: decoratorNominalIdentity(symbol.fields[field.Name].typeInfo),
+				Owner:         class.NameSpan, Declaration: field.NameSpan, ParameterIndex: -1, Static: field.Static, Visibility: field.Visibility, ValueType: &field.Type,
 			})
 		}
 		if constructor := class.Constructor; constructor != nil {
@@ -130,7 +137,7 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				ConstructorVariadic: hasVariadicParameter(constructor.Parameters),
 				Owner:               class.NameSpan, Declaration: constructor.Span, ParameterIndex: -1, Visibility: ast.Public, ValueType: signature(constructor.Parameters, classType),
 			})
-			parameters(constructor.Parameters, className, classID, baseID, "constructor", constructorID, nil, constructor.Span, false, ast.Public)
+			parameters(constructor.Parameters, symbol.constructor, className, classID, baseID, "constructor", constructorID, nil, constructor.Span, false, ast.Public)
 		}
 		for _, method := range class.Methods {
 			kind := "method"
@@ -210,7 +217,11 @@ func (c *Checker) checkDecorators(program *ast.Program) {
 				MethodResultSlots:    resultSlots,
 				OverrideChain:        overrideChain, Owner: class.NameSpan, Declaration: method.NameSpan, ParameterIndex: -1, Static: method.Static, Visibility: method.Visibility, ValueType: signature(method.Parameters, &method.ReturnType),
 			})
-			parameters(method.Parameters, className, classID, baseID, method.Name, methodID, overrideChain, method.NameSpan, method.Static, method.Visibility)
+			key := method.Name
+			if method.Accessor != "" {
+				key = method.Accessor + " " + method.Name
+			}
+			parameters(method.Parameters, symbol.methods[key].typeInfo.Parameters, className, classID, baseID, method.Name, methodID, overrideChain, method.NameSpan, method.Static, method.Visibility)
 		}
 	}
 	for _, application := range program.Decorators {
@@ -242,22 +253,6 @@ func (c *Checker) decoratorOverrideChain(class *ast.ClassDecl, method *ast.Metho
 		name = base.base
 	}
 	return identities
-}
-
-func (c *Checker) decoratorValueIdentity(ref *ast.TypeRef) string {
-	if ref == nil || ref.Qualifier != "" || ref.Name == "" || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.GoInterface || len(ref.GoResults) != 0 {
-		return ""
-	}
-	if c.classes[ref.Name] != nil {
-		return "type|" + ref.Name
-	}
-	if c.interfaces[ref.Name] != nil {
-		return "interface|" + ref.Name
-	}
-	if c.structs[ref.Name] != nil {
-		return "struct|" + ref.Name
-	}
-	return ""
 }
 
 func decoratorCallbackContext(value Type) (string, bool) {
