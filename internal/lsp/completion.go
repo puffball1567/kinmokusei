@@ -52,20 +52,6 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: items})
 }
 
-func memberCompletionAnalysisText(value string, offset int, prefix string) string {
-	start := offset - len(prefix) - 1
-	if start < 0 || offset > len(value) || value[start] != '.' {
-		return value
-	}
-	result := []byte(value)
-	for index := start; index < offset; index++ {
-		if result[index] != '\r' && result[index] != '\n' {
-			result[index] = ' '
-		}
-	}
-	return string(result)
-}
-
 func goCompletionType(ref ast.TypeRef) bool {
 	_, _, ok := goCompletionTypeInfo(ref)
 	return ok

@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Restore member completion while editing inside an existing selector, including
+  imported generic classes and Go values. Recover unfinished calls, indexes and
+  bodies at EOF without modifying the document, changing source offsets or
+  exposing private/instance members through an invalid access path.
+
 - Support local aliases in source and named Go imports (`import { A as B }`
   and `import go { Sprint as render }`). Preserve original type/storage identity,
   generic calls, source re-exports and unsafe permissions. Add editor completion,
