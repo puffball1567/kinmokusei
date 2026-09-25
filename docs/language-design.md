@@ -166,6 +166,13 @@ always qualifies imported exports; it does not copy imported variables or
 introduce runtime wrappers. Names must match exported Go declarations exactly.
 Named lists support trailing commas and the ordinary optional-semicolon rules.
 
+Named source and Go imports also support file-local aliases:
+`import { User as Account } from "./users"` and
+`import go { Sprint as render } from "fmt"`. Only the local spelling is bound;
+the selected export retains its original type and storage identity. See
+[import syntax](packages-and-interop.md#import-syntax) for collision, re-export
+and editor rename rules.
+
 
 Complex numbers use `complex64` (two float32 components) or `complex128` (two
 float64 components). Construct them with `complex(realPart, imaginaryPart)` and

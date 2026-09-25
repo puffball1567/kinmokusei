@@ -52,20 +52,6 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: items})
 }
 
-func memberCompletionAnalysisText(value string, offset int, prefix string) string {
-	start := offset - len(prefix) - 1
-	if start < 0 || offset > len(value) || value[start] != '.' {
-		return value
-	}
-	result := []byte(value)
-	for index := start; index < offset; index++ {
-		if result[index] != '\r' && result[index] != '\n' {
-			result[index] = ' '
-		}
-	}
-	return string(result)
-}
-
 func goCompletionType(ref ast.TypeRef) bool {
 	_, _, ok := goCompletionTypeInfo(ref)
 	return ok
@@ -200,14 +186,16 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			if len(imported.Names) == 0 {
 				add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
 			} else {
-				for _, name := range imported.Names {
+				for index := range imported.Names {
+					name := imported.BindingName(index)
 					add(completionItem{Label: name, Kind: 9, Detail: "Go export from " + imported.Path, SortText: "1_" + name})
 				}
 			}
 			continue
 		}
-		for _, name := range imported.Names {
-			if !sourceImportVisible(program, imported.ResolvedPath, name) {
+		for index, selected := range imported.Names {
+			name := imported.BindingName(index)
+			if !sourceImportVisible(program, imported.ResolvedPath, selected) {
 				continue
 			}
 			add(completionItem{Label: name, Kind: 9, Detail: "imported from " + imported.Path, SortText: "1_" + name})

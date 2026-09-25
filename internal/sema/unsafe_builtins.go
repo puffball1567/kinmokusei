@@ -11,7 +11,7 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	member, ok := expr.Callee.(*ast.MemberExpr)
 	if identifier, named := expr.Callee.(*ast.IdentifierExpr); named {
 		if imported, exists := c.lookupNamedGoImport(identifier.Name, identifier.Span); exists && imported.pack.path == "unsafe" {
-			member = &ast.MemberExpr{Object: &ast.IdentifierExpr{Name: resolvedGoPackageAlias(imported.pack), Span: identifier.Span}, Name: identifier.Name, Span: identifier.Span}
+			member = &ast.MemberExpr{Object: &ast.IdentifierExpr{Name: resolvedGoPackageAlias(imported.pack), Span: identifier.Span}, Name: imported.name, Span: identifier.Span}
 			identifier.GoMember = member
 			identifier.ResolvedDeclaration = imported.span
 			ok = true

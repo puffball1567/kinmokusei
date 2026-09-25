@@ -205,6 +205,9 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 		return declarationInfo{}, false
 	}
 	if occurrence, ok := occurrenceAt(s.symbolOccurrences(program), doc.Path, offset); ok {
+		if alias, found := s.importAliasInfo(program, occurrence.Declaration); found {
+			return alias, true
+		}
 		if alias, found := s.exportAliasInfo(program, occurrence.Declaration); found {
 			return alias, true
 		}

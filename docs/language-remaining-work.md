@@ -51,7 +51,12 @@ these checked calls, preserving independent visibility and virtual dispatch;
 generic-independent static accessors are supported as well. Multiple-result
 methods return an ordered array of individually checked boxed values through
 the same invocation adapters, preserving error slots separately from Result
-propagation and leaving ordinary typed calls unchanged.
+propagation and leaving ordinary typed calls unchanged. Override adapters
+preserve dispatch through further-derived implementations, including accessors;
+uninitialized virtual receivers supplied by Go interop are rejected. Field and
+parameter nominal identities resolve transparent aliases and distinguish
+concrete generic arguments, including nested nullable contracts; open generic
+consumers do not claim concrete DI keys.
 Concrete generic instantiations
 remain; context type/field completion and hover are implemented.
 
@@ -266,6 +271,10 @@ relative to v0.3.0:
   Rename follows each explicit alias boundary independently of runtime identity.
   Pipeline, handwritten-Go differential, and editor tests in
   `export_aliases_test.go` and `export_aliases_runtime_test.go` cover the addition.
+  Local named-import aliases (`import { A as B }`, including `import go`)
+  preserve original type/storage identity and support generic values and source
+  re-exports. Compiler differential and editor tests in `import_aliases_test.go`
+  cover alias boundaries, collisions, shadowing and unsafe permissions.
   Any source export
   opts that file into explicit visibility; `export {}` exposes none. Files
   without source exports retain legacy selective imports. Source visibility

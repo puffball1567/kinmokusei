@@ -24,17 +24,19 @@ type Program struct {
 }
 
 type ImportDecl struct {
-	Names         []string
-	NameSpans     []source.Span
-	Go            bool
-	Alias         string
-	AliasSpan     source.Span
-	ResolvedAlias string
-	Used          bool
-	Path          string
-	ResolvedPath  string
-	PathSpan      source.Span
-	Span          source.Span
+	Names          []string
+	NameSpans      []source.Span
+	NameAliases    []string
+	NameAliasSpans []source.Span
+	Go             bool
+	Alias          string
+	AliasSpan      source.Span
+	ResolvedAlias  string
+	Used           bool
+	Path           string
+	ResolvedPath   string
+	PathSpan       source.Span
+	Span           source.Span
 }
 
 func (d ImportDecl) GetSpan() source.Span { return d.Span }

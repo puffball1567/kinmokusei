@@ -141,6 +141,7 @@ type DecoratorTarget struct {
 	StaticInvocable               bool
 	StaticInvokeUnavailableReason string
 	RuntimeMethodName             string
+	MethodVirtualOwner            string
 	MethodParameters              []TypeRef
 	MethodContracts               []string
 	MethodVariadic                bool

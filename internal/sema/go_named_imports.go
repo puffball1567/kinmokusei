@@ -12,6 +12,18 @@ import (
 type goNamedImport struct {
 	pack *goPackageSymbol
 	span source.Span
+	name string
+}
+
+// IsReservedImportAlias identifies names whose compiler-defined meaning cannot
+// be shadowed by a source or Go import. Ordinary built-in functions remain
+// shadowable, just like local function declarations.
+func IsReservedImportAlias(name string) bool {
+	switch name {
+	case "Map", "GoChannel", "GoSendChannel", "GoReceiveChannel", "comparable":
+		return true
+	}
+	return isBuiltinTypeName(name) || isBuiltinValueName(name)
 }
 
 func (c *Checker) declareNamedGoImports(imported *goPackageSymbol, program *ast.Program) {
@@ -21,10 +33,11 @@ func (c *Checker) declareNamedGoImports(imported *goPackageSymbol, program *ast.
 		bindings = map[string]goNamedImport{}
 		c.goNamedImports[declaration.Span.Path] = bindings
 	}
-	for i, name := range declaration.Names {
-		span := declaration.Span
-		if i < len(declaration.NameSpans) {
-			span = declaration.NameSpans[i]
+	for i, selected := range declaration.Names {
+		name, span := declaration.BindingName(i), declaration.BindingSpan(i)
+		if declaration.HasNameAlias(i) && IsReservedImportAlias(name) {
+			c.report(span, fmt.Sprintf("import alias %q conflicts with a compiler built-in", name))
+			continue
 		}
 		if _, duplicate := bindings[name]; duplicate {
 			c.report(span, fmt.Sprintf("duplicate import binding %q", name))
@@ -38,19 +51,19 @@ func (c *Checker) declareNamedGoImports(imported *goPackageSymbol, program *ast.
 				c.report(span, fmt.Sprintf("imported name %q conflicts with a Go package alias", name))
 			}
 			if !other.Go {
-				for _, otherName := range other.Names {
-					if otherName == name {
+				for index := range other.Names {
+					if other.BindingName(index) == name {
 						c.report(span, fmt.Sprintf("duplicate import binding %q", name))
 					}
 				}
 			}
 		}
-		object := imported.packageInfo.Scope().Lookup(name)
+		object := imported.packageInfo.Scope().Lookup(selected)
 		if object == nil || !object.Exported() {
-			c.report(span, fmt.Sprintf("Go package %q has no exported member %q", imported.path, name))
+			c.report(span, fmt.Sprintf("Go package %q has no exported member %q", imported.path, selected))
 			continue
 		}
-		bindings[name] = goNamedImport{pack: imported, span: span}
+		bindings[name] = goNamedImport{pack: imported, span: span, name: selected}
 	}
 }
 
@@ -71,7 +84,7 @@ func (c *Checker) checkNamedGoIdentifier(identifier *ast.IdentifierExpr, importe
 	}
 	member := &ast.MemberExpr{
 		Object: &ast.IdentifierExpr{Name: alias, Span: identifier.Span},
-		Name:   identifier.Name, Span: identifier.Span,
+		Name:   imported.name, Span: identifier.Span,
 	}
 	result := c.checkGoMember(member, imported.pack)
 	identifier.GoMember = member
@@ -87,7 +100,7 @@ func (c *Checker) namedGoConstant(identifier *ast.IdentifierExpr) *gotypes.Const
 	if !ok {
 		return nil
 	}
-	value, _ := imported.pack.packageInfo.Scope().Lookup(identifier.Name).(*gotypes.Const)
+	value, _ := imported.pack.packageInfo.Scope().Lookup(imported.name).(*gotypes.Const)
 	return value
 }
 

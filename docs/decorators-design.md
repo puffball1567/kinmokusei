@@ -167,6 +167,18 @@ Kinmokusei class, interface and struct values, `valueIdentity` supplies a stable
 opaque type key; it is empty for structural and primitive values. DI containers
 must match this key rather than parsing `valueType` or comparing display names.
 
+Field and parameter keys come from their checked types. Transparent aliases
+and re-exports retain the same key as the original nominal type. Concrete
+generic instances have distinct keys: `Box<int>` and `Box<string>` do not share
+a provider key, and aliases of `Box<int>` retain its key. The same rule applies
+to generic interfaces and structs, including nested source nullability in
+their type arguments. An outer nullable consumer such as `Service | null`
+uses the `Service` provider key; this does not change the exact nullable
+contract checked by invocation adapters. Collection/callable types and open
+generic consumers such as `Box<T>` expose an empty key, not a misleading
+concrete provider identity. A generic class declaration's own context still
+identifies the declaration, rather than an unspecified concrete instance.
+
 An external package can define decorators without compiler knowledge of its API:
 
 ```ts
@@ -211,6 +223,15 @@ checks each argument, and calls the generated Go method. A method returning
 individually. Virtual methods retain their existing dispatch behavior. A
 receiver boxed as a derived type must be explicitly upcast before use with a
 base class method adapter.
+
+An override adapter also dispatches to the receiver's current implementation;
+it does not act as a `super` call to the decorated method body. For example,
+an adapter registered on `Middle extends Base` still invokes the override in
+`Leaf extends Middle` when passed `decoratorValue<Middle>(new Leaf())`.
+This applies equally to getters, setters and methods, without replaying the
+ancestor's decorator on the derived declaration. Virtual receivers created
+through Go interop without running a generated constructor are rejected through
+`Result` when their dispatch state is uninitialized.
 
 For a method returning a result list such as `(int, string)`, the adapter calls
 the method once and returns a boxed `DecoratorValue[]` in declaration order.

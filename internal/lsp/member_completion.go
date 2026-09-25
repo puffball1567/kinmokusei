@@ -927,10 +927,11 @@ func sourceVisibleNamedType(program *ast.Program, path, name string) ast.Declara
 		if imported.Go || !samePath(imported.Span.Path, path) {
 			continue
 		}
-		for _, importedName := range imported.Names {
-			if importedName != name {
+		for index, importedName := range imported.Names {
+			if imported.BindingName(index) != name {
 				continue
 			}
+			name = importedName
 			explicit := false
 			for _, exported := range program.Exports {
 				if !samePath(exported.Span.Path, imported.ResolvedPath) {

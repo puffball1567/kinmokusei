@@ -9,6 +9,27 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Restore member completion while editing inside an existing selector, including
+  imported generic classes and Go values. Recover unfinished calls, indexes and
+  bodies at EOF without modifying the document, changing source offsets or
+  exposing private/instance members through an invalid access path.
+
+- Support local aliases in source and named Go imports (`import { A as B }`
+  and `import go { Sprint as render }`). Preserve original type/storage identity,
+  generic calls, source re-exports and unsafe permissions. Add editor completion,
+  navigation, signature help and alias-local rename with collision checks.
+
+- Fix decorator field/parameter type identities losing transparent aliases and
+  conflating different generic instances. Use checked nominal types across
+  class, interface and struct aliases/re-exports; preserve nullable contracts
+  in generic arguments and leave unresolved generic consumer keys empty.
+
+- Fix decorated overrides bypassing further-derived implementations. Method,
+  getter and setter adapters now use the ordinary virtual dispatch slot across
+  multiple inheritance levels, preserving Result failures and multiple returns.
+  Reject uninitialized virtual receivers supplied through Go interop before
+  calling a method body.
+
 - Support checked decorator invocation of public getters and setters, including
   static properties, virtual overrides, and generic-independent static
   accessors. Preserve independent visibility, exact property types, receiver

@@ -452,6 +452,13 @@ Local VSIX packaging includes production dependencies, excludes development-only
 
 The LSP must never acquire dependencies, update manifests, or mutate external state implicitly.
 
+Member completion uses a request-local analysis overlay when a selector is being
+edited. Blank the full member token, including the suffix after the cursor, while
+preserving source byte offsets and line endings. At EOF, matching call/index/body
+delimiters may be appended to retain the receiver's scope; mismatched delimiters
+and lexical errors are not guessed away. Completion still uses ordinary checked
+receiver types and visibility rules, and never edits the original document.
+
 ## Diagnostics
 
 Diagnostics should identify the failed rule, expected type/value, actual type/value, and original source span. Important categories include:

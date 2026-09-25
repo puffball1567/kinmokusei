@@ -358,7 +358,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		}
 		result = append(result, symbolOccurrence{Name: s.sourceTextWithOverlay(span, textByPath), Span: span, Declaration: declaration})
 	}
-	aliases := s.importedExportAliases(program)
+	aliases := s.importedExportAliases(program, textByPath)
 	add := func(span, declaration source.Span) {
 		if span.Path == "" || declaration.Path == "" {
 			return
@@ -377,6 +377,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			for _, span := range imported.NameSpans {
 				declare(span)
 			}
+			for _, span := range imported.NameAliasSpans {
+				declare(span)
+			}
 			continue
 		}
 		for index, nameSpan := range imported.NameSpans {
@@ -385,6 +388,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			}
 			if target, ok := s.publicDeclarationSpan(program, imported.ResolvedPath, imported.Names[index], textByPath); ok {
 				addResolved(nameSpan, target)
+			}
+			if imported.HasNameAlias(index) {
+				declare(imported.BindingSpan(index))
 			}
 		}
 	}
