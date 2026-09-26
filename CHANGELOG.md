@@ -9,6 +9,27 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Support `unsafe.Offsetof` on source struct and structural-object fields,
+  including pointers, aliases, distinct types, private Go storage names and
+  concrete generic instances. Preserve target layout and variable-size generic
+  results without evaluating operands or changing native nullable-flow rules.
+  Fix stale struct-alias storage metadata rejecting valid distinct conversions.
+
+- Preserve compile-time `uintptr` values from permitted `unsafe.Sizeof`,
+  `Alignof` and `Offsetof` calls using the selected Go target. Support constant
+  aliases, exported/class constants, bounds checks and duplicate switch cases;
+  variable-size generic results remain runtime values. Keep Go's unevaluated
+  operands and nested `len`/`cap` constant-classification rules.
+
+- Preserve selected target sizes while checking global and class constant
+  initializers, including forward dependencies and unsigned complements.
+
+- Check machine-width integer constants against the selected Go target before
+  generation, including conversions, generic arguments, indices, array lengths,
+  collection sizes and unsafe offsets. Preserve target-dependent unsigned
+  complements and contextual runtime shifts. Use the same target sizes for
+  generated Go validation; a locked target takes precedence over ambient GOARCH.
+
 - Restore member completion while editing inside an existing selector, including
   imported generic classes and Go values. Recover unfinished calls, indexes and
   bodies at EOF without modifying the document, changing source offsets or

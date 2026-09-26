@@ -140,7 +140,7 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 		}
 		if info := numericArguments[index]; info.Value != nil {
 			if target, ok := goTypeOf(expected); ok {
-				if err := checkNumericConstantAssignment(info, target); err != nil {
+				if err := c.checkNumericConstantAssignment(info, target); err != nil {
 					c.report(expr.Arguments[index].GetSpan(), err.Error())
 				}
 			}
@@ -595,7 +595,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 	if multiple {
 		c.checkMultipleCallArguments(expr, callableName, converted, Type{Kind: MultiValue, Results: actualTypes})
 	}
-	c.checkGenericShiftArguments(expr, converted)
+	c.checkGenericNumericArguments(expr, converted)
 	return *converted.Result
 }
 
@@ -624,15 +624,13 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 	if multiple {
 		c.checkMultipleCallArguments(expr, callableName, converted, Type{Kind: MultiValue, Results: actualTypes})
 	}
-	c.checkGenericShiftArguments(expr, converted)
+	c.checkGenericNumericArguments(expr, converted)
 	return *converted.Result
 }
 
-func (c *Checker) checkGenericShiftArguments(expr *ast.CallExpr, callable Type) {
+func (c *Checker) checkGenericNumericArguments(expr *ast.CallExpr, callable Type) {
 	for index, argument := range expr.Arguments {
-		if c.hasDeferredShift(argument) {
-			c.checkNumericMaterialization(argument, genericArgumentParameter(callable, expr, index))
-		}
+		c.checkNumericMaterialization(argument, genericArgumentParameter(callable, expr, index))
 	}
 }
 

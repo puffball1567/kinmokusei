@@ -71,12 +71,10 @@ func (c *Checker) checkSequenceIndex(expr ast.Expression, actual Type, length in
 		return
 	}
 	if value, ok := c.integerContextValue(expr); ok {
-		// Sema does not yet receive target sizes. Reject values exceeding every
-		// supported int width; generated Go checks the selected architecture.
 		switch {
 		case value.Sign() < 0:
 			c.report(expr.GetSpan(), kind+" index cannot be negative")
-		case !value.IsInt64():
+		case !c.integerConstantFitsFixedType(value, builtins["int"]):
 			c.report(expr.GetSpan(), kind+" index is out of range for int")
 		case length >= 0 && value.Cmp(big.NewInt(length)) >= 0:
 			c.report(expr.GetSpan(), fmt.Sprintf("%s index %s is out of bounds for length %d", kind, value, length))

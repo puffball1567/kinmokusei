@@ -1,1 +1,1 @@
-untyped int constant 256
+integer constant 256 cannot be represented as byte

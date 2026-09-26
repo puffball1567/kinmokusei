@@ -40,7 +40,7 @@ func (c *Checker) checkShiftAssignment(expr ast.Expression, target gotypes.Type)
 	signature := gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(gotypes.NewVar(0, pkg, "", target)), nil, false)
 	pkg.Scope().Insert(gotypes.NewFunc(0, pkg, "accept", signature))
 	pkg.MarkComplete()
-	_, err := evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("accept"), Args: []goast.Expr{tree}})
+	_, err := c.evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("accept"), Args: []goast.Expr{tree}})
 	return err
 }
 

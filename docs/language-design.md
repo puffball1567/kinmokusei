@@ -119,7 +119,13 @@ Indices, slice bounds, and collection/channel sizes accept untyped constants
 with an integer value, including `2.0` and `2+0i`. Explicitly typed floating or
 complex constants and variables are not integer indices. Constant negative,
 oversized, or out-of-bounds indices and invalid size/bound ordering are rejected.
-Target-dependent `int` width remains subject to generated Go validation.
+Machine-width `int`, `uint` and `uintptr` constants are checked against the
+selected Go target at the Kinmokusei source location. The project lock selects
+the target when present; otherwise the compiler uses its host architecture.
+Generated Go validation uses the same target sizes. For example,
+`int(2147483648)` is rejected on 32-bit targets, while `uint32(^uint(0))` is valid
+only on 32-bit targets. Untyped constants retain precision until materialized,
+and runtime shifts acquire their type from the assignment or argument context.
 Since v0.4.0, references to numeric Go-emittable constants retain
 precision, explicit types, and representability checks through chains such as
 `const copy = original` and `const next = copy + 1`. This includes local and
@@ -590,8 +596,9 @@ function classify(status: Status): string {
 The underlying type defaults to `int` and must be an integer type. The first
 implicit member is zero; each later implicit member is one greater than the
 previous member, including after an explicit value. Explicit initializers must
-be compile-time integer constant expressions. Values outside a fixed-width
-underlying type are rejected at their source location. Empty enums, duplicate
+be compile-time integer constant expressions without enum-member references.
+Values outside the underlying type's range, including target-dependent `int`,
+are rejected at their source location. Empty enums, duplicate
 members, the blank member name `_`, and unknown members are also rejected.
 
 An enum is nominal: a runtime `int` is not implicitly assignable to `Status`.
@@ -878,8 +885,8 @@ alongside the identical `byte`/`uint8` spellings. They preserve Go's overflow
 behavior for dynamic operations. Negative
 unsigned constants and fixed-width out-of-range constants are rejected at the
 source; signed/unsigned and different-width values require an explicit
-conversion. Positive `uint` constant range remains target-dependent and is
-validated against the selected Go build target.
+conversion. Machine-width constant ranges and unsigned complements are checked
+against the selected Go build target before generation.
 
 - Typed bitwise operands must have identical types; defined type identity is preserved.
 - An untyped integer constant may combine with a typed operand only when representable.
@@ -933,10 +940,13 @@ let [nextValue, nextPresent] = lookup["next"];
   typed `int` constant values when the operand contains no runtime calls or
   channel receives. Such operands are not evaluated, including pointer
   dereferences, indexing, and slice-to-array conversions. No user function is
-  run at compile time. Checked constant calls and uncalled arrow bodies do not
-  force evaluation. Aliases preserve the resulting constant for bounds/size
-  checks; taking its address is rejected. Nullable wrappers and constant
-  intrinsics not yet recognized by semantic analysis remain further work.
+  run at compile time. Uncalled arrow bodies and nested constant `len`/`cap`
+  do not force evaluation. Go's call scan still sees calls/receives inside
+  unsafe layout arguments, including through constant conversions, so an outer
+  `len`/`cap` can remain nonconstant even though `Sizeof` itself is constant.
+  Aliases preserve the resulting constant for bounds/size checks; taking its
+  address is rejected. Nullable array pointers follow the same rules without
+  establishing a non-null proof.
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
 - `append`/`copy` accept type parameters with one common underlying slice type,

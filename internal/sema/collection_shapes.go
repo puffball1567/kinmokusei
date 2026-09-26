@@ -25,7 +25,7 @@ func (c *Checker) checkMapIndex(expr *ast.IndexExpr, key, actual Type) {
 	c.requireAssignable(key, actual, expr.Index.GetSpan())
 	if info, known := c.checkedNumericConstant(expr.Index, actual); known && key.IsNumeric() {
 		if target, ok := goTypeOf(key); ok {
-			if err := checkNumericConstantAssignment(info, target); err != nil {
+			if err := c.checkNumericConstantAssignment(info, target); err != nil {
 				c.report(expr.Index.GetSpan(), err.Error())
 			}
 		}

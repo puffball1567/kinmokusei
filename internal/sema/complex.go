@@ -122,7 +122,7 @@ func (c *Checker) scalarConstant(expr ast.Expression) (gotypes.TypeAndValue, boo
 		}
 	}
 	if tree := scalarLiteralTree(expr); tree != nil {
-		value, err := evalNumericGo(nil, tree)
+		value, err := c.evalNumericGo(nil, tree)
 		return value, err == nil && value.Value != nil
 	}
 	return gotypes.TypeAndValue{}, false
@@ -131,9 +131,18 @@ func (c *Checker) scalarConstant(expr ast.Expression) (gotypes.TypeAndValue, boo
 // Validate when an untyped numeric expression is materialized into storage or
 // an expected parameter/result type, without prematurely rounding its children.
 func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) bool {
-	if info, ok := c.constantValues[expr]; ok && info.Value != nil && target.IsNumeric() {
+	info, known := c.constantValues[expr]
+	if !known {
+		info, known = c.scalarConstant(expr)
+		if gt, ok := goTypeOf(target); known && ok {
+			known = gotypes.AssignableTo(info.Type, gt)
+		} else {
+			known = false
+		}
+	}
+	if known && info.Value != nil && (target.IsNumeric() || underlyingGoInterface(target.GoType) != nil) {
 		if gt, ok := goTypeOf(target); ok {
-			if err := checkNumericConstantAssignment(info, gt); err != nil {
+			if err := c.checkNumericConstantAssignment(info, gt); err != nil {
 				c.report(expr.GetSpan(), err.Error())
 				return false
 			}
@@ -170,12 +179,12 @@ func initializerEmitsConstant(expr ast.Expression) bool {
 	return false
 }
 
-func convertNumericConstant(info gotypes.TypeAndValue, target gotypes.Type) (gotypes.TypeAndValue, error) {
+func (c *Checker) convertNumericConstant(info gotypes.TypeAndValue, target gotypes.Type) (gotypes.TypeAndValue, error) {
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/constant", "constant")
 	pkg.Scope().Insert(gotypes.NewConst(0, pkg, "value", info.Type, info.Value))
 	pkg.Scope().Insert(gotypes.NewTypeName(0, pkg, "Target", target))
 	pkg.MarkComplete()
-	return evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("Target"), Args: []goast.Expr{goast.NewIdent("value")}})
+	return c.evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("Target"), Args: []goast.Expr{goast.NewIdent("value")}})
 }
 
 func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Expression, actual Type) (goast.Expr, bool) {
@@ -196,7 +205,7 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 				value = info.Value
 				if !symbol.declaration.Type.IsSpecified() {
 					gt = info.Type
-				} else if rounded, err := convertNumericConstant(info, gt); err == nil {
+				} else if rounded, err := c.convertNumericConstant(info, gt); err == nil {
 					value = rounded.Value
 				} else {
 					return nil, false
@@ -230,7 +239,7 @@ func (c *Checker) numericOperand(pkg *gotypes.Package, name string, expr ast.Exp
 
 func (c *Checker) finishNumeric(expr ast.Expression, pkg *gotypes.Package, node goast.Expr) Type {
 	pkg.MarkComplete()
-	info, err := evalNumericGo(pkg, node)
+	info, err := c.evalNumericGo(pkg, node)
 	if err != nil {
 		c.report(expr.GetSpan(), err.Error())
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -335,7 +344,7 @@ func (c *Checker) checkGoUnary(expr *ast.UnaryExpr, operand Type) Type {
 	return c.finishNumeric(expr, pkg, &goast.UnaryExpr{Op: numericOperator(expr.Operator), X: x})
 }
 
-func checkNumericConstantAssignment(info gotypes.TypeAndValue, target gotypes.Type) error {
+func (c *Checker) checkNumericConstantAssignment(info gotypes.TypeAndValue, target gotypes.Type) error {
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/numeric", "numeric")
 	pkg.Scope().Insert(gotypes.NewConst(0, pkg, "value", info.Type, info.Value))
 	if _, constrained := gotypes.Unalias(target).(*gotypes.TypeParam); constrained {
@@ -345,12 +354,12 @@ func checkNumericConstantAssignment(info gotypes.TypeAndValue, target gotypes.Ty
 		// conversion exercises the same representability rule as generated Go.
 		pkg.Scope().Insert(gotypes.NewTypeName(0, pkg, "Target", target))
 		pkg.MarkComplete()
-		_, err := evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("Target"), Args: []goast.Expr{goast.NewIdent("value")}})
+		_, err := c.evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("Target"), Args: []goast.Expr{goast.NewIdent("value")}})
 		return err
 	}
 	signature := gotypes.NewSignatureType(nil, nil, nil, gotypes.NewTuple(gotypes.NewVar(0, pkg, "", target)), nil, false)
 	pkg.Scope().Insert(gotypes.NewFunc(0, pkg, "accept", signature))
 	pkg.MarkComplete()
-	_, err := evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("accept"), Args: []goast.Expr{goast.NewIdent("value")}})
+	_, err := c.evalNumericGo(pkg, &goast.CallExpr{Fun: goast.NewIdent("accept"), Args: []goast.Expr{goast.NewIdent("value")}})
 	return err
 }

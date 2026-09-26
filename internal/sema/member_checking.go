@@ -141,6 +141,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		}
 		expr.ResolvedName = object.FieldNames[expr.Name]
 		expr.Addressable = c.isAddressableExpression(expr.Object)
+		c.recordLayoutFieldReceiver(expr, object)
 		return field
 	}
 	if object.Kind == Class {
@@ -218,6 +219,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.ResolvedName = field.goName
 			expr.ResolvedDeclaration = field.declarationSpan
 			expr.Addressable = structPointer || c.isAddressableExpression(expr.Object)
+			c.recordLayoutFieldReceiver(expr, object)
 			return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, structObject))
 		}
 		if method, ok := structure.methods[expr.Name]; ok {
@@ -256,6 +258,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 							expr.ResolvedName = field.goName
 							expr.ResolvedDeclaration = field.declarationSpan
 							expr.Addressable = nativePointer || c.isAddressableExpression(expr.Object)
+							c.recordLayoutFieldReceiver(expr, object)
 							return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, underlying))
 						}
 					}

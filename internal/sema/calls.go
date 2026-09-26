@@ -117,7 +117,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				c.report(expr.Span, fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 			} else if target.IsNumeric() {
 				integer, known := c.resolvedIntegerConstantValue(expr.Arguments[0])
-				if known && !integerConstantFitsFixedType(integer, target) {
+				if known && !c.integerConstantFitsFixedType(integer, target) {
 					c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", integer.String(), target.String()))
 				}
 			}
@@ -260,7 +260,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			if checkedArgument != nil {
 				actual = *checkedArgument
 				if actual.Kind == UntypedInt && expected.IsInteger() {
-					if value, known := c.resolvedIntegerConstantValue(arg); known && !integerConstantFitsFixedType(value, expected) {
+					if value, known := c.resolvedIntegerConstantValue(arg); known && !c.integerConstantFitsFixedType(value, expected) {
 						c.report(arg.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
 					}
 				}

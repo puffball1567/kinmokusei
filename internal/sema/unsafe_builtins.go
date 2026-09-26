@@ -48,6 +48,7 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	member.ResolvedName = member.Name
 	imported.declaration.Used = true
 	qualifiedName := identifier.Name + "." + member.Name
+	diagnosticStart := len(c.diagnostics)
 	wantArguments := 1
 	if member.Name == "Add" || member.Name == "Slice" || member.Name == "String" {
 		wantArguments = 2
@@ -71,20 +72,26 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	switch member.Name {
 	case "Sizeof", "Alignof":
 		value, exists := argument(0)
-		if exists && value.Kind == Nil {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a typed value, got nil", qualifiedName))
+		if exists && (value.Kind == Nil || value.Kind == Null) {
+			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a typed value, got %s", qualifiedName, value.String()))
 		} else if exists && value.Kind == Void {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a value, got void", qualifiedName))
+		}
+		if exists && len(c.diagnostics) == diagnosticStart && c.checkNumericMaterialization(expr.Arguments[0], defaultLiteralType(value)) {
+			c.checkUnsafeLayoutConstant(expr, member.Name, value)
 		}
 		return uintptrType, true
 	case "Offsetof":
 		_, exists := argument(0)
 		if exists {
 			field, fieldOK := expr.Arguments[0].(*ast.MemberExpr)
-			if !fieldOK || !field.GoField {
-				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a Go struct field selector", qualifiedName))
+			if !fieldOK || !field.GoField && c.goFieldReceivers[field] == nil {
+				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s requires a struct field selector", qualifiedName))
 			} else if field.GoFieldViaPointer {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s field cannot be embedded through a pointer", qualifiedName))
+			}
+			if len(c.diagnostics) == diagnosticStart {
+				c.checkUnsafeLayoutConstant(expr, member.Name, arguments[0])
 			}
 		}
 		return uintptrType, true
@@ -180,10 +187,10 @@ func (c *Checker) checkUnsafeIntegerArgument(name, role string, expression ast.E
 	if nonnegative {
 		if constant, known := c.integerContextValue(expression); known && constant.Sign() < 0 {
 			c.report(expression.GetSpan(), fmt.Sprintf("%s %s cannot be negative", name, role))
-		} else if known && !constant.IsInt64() {
+		} else if known && !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 			c.report(expression.GetSpan(), fmt.Sprintf("%s %s is out of range", name, role))
 		}
-	} else if constant, known := c.integerContextValue(expression); known && !constant.IsInt64() {
+	} else if constant, known := c.integerContextValue(expression); known && !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 		c.report(expression.GetSpan(), fmt.Sprintf("%s %s is out of range", name, role))
 	}
 }
