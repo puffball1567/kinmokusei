@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Prevent source import/re-export aliases from being captured by unrelated
+  local variables or type parameters after linking. Choose dependency and Go
+  package names against lexical bindings, preserving source shadowing, shared
+  mutable storage and editor identities. Diagnose remaining captures involving
+  explicitly supplied root modules instead of silently selecting another value.
+
 - Accept sole multiple-result arguments to permitted `unsafe.Add`, `Slice`
   and `String` calls. Check each result's pointer/integer contract, retain
   generic and nullable element types, and evaluate the producer exactly once.

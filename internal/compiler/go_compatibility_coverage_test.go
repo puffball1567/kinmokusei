@@ -181,6 +181,8 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"named-go-imports.test":               {implementedGoCompatibilityContracts[22], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[25], implementedGoCompatibilityContracts[28]},
 	"import-aliases.test":                 {implementedGoCompatibilityContracts[22], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[25], implementedGoCompatibilityContracts[28]},
 	"import-unsafe-alias.test":            {implementedGoCompatibilityContracts[39]},
+	"import-hygiene.test":                 {implementedGoCompatibilityContracts[4]},
+	"go-import-hygiene.test":              {implementedGoCompatibilityContracts[32]},
 	"target-constants.test":               {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[12]},
 	"behavior.test":                       {implementedGoCompatibilityContracts[0]},
 	"generated.test":                      {implementedGoCompatibilityContracts[1]},

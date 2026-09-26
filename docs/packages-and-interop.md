@@ -124,6 +124,15 @@ channel helpers or compiler-internal names. A local variable or parameter may
 shadow an imported value. Go imports retain the same visibility and `unsafe`
 permission checks regardless of spelling.
 
+Dependency implementation names and canonical Go package aliases avoid local
+variables, parameters and type parameters. For example, importing `read as load`
+does not let an unrelated local `read` replace the target of `load()`. Explicitly
+shadowing `load` itself still selects the local binding. This also applies through
+re-exports and does not copy imported mutable storage. When multiple root files
+are supplied explicitly, their Go names are preserved; an alias that would be
+captured by a root-name collision is diagnosed and requires renaming the local
+binding.
+
 Editor rename stops at explicit `as` boundaries: renaming a local alias updates
 its uses, not the imported declaration. Renaming the selected source export
 updates its import selectors without changing local aliases. This is separate
