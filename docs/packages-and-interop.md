@@ -133,6 +133,13 @@ are supplied explicitly, their Go names are preserved; an alias that would be
 captured by a root-name collision is diagnosed and requires renaming the local
 binding.
 
+Collision checks also use the emitted Go spelling: for example, source `copy`
+is escaped to `copy_`. A dependency imported as another name is isolated from
+an unrelated local `copy_`. If escaping would instead redirect a root or outer
+local reference, compilation reports the source reference and asks for a local
+rename; it does not silently call or update the shadowing binding. Builtin
+operations such as `len` and `copy` keep their ordinary Go names.
+
 Editor rename stops at explicit `as` boundaries: renaming a local alias updates
 its uses, not the imported declaration. Renaming the selected source export
 updates its import selectors without changing local aliases. This is separate

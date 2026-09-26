@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,19 +10,26 @@ import (
 
 func TestImportAliasCaptureEditor(t *testing.T) {
 	t.Parallel()
+	for _, names := range [][2]string{{"pair", "pair"}, {"copy", "copy_"}, {"func", "func_"}} {
+		t.Run(names[0], func(t *testing.T) { checkImportAliasCaptureEditor(t, names[0], names[1]) })
+	}
+}
+
+func checkImportAliasCaptureEditor(t *testing.T, original, local string) {
+	t.Helper()
 	root := t.TempDir()
 	entry := filepath.Join(root, "entry.km")
-	if err := os.WriteFile(filepath.Join(root, "lib.km"), []byte(`export function pair(value:int):int{return value+1;}export class Box<T>{constructor(public value:T){}}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "lib.km"), []byte(fmt.Sprintf(`export function %s(value:int):int{return value+1;}export class Box<T>{constructor(public value:T){}}`, original)), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	input := "import {pair as load,Box as Crate} from \"./lib\";\nfunction f(pair:string):int{\nconst answer=load(42);\n\nreturn answer;\n}\nfunction typed<Box>(value:Box):void{const item=new Crate<Box>(value);_=item.value;}\n"
+	input := fmt.Sprintf("import {%s as load,Box as Crate} from \"./lib\";\nfunction f(%s:string):int{\nconst answer=load(42);\n\nreturn answer;\n}\nfunction typed<Box>(value:Box):void{const item=new Crate<Box>(value);_=item.value;}\n", original, local)
 	items := completionLabels(completionItemsAt(t, entry, input, 3, 0))
-	for _, name := range []string{"pair", "load", "answer"} {
+	for _, name := range []string{local, "load", "answer"} {
 		if items[name] == nil {
 			t.Fatalf("missing source name %s: %v", name, items)
 		}
 	}
-	if !strings.Contains(items["pair"]["detail"].(string), "string") || !strings.Contains(items["answer"]["detail"].(string), "int") {
+	if !strings.Contains(items[local]["detail"].(string), "string") || !strings.Contains(items["answer"]["detail"].(string), "int") {
 		t.Fatalf("wrong lexical types: %v", items)
 	}
 	for name := range items {
@@ -40,7 +48,7 @@ func TestImportAliasCaptureEditor(t *testing.T) {
 	memberAt.Character += len("item.")
 	messages := serveMessages(t, openDocument(uri, input),
 		requestAt("textDocument/definition", 2, uri, positionOf(input, "load(42)", 0), ""),
-		requestAt("textDocument/rename", 3, uri, positionOf(input, "pair:string", 0), `"newName":"local"`),
+		requestAt("textDocument/rename", 3, uri, positionOf(input, local+":string", 0), `"newName":"local"`),
 		requestAt("textDocument/rename", 4, uri, positionOf(input, "load(42)", 0), `"newName":"read"`),
 		requestAt("textDocument/completion", 5, uri, memberAt, ""))
 	definition, ok := messages[2]["result"].(map[string]any)

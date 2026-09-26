@@ -10,6 +10,7 @@ import (
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/diagnostic"
+	"github.com/puffball1567/kinmokusei/internal/goname"
 	"github.com/puffball1567/kinmokusei/internal/sema"
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
@@ -31,13 +32,17 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 		paths = append(paths, path)
 		for _, declaration := range program.Declarations {
 			if name := topLevelName(declaration); name != "" {
-				nameCounts[name]++
+				nameCounts[goname.Identifier(name)]++
 			}
 		}
 	}
 	sort.Strings(paths)
 	lexicalNames := lexicalLinkNames(l.programs)
-	reserved := cloneNames(lexicalNames)
+	emittedLexical := map[string]bool{}
+	for name := range lexicalNames {
+		emittedLexical[goname.Identifier(name)] = true
+	}
+	reserved := cloneNames(emittedLexical)
 	for name := range nameCounts {
 		reserved[name] = true
 	}
@@ -56,14 +61,15 @@ func (l *moduleLoader) linkModules(rootPaths []string) map[string]map[string]boo
 			// when no entry declaration happens to collide with it. External
 			// documents checked in a consumer's graph remain dependency modules.
 			dependencyMain := name == "main" && (!roots[path] || l.packages != nil && l.packages.SourceIdentity(path) != "")
-			if dependencyMain || (nameCounts[name] > 1 || lexicalNames[name]) && !roots[path] {
+			emitted := goname.Identifier(name)
+			if dependencyMain || (nameCounts[emitted] > 1 || emittedLexical[emitted]) && !roots[path] {
 				linked = l.linkedModuleName(path, name)
 				base := linked
-				for suffix := 2; reserved[linked]; suffix++ {
+				for suffix := 2; reserved[goname.Identifier(linked)]; suffix++ {
 					linked = fmt.Sprintf("%s_%d", base, suffix)
 				}
 			}
-			reserved[linked] = true
+			reserved[goname.Identifier(linked)] = true
 			bindings[path][name] = linked
 			_, span := ast.DeclarationBinding(declaration)
 			declarationNames[span] = linked
@@ -187,11 +193,11 @@ func (l *moduleLoader) linkGoAliases(paths []string, declarationBindings map[str
 		"int64": "<Go built-in>", "float32": "<Go built-in>", "float64": "<Go built-in>", "byte": "<Go built-in>",
 	}
 	for name := range lexicalNames {
-		usedAliases[name] = "<lexical binding>"
+		usedAliases[goname.Identifier(name)] = "<lexical binding>"
 	}
 	for _, moduleBindings := range declarationBindings {
 		for _, linked := range moduleBindings {
-			usedAliases[linked] = "<language declaration>"
+			usedAliases[goname.Identifier(linked)] = "<language declaration>"
 		}
 	}
 	for _, path := range paths {
@@ -229,15 +235,15 @@ func (l *moduleLoader) linkGoAliases(paths []string, declarationBindings map[str
 				if namedPaths[imported.Path] {
 					linked = ast.GoImportAlias(imported.Path)
 				}
-				if previousPath, used := usedAliases[linked]; used && previousPath != imported.Path {
+				if previousPath, used := usedAliases[goname.Identifier(linked)]; used && previousPath != imported.Path {
 					linked = linkedGoAlias(imported.Path, imported.Alias)
 					base := linked
-					for suffix := 2; usedAliases[linked] != ""; suffix++ {
+					for suffix := 2; usedAliases[goname.Identifier(linked)] != ""; suffix++ {
 						linked = fmt.Sprintf("%s_%d", base, suffix)
 					}
 				}
 				canonical[imported.Path] = linked
-				usedAliases[linked] = imported.Path
+				usedAliases[goname.Identifier(linked)] = imported.Path
 			}
 			if !named {
 				bindings[path][imported.Alias] = linked
