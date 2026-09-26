@@ -124,6 +124,22 @@ channel helpers or compiler-internal names. A local variable or parameter may
 shadow an imported value. Go imports retain the same visibility and `unsafe`
 permission checks regardless of spelling.
 
+Dependency implementation names and canonical Go package aliases avoid local
+variables, parameters and type parameters. For example, importing `read as load`
+does not let an unrelated local `read` replace the target of `load()`. Explicitly
+shadowing `load` itself still selects the local binding. This also applies through
+re-exports and does not copy imported mutable storage. When multiple root files
+are supplied explicitly, their Go names are preserved; an alias that would be
+captured by a root-name collision is diagnosed and requires renaming the local
+binding.
+
+Collision checks also use the emitted Go spelling: for example, source `copy`
+is escaped to `copy_`. A dependency imported as another name is isolated from
+an unrelated local `copy_`. If escaping would instead redirect a root or outer
+local reference, compilation reports the source reference and asks for a local
+rename; it does not silently call or update the shadowing binding. Builtin
+operations such as `len` and `copy` keep their ordinary Go names.
+
 Editor rename stops at explicit `as` boundaries: renaming a local alias updates
 its uses, not the imported declaration. Renaming the selected source export
 updates its import selectors without changing local aliases. This is separate
@@ -242,6 +258,14 @@ pointer-embedding paths. Named pointer/slice underlying types determine element
 types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic
 behavior remain exactly as unsafe Go; enabling the capability does not make
 them safe.
+
+`Add`, `Slice` and `String` also accept a single call returning both arguments,
+as in `Slice(pointerAndLength())`. Each result must satisfy the corresponding
+pointer or integer contract; a runtime floating-point length is not accepted.
+The producer runs exactly once, and generic/nullable slice element contracts
+are preserved. Named Go imports and aliases support the same form. Mixing a
+multiple-result call with other arguments, spreading it, or passing an
+unhandled `Result` is rejected. Unsafe permission is still required.
 
 `Sizeof`, `Alignof` and `Offsetof` retain typed `uintptr` constants when the
 operand's storage layout is fixed. Sizes, alignment and field offsets use the

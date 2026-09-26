@@ -9,7 +9,7 @@ import (
 
 // Keep the source argument intact for single-evaluation capture in codegen.
 // All expanded slots refer back to that producer for diagnostics.
-func (c *Checker) checkCollectionCallInputs(expr *ast.CallExpr, name string, count int) ([]Type, []source.Span) {
+func (c *Checker) checkBuiltinCallInputs(expr *ast.CallExpr, name string, count int) ([]Type, []source.Span) {
 	var checked *Type
 	if len(expr.Arguments) == 1 && !expr.Expanded {
 		if _, call := expr.Arguments[0].(*ast.CallExpr); call {

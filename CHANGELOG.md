@@ -9,6 +9,23 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check import/linker name collisions using the same Go identifier lowering
+  as code generation. Avoid captures such as an imported `copy` binding being
+  shadowed by an unrelated local `copy_`, including canonical package aliases.
+  Diagnose unresolvable root and nested-local captures at the source reference;
+  ordinary builtin calls and same-spelling local shadowing remain unchanged.
+
+- Prevent source import/re-export aliases from being captured by unrelated
+  local variables or type parameters after linking. Choose dependency and Go
+  package names against lexical bindings, preserving source shadowing, shared
+  mutable storage and editor identities. Diagnose remaining captures involving
+  explicitly supplied root modules instead of silently selecting another value.
+
+- Accept sole multiple-result arguments to permitted `unsafe.Add`, `Slice`
+  and `String` calls. Check each result's pointer/integer contract, retain
+  generic and nullable element types, and evaluate the producer exactly once.
+  Fix inferred `unsafe.Add` result types emitting an invalid qualified name.
+
 - Support `unsafe.Offsetof` on source struct and structural-object fields,
   including pointers, aliases, distinct types, private Go storage names and
   concrete generic instances. Preserve target layout and variable-size generic
