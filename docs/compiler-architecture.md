@@ -97,11 +97,12 @@ baseline for accepted constructs with a Go equivalent.
 - Resolve public/private names before mapping them to Go capitalization.
 - Manage Go keywords, predeclared identifiers, and generated-name collisions through deterministic mangling.
 
-The linker and emitter share identifier escaping in `internal/goname`.
-Dependency and package name allocation reserves emitted lexical spellings;
-lexical scope indexes retain both source bindings and their emitted names.
-This preserves source shadowing while detecting captures introduced by Go
-escaping, including nested-local and multiple-assignment references.
+  The linker and emitter share identifier escaping in `internal/goname`.
+  Dependency and package name allocation reserves emitted lexical spellings;
+  lexical scope indexes retain both source bindings and their emitted names.
+  This preserves source shadowing while detecting captures introduced by Go
+  escaping, including nested-local and multiple-assignment references.
+
 - Place relative imports and Go package aliases in the same file scope.
 - Do not expose transitive relative imports; every reference must resolve to a local declaration or explicit import.
 - Keep imported `main` declarations module-local regardless of name collisions.
