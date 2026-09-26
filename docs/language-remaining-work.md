@@ -65,6 +65,14 @@ element types, including native class elements. Assignment checks both Go
 storage compatibility and source nullable contracts for every constraint term;
 class inheritance does not make writable collections covariant.
 
+Explicit native and imported Go conversions now retain source nullable
+contracts through function signatures (including Result/multiple results),
+collections, struct fields, named types and generic constraint terms. Matching
+conversions still lower directly to Go, with linked-module runtime comparisons
+and editor diagnostics in `conversion_contracts_test.go`. This closes an
+explicit-conversion bypass; it is not a claim that every interop path has been
+audited.
+
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
 where applicable, and documentation. Refactoring can accompany the relevant

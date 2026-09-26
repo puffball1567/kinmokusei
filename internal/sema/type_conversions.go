@@ -87,7 +87,7 @@ func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {
 	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, converted, value)
 	}
-	if target.GoType == nil || !valueOK || !gotypes.ConvertibleTo(valueGo, target.GoType) {
+	if target.GoType == nil || !valueOK || !gotypes.ConvertibleTo(valueGo, target.GoType) || !c.conversionPreservesSourceContract(converted, value) {
 		c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 	}
 	return converted
@@ -117,7 +117,7 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 	if target.Kind == TypeParameter && value.Kind == Nil {
 		valueGo, valueOK = gotypes.Typ[gotypes.UntypedNil], true
 	}
-	convertible := targetOK && valueOK && value.Kind != Nullable && gotypes.ConvertibleTo(valueGo, targetGo)
+	convertible := targetOK && valueOK && gotypes.ConvertibleTo(valueGo, targetGo) && c.conversionPreservesSourceContract(target, value)
 	if !convertible {
 		c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 	} else if target.IsNumeric() {
