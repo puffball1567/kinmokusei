@@ -224,6 +224,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"example.com/unsafe-application":      {implementedGoCompatibilityContracts[38]},
 	"example.com/unsafe-builtins":         {implementedGoCompatibilityContracts[39]},
 	"unsafe-collections.test":             {implementedGoCompatibilityContracts[39]},
+	"unsafe-results.test":                 {implementedGoCompatibilityContracts[39]},
 	"unsafe-layout-constants.test":        {implementedGoCompatibilityContracts[39]},
 	"source-offset-constants.test":        {implementedGoCompatibilityContracts[39]},
 	"jsonapi.test":                        {implementedGoCompatibilityContracts[40]},

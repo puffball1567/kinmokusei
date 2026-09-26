@@ -243,6 +243,14 @@ types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic
 behavior remain exactly as unsafe Go; enabling the capability does not make
 them safe.
 
+`Add`, `Slice` and `String` also accept a single call returning both arguments,
+as in `Slice(pointerAndLength())`. Each result must satisfy the corresponding
+pointer or integer contract; a runtime floating-point length is not accepted.
+The producer runs exactly once, and generic/nullable slice element contracts
+are preserved. Named Go imports and aliases support the same form. Mixing a
+multiple-result call with other arguments, spreading it, or passing an
+unhandled `Result` is rejected. Unsafe permission is still required.
+
 `Sizeof`, `Alignof` and `Offsetof` retain typed `uintptr` constants when the
 operand's storage layout is fixed. Sizes, alignment and field offsets use the
 selected Go target, including 32-bit targets. Constant references, source

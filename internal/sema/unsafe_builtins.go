@@ -53,14 +53,22 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	if member.Name == "Add" || member.Name == "Slice" || member.Name == "String" {
 		wantArguments = 2
 	}
-	c.checkBuiltinCallShape(expr, qualifiedName, wantArguments, wantArguments, 0)
-	arguments := make([]Type, len(expr.Arguments))
-	for index, argument := range expr.Arguments {
-		arguments[index] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
+	arguments, spans := c.checkBuiltinCallInputs(expr, qualifiedName, wantArguments)
+	// Expanded results are runtime values, with their producer retained only
+	// as the diagnostic origin. Never index source arguments by result slot.
+	origin := func(index int) ast.Expression {
+		if expr.MultipleArgumentCount > 0 {
+			return expr.Arguments[0]
+		}
+		return expr.Arguments[index]
+	}
+	result := func(value Type) (Type, bool) {
+		c.recordBuiltinMultipleResult(expr, value)
+		return value, true
 	}
 
 	uintptrType := Type{Kind: GoBasic, Name: "uintptr", GoType: gotypes.Typ[gotypes.Uintptr]}
-	unsafePointer := Type{Kind: GoBasic, Name: "unsafe.Pointer", GoType: gotypes.Typ[gotypes.UnsafePointer], GoQualifier: resolvedGoPackageAlias(imported)}
+	unsafePointer := Type{Kind: GoBasic, Name: "Pointer", GoType: gotypes.Typ[gotypes.UnsafePointer], GoQualifier: resolvedGoPackageAlias(imported)}
 	invalid := Type{Kind: Invalid, Name: "<invalid>"}
 	argument := func(index int) (Type, bool) {
 		if index >= len(arguments) {
@@ -97,12 +105,12 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 		return uintptrType, true
 	case "Add":
 		if pointer, exists := argument(0); exists && pointer.Kind != Invalid && pointer.Kind != Nil && !isUnsafePointer(pointer) {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s pointer must be unsafe.Pointer, got %s", qualifiedName, pointer.String()))
+			c.report(spans[0], fmt.Sprintf("%s pointer must be unsafe.Pointer, got %s", qualifiedName, pointer.String()))
 		}
 		if length, exists := argument(1); exists {
-			c.checkUnsafeIntegerArgument(qualifiedName, "offset", expr.Arguments[1], length, false)
+			c.checkUnsafeIntegerArgument(qualifiedName, "offset", origin(1), length, false)
 		}
-		return unsafePointer, true
+		return result(unsafePointer)
 	case "Slice":
 		pointer, exists := argument(0)
 		if !exists || pointer.Kind == Invalid {
@@ -110,13 +118,13 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 		}
 		element, valid := c.unsafeSequenceElement(pointer, true)
 		if !valid {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s pointer must be a typed Go pointer, got %s", qualifiedName, pointer.String()))
+			c.report(spans[0], fmt.Sprintf("%s pointer must be a typed Go pointer, got %s", qualifiedName, pointer.String()))
 			return invalid, true
 		}
 		if length, exists := argument(1); exists {
-			c.checkUnsafeIntegerArgument(qualifiedName, "length", expr.Arguments[1], length, true)
+			c.checkUnsafeIntegerArgument(qualifiedName, "length", origin(1), length, true)
 		}
-		return Type{Kind: Array, Name: "array", Element: &element}, true
+		return result(Type{Kind: Array, Name: "array", Element: &element})
 	case "SliceData":
 		value, exists := argument(0)
 		if !exists || value.Kind == Invalid {
@@ -134,12 +142,12 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 		return Type{Kind: GoPointer, Name: "*" + element.String(), Element: &element, GoType: gotypes.NewPointer(elementGo), GoQualifier: element.GoQualifier}, true
 	case "String":
 		if pointer, exists := argument(0); exists && pointer.Kind != Invalid && pointer.Kind != Nil && !isGoBytePointer(pointer) {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s pointer must be *byte, got %s", qualifiedName, pointer.String()))
+			c.report(spans[0], fmt.Sprintf("%s pointer must be *byte, got %s", qualifiedName, pointer.String()))
 		}
 		if length, exists := argument(1); exists {
-			c.checkUnsafeIntegerArgument(qualifiedName, "length", expr.Arguments[1], length, true)
+			c.checkUnsafeIntegerArgument(qualifiedName, "length", origin(1), length, true)
 		}
-		return builtins["string"], true
+		return result(builtins["string"])
 	case "StringData":
 		if value, exists := argument(0); exists && value.Kind != Invalid && !isGoString(value) {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s argument must be a string, got %s", qualifiedName, value.String()))

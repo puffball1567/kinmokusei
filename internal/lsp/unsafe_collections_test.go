@@ -28,9 +28,18 @@ func TestUnsafeCollectionEditor(t *testing.T) {
 			t.Errorf("completion %s=%v want=%s", name, items[name], want)
 		}
 	}
+	multiple := "import go u from \"unsafe\";\nfunction pair(p:*byte):(*byte,int){return p,1;}\nfunction f(p:*byte):void{\nconst values=u.Slice(pair(p));\nconst text=u.String(pair(p));\n\n}\n"
+	items = completionLabels(completionItemsAt(t, path, multiple, 5, 0))
+	for name, want := range map[string]string{"values": "byte[]", "text": "string"} {
+		if items[name] == nil || !strings.Contains(items[name]["detail"].(string), name+": "+want) {
+			t.Errorf("completion %s=%v want=%s", name, items[name], want)
+		}
+	}
 	for _, test := range []struct{ source, want string }{
 		{input, ""},
 		{strings.ReplaceAll(input, "2.0", "-1.0"), "cannot be negative"},
+		{multiple, ""},
+		{strings.ReplaceAll(multiple, "(*byte,int)", "(*byte,float)"), "must be an integer"},
 	} {
 		var output bytes.Buffer
 		if err := Serve(strings.NewReader(framed(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`, openDocument(fileURI(path), test.source), `{"jsonrpc":"2.0","id":2,"method":"shutdown"}`, `{"jsonrpc":"2.0","method":"exit"}`)), &output); err != nil {

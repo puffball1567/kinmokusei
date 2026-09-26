@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Accept sole multiple-result arguments to permitted `unsafe.Add`, `Slice`
+  and `String` calls. Check each result's pointer/integer contract, retain
+  generic and nullable element types, and evaluate the producer exactly once.
+  Fix inferred `unsafe.Add` result types emitting an invalid qualified name.
+
 - Support `unsafe.Offsetof` on source struct and structural-object fields,
   including pointers, aliases, distinct types, private Go storage names and
   concrete generic instances. Preserve target layout and variable-size generic

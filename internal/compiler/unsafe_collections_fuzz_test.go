@@ -14,6 +14,13 @@ var unsafeCollectionSeeds = []string{
 	`import go u from "unsafe";class C{}alias M=C|null;function f(xs:M[]):void{const v=u.Slice(u.SliceData(xs),len(xs));}`,
 	`import go u from "unsafe";constraint P=~*int|~*string;function f<T extends P>(v:T):void{const x=u.Slice(v,1);}`,
 	`import go {SliceData} from "unsafe";function f(xs:int[]):*int{return SliceData(xs);}`,
+	`import go u from "unsafe";function pair(p:*int):(*int,int){return p,1;}function f(p:*int):int[]{return u.Slice(pair(p));}`,
+	`import go u from "unsafe";function pair(p:*byte):(*byte,int){return p,1;}function f(p:*byte):string{return u.String(pair(p));}`,
+	`import go u from "unsafe";function pair(p:u.Pointer):(u.Pointer,int){return p,1;}function f(p:u.Pointer):u.Pointer{return u.Add(pair(p));}`,
+	`import go u from "unsafe";function pair<T>(p:*T):(*T,int){return p,1;}function f<T>(p:*T):T[]{return u.Slice(pair(p));}`,
+	`import go u from "unsafe";function pair(p:*int):(*int,float){return p,1;}function f(p:*int):int[]{return u.Slice(pair(p));}`,
+	`import go u from "unsafe";function pair():(int,int,int){return 0,1,2;}function f():void{_=u.Slice(pair());}`,
+	`import go u from "unsafe";const advance=(p:u.Pointer)=>u.Add(p,1);`,
 }
 
 func TestUnsafeCollectionPipelineProperties(t *testing.T) {
@@ -21,13 +28,13 @@ func TestUnsafeCollectionPipelineProperties(t *testing.T) {
 	for _, seed := range unsafeCollectionSeeds {
 		_, reached, err := compilePipelinePropertyWithPolicy(seed, sema.GoInteropPolicy{AllowUnsafe: true})
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("input %s: %v", seed, err)
 		}
 		if reached {
 			generated++
 		}
 	}
-	if generated < 5 {
+	if generated < 10 {
 		t.Fatalf("only %d unsafe seeds reached codegen", generated)
 	}
 }

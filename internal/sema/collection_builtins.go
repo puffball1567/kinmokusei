@@ -135,7 +135,7 @@ func (c *Checker) checkCollectionAppend(expr *ast.CallExpr) Type {
 
 func (c *Checker) checkCollectionCopy(expr *ast.CallExpr) Type {
 	expr.Builtin = ast.CopyCall
-	values, spans := c.checkCollectionCallInputs(expr, "copy", 2)
+	values, spans := c.checkBuiltinCallInputs(expr, "copy", 2)
 	c.recordBuiltinMultipleResult(expr, builtins["int"])
 	if len(values) < 2 {
 		return builtins["int"]
@@ -163,7 +163,7 @@ func (c *Checker) checkCollectionCopy(expr *ast.CallExpr) Type {
 
 func (c *Checker) checkCollectionDelete(expr *ast.CallExpr) Type {
 	expr.Builtin = ast.DeleteCall
-	values, spans := c.checkCollectionCallInputs(expr, "delete", 2)
+	values, spans := c.checkBuiltinCallInputs(expr, "delete", 2)
 	c.recordBuiltinMultipleResult(expr, builtins["void"])
 	if len(values) < 2 {
 		return builtins["void"]
