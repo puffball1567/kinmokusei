@@ -163,6 +163,14 @@ select {
 
 Each communication's operands evaluate according to Go select rules. If multiple communications are ready, one is selected pseudo-randomly. `default` runs only when none is ready. Without default, select blocks; `select {}` blocks forever.
 
+All receive-channel expressions and send-channel/value expressions evaluate
+once, in source order, before any case body runs—even those for cases that are
+not selected. Their mutations and Task consumption therefore affect every case,
+including `default`. For example, `case output <- await task` consumes `task`
+even if the select chooses `default`; it must not be awaited again there.
+Receive assignment targets, such as `values[index()]`, evaluate only when their
+case is selected.
+
 Receive cases may discard, declare one value, declare checked `[value, open]`, or assign to existing targets. Case bodies have independent lexical scopes and never fall through.
 
 ## Labeled branches

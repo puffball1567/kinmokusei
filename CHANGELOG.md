@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check all `select` channel operands and send values in source order before
+  checking any case body, matching Go evaluation. Carry nullable mutations and
+  Task consumption into every case, including `default`, while keeping receive
+  assignment targets lazy. Reject repeated awaits across operands or bodies and
+  accept tasks consumed by send/receive operands even when another case wins.
+
 - Check three-clause `for` updates on both ordinary body completion and
   `continue`, including labeled continues from nested loops and switches.
   Reject nullable dereferences and repeated Task consumption on these paths,
