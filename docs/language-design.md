@@ -160,6 +160,34 @@ behavior. Integer-to-string conversion produces one Unicode code point as Go
 does; it is not decimal formatting. Fixed arrays do not convert directly to
 strings.
 
+Conversions must also preserve Kinmokusei's source contracts: Go storage
+compatibility does not permit dropping or adding nullable qualifiers inside
+function signatures, collections or struct fields. This check follows named
+types and generic constraint terms. Writable collection element contracts are
+invariant; a conversion must not create a view that can store `null` in a
+collection whose element type excludes it. Narrow a nullable value before
+converting it, including to an imported Go type.
+
+```ts
+alias Maybe = *int | null;
+type OptionalLoad = distinct () => Result<Maybe>;
+type RequiredLoad = distinct () => Result<*int>;
+function invalid(load: OptionalLoad): RequiredLoad {
+  return RequiredLoad(load); // error: cannot convert OptionalLoad to RequiredLoad
+}
+```
+
+Matching `Result<T>` and raw Go result-list function types may still be
+converted; their success-slot contracts must match. No runtime conversion
+wrapper or implicit null check is added.
+
+The same nested-contract checks apply to assignment, return and argument
+passing, including constructor arguments and generic class/interface upcasts.
+For example, `List<Maybe>` cannot be assigned to `List<*int>` even if both
+instantiate to the same Go storage type. Ordinary value-level widening from
+`T` to `T | null` and valid class-to-base/interface assignments remain supported;
+this does not make writable containers covariant.
+
 ### Go interop types
 
 Go exports may be imported by package alias (`import go time from "time"`) or

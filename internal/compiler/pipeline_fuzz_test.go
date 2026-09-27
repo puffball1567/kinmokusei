@@ -15,6 +15,15 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):S<*int>{return v;}`,
+	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):*int{return v[:][0];}`,
+	`type Link<T>=distinct *Link<T>;function f(v:Link<int>):Link<int>{return v;}`,
+	`type Nodes<T>=distinct Nodes<T>[];function f(v:Nodes<int>[]):Nodes<int>{return Nodes<int>(v);}`,
+	`struct Node<T>{public value:T;public next:*Node<T>;}function f(v:Node<int>):Node<int>{return v;}`,
+	`alias Maybe=*int|null;type A=distinct ()=>Result<*int>;type B=distinct ()=>Result<Maybe>;function f(v:B):A{return A(v);}`,
+	`alias Maybe=*int|null;constraint S=~Maybe[];type A=distinct Maybe[];function f<T extends S>(v:Maybe[]):T{return T(v);}`,
+	`type A=distinct A[];function f(v:A[]):A{return A(v);}`,
+	`struct A{public next:*A;}function f(v:A):A{return A(v);}`,
 	`function f(v:float32):void{switch(v){case 16777216.0{}case 16777217.0{}}}`,
 	`const a="a"+"b";const b=a;function f(v:string):void{switch(v){case b{}case "ab"{}}}`,
 	`constraint N=~int|~int64;function f<T extends N>(v:T):void{switch(v){case T(1){}case 1{}}}`,

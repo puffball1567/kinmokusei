@@ -9,6 +9,19 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Apply source nullable-contract checks to assignments, returns, arguments,
+  constructors and generic class/interface upcasts, including nested named
+  collections and callable types. Keep ordinary nullable widening and valid
+  inheritance remapping. Preserve native named collection element qualifiers
+  during indexing and slicing. Bound recursive generic storage checks by Go type
+  identity rather than transient instantiation objects.
+
+- Reject explicit native/Go type conversions that erase source nullable
+  contracts, including function parameters, ordinary/Result/multiple returns,
+  collection elements, struct fields and constrained generic conversions.
+  Compatible conversions retain direct Go lowering, shared collection storage
+  and Result propagation; nullable values must be narrowed before conversion.
+
 - Check import/linker name collisions using the same Go identifier lowering
   as code generation. Avoid captures such as an imported `copy` binding being
   shadowed by an unrelated local `copy_`, including canonical package aliases.

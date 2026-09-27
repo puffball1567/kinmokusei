@@ -108,7 +108,7 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	}
 	if target.Kind == Class && value.Kind == Class {
 		if ancestor, ok := c.classAncestorType(value, target.Name); ok {
-			return exactType(target, ancestor)
+			return exactType(target, ancestor) && c.sourceStorageContractsMatch(target, ancestor)
 		}
 	}
 	// A type parameter's underlying interface is a constraint, not an
@@ -116,7 +116,7 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	// concrete receiver assignable to every possible instantiation of T.
 	if target.Kind == TypeParameter && (value.Kind == Class || value.Kind == Struct) {
 		storage, ok := c.goTypeForNativeStorage(value)
-		return ok && target.GoType != nil && gotypes.AssignableTo(storage, target.GoType)
+		return ok && target.GoType != nil && gotypes.AssignableTo(storage, target.GoType) && c.sourceStorageContractsMatch(target, value)
 	}
 	if value.Kind == Struct {
 		if contract := underlyingGoInterface(target.GoType); contract != nil && contract.NumMethods() == 0 {
@@ -158,9 +158,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		// sides while retaining the invariant source element contract.
 		targetStorage, targetOK := c.goTypeForNativeStorage(target)
 		valueStorage, valueOK := c.goTypeForNativeStorage(value)
-		return targetOK && valueOK && sameConstraintNullability(target, value) && gotypes.AssignableTo(valueStorage, targetStorage)
+		return targetOK && valueOK && gotypes.AssignableTo(valueStorage, targetStorage) && c.sourceStorageContractsMatch(target, value)
 	}
-	return assignable(target, value)
+	return assignable(target, value) && c.sourceStorageContractsMatch(target, value)
 }
 
 func (c *Checker) classSatisfiesSourceAnonymousInterface(target Type) bool {
