@@ -4,12 +4,13 @@ package sema
 // across callable boundaries. Lexical scopes, receiver access, closure capture
 // tracking, and nullable flow have separate lifetimes and are not reset here.
 type callableControlState struct {
-	result         Type
-	loopDepth      int
-	breakableDepth int
-	exceptionDepth int
-	catchTargets   []int
-	arrowReturns   *arrowReturnInference
+	result            Type
+	loopDepth         int
+	breakableDepth    int
+	exceptionDepth    int
+	catchTargets      []int
+	arrowReturns      *arrowReturnInference
+	branchFlowTargets []branchFlowTarget
 }
 
 // enterCallableControl starts a new control-transfer boundary and returns the

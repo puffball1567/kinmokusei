@@ -19,6 +19,8 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 	entryFlow := c.snapshotNullableFlow()
 	continuing := make([]nullableFlowSnapshot, 0, len(stmt.Cases)+1)
 	var fallthroughFlow *nullableFlowSnapshot
+	c.pushBranchFlowTarget(stmt, false)
+	defer c.popBranchFlowTarget()
 	c.breakFlowContexts = append(c.breakFlowContexts, breakFlowContext{})
 	for index := range stmt.Cases {
 		clause := &stmt.Cases[index]

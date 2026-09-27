@@ -32,6 +32,22 @@ Leaving a task unconsumed is a source error:
 
 <<< ../snippets-invalid/task-unconsumed.km{ts}
 
+This also applies when `break` or `continue` leaves the scope containing the
+task. A later await on a different path cannot satisfy the skipped path:
+
+```ts
+while (running) {
+  const task = go calculate();
+  if (stop) { break; } // Error: task is still pending on this exit.
+  const value = await task;
+}
+```
+
+Await or explicitly detach the task before leaving its scope. A task declared
+outside the loop can still be awaited afterwards: breaking the loop does not
+leave that outer scope. Labeled branches follow the same rule for every scope
+between the branch and its target.
+
 ## Eager evaluation and start
 
 ```ts

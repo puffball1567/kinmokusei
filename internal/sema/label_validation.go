@@ -161,6 +161,10 @@ func (c *Checker) validateLabels(body *ast.BlockStmt) {
 				return
 			}
 			statement.ResolvedDeclaration = target.LabelSpan
+			if c.resolvedBranchTargets == nil {
+				c.resolvedBranchTargets = map[*ast.BranchStmt]ast.Statement{}
+			}
+			c.resolvedBranchTargets[statement] = target.Statement
 			used[statement.Label] = true
 			if statement.Kind == ast.GotoBranch {
 				if _, loop := target.Statement.(*ast.ForStmt); loop && target.LoopBranchLabel == "" {

@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Track `break` and `continue` against their actual lexical or labeled targets
+  across nested loops, switches and selects. Check pending tasks on every
+  exited-scope edge, and retain nullable facts from the correct loop/switch
+  exit. Tasks in scopes that survive the branch can still be awaited later;
+  callbacks have independent branch-target stacks.
+
 - Check Task ownership at Result propagation (`?`) as well as explicit returns:
   other pending tasks must be handled before the possible error exit. Callback
   returns, throws and propagation check only their own tasks, so unrelated
