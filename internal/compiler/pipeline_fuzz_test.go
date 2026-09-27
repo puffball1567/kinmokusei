@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function f(p:*int|null,b:boolean):boolean{return p!==null && *p>0 || !(p===null || !b);}`,
+	`function f(p:*int|null,b:boolean):int{while(p===null || !b){return 0;}return *p;}`,
+	`function v():boolean{return true;}function f(b:boolean):boolean{const task=go v();return b && await task;}`,
 	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):*int{for(const x of v){return x;}return nil;}`,
 	`alias M=*int|null;type C<T>=distinct GoChannel<T>;function f(v:C<M>):M{v<-null;return <-v;}`,
 	`alias M=*int|null;type I<T>=distinct (emit:(x:T)=>boolean)=>void;function f(v:I<M>):*int{for(const x of v){return x;}return nil;}`,

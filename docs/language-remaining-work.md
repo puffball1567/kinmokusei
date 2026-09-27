@@ -88,6 +88,13 @@ arguments. Native named iterator signatures preserve their yielded source
 types. Coverage in `named_collection_contracts_test.go` includes linked export
 aliases, nullable keys/elements, array-pointer views and editor inference.
 
+Nullable conditions now retain separate true/false flow states through `&&`,
+`||` and `!`, including short-circuit operands and loop exits. Mutation effects
+and Task consumption are merged only across the paths that can evaluate them;
+compile-time boolean left operands preserve guaranteed/skipped awaits.
+`nullable_conditions_test.go` covers semantic rejection, independent Go runtime
+comparison and editor diagnostics. Boolean aliases do not retain null proofs.
+
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
 where applicable, and documentation. Refactoring can accompany the relevant

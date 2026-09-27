@@ -29,7 +29,7 @@ export function Run(seed:int):int[]{
  select{case queue<-&n{}default{}}
  closeGoChannel(queue);
  const [first,open]=<-queue;if(first===null&&open){count++;}
- select{case const [item,ok]=<-queue{if(ok){if(item!==null){sum+=*item;}}}default{}}
+ select{case const [item,ok]=<-queue{if(item!==null&&ok){sum+=*item;}}default{}}
  const ranged=Queue<Maybe>(goChannel<Maybe>(2));ranged<-null;ranged<-&n;closeGoChannel(ranged);
  for(const item of ranged){if(item===null){count++;}else{sum+=*item;}}
  const keys=Keys<Maybe>(makeMap<Maybe,int>());keys[null]=1;keys[&n]=2;

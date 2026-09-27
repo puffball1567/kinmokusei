@@ -294,24 +294,17 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.TryStmt:
 		c.checkTryStatement(stmt)
 	case *ast.IfStmt:
-		condition := c.checkExpression(stmt.Condition)
+		condition, trueFlow, falseFlow := c.checkCondition(stmt.Condition)
 		if condition.Kind != Invalid && !condition.IsBoolean() {
 			c.report(stmt.Condition.GetSpan(), fmt.Sprintf("if condition must be boolean, got %s", condition.Name))
 		}
-		narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
 		entryFlow := c.snapshotNullableFlow()
 
-		c.restoreNullableFlow(entryFlow)
-		if hasNarrowing && narrowing.nonNullWhenTrue {
-			c.applyNarrowing(narrowing)
-		}
+		c.restoreNullableFlow(trueFlow)
 		c.checkBlock(stmt.Then, true)
 		thenFlow := c.snapshotNullableFlow()
 
-		c.restoreNullableFlow(entryFlow)
-		if hasNarrowing && !narrowing.nonNullWhenTrue {
-			c.applyNarrowing(narrowing)
-		}
+		c.restoreNullableFlow(falseFlow)
 		if stmt.Else != nil {
 			c.checkStatementBranch(stmt.Else)
 		}
@@ -385,10 +378,6 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
 			c.checkLoopCondition(stmt.Condition)
 			stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
-			narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
-			if hasNarrowing && narrowing.nonNullWhenTrue {
-				c.applyNarrowing(narrowing)
-			}
 			c.loopDepth++
 			c.checkBlock(stmt.Body, true)
 			c.loopDepth--
@@ -413,10 +402,6 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			if stmt.Condition != nil {
 				c.checkLoopCondition(stmt.Condition)
 				stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
-			}
-			narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
-			if hasNarrowing && narrowing.nonNullWhenTrue {
-				c.applyNarrowing(narrowing)
 			}
 			c.loopDepth++
 			c.checkBlock(stmt.Body, true)
@@ -617,8 +602,16 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		c.report(expr.Span, fmt.Sprintf("undefined name %q", expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	case *ast.UnaryExpr:
+		if expr.Operator == "!" {
+			result, _, _ := c.checkCondition(expr)
+			return result
+		}
 		return c.checkConstantOperation(expr, c.checkUnary(expr))
 	case *ast.BinaryExpr:
+		if expr.Operator == "&&" || expr.Operator == "||" {
+			result, _, _ := c.checkCondition(expr)
+			return result
+		}
 		return c.checkConstantOperation(expr, c.checkBinary(expr))
 	case *ast.GoTypeAssertionExpr:
 		return c.checkGoTypeAssertion(expr)

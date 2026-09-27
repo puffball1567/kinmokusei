@@ -200,6 +200,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"bitwise.test":                        {implementedGoCompatibilityContracts[12]},
 	"updates.test":                        {implementedGoCompatibilityContracts[13]},
 	"nullable.test":                       {implementedGoCompatibilityContracts[14]},
+	"nullable-conditions.test":            {implementedGoCompatibilityContracts[14]},
 	"field-initialization.test":           {implementedGoCompatibilityContracts[15]},
 	"result.test":                         {implementedGoCompatibilityContracts[16]},
 	"valueswitch.test":                    {implementedGoCompatibilityContracts[17], implementedGoCompatibilityContracts[69]},
