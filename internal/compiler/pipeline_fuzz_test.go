@@ -15,6 +15,10 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):*int{for(const x of v){return x;}return nil;}`,
+	`alias M=*int|null;type C<T>=distinct GoChannel<T>;function f(v:C<M>):M{v<-null;return <-v;}`,
+	`alias M=*int|null;type I<T>=distinct (emit:(x:T)=>boolean)=>void;function f(v:I<M>):*int{for(const x of v){return x;}return nil;}`,
+	`alias M=*int|null;type A<T>=distinct [2]T;type P<T>=distinct *A<T>;function f(v:P<M>):M{return v[:][0];}`,
 	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):S<*int>{return v;}`,
 	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):*int{return v[:][0];}`,
 	`type Link<T>=distinct *Link<T>;function f(v:Link<int>):Link<int>{return v;}`,

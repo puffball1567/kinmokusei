@@ -265,6 +265,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"genericdefined.test":                 {implementedGoCompatibilityContracts[63]},
 	"conversion-contracts.test":           {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[63]},
 	"assignment-contracts.test":           {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[3], implementedGoCompatibilityContracts[63]},
+	"named-collection-contracts.test":     {implementedGoCompatibilityContracts[11], implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21]},
 	"genericdefined-linked.test":          {implementedGoCompatibilityContracts[63]},
 	"definedtypemethod.test":              {implementedGoCompatibilityContracts[64]},
 	"definedtypemethod-linked.test":       {implementedGoCompatibilityContracts[64]},

@@ -1,10 +1,6 @@
 package sema
 
-import (
-	gotypes "go/types"
-
-	"github.com/puffball1567/kinmokusei/internal/ast"
-)
+import "github.com/puffball1567/kinmokusei/internal/ast"
 
 // Indexing and slicing a constrained operand use its common collection shape,
 // while slicing a string/slice retains the original parameter type. Reuse the
@@ -12,22 +8,12 @@ import (
 // Mixed underlying shapes remain unsupported here, even where Go indexing can
 // accept a common element type without a common underlying collection type.
 func (c *Checker) collectionOperandShape(value Type) Type {
-	if value.Kind != TypeParameter {
-		// A native defined collection retains source element qualifiers beside
-		// its erased Go storage, including concrete generic instantiations.
-		if value.Kind != GoNamed || value.GoType == nil {
-			return value
-		}
-		named, ok := gotypes.Unalias(value.GoType).(*gotypes.Named)
-		if !ok {
-			return value
-		}
-		symbol := c.nativeTypes[named.Obj().Name()]
-		if symbol == nil || named.Origin() != symbol.goNamed {
-			return value
-		}
+	shape, native := c.nativeDefinedShape(value)
+	if value.Kind == TypeParameter {
+		shape = c.constraintArgumentShape(value)
+	} else if !native {
+		return value
 	}
-	shape := c.constraintArgumentShape(value)
 	switch shape.Kind {
 	case Array, FixedArray, Map, String, GoPointer:
 		return shape

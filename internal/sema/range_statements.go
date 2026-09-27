@@ -104,7 +104,7 @@ func (c *Checker) rangeBindingTypes(sourceType Type, span source.Span) (Type, Ty
 		return invalid, invalid, ast.UnknownRange
 	}
 	if sourceType.Kind == Nullable && sourceType.Element != nil {
-		if _, ok := rangeFunctionType(*sourceType.Element); ok {
+		if _, ok := c.rangeFunctionType(*sourceType.Element); ok {
 			c.report(span, "nullable iterator must be narrowed before range")
 			return invalid, invalid, ast.UnknownRange
 		}
@@ -125,7 +125,7 @@ func (c *Checker) rangeBindingTypes(sourceType Type, span source.Span) (Type, Ty
 		c.report(span, "range type parameter requires a common underlying range type or compatible receive-capable channels")
 		return invalid, invalid, ast.UnknownRange
 	}
-	if callable, ok := rangeFunctionType(sourceType); ok {
+	if callable, ok := c.rangeFunctionType(sourceType); ok {
 		return c.iteratorBindingTypes(callable, span)
 	}
 	goType, ok := goTypeOf(sourceType)
@@ -144,6 +144,7 @@ func (c *Checker) rangeBindingTypes(sourceType Type, span source.Span) (Type, Ty
 			underlying = gotypes.Unalias(pointer.Elem()).Underlying()
 		}
 	}
+	shape, _ := c.nativeDefinedShape(sourceType)
 	switch ranged := underlying.(type) {
 	case *gotypes.Chan:
 		if ranged.Dir() == gotypes.SendOnly {
@@ -151,30 +152,27 @@ func (c *Checker) rangeBindingTypes(sourceType Type, span source.Span) (Type, Ty
 			return invalid, invalid, ast.UnknownRange
 		}
 		element := c.restoreNativeRangeType(c.collectionElementType(ranged.Elem(), sourceType, span))
-		if sourceType.Element != nil {
-			element = *sourceType.Element
+		if shape.Element != nil {
+			element = *shape.Element
 		}
 		return invalid, element, ast.ChannelRange
 	case *gotypes.Array:
-		element := c.restoreNativeRangeType(c.collectionElementType(ranged.Elem(), sourceType, span))
-		if sourceType.Kind == FixedArray && sourceType.Element != nil {
-			element = *sourceType.Element
-		}
+		element := c.restoreNativeRangeType(c.fixedArrayElementType(ranged, sourceType, span))
 		return builtins["int"], element, ast.CollectionRange
 	case *gotypes.Slice:
 		element := c.restoreNativeRangeType(c.collectionElementType(ranged.Elem(), sourceType, span))
-		if sourceType.Kind == Array && sourceType.Element != nil {
-			element = *sourceType.Element
+		if shape.Kind == Array && shape.Element != nil {
+			element = *shape.Element
 		}
 		return builtins["int"], element, ast.CollectionRange
 	case *gotypes.Map:
 		key := c.restoreNativeRangeType(c.collectionElementType(ranged.Key(), sourceType, span))
 		value := c.restoreNativeRangeType(c.collectionElementType(ranged.Elem(), sourceType, span))
-		if sourceType.Key != nil {
-			key = *sourceType.Key
+		if shape.Key != nil {
+			key = *shape.Key
 		}
-		if sourceType.Element != nil {
-			value = *sourceType.Element
+		if shape.Element != nil {
+			value = *shape.Element
 		}
 		return key, value, ast.CollectionRange
 	case *gotypes.Basic:
@@ -191,7 +189,8 @@ func (c *Checker) rangeBindingTypes(sourceType Type, span source.Span) (Type, Ty
 	return invalid, invalid, ast.UnknownRange
 }
 
-func rangeFunctionType(value Type) (Type, bool) {
+func (c *Checker) rangeFunctionType(value Type) (Type, bool) {
+	value = c.callableType(value)
 	if value.Kind == Function {
 		return value, true
 	}
@@ -210,7 +209,7 @@ func (c *Checker) iteratorBindingTypes(callable Type, span source.Span) (Type, T
 		c.report(span, "range iterator must be a non-generic, non-variadic function taking one yield callback and returning void")
 		return invalid, invalid, ast.UnknownRange
 	}
-	yield, ok := rangeFunctionType(callable.Parameters[0])
+	yield, ok := c.rangeFunctionType(callable.Parameters[0])
 	if !ok || yield.Generic || yield.Variadic || len(yield.Parameters) > 2 || yield.Result == nil || !exactType(*yield.Result, builtins["boolean"]) {
 		c.report(span, "range iterator yield callback must take zero, one, or two values and return boolean")
 		return invalid, invalid, ast.UnknownRange

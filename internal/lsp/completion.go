@@ -399,7 +399,11 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 			if spanContains(statement.Body.Span, path, offset) {
 				for _, binding := range statement.Bindings {
 					if binding.Name != "_" {
-						add(variableCompletion(binding.Name, binding.Type, statement.Constant))
+						ref := binding.Type
+						if !ref.IsSpecified() {
+							ref = binding.ResolvedType
+						}
+						add(variableCompletion(binding.Name, ref, statement.Constant))
 					}
 				}
 			}
