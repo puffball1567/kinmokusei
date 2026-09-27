@@ -58,6 +58,14 @@ for (; ready(); ) {
 
 The initializer has loop scope. The post clause accepts a simple assignment/update/call form without a trailing semicolon. Loop backedges conservatively join nullable and task-flow state.
 
+Both normal body completion and `continue` execute the post clause before the
+next condition check. This also applies to `continue label` targeting the loop
+from a nested loop or switch. Nullable and Task checks include all of these
+paths: an update cannot dereference a value that a continue path made nullable,
+or await the same Task on repeated iterations. An update that restores a
+non-null value can establish that fact for the next iteration. `break` leaves
+the loop without running its post clause.
+
 ## Range loops
 
 One binding receives values:
@@ -154,6 +162,14 @@ select {
 ```
 
 Each communication's operands evaluate according to Go select rules. If multiple communications are ready, one is selected pseudo-randomly. `default` runs only when none is ready. Without default, select blocks; `select {}` blocks forever.
+
+All receive-channel expressions and send-channel/value expressions evaluate
+once, in source order, before any case body runs—even those for cases that are
+not selected. Their mutations and Task consumption therefore affect every case,
+including `default`. For example, `case output <- await task` consumes `task`
+even if the select chooses `default`; it must not be awaited again there.
+Receive assignment targets, such as `values[index()]`, evaluate only when their
+case is selected.
 
 Receive cases may discard, declare one value, declare checked `[value, open]`, or assign to existing targets. Case bodies have independent lexical scopes and never fall through.
 

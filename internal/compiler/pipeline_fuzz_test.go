@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{}}}`,
+	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{const n=await t;}}}`,
+	`class C{public x:int=0;}class B{constructor(public p:C|null){}}function clear(b:B):int{b.p=null;return 0;}function f(b:B,ch:GoChannel<int>):void{if(b.p===null){return;}select{default{const n=b.p.x;}case ch<-clear(b){}}}`,
+	`class C{public x:int=0;}function f(p:C|null,b:boolean):void{for(;b;p.x++){if(b){p=null;continue;}p=new C();}}`,
+	`class C{public x:int=0;}function f(b:boolean):void{for(let p:C|null=new C();b;p=new C()){const n=p.x;p=null;continue;}}`,
+	`function w():void{}function f(b:boolean):void{const t=go w();for(;b;await t){continue;}await t;}`,
 	`function w():void{}function f(b:boolean):void{const t=go w();if(b){goto done;}await t;done:return;}`,
 	`function w():void{}function f(b:boolean):void{const t=go w();again:await t;if(b){goto again;}}`,
 	`function w():void{}function f(b:boolean):void{while(b){const t=go w();if(b){continue;}await t;}}`,

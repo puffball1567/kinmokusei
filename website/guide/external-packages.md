@@ -257,7 +257,7 @@ Published source packages are checked against their locked full-content hash.
 Changed cache content is an error, not a reason to silently update the lock.
 Library minimum Kinmokusei/Go versions and declared OS, architecture, CGO and
 build-tag requirements are checked against the consumer's target. Unversioned
-development binaries currently use the compatibility floor `0.4.3`.
+development binaries currently use the compatibility floor `0.4.4`.
 
 The initial source graph selects one exact version per module. Conflicting
 direct/transitive source requirements are diagnosed with both versions instead

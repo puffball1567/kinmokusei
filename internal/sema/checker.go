@@ -414,13 +414,12 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 				c.checkLoopCondition(stmt.Condition)
 				stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
 			}
+			bodyEntry := c.snapshotNullableFlow()
 			c.loopDepth++
 			c.checkBlock(stmt.Body, true)
-			if stmt.Post != nil {
-				c.checkStatement(stmt.Post)
-			}
+			backedge, continues := c.checkForPostFlow(stmt, bodyEntry)
 			c.loopDepth--
-			return c.snapshotNullableFlow(), !statementDefinitelyStopsBlock(stmt.Body)
+			return backedge, continues
 		})
 		c.popScope()
 	case *ast.ForRangeStmt:

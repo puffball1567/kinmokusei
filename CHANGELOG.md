@@ -9,6 +9,30 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-09-27
+
+- Add typed decorator registration for classes, members, constructors and
+  parameters, with checked construction and method/accessor invocation adapters.
+  External libraries can use these contracts for dependency injection and
+  routing without compiler-specific framework names. Concrete generic decorator
+  construction/invocation remains outside the supported adapter surface.
+
+- Allow instance field initializers to read earlier initialized fields and
+  accessible inherited fields through `this.field`. Preserve base-before-derived
+  initialization; reject later-field reads and receiver capture.
+
+- Check all `select` channel operands and send values in source order before
+  checking any case body, matching Go evaluation. Carry nullable mutations and
+  Task consumption into every case, including `default`, while keeping receive
+  assignment targets lazy. Reject repeated awaits across operands or bodies and
+  accept tasks consumed by send/receive operands even when another case wins.
+
+- Check three-clause `for` updates on both ordinary body completion and
+  `continue`, including labeled continues from nested loops and switches.
+  Reject nullable dereferences and repeated Task consumption on these paths,
+  accept values restored by the update, and keep `break` paths independent
+  of updates they do not execute.
+
 - Check Task ownership across forward and backward `goto` edges. Reject jumps
   that skip an await/detach, repeat consumption, or leave/restart a binding
   while its task is pending. Preserve jumps with matching ownership states,

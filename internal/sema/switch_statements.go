@@ -9,6 +9,7 @@ import (
 
 func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 	defaultSeen := false
+	received := c.checkSelectOperands(stmt)
 	entryFlow := c.snapshotNullableFlow()
 	continuing := make([]nullableFlowSnapshot, 0, len(stmt.Cases))
 	c.pushBranchFlowTarget(stmt, false)
@@ -24,12 +25,8 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 				c.report(clause.Span, "select may contain at most one default case")
 			}
 			defaultSeen = true
-		case ast.SelectSend:
-			send := &ast.ChannelSendStmt{Channel: clause.Channel, Value: clause.Value, Span: clause.Span}
-			c.checkStatement(send)
-			clause.Value = send.Value // Keep contextual conversions such as class upcasts.
 		case ast.SelectReceive:
-			c.checkSelectReceive(clause)
+			c.checkSelectReceive(clause, received[index])
 		}
 		c.breakableDepth++
 		c.checkBlock(clause.Body, false)
@@ -45,14 +42,8 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 	c.restoreNullableFlow(c.mergeNullableFlow(entryFlow, continuing...))
 }
 
-func (c *Checker) checkSelectReceive(clause *ast.SelectCase) {
-	count := len(clause.Bindings)
-	if !clause.Declare {
-		count = len(clause.Targets)
-	}
-	checked := count == 2
-	receive := &ast.UnaryExpr{Operator: "<-", Operand: clause.Channel, Span: clause.Channel.GetSpan()}
-	value := c.checkChannelReceive(receive, checked)
+func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
+	count := selectReceiveTargetCount(clause)
 	if count == 0 {
 		return
 	}
@@ -61,7 +52,7 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase) {
 		return
 	}
 	var results []Type
-	if checked {
+	if count == 2 {
 		results = c.multipleResults(value, count, clause.Channel.GetSpan())
 	} else {
 		results = []Type{c.singleValue(value, clause.Channel.GetSpan())}
