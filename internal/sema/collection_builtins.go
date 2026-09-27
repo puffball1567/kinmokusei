@@ -35,7 +35,7 @@ func (c *Checker) checkGoChannelMake(expr *ast.CallExpr) Type {
 		}
 		if constant, known := c.integerContextValue(argument); known && constant.Sign() < 0 {
 			c.report(argument.GetSpan(), "goChannel capacity cannot be negative")
-		} else if known && !constant.IsInt64() {
+		} else if known && !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 			c.report(argument.GetSpan(), "goChannel capacity is out of range")
 		}
 	}
@@ -43,51 +43,6 @@ func (c *Checker) checkGoChannelMake(expr *ast.CallExpr) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	return Type{Kind: GoChannel, Name: "GoChannel", Element: &element, GoType: gotypes.NewChan(gotypes.SendRecv, elementGoType), GoQualifier: element.GoQualifier}
-}
-
-func (c *Checker) checkGoChannelClose(expr *ast.CallExpr) Type {
-	expr.Builtin = ast.CloseGoChannelCall
-	if len(expr.TypeArguments) != 0 {
-		c.report(expr.Span, "closeGoChannel does not accept type arguments")
-	}
-	if expr.Expanded {
-		c.report(expr.Span, "closeGoChannel does not accept spread arguments")
-	}
-	if len(expr.Arguments) != 1 {
-		c.report(expr.Span, fmt.Sprintf("closeGoChannel expects one channel argument, got %d", len(expr.Arguments)))
-	}
-	for _, argument := range expr.Arguments {
-		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
-		if value.Kind == Nullable {
-			c.report(argument.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before closing", value.String()))
-			if value.Element == nil {
-				continue
-			}
-			value = *value.Element
-		}
-		goType, ok := goTypeOf(value)
-		if !ok {
-			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))
-			continue
-		}
-		if _, parameter := gotypes.Unalias(goType).(*gotypes.TypeParam); parameter {
-			// Closing does not inspect elements: unlike send/receive or range,
-			// its type set may contain channels with different element types.
-			if !genericCollectionOperation("close", goType) {
-				c.report(argument.GetSpan(), "closeGoChannel type parameter requires only send-capable channel types")
-			}
-			continue
-		}
-		channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
-		if !ok {
-			c.report(argument.GetSpan(), fmt.Sprintf("closeGoChannel requires a Go channel, got %s", value.String()))
-			continue
-		}
-		if channel.Dir() == gotypes.RecvOnly {
-			c.report(argument.GetSpan(), fmt.Sprintf("cannot close receive-only channel %s", value.String()))
-		}
-	}
-	return builtins["void"]
 }
 
 func (c *Checker) checkCollectionLen(expr *ast.CallExpr) Type {
@@ -125,7 +80,20 @@ func (c *Checker) checkCollectionAppend(expr *ast.CallExpr) Type {
 		c.report(expr.Span, "append expects a destination slice")
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	destination := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
+	destination := c.checkExpression(expr.Arguments[0])
+	if _, call := expr.Arguments[0].(*ast.CallExpr); call && len(expr.Arguments) == 1 && !expr.Expanded && destination.Kind == MultiValue {
+		values := destination
+		destination = values.Results[0]
+		element, ok := c.sliceElementType(destination, expr.Arguments[0].GetSpan())
+		if !ok {
+			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("append requires a slice as its first argument, got %s", destination.String()))
+			return Type{Kind: Invalid}
+		}
+		c.checkMultipleCallArguments(expr, "append", Type{Parameters: []Type{destination, element}, Variadic: true}, values)
+		c.recordBuiltinMultipleResult(expr, destination)
+		return destination
+	}
+	destination = c.singleValue(destination, expr.Arguments[0].GetSpan())
 	element, ok := c.sliceElementType(destination, expr.Arguments[0].GetSpan())
 	if !ok {
 		if destination.Kind != Invalid {
@@ -167,65 +135,63 @@ func (c *Checker) checkCollectionAppend(expr *ast.CallExpr) Type {
 
 func (c *Checker) checkCollectionCopy(expr *ast.CallExpr) Type {
 	expr.Builtin = ast.CopyCall
-	c.checkBuiltinCallShape(expr, "copy", 2, 2, 0)
-	values := make([]Type, len(expr.Arguments))
-	for i, argument := range expr.Arguments {
-		values[i] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
-	}
+	values, spans := c.checkBuiltinCallInputs(expr, "copy", 2)
+	c.recordBuiltinMultipleResult(expr, builtins["int"])
 	if len(values) < 2 {
 		return builtins["int"]
 	}
-	destinationElement, destinationOK := c.sliceElementType(values[0], expr.Arguments[0].GetSpan())
+	destinationElement, destinationOK := c.sliceElementType(values[0], spans[0])
 	if !destinationOK {
 		if values[0].Kind != Invalid {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("copy destination must be a slice, got %s", values[0].String()))
+			c.report(spans[0], fmt.Sprintf("copy destination must be a slice, got %s", values[0].String()))
 		}
 		return builtins["int"]
 	}
 	if values[1].IsString() && isBuiltinByte(destinationElement) {
 		return builtins["int"]
 	}
-	sourceElement, sourceOK := c.sliceElementType(values[1], expr.Arguments[1].GetSpan())
+	sourceElement, sourceOK := c.sliceElementType(values[1], spans[1])
 	if !sourceOK {
 		if values[1].Kind != Invalid {
-			c.report(expr.Arguments[1].GetSpan(), fmt.Sprintf("copy source must be a compatible slice or string for byte destinations, got %s", values[1].String()))
+			c.report(spans[1], fmt.Sprintf("copy source must be a compatible slice or string for byte destinations, got %s", values[1].String()))
 		}
 	} else if !c.identicalCollectionElement(destinationElement, sourceElement) {
-		c.report(expr.Arguments[1].GetSpan(), fmt.Sprintf("copy source element %s does not match destination element %s", sourceElement.String(), destinationElement.String()))
+		c.report(spans[1], fmt.Sprintf("copy source element %s does not match destination element %s", sourceElement.String(), destinationElement.String()))
 	}
 	return builtins["int"]
 }
 
 func (c *Checker) checkCollectionDelete(expr *ast.CallExpr) Type {
 	expr.Builtin = ast.DeleteCall
-	c.checkBuiltinCallShape(expr, "delete", 2, 2, 0)
-	values := make([]Type, len(expr.Arguments))
-	for i, argument := range expr.Arguments {
-		values[i] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
-	}
+	values, spans := c.checkBuiltinCallInputs(expr, "delete", 2)
+	c.recordBuiltinMultipleResult(expr, builtins["void"])
 	if len(values) < 2 {
 		return builtins["void"]
 	}
-	key, _, ok := c.mapCollectionTypes(values[0], expr.Arguments[0].GetSpan())
+	key, _, ok := c.mapCollectionTypes(values[0], spans[0])
 	if target, hasGoType := goTypeOf(values[0]); hasGoType {
 		if parameter, generic := gotypes.Unalias(target).(*gotypes.TypeParam); generic {
 			key, ok = c.parameterDeleteKey(parameter)
 			if !ok {
-				c.report(expr.Arguments[0].GetSpan(), "delete requires map types with identical key types and compatible source nullability")
+				c.report(spans[0], "delete requires map types with identical key types and compatible source nullability")
 				return builtins["void"]
 			}
 		}
 	}
 	if !ok {
 		if values[0].Kind != Invalid {
-			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("delete requires a map as its first argument, got %s", values[0].String()))
+			c.report(spans[0], fmt.Sprintf("delete requires a map as its first argument, got %s", values[0].String()))
 		}
 		return builtins["void"]
 	}
-	c.requireAssignable(key, values[1], expr.Arguments[1].GetSpan())
+	if len(expr.Arguments) == 1 {
+		c.checkMultipleCallArguments(expr, "delete", Type{Parameters: []Type{values[0], key}}, Type{Kind: MultiValue, Results: values})
+		return builtins["void"]
+	}
+	c.requireAssignable(key, values[1], spans[1])
 	if info, known := c.checkedNumericConstant(expr.Arguments[1], values[1]); known && key.IsNumeric() {
 		if target, ok := goTypeOf(key); ok {
-			if err := checkNumericConstantAssignment(info, target); err != nil {
+			if err := c.checkNumericConstantAssignment(info, target); err != nil {
 				c.report(expr.Arguments[1].GetSpan(), err.Error())
 			}
 		}
@@ -398,7 +364,7 @@ func (c *Checker) checkMakeSizeArguments(expr *ast.CallExpr, name string, minimu
 		if constant, known := c.integerContextValue(argument); known {
 			if constant.Sign() < 0 {
 				c.report(argument.GetSpan(), fmt.Sprintf("%s size cannot be negative", name))
-			} else if !constant.IsInt64() {
+			} else if !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 				c.report(argument.GetSpan(), fmt.Sprintf("%s size is out of range", name))
 			}
 		}
@@ -430,8 +396,9 @@ func (c *Checker) mapCollectionTypes(value Type, span source.Span) (Type, Type, 
 	if value.Kind == Nullable && value.Element != nil {
 		return c.mapCollectionTypes(*value.Element, span)
 	}
-	if value.Kind == Map && value.Key != nil && value.Element != nil {
-		return *value.Key, *value.Element, true
+	shape, _ := c.nativeDefinedShape(value)
+	if shape.Kind == Map && shape.Key != nil && shape.Element != nil {
+		return *shape.Key, *shape.Element, true
 	}
 	goType, ok := goTypeOf(value)
 	if !ok {

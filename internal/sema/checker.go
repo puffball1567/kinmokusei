@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/importer"
 	gotypes "go/types"
+	"runtime"
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
@@ -29,8 +30,13 @@ type Checker struct {
 	goNamedImports             map[string]map[string]goNamedImport
 	goImporter                 gotypes.Importer
 	allowUnsafeGo              bool
+	goSizes                    gotypes.Sizes
+	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
 	inConstructor              bool
 	inFieldInitializer         bool
+	fieldInitializerAvailable  map[string]bool
+	fieldInitializerStatic     bool
+	fieldInitializerArrowDepth int
 	callableScopeBases         []int
 	capturedWrites             []map[source.Span]source.Span
 	loopFlowContexts           []loopFlowContext
@@ -40,8 +46,10 @@ type Checker struct {
 	memberTypes                map[memberFlowKey]Type
 	usesTasks                  bool
 	usesExceptions             bool
+	usesDecoratorContext       bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
+	taskLaunchCall             *ast.CallExpr
 	directCallCallee           ast.Expression
 	typeParameterScopes        []map[string]Type
 	deferredParameterBounds    map[*gotypes.TypeParam]bool
@@ -54,6 +62,8 @@ type Checker struct {
 	receiverTypeParameters     map[*ast.MethodDecl]map[string]Type
 	methodTypeParameters       map[*ast.MethodDecl]map[string]Type
 	validFallthrough           map[*ast.BranchStmt]bool
+	resolvedBranchTargets      map[*ast.BranchStmt]ast.Statement
+	gotoTargetBlocks           map[*ast.BranchStmt]*ast.BlockStmt
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
@@ -61,12 +71,17 @@ type Checker struct {
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
+	classConstantChecks        map[*ast.FieldDecl]globalBindingCheckState
+	classConstantValues        map[*ast.FieldDecl]gotypes.TypeAndValue
 	checkingLocalArrow         *localArrowInference
 	resultErrorUses            map[*bool]resultErrorUse
 }
 
 type GoInteropPolicy struct {
 	AllowUnsafe bool
+	// Sizes describes the selected Go target, not necessarily the compiler host.
+	// A nil value uses the host architecture.
+	Sizes gotypes.Sizes
 }
 
 func Check(program *ast.Program) []diagnostic.Diagnostic {
@@ -85,17 +100,23 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	if goImporter == nil {
 		goImporter = importer.Default()
 	}
+	if policy.Sizes == nil {
+		policy.Sizes = gotypes.SizesFor("gc", runtime.GOARCH)
+	}
 	c := &Checker{
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
-		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe,
-		goNamedImports: map[string]map[string]goNamedImport{},
-		memberFlow:     map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
+		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
+		goNamedImports:   map[string]map[string]goNamedImport{},
+		goFieldReceivers: map[*ast.MemberExpr]gotypes.Type{},
+		memberFlow:       map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
 		validFallthrough:       map[*ast.BranchStmt]bool{},
 		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
+		classConstantChecks:    map[*ast.FieldDecl]globalBindingCheckState{},
+		classConstantValues:    map[*ast.FieldDecl]gotypes.TypeAndValue{},
 		globalDependencies:     map[string]map[string]bool{},
 		constantValues:         map[ast.Expression]gotypes.TypeAndValue{},
 		resultErrorUses:        map[*bool]resultErrorUse{},
@@ -155,6 +176,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		}
 	}
 	c.checkGlobalInitializationCycles(program)
+	c.checkDecorators(program)
 	c.checkSourceExports(program)
 	c.checkCABIExports(program)
 	c.checkGeneratedNames(program)
@@ -163,6 +185,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
+	program.UsesDecoratorContext = c.usesDecoratorContext
 	return c.diagnostics
 }
 
@@ -171,6 +194,11 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 		c.pushScope()
 		defer c.popScope()
 	}
+	if c.blockScopeCounts == nil {
+		c.blockScopeCounts = map[*ast.BlockStmt]int{}
+	}
+	c.blockScopeCounts[block] = len(c.scopes)
+	defer delete(c.blockScopeCounts, block)
 	terminated := false
 	var reachableFlow *nullableFlowSnapshot
 	groupEnd := 0
@@ -182,6 +210,7 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 				c.predeclareLocalArrowGroup(group)
 			}
 		}
+		labelFallsThrough := !terminated
 		if _, labeled := stmt.(*ast.LabeledStmt); labeled && terminated {
 			if reachableFlow != nil {
 				c.suppressFlowEffects--
@@ -191,7 +220,11 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 			terminated = false
 		}
 		if !terminated {
-			c.checkStatement(stmt)
+			if label, ok := stmt.(*ast.LabeledStmt); ok {
+				c.checkLabeledStatement(label, labelFallsThrough)
+			} else {
+				c.checkStatement(stmt)
+			}
 			terminated = statementDefinitelyStopsBlock(stmt)
 			continue
 		}
@@ -211,8 +244,7 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 func (c *Checker) checkStatement(stmt ast.Statement) {
 	switch stmt := stmt.(type) {
 	case *ast.LabeledStmt:
-		c.invalidateControlTransferFlow(stmt.Span)
-		c.checkStatement(stmt.Statement)
+		c.checkLabeledStatement(stmt, true)
 	case *ast.VariableDecl:
 		c.checkLocalBinding(stmt)
 	case *ast.MultiVariableDecl:
@@ -220,12 +252,20 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.ReturnStmt:
 		if c.exceptionDepth != 0 {
 			stmt.CrossesTry = true
+			if c.result.Kind == MultiValue {
+				stmt.ResultType = typeRefFromType(c.result, stmt.Span)
+			}
 		}
 		if c.inConstructor {
 			c.report(stmt.Span, "constructors cannot return early; use conditional initialization and let the constructor complete")
 		}
 		if c.arrowReturns != nil {
 			c.collectArrowReturn(stmt)
+			c.reportPendingTasksBeforeExit()
+			return
+		}
+		if len(stmt.AdditionalValues) != 0 {
+			c.checkMultipleReturn(stmt)
 			c.reportPendingTasksBeforeExit()
 			return
 		}
@@ -265,24 +305,17 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.TryStmt:
 		c.checkTryStatement(stmt)
 	case *ast.IfStmt:
-		condition := c.checkExpression(stmt.Condition)
+		condition, trueFlow, falseFlow := c.checkCondition(stmt.Condition)
 		if condition.Kind != Invalid && !condition.IsBoolean() {
 			c.report(stmt.Condition.GetSpan(), fmt.Sprintf("if condition must be boolean, got %s", condition.Name))
 		}
-		narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
 		entryFlow := c.snapshotNullableFlow()
 
-		c.restoreNullableFlow(entryFlow)
-		if hasNarrowing && narrowing.nonNullWhenTrue {
-			c.applyNarrowing(narrowing)
-		}
+		c.restoreNullableFlow(trueFlow)
 		c.checkBlock(stmt.Then, true)
 		thenFlow := c.snapshotNullableFlow()
 
-		c.restoreNullableFlow(entryFlow)
-		if hasNarrowing && !narrowing.nonNullWhenTrue {
-			c.applyNarrowing(narrowing)
-		}
+		c.restoreNullableFlow(falseFlow)
 		if stmt.Else != nil {
 			c.checkStatementBranch(stmt.Else)
 		}
@@ -306,7 +339,15 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			}
 			return
 		}
+		diagnosticCount := len(c.diagnostics)
 		value := c.checkExpression(stmt.Value)
+		if call, ok := stmt.Value.(*ast.CallExpr); ok && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
+			if call.Conversion {
+				c.report(stmt.Span, "conversion result must be used; bind it or explicitly discard with _")
+			} else if name := unusedBuiltinResult(call); name != "" {
+				c.report(stmt.Span, name+" result must be used; bind it or explicitly discard with _")
+			}
+		}
 		if value.Kind == Result {
 			c.report(stmt.Span, resultUsageMessage)
 		}
@@ -345,13 +386,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.checkMultiAssignment(stmt)
 	case *ast.WhileStmt:
 		entryFlow := c.snapshotNullableFlow()
-		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
+		c.checkLoopFixedPoint(stmt, entryFlow, func() (nullableFlowSnapshot, bool) {
 			c.checkLoopCondition(stmt.Condition)
 			stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
-			narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
-			if hasNarrowing && narrowing.nonNullWhenTrue {
-				c.applyNarrowing(narrowing)
-			}
 			c.loopDepth++
 			c.checkBlock(stmt.Body, true)
 			c.loopDepth--
@@ -372,22 +409,17 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			}
 		}
 		entryFlow := c.snapshotNullableFlow()
-		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
+		c.checkLoopFixedPoint(stmt, entryFlow, func() (nullableFlowSnapshot, bool) {
 			if stmt.Condition != nil {
 				c.checkLoopCondition(stmt.Condition)
 				stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
 			}
-			narrowing, hasNarrowing := c.nullableConditionNarrowing(stmt.Condition)
-			if hasNarrowing && narrowing.nonNullWhenTrue {
-				c.applyNarrowing(narrowing)
-			}
+			bodyEntry := c.snapshotNullableFlow()
 			c.loopDepth++
 			c.checkBlock(stmt.Body, true)
-			if stmt.Post != nil {
-				c.checkStatement(stmt.Post)
-			}
+			backedge, continues := c.checkForPostFlow(stmt, bodyEntry)
 			c.loopDepth--
-			return c.snapshotNullableFlow(), !statementDefinitelyStopsBlock(stmt.Body)
+			return backedge, continues
 		})
 		c.popScope()
 	case *ast.ForRangeStmt:
@@ -398,7 +430,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.invalidateAllMemberFacts(stmt.Span, "an iterator call with unknown mutation effects")
 		}
 		entryFlow := c.snapshotNullableFlow()
-		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
+		c.checkLoopFixedPoint(stmt, entryFlow, func() (nullableFlowSnapshot, bool) {
 			if iterator {
 				c.invalidateAllMemberFacts(stmt.Span, "an iterator advancing between yields")
 			}
@@ -428,29 +460,26 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.report(stmt.Span, "continue may only be used inside a loop")
 		}
 		if stmt.Kind == ast.GotoBranch {
+			c.checkGotoTasks(stmt)
 			c.invalidateControlTransferFlow(stmt.Span)
 			return
 		}
-		if c.suppressFlowEffects == 0 && len(c.loopFlowContexts) != 0 {
-			context := &c.loopFlowContexts[len(c.loopFlowContexts)-1]
-			switch {
-			case stmt.Kind == ast.ContinueBranch && c.loopDepth != 0:
-				context.continues = append(context.continues, c.snapshotNullableFlow())
-			case stmt.Kind == ast.BreakBranch && c.loopDepth != 0 && c.breakableDepth == 0:
-				context.breaks = append(context.breaks, c.snapshotNullableFlow())
-			}
-		}
-		if c.suppressFlowEffects == 0 && stmt.Kind == ast.BreakBranch && c.breakableDepth != 0 && len(c.breakFlowContexts) != 0 {
-			context := &c.breakFlowContexts[len(c.breakFlowContexts)-1]
-			context.breaks = append(context.breaks, c.snapshotNullableFlow())
-		}
+		c.recordBranchFlow(stmt)
 	case *ast.CallControlStmt:
 		call, ok := stmt.Value.(*ast.CallExpr)
 		if !ok {
 			c.checkExpression(stmt.Value)
 			return
 		}
+		diagnosticCount := len(c.diagnostics)
 		value := c.checkExpression(call)
+		if name := unusedBuiltinResult(call); name != "" && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
+			keyword := "defer"
+			if stmt.Kind == ast.GoCall {
+				keyword = "go"
+			}
+			c.report(call.Span, keyword+" cannot discard the result of "+name+"; use a function that explicitly handles the result")
+		}
 		if value.Kind == Result {
 			keyword := "defer"
 			if stmt.Kind == ast.GoCall {
@@ -487,51 +516,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.prepareGoTypeForEmission(&value, stmt.Span)
 		stmt.ValueType = typeRefFromType(value, stmt.Span)
 	case *ast.ChannelSendStmt:
-		channelType := c.singleValue(c.checkExpression(stmt.Channel), stmt.Channel.GetSpan())
-		if channelType.Kind == Nullable {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before sending", channelType.String()))
-			if channelType.Element == nil {
-				return
-			}
-			channelType = *channelType.Element
-		}
-		goType, ok := goTypeOf(channelType)
-		if !ok {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel send requires a Go channel, got %s", channelType.String()))
-			c.checkExpression(stmt.Value)
-			return
-		}
-		if parameter, ok := gotypes.Unalias(goType).(*gotypes.TypeParam); ok {
-			element, valid := c.genericChannelElement(parameter, true)
-			if !valid {
-				c.report(stmt.Channel.GetSpan(), "channel send type parameter requires only send-capable channels with identical element types and nullability")
-				c.checkExpression(stmt.Value)
-				return
-			}
-			value := c.checkExpressionExpectedSlot(&stmt.Value, element)
-			c.requireAssignable(element, value, stmt.Value.GetSpan())
-			return
-		}
-		channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
-		if !ok {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel send requires a Go channel, got %s", channelType.String()))
-			c.checkExpression(stmt.Value)
-			return
-		}
-		if channel.Dir() == gotypes.RecvOnly {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("cannot send to receive-only channel %s", channelType.String()))
-		}
-		element, err := kinmokuseiTypeFromGo(channel.Elem())
-		if err != nil {
-			c.report(stmt.Channel.GetSpan(), fmt.Sprintf("channel element type is not supported: %v", err))
-			c.checkExpression(stmt.Value)
-			return
-		}
-		if channelType.Element != nil {
-			element = *channelType.Element
-		}
-		value := c.checkExpressionExpectedSlot(&stmt.Value, element)
-		c.requireAssignable(element, value, stmt.Value.GetSpan())
+		c.checkChannelSend(stmt)
 	}
 }
 
@@ -616,8 +601,16 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		c.report(expr.Span, fmt.Sprintf("undefined name %q", expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	case *ast.UnaryExpr:
+		if expr.Operator == "!" {
+			result, _, _ := c.checkCondition(expr)
+			return result
+		}
 		return c.checkConstantOperation(expr, c.checkUnary(expr))
 	case *ast.BinaryExpr:
+		if expr.Operator == "&&" || expr.Operator == "||" {
+			result, _, _ := c.checkCondition(expr)
+			return result
+		}
 		return c.checkConstantOperation(expr, c.checkBinary(expr))
 	case *ast.GoTypeAssertionExpr:
 		return c.checkGoTypeAssertion(expr)

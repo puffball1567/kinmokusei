@@ -8,15 +8,56 @@ import (
 )
 
 func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
+	return c.checkMemberAccess(expr, false)
+}
+
+func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
-			c.report(identifier.Span, "class field initializers cannot reference this or super; use the constructor")
+			if c.fieldInitializerStatic {
+				c.report(identifier.Span, "static field initializers cannot reference this; use the class name")
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
+			class := c.classes[c.currentClass]
+			if !write && c.fieldInitializerArrowDepth == 0 && class != nil {
+				if field, exists := class.fields[expr.Name]; exists && !field.static {
+					if field.declaringClass != c.currentClass && !c.canAccessClassMember(field.visibility, field.declaringClass) {
+						c.reportInaccessibleClassMember(expr.Span, "field", expr.Name, field.visibility)
+						return Type{Kind: Invalid, Name: "<invalid>"}
+					}
+					if field.declaringClass != c.currentClass || c.fieldInitializerAvailable[expr.Name] {
+						expr.ResolvedName = field.goName
+						expr.ResolvedDeclaration = field.declarationSpan
+						return field.typeInfo
+					}
+				}
+			}
+			c.report(identifier.Span, "instance field initializers may read only earlier initialized fields or accessible inherited fields through this; use the constructor otherwise")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if identifier.Name == "super" {
+			if class := c.classes[c.currentClass]; class != nil && class.base != "" {
+				if base := c.classes[class.base]; base != nil && hasClassProperty(base, expr.Name) {
+					if c.inFieldInitializer {
+						c.report(expr.Span, "class field initializers cannot reference this or super; use the constructor")
+					}
+					if _, ok := c.lookupSymbol("this", expr.Span); !ok {
+						c.report(expr.Span, "super cannot be used in a static method")
+					}
+					expr.Super, expr.SuperBase = true, class.base
+					return c.checkClassProperty(expr, base, class.baseType, write)
+				}
+			}
 			return c.checkSuperMember(expr)
 		}
-		if enumeration := c.enums[identifier.Name]; enumeration != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+		shadowed := false
+		for _, scope := range c.scopes {
+			if _, exists := scope[identifier.Name]; exists {
+				shadowed = true
+				break
+			}
+		}
+		if enumeration := c.enums[identifier.Name]; !shadowed && enumeration != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			member := enumeration.members[expr.Name]
 			if member == nil {
 				c.report(expr.Span, fmt.Sprintf("enum %s has no member %q", identifier.Name, expr.Name))
@@ -29,7 +70,30 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			expr.Constant = true
 			return c.resolveNativeType(c.nativeTypes[identifier.Name])
 		}
-		if class := c.classes[identifier.Name]; class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+		if class := c.classes[identifier.Name]; !shadowed && class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+			if field, exists := class.fields[expr.Name]; exists && field.static {
+				expr.Static, expr.Addressable = true, true
+				expr.ResolvedName, expr.ResolvedDeclaration = field.goName, field.declarationSpan
+				identifier.ResolvedDeclaration = class.declarationSpan
+				if !c.canAccessClassMember(field.visibility, field.declaringClass) {
+					c.reportInaccessibleClassMember(expr.Span, "field", expr.Name, field.visibility)
+				}
+				c.checkStaticMemberShadowing(field.goName, expr.Span)
+				c.recordGlobalDependency(staticFieldDependency(field.declaringClass, expr.Name))
+				if field.declaration != nil && field.declaration.Constant {
+					expr.Constant, expr.Addressable = true, false
+					c.ensureClassConstantChecked(field.declaringClass, field.declaration)
+					if value, known := c.classConstantValues[field.declaration]; known {
+						c.constantValues[expr] = value
+					}
+				}
+				return field.typeInfo
+			}
+			if hasClassProperty(class, expr.Name) {
+				expr.Static = true
+				identifier.ResolvedDeclaration = class.declarationSpan
+				return c.checkPropertyAccess(expr, class.methods, nil, write)
+			}
 			method, exists := class.methods[expr.Name]
 			if !exists || !method.static {
 				c.report(expr.Span, fmt.Sprintf("class %s has no static method %q", identifier.Name, expr.Name))
@@ -46,6 +110,8 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 				owner = identifier.Name
 			}
 			expr.ResolvedName = staticMethodGoName(owner, method.goName, method.visibility)
+			c.checkStaticMemberShadowing(expr.ResolvedName, expr.Span)
+			c.recordGlobalDependency(staticMemberDependency(owner, method.goName))
 			if method.typeInfo.Generic && c.directCallCallee != expr {
 				c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
 			}
@@ -75,6 +141,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		}
 		expr.ResolvedName = object.FieldNames[expr.Name]
 		expr.Addressable = c.isAddressableExpression(expr.Object)
+		c.recordLayoutFieldReceiver(expr, object)
 		return field
 	}
 	if object.Kind == Class {
@@ -82,7 +149,14 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		if class == nil {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
+		if hasClassProperty(class, expr.Name) {
+			return c.checkClassProperty(expr, class, object, write)
+		}
 		if field, ok := class.fields[expr.Name]; ok {
+			if field.static {
+				c.report(expr.Span, fmt.Sprintf("static field %q must be accessed through a class name", expr.Name))
+				return Type{Kind: Invalid}
+			}
 			if !c.canAccessClassMember(field.visibility, field.declaringClass) {
 				c.reportInaccessibleClassMember(expr.Span, "field", expr.Name, field.visibility)
 			}
@@ -145,6 +219,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 			expr.ResolvedName = field.goName
 			expr.ResolvedDeclaration = field.declarationSpan
 			expr.Addressable = structPointer || c.isAddressableExpression(expr.Object)
+			c.recordLayoutFieldReceiver(expr, object)
 			return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, structObject))
 		}
 		if method, ok := structure.methods[expr.Name]; ok {
@@ -183,6 +258,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 							expr.ResolvedName = field.goName
 							expr.ResolvedDeclaration = field.declarationSpan
 							expr.Addressable = nativePointer || c.isAddressableExpression(expr.Object)
+							c.recordLayoutFieldReceiver(expr, object)
 							return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, underlying))
 						}
 					}
@@ -213,6 +289,9 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 		contract := c.interfaces[object.Name]
 		if contract == nil {
 			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		if hasProperty(contract.methods, expr.Name) {
+			return c.checkPropertyAccess(expr, contract.methods, nativeInterfaceBindings(contract, object), write)
 		}
 		method, ok := contract.methods[expr.Name]
 		if !ok {
@@ -300,6 +379,7 @@ func (c *Checker) checkNew(expr *ast.NewExpr) Type {
 		c.report(expr.Span, fmt.Sprintf("cannot instantiate abstract class %s", expr.ClassName))
 	}
 	expr.ResolvedDeclaration = class.declarationSpan
+	c.recordGlobalDependency(classConstructionDependency(expr.ClassName))
 	classType := c.resolveNativeClassType(ast.TypeRef{Name: expr.ClassName, GenericArguments: expr.TypeArguments, Span: expr.Span}, class)
 	parameters := class.constructor
 	if classType.Kind != Invalid {

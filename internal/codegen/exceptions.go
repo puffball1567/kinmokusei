@@ -216,6 +216,13 @@ func exceptionControlReturn(returnType kinmokuseiAST.TypeRef, controlName string
 	control := func(field string) goast.Expr {
 		return &goast.SelectorExpr{X: goast.NewIdent(controlName), Sel: goast.NewIdent(field)}
 	}
+	if len(returnType.GoResults) != 0 {
+		results := make([]goast.Expr, len(returnType.GoResults))
+		for i := range results {
+			results[i] = &goast.SelectorExpr{X: &goast.TypeAssertExpr{X: control("value"), Type: multipleReturnPayloadType(returnType)}, Sel: goast.NewIdent(fmt.Sprintf("v%d", i))}
+		}
+		return &goast.ReturnStmt{Results: results}
+	}
 	if returnType.Name == "void" {
 		return &goast.ReturnStmt{}
 	}

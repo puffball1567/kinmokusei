@@ -5,6 +5,9 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 type Node interface{ GetSpan() source.Span }
 
 type Program struct {
+	// Decorators indexes source applications, including parameter applications.
+	// Each entry is also attached to its declaration or parameter.
+	Decorators []*Decorator
 	// TypeParameterMethods is checked editor metadata keyed by parameter
 	// declaration identity. It does not participate in source syntax or emission.
 	TypeParameterMethods map[source.Span][]ObjectTypeField
@@ -17,20 +20,23 @@ type Program struct {
 	CABIExports          []CABIExport
 	UsesTasks            bool
 	UsesExceptions       bool
+	UsesDecoratorContext bool
 }
 
 type ImportDecl struct {
-	Names         []string
-	NameSpans     []source.Span
-	Go            bool
-	Alias         string
-	AliasSpan     source.Span
-	ResolvedAlias string
-	Used          bool
-	Path          string
-	ResolvedPath  string
-	PathSpan      source.Span
-	Span          source.Span
+	Names          []string
+	NameSpans      []source.Span
+	NameAliases    []string
+	NameAliasSpans []source.Span
+	Go             bool
+	Alias          string
+	AliasSpan      source.Span
+	ResolvedAlias  string
+	Used           bool
+	Path           string
+	ResolvedPath   string
+	PathSpan       source.Span
+	Span           source.Span
 }
 
 func (d ImportDecl) GetSpan() source.Span { return d.Span }
@@ -64,7 +70,9 @@ type TypeRef struct {
 	ObjectFields         []ObjectTypeField
 	Object               bool
 	GoStruct             bool
-	// GoInterface and GoResults describe inferred Go types, not source syntax.
+	// GoInterface describes an anonymous interface type. GoResults is also used
+	// for source tuple result types; Go marks results reconstructed from Go
+	// signatures, while source declarations leave it unset.
 	GoInterface   bool
 	GoResults     []TypeRef
 	Struct        bool
@@ -105,6 +113,7 @@ func (t TypeRef) IsSpecified() bool {
 }
 
 type Parameter struct {
+	Decorators []*Decorator
 	Name       string
 	Type       TypeRef
 	Variadic   bool
@@ -174,6 +183,9 @@ type CABIExport struct {
 }
 
 type FieldDecl struct {
+	Decorators  []*Decorator
+	Static      bool
+	Constant    bool
 	Name        string
 	NameSpan    source.Span
 	Type        TypeRef
@@ -184,12 +196,16 @@ type FieldDecl struct {
 }
 
 type ConstructorDecl struct {
+	Decorators []*Decorator
 	Parameters []Parameter
 	Body       *BlockStmt
 	Span       source.Span
 }
 
 type MethodDecl struct {
+	Decorators []*Decorator
+	// Accessor is "get" or "set" for class properties; Name remains the source name.
+	Accessor       string
 	Name           string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
@@ -220,8 +236,12 @@ func (*MethodDecl) declaration()           {}
 func (d *MethodDecl) GetSpan() source.Span { return d.Span }
 
 type ClassDecl struct {
-	Abstract       bool
-	Name           string
+	Decorators []*Decorator
+	Abstract   bool
+	Name       string
+	// SourceName remains the spelling written by the user after source modules
+	// are flattened and Name is changed to a collision-free Go binding.
+	SourceName     string
 	NameSpan       source.Span
 	TypeParameters []TypeParameter
 	Final          bool
@@ -290,6 +310,7 @@ func (*EnumDecl) declaration()           {}
 func (d *EnumDecl) GetSpan() source.Span { return d.Span }
 
 type InterfaceMethod struct {
+	Accessor   string
 	Name       string
 	NameSpan   source.Span
 	Parameters []Parameter
@@ -378,11 +399,14 @@ func (*BlockStmt) statement()             {}
 func (s *BlockStmt) GetSpan() source.Span { return s.Span }
 
 type ReturnStmt struct {
-	Value      Expression
-	ResultKind ResultReturnKind
-	ResultType TypeRef
-	CrossesTry bool
-	Span       source.Span
+	Value Expression
+	// AdditionalValues contains the expressions after the first comma. Value
+	// retains the first expression for single-result and forwarding returns.
+	AdditionalValues []Expression
+	ResultKind       ResultReturnKind
+	ResultType       TypeRef
+	CrossesTry       bool
+	Span             source.Span
 }
 
 type ResultReturnKind int
@@ -469,6 +493,7 @@ func (s *IncDecStmt) GetSpan() source.Span { return s.Span }
 
 type MultiAssignmentStmt struct {
 	Bindings []Binding
+	Upcasts  []*ClassUpcastExpr // Per-result source class coercions, when required.
 	Value    Expression
 	Span     source.Span
 }
@@ -798,19 +823,27 @@ type CallExpr struct {
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
 	// structural interface inference cannot recover them from a method set.
 	ResolvedTypeArguments []TypeRef
-	Arguments             []Expression
+	// MultipleArgumentCount records sole-call result expansion for capture lowering.
+	MultipleArgumentCount  int
+	MultipleArgumentResult *TypeRef
+	GenericCall            bool      // Generic functions cannot be captured uninstantiated.
+	CaptureArgumentTypes   []TypeRef // Contextual types for eager Task argument capture.
+	Arguments              []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
-	IntegerSizeArguments []bool
-	Expanded             bool
-	Conversion           bool
-	GoConstant           bool // Checked calls/conversions that Go evaluates at compile time.
-	ConversionType       *TypeRef
-	Builtin              BuiltinCallKind
-	Signature            *CallableSignature
-	SuperConstructor     bool
-	SuperBase            string
-	Span                 source.Span
+	IntegerSizeArguments   []bool
+	MakeSliceTarget        bool // make[T] has a checked slice target, not a map hint or channel capacity.
+	Expanded               bool
+	Conversion             bool
+	GoConstant             bool // Checked calls/conversions that Go evaluates at compile time.
+	ConversionType         *TypeRef
+	DecoratorValueIdentity string
+	DecoratorValueContract string
+	Builtin                BuiltinCallKind
+	Signature              *CallableSignature
+	SuperConstructor       bool
+	SuperBase              string
+	Span                   source.Span
 }
 
 type CallableSignature struct {
@@ -842,6 +875,7 @@ const (
 	ImagCall
 	MakeSliceCall
 	MakeMapCall
+	MakeCall
 	CopyArrayCall
 	ViewArrayCall
 	UnsafeSizeofCall
@@ -854,6 +888,8 @@ const (
 	UnsafeStringDataCall
 	ResultOKCall
 	ResultFailCall
+	DecoratorValueCall
+	DecoratorValueAsCall
 )
 
 type ArrowExpr struct {
@@ -908,21 +944,27 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
-	Object              Expression
-	Name                string
-	NameSpan            source.Span
-	ResolvedDeclaration source.Span
-	ResolvedName        string
-	Static              bool
-	Constant            bool
-	Addressable         bool
-	GoField             bool
-	GoFieldViaPointer   bool
-	Go                  bool
-	Super               bool
-	SuperBase           string
-	VirtualDispatch     bool
-	VirtualOwner        string
+	Property               bool
+	PropertyGetter         string
+	PropertySetter         string
+	PropertyGetterOwner    string
+	PropertySetterOwner    string
+	PropertyGetterAbstract bool
+	Object                 Expression
+	Name                   string
+	NameSpan               source.Span
+	ResolvedDeclaration    source.Span
+	ResolvedName           string
+	Static                 bool
+	Constant               bool
+	Addressable            bool
+	GoField                bool
+	GoFieldViaPointer      bool
+	Go                     bool
+	Super                  bool
+	SuperBase              string
+	VirtualDispatch        bool
+	VirtualOwner           string
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
 	GenericMethod                bool

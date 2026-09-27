@@ -5,6 +5,18 @@ import gotypes "go/types"
 // Check source success payloads before Go storage comparison can erase nullable
 // qualifiers. The normal assignability check still enforces named identity.
 func compatibleResultFunctionTypes(target, value Type) bool {
+	if target.Kind == Function && value.Kind == Function && target.Result != nil && value.Result != nil &&
+		(target.Result.Kind == MultiValue || value.Result.Kind == MultiValue) {
+		targetResult, valueResult := *target.Result, *value.Result
+		if targetResult.Kind == Result {
+			targetResult = methodResultStorageShape(targetResult)
+		}
+		if valueResult.Kind == Result {
+			valueResult = methodResultStorageShape(valueResult)
+		}
+		target.Result, value.Result = &targetResult, &valueResult
+		return sameConstraintNullability(target, value)
+	}
 	if target.Kind != Function || value.Kind != Function || target.Result == nil || value.Result == nil || target.Result.Kind != Result || value.Result.Kind != Result {
 		return true
 	}

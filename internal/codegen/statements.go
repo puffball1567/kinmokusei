@@ -129,6 +129,13 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			}
 			result.Results = []goast.Expr{value}
 		}
+		for _, expression := range stmt.AdditionalValues {
+			value, err := generateExpression(expression)
+			if err != nil {
+				return nil, err
+			}
+			result.Results = append(result.Results, value)
+		}
 		return result, nil
 	case *kinmokuseiAST.ThrowStmt:
 		if stmt.Bare {
@@ -172,6 +179,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.ExprStmt{X: value}, nil
 	case *kinmokuseiAST.AssignmentStmt:
+		if member, ok := stmt.Target.(*kinmokuseiAST.MemberExpr); ok && member.Property {
+			return generatePropertyAssignment(member, stmt.Operator, stmt.Value)
+		}
 		if stmt.DiscardArity > 0 {
 			return generateDiscard(stmt.Value, stmt.DiscardArity, kinmokuseiAST.TypeRef{})
 		}
@@ -185,6 +195,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		}
 		return &goast.AssignStmt{Lhs: []goast.Expr{target}, Tok: goAssignmentToken(stmt.Operator), Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.IncDecStmt:
+		if member, ok := stmt.Target.(*kinmokuseiAST.MemberExpr); ok && member.Property {
+			return generatePropertyAssignment(member, stmt.Operator, nil)
+		}
 		target, err := generateExpression(stmt.Target)
 		if err != nil {
 			return nil, err
@@ -207,6 +220,11 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 				if err != nil {
 					return nil, err
 				}
+			}
+		}
+		for _, upcast := range stmt.Upcasts {
+			if upcast != nil {
+				return generateCoercedMultiAssignment(stmt, targets, value)
 			}
 		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil

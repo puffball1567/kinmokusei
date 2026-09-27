@@ -30,9 +30,10 @@ func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
 		valid = false
 	}
 	pkg := gotypes.NewPackage("kinmokusei.synthetic/ordered", "ordered")
-	arguments := make([]goast.Expr, len(expr.Arguments))
-	for index, argument := range expr.Arguments {
-		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
+	values, origins := c.checkNumericCallInputs(expr)
+	arguments := make([]goast.Expr, len(values))
+	for index, argument := range origins {
+		value := values[index]
 		if value.Kind == Invalid {
 			valid = false
 			continue
@@ -42,16 +43,9 @@ func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
 			valid = false
 			continue
 		}
-		var ok bool
 		operandName := fmt.Sprintf("arg%d", index+1)
-		if value.Kind == UntypedInt || isUntypedGoNumeric(value) {
-			arguments[index] = c.orderedUntypedExpression(pkg, operandName, argument)
-		}
-		if arguments[index] != nil {
-			ok = true
-		} else {
-			arguments[index], ok = c.numericOperand(pkg, operandName, argument, value)
-		}
+		var ok bool
+		arguments[index], ok = c.numericOperand(pkg, operandName, argument, value)
 		if !ok {
 			c.report(argument.GetSpan(), fmt.Sprintf("%s cannot use operand of type %s", name, value.String()))
 			valid = false
@@ -60,43 +54,9 @@ func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	return c.finishNumeric(expr, pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: arguments})
-}
-
-// Preserve untyped nonconstant shifts until the other min/max operands provide
-// their context. Replacing 1<<n with an int variable would wrongly reject a
-// uint8 peer, while replacing it with a uint8 variable would miss 300<<n's
-// overflowing left operand. Counts were already checked as integers; model an
-// unknown count as a variable without inspecting or executing its expression.
-func (c *Checker) orderedUntypedExpression(pkg *gotypes.Package, name string, expression ast.Expression) goast.Expr {
-	if value, known := c.scalarConstant(expression); known {
-		pkg.Scope().Insert(gotypes.NewConst(0, pkg, name, value.Type, value.Value))
-		return goast.NewIdent(name)
+	result := c.finishNumeric(expr, pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: arguments})
+	if result.Kind != Invalid {
+		c.recordBuiltinMultipleResult(expr, result)
 	}
-	switch expr := expression.(type) {
-	case *ast.UnaryExpr:
-		if operand := c.orderedUntypedExpression(pkg, name+"_value", expr.Operand); operand != nil {
-			return &goast.UnaryExpr{Op: numericOperator(expr.Operator), X: operand}
-		}
-	case *ast.BinaryExpr:
-		left := c.orderedUntypedExpression(pkg, name+"_left", expr.Left)
-		if left == nil {
-			return nil
-		}
-		var right goast.Expr
-		if expr.Operator == "<<" || expr.Operator == ">>" {
-			if value, known := c.scalarConstant(expr.Right); known {
-				pkg.Scope().Insert(gotypes.NewConst(0, pkg, name+"_count", value.Type, value.Value))
-			} else {
-				pkg.Scope().Insert(gotypes.NewVar(0, pkg, name+"_count", gotypes.Typ[gotypes.Uint]))
-			}
-			right = goast.NewIdent(name + "_count")
-		} else {
-			right = c.orderedUntypedExpression(pkg, name+"_right", expr.Right)
-		}
-		if right != nil {
-			return &goast.BinaryExpr{X: left, Op: numericOperator(expr.Operator), Y: right}
-		}
-	}
-	return nil
+	return result
 }

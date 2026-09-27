@@ -34,6 +34,26 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.4 highlights
+
+- Instance and static getter/setter properties, interface property contracts,
+  virtual/abstract overrides, mutable static fields and typed class constants.
+- Typed decorator registration and checked construction, method and accessor
+  invocation for external DI and routing libraries.
+- Source multiple-result signatures and forwarding, sole-call argument
+  expansion, method-only anonymous interfaces, local import aliases and `make[T]`.
+- Improved generic inference, target-sized constant checks, nullable contracts,
+  Task ownership and branch/select evaluation analysis.
+- Stronger external-package boundaries, name isolation and editor diagnostics,
+  with 103 implemented runtime contract groups backed by independent Go tests.
+
+Use matching compiler and editor versions. Libraries depending on these additions
+should declare `min-kinmokusei = "0.4.4"`. Stronger diagnostics may reject programs
+that previously erased nullable contracts, reused/unhandled tasks, or depended
+on captured generated names. See the
+[v0.4.4 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.4)
+for upgrade guidance and remaining boundaries.
+
 ## v0.4.3 highlights
 
 - Short source imports are configured automatically by `keika deps add`, with

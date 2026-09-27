@@ -1,0 +1,11 @@
+import go fmt from "fmt";
+
+function mask(n: uint): byte {
+  return 1 << n;
+}
+
+function main(): void {
+  const n: uint = 2;
+  const values = make[int[]](1.0 << n, 2.0 << n);
+  fmt.Println(mask(n), len(values), cap(values));
+}

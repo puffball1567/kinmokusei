@@ -85,15 +85,28 @@ func (c *Checker) constraintArgumentShape(value Type) Type {
 	if value.Kind != GoNamed || value.GoType == nil {
 		return value
 	}
-	if named, ok := gotypes.Unalias(value.GoType).(*gotypes.Named); ok {
-		if symbol := c.nativeTypes[named.Obj().Name()]; symbol != nil && named.Origin() == symbol.goNamed {
-			return c.nativeDefinedUnderlying(symbol, value)
-		}
+	if shape, ok := c.nativeDefinedShape(value); ok {
+		return shape
 	}
 	if shape, err := kinmokuseiTypeFromGo(value.GoType.Underlying()); err == nil {
 		return c.restoreNativeRangeType(shape)
 	}
 	return value
+}
+
+// Unwrap native defined storage without reconstructing away source qualifiers.
+// Imported Go types remain unchanged so their package identities and qualifiers
+// continue through the normal interop path.
+func (c *Checker) nativeDefinedShape(value Type) (Type, bool) {
+	if value.Kind != GoNamed || value.GoType == nil {
+		return value, false
+	}
+	if named, ok := gotypes.Unalias(value.GoType).(*gotypes.Named); ok {
+		if symbol := c.nativeTypes[named.Obj().Name()]; symbol != nil && named.Origin() == symbol.goNamed {
+			return c.nativeDefinedUnderlying(symbol, value), true
+		}
+	}
+	return value, false
 }
 
 // Go satisfaction checks the storage type; this additional check protects the
@@ -110,7 +123,7 @@ func sameConstraintNullability(expected, actual Type) bool {
 			return false
 		}
 	}
-	for _, pair := range [][2][]Type{{expected.Parameters, actual.Parameters}, {expected.TypeArguments, actual.TypeArguments}} {
+	for _, pair := range [][2][]Type{{expected.Parameters, actual.Parameters}, {expected.TypeArguments, actual.TypeArguments}, {expected.Results, actual.Results}} {
 		if len(pair[0]) == len(pair[1]) {
 			for i := range pair[0] {
 				if !sameConstraintNullability(pair[0][i], pair[1][i]) {

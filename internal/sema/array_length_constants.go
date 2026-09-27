@@ -55,7 +55,7 @@ func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
 	case *ast.BinaryExpr:
 		return arrayLengthOperandUnevaluated(expr.Left) && arrayLengthOperandUnevaluated(expr.Right)
 	case *ast.MemberExpr:
-		return arrayLengthOperandUnevaluated(expr.Object)
+		return !expr.Property && arrayLengthOperandUnevaluated(expr.Object)
 	case *ast.IndexExpr:
 		return arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Index)
 	case *ast.SliceExpr:
@@ -64,6 +64,16 @@ func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
 		return !expr.ClassDowncast && arrayLengthOperandUnevaluated(expr.Value)
 	case *ast.CallExpr:
 		if expr.GoConstant {
+			// Only nested constant len/cap reset Go's enclosing call scan.
+			// Layout arguments (even through constant conversions/min/max)
+			// can contain calls/receives that still make outer len nonconstant.
+			if expr.Builtin != ast.LenCall && expr.Builtin != ast.CapCall {
+				for _, argument := range expr.Arguments {
+					if !arrayLengthOperandUnevaluated(argument) {
+						return false
+					}
+				}
+			}
 			return true
 		}
 		if !expr.Conversion && expr.Builtin != ast.CopyArrayCall && expr.Builtin != ast.ViewArrayCall {

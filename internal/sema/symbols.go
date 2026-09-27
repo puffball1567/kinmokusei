@@ -46,6 +46,8 @@ const (
 )
 
 type fieldSymbol struct {
+	static          bool
+	declaration     *ast.FieldDecl
 	typeInfo        Type
 	visibility      ast.Visibility
 	goName          string

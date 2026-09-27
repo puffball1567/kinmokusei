@@ -18,6 +18,8 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 	}
 	var names []string
 	var nameSpans []source.Span
+	var aliases []string
+	var aliasSpans []source.Span
 	if p.at(token.RightBrace) {
 		p.report(p.peek(), "import list cannot be empty")
 	}
@@ -29,6 +31,20 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 		}
 		names = append(names, name.Lexeme)
 		nameSpans = append(nameSpans, name.Span)
+		alias, aliasSpan := "", source.Span{}
+		if p.match(token.As) {
+			local, valid := p.expect(token.Identifier, "expected local name after 'as'")
+			if !valid {
+				p.synchronizeDeclaration()
+				return ast.ImportDecl{}, false
+			}
+			alias, aliasSpan = local.Lexeme, local.Span
+			if alias == "_" {
+				p.report(local, "import alias cannot be '_'")
+			}
+		}
+		aliases = append(aliases, alias)
+		aliasSpans = append(aliasSpans, aliasSpan)
 		if !p.match(token.Comma) {
 			break
 		}
@@ -59,7 +75,7 @@ func (p *Parser) parseImport(start token.Token) (ast.ImportDecl, bool) {
 		p.synchronizeDeclaration()
 		end = p.previous()
 	}
-	return ast.ImportDecl{Names: names, NameSpans: nameSpans, Path: path, PathSpan: pathToken.Span, Span: start.Span.Merge(end.Span)}, true
+	return ast.ImportDecl{Names: names, NameSpans: nameSpans, NameAliases: aliases, NameAliasSpans: aliasSpans, Path: path, PathSpan: pathToken.Span, Span: start.Span.Merge(end.Span)}, true
 }
 
 func (p *Parser) parseGoImport(start token.Token) (ast.ImportDecl, bool) {

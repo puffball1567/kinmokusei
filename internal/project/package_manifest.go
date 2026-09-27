@@ -5,6 +5,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
 // Package metadata extends the existing project manifest. The project
@@ -84,5 +86,21 @@ func canonicalPackageSubpath(value string) bool {
 }
 
 func validPackageSource(value string) bool {
-	return canonicalPackageSubpath(value) && filepath.Ext(value) == ".km"
+	if !canonicalPackageSubpath(value) || filepath.Ext(value) != ".km" {
+		return false
+	}
+	for _, component := range strings.Split(value, "/") {
+		if excludedPackageDirectory(component) {
+			return false
+		}
+	}
+	return true
+}
+
+// Source resolution and hashing must agree: code outside the content hash
+// must never enter a dependency through its entry, exports, or relative imports.
+func excludedPackageDirectory(name string) bool {
+	// Match case-insensitive filesystems and Windows' trailing-dot/space aliases.
+	name = strings.TrimRight(name, ". ")
+	return strings.EqualFold(name, ".git") || strings.EqualFold(name, product.StateDirectoryName)
 }

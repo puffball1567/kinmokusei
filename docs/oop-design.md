@@ -44,14 +44,18 @@ parameter assignments, and finally its constructor body. An exception or panic
 stops that sequence; later fields and bodies are not evaluated.
 
 Initializers can use module bindings, ordinary function calls, accessible static
-methods, class type parameters, allocations, and callbacks. They cannot reference
-`this`, `super`, or constructor-local parameters, including through a callback;
+methods, class type parameters, allocations, and callbacks. An instance
+initializer may read an earlier explicitly initialized field of the same class
+or an accessible inherited instance field with `this.field`. The inherited
+field is read after the base constructor has completed. It cannot assign to an
+instance field, read a later or uninitialized field of its own class, capture
+`this` in a callback, or use `super` or constructor-local parameters; other
 receiver-dependent initialization belongs in the constructor. A module binding
 with the same name as a constructor parameter still resolves to the module
 binding in a field initializer. Fields with valid initializers satisfy definite
 initialization checks, while other non-null reference fields still need a
-constructor assignment. Native struct defaults and static fields remain separate,
-unsupported features.
+constructor assignment. Native struct defaults remain unsupported; static field
+initialization is described below.
 
 Generated `NewClass(...)` functions perform initialization. Constructing a Go
 struct literal directly does not run source-language initializers. JSON decoding
@@ -194,9 +198,70 @@ Fields remain ordinary named fields; embedding and promoted Go methods are not i
 ### Static members
 
 - Static methods lower to stable type-prefixed package functions.
-- Static fields/constants are not implemented; use module constants or
-  explicit static methods today.
+- Mutable static fields lower to type-prefixed package variables; `static const`
+  members lower to typed Go constants.
 - Mutable static state is discouraged and should require an explicit synchronization/lifecycle design.
+
+```ts
+class Counter<T> {
+  public static count: int = 0;
+  constructor(public value: T) { Counter.count++; }
+}
+```
+
+Every static field requires an explicit type and initializer. Access it through
+the class name (`Counter.count`), not an instance. A declaring class has one
+storage location, shared by all generic instantiations and descendants.
+Descendants cannot redeclare that field. Public, protected and private visibility
+apply normally. Class type parameters, `this`, `super` and constructor parameters
+are out of scope in a static initializer; module bindings remain available.
+
+Initializers follow generated Go package dependency order and run once, not per
+construction. Initialization cycles are compile errors, including dependencies
+through static accessors, methods and constructors. Fields are addressable and
+support ordinary assignment, compound updates and collection operations. As with
+module variables, bind a nullable static value locally before narrowing it.
+Updates do not acquire locks or become atomic automatically.
+
+A public field such as `Counter.count` emits the Go package variable
+`CounterCount`; private and protected fields use unexported names. Static state
+is not part of instance structs or JSON. Generated-name collisions are diagnosed,
+including local bindings that would shadow the selected Go variable.
+
+### Class constants
+
+```ts
+class Limits<T> {
+  public static const size: int = 32;
+  public static const label: string = "items";
+  private static const extra: int = 1;
+  public static const capacity: int = Limits.size + Limits.extra;
+}
+```
+
+Class constants require `static const`, an explicit scalar type, and an
+initializer whose compile-time value can be established. Numeric, string and
+boolean types (including named scalar types) are supported. Use the class name
+without type arguments; inheritance, visibility and module lexical scope follow
+static fields. Class type parameters are not available. Forward references to
+other constants are allowed; cycles are rejected.
+
+Constant operations preserve Go types, representability and floating-point
+rounding. These values work in numeric bounds, allocation sizes, switches,
+generic calls and further constant expressions. Runtime calls, mutable bindings,
+accessors, collections and object references cannot initialize constants.
+Constant array `len`/`cap` is permitted without reading array elements, but Go's
+dependency-cycle restrictions still apply to those references.
+Assignments, updates and address-taking are errors. Unlike a module `const`
+binding holding an immutable runtime value, `static const` always requires a
+compile-time constant.
+
+`Limits.size` emits `const LimitsSize int = 32`, usable as a constant by Go
+consumers, including Go array lengths. Kinmokusei array **type** lengths still
+require integer literals; this declaration syntax does not extend them to
+expressions. Enum-member values are not yet evaluated by this scalar-constant
+initializer checker. Constants occupy no per-instance storage and are excluded
+from JSON.
 
 ## Deliberate differences from TypeScript/JavaScript
 
@@ -351,7 +416,168 @@ rules just as it can bypass ordinary class initializers.
 
 ## Properties
 
-Getter/setter properties are also future work. If added, they must have explicit lowering and cannot hide arbitrary asynchronous or fallible behavior behind field-looking syntax.
+Concrete instance properties use `get` and `set` accessors:
+
+```ts
+class Counter {
+  private raw: int = 0;
+  public get value(): int { return this.raw; }
+  private set value(next: int) { this.raw = next; }
+  public function increment(): void { this.value++; }
+}
+const counter = new Counter();
+counter.increment();
+const value = counter.value;
+// counter.value = 3; // private setter
+```
+
+A getter has no parameters and an explicit non-void return type. A setter has
+one typed, non-rest parameter and returns void; its `: void` annotation is
+optional. Paired types must match exactly, including nullability and generic
+arguments. Each accessor has its own public/protected/private visibility;
+the default is private. Getter-only properties are read-only and setter-only
+properties are write-only. Properties do not declare storage or initialize
+backing fields on behalf of a constructor.
+
+Property reads and writes lower to method calls. Public `get value` / `set value`
+generate `GetValue()` / `SetValue(value)` for ordinary Go consumers. These names
+cannot collide with other declared or inherited members. Nonpublic accessors
+remain unexported. Properties are not JSON fields and are not addressable;
+value structs/arrays returned by a getter are copies, while returned references
+and slices retain their ordinary aliasing behavior.
+
+`receiver.value += rhs`, other compound assignments, and `++`/`--` evaluate the
+receiver once, call the getter once, evaluate the right-hand side, then call the
+setter once. An exception or panic stops that sequence. Both accessors must be
+accessible for updates. Inherited properties retain their access rules and
+generic substitution; `super.value` operates on the existing base instance.
+Ordinary class fields and methods cannot hide a property.
+
+Accessors are synchronous calls, not stable storage reads. Repeated nullable
+getter reads are not narrowed by an earlier null check: bind the result locally
+and check that binding. Accessor calls invalidate potentially aliased field
+proofs, just like ordinary method calls. Property types cannot be `Result` or
+`Task`; there is no implicit error propagation or awaiting. Bodies retain
+ordinary explicit statements and exception/panic behavior. Prefer explicit
+methods for operations whose effects should be visible at the call site.
+
+### Static properties
+
+Static accessors use the same signature and paired-type rules, but are accessed
+through a class name rather than an instance:
+
+```ts
+let configuredLimit: int = 10;
+class Settings {
+  public static get limit(): int { return configuredLimit; }
+  public static set limit(next: int) { configuredLimit = next; }
+}
+Settings.limit += 2;
+```
+
+Both halves of a pair must be static. Visibility is checked independently,
+including private and protected access from class methods and subclasses.
+Inherited access uses the declaring class's accessor; it does not create a new
+property per subclass. Static accessors cannot be virtual, abstract, overridden,
+or hidden by a descendant. Use a class name, not `this` or `super`, to access them.
+They do not satisfy instance interface contracts.
+
+The generated public API is `SettingsGetLimit()` / `SettingsSetLimit(int)`.
+These are package functions, not instance methods. Generated names must not
+collide with other package declarations. Updates call the getter, evaluate the
+right-hand side, then call the setter; ordinary assignment calls only the setter.
+No locking is added: a compound update is not automatically atomic. Global
+initialization cycles through static accessor and method bodies are rejected.
+If a local binding or type parameter hides the generated Go function name at
+a static member access, compilation reports the collision; rename that binding.
+
+A generic class can also declare static accessors, but its type parameters are
+out of scope in their signatures and bodies. Access with `Box.value`, without
+type arguments. There is one accessor implementation, not one per `Box<T>`.
+This restriction does not change generic static **methods**, which retain their
+existing explicit or inferred generic call syntax. Static properties declare
+no storage; module bindings or static fields supply backing state when needed.
+
+### Interface properties
+
+Interfaces declare accessor signatures without bodies or visibility modifiers;
+all required accessors are public. The ordinary accessor arity and exact paired
+type rules apply, including when separate generic ancestors supply the getter
+and setter.
+
+```ts
+interface Readable<T> { get value(): T; }
+interface Writable<T> { set value(next: T); }
+interface Cell<T> extends Readable<T>, Writable<T> {}
+
+class Box<T> implements Cell<T> {
+  constructor(private raw: T) {}
+  public get value(): T { return this.raw; }
+  public set value(next: T) { this.raw = next; }
+}
+function increment(cell: Cell<int>): int {
+  cell.value++;
+  return cell.value;
+}
+```
+
+As with methods, implementation is explicit. Required accessors may be inherited
+from a class or declared abstract by an abstract implementer. A field or ordinary
+method named `getValue` does not satisfy a source `get value` contract. A
+getter-only interface exposes only reads even if the concrete class also has a
+setter; setter-only contracts work analogously. These interfaces can be used for
+DI without inheriting a shared class implementation.
+
+Generated Go interfaces expose `GetValue`/`SetValue`, so handwritten Go types with
+those methods can implement the generated API. A source interface can also
+extend an imported Go interface with the same accessor methods when signatures
+match exactly. Source method/property name collisions and generated accessor
+name collisions are diagnosed. Property evaluation, nullability, mutation
+effects and non-addressability are unchanged when accessed through an interface.
+
+### Virtual and abstract accessors
+
+Each accessor independently supports the ordinary `virtual`, `override`, `final`
+and `abstract` method rules. Overrides must preserve its visibility and exact
+type, including nested nullability. Nonvirtual accessors cannot be overridden.
+Overriding only a getter preserves the inherited setter, and vice versa; adding
+a previously absent accessor to an inherited property is not supported. A final
+override closes that accessor, not the other half of the property.
+
+```ts
+abstract class Setting<T> {
+  public abstract get value(): T;
+  public abstract set value(next: T);
+}
+class Count extends Setting<int> {
+  private raw: int = 0;
+  public override get value(): int { return this.raw; }
+  public override set value(next: int) { this.raw = next; }
+}
+function increment(setting: Setting<int>): int {
+  setting.value++;
+  return setting.value;
+}
+```
+
+Abstract accessors have signatures without bodies and are implicitly virtual.
+A concrete descendant must implement each abstract accessor; an abstract
+intermediate class may redeclare an inherited virtual accessor with
+`abstract override`. These abstract classes work as ordinary DI types.
+
+Access through a base reference dispatches to the most-derived override,
+including updates and public Go `GetValue`/`SetValue` method calls or bound
+method values. `super.value` deliberately bypasses virtual dispatch and uses
+the inherited implementation. Reading or writing an abstract accessor through
+`super` is an error, including an abstract getter needed for a compound update.
+
+Construction uses the same phase-local dispatch as ordinary methods. Direct
+access to an abstract accessor on `this` during construction is rejected;
+indirect access through helpers can still reach an unimplemented slot and
+panics. An abstract getter is not read by a simple assignment through a concrete
+setter. Getter/setter bodies do not supply definite-initialization proofs for
+backing fields. Go-created zero values use the ordinary wrapper fallback, and
+unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ## Stages
 
@@ -374,7 +600,7 @@ Getter/setter properties are also future work. If added, they must have explicit
 
 ### Later candidates
 
-- Getter/setter properties.
+- Additional constant-expression contexts, including nonliteral array type lengths.
 - Discriminated-union integration.
 
 ### Out of scope

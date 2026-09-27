@@ -47,7 +47,7 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	program := s.analyze(doc)
-	if detail, builtin := builtinExceptionHover(program, doc, offset); builtin {
+	if detail, builtin := builtinHover(program, doc, offset); builtin {
 		result := map[string]any{
 			"contents": map[string]any{"kind": "markdown", "value": "```kinmokusei\n" + detail + "\n```"},
 			"range":    s.protocolRangeFor(doc.Path, identifierSpanAt(doc, offset, identifierAt(doc, offset))),
@@ -65,10 +65,24 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 	return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: result})
 }
 
-func builtinExceptionHover(program *ast.Program, doc document, offset int) (string, bool) {
+func builtinHover(program *ast.Program, doc document, offset int) (string, bool) {
 	name := identifierAt(doc, offset)
 	if name == "Exception" {
 		return "class Exception {\n  public message: string;\n  public function error(): string;\n}", true
+	}
+	if ast.IsDecoratorContextTypeName(name) {
+		lines := []string{"type " + name + " = {"}
+		for _, field := range ast.DecoratorContextFields() {
+			lines = append(lines, "  "+field.Name+": "+formatTypeRef(field.Type)+";")
+		}
+		return strings.Join(append(lines, "}"), "\n"), true
+	}
+	if name == ast.DecoratorValueTypeName {
+		lines := []string{"type " + name + " = {"}
+		for _, field := range ast.DecoratorValueFields() {
+			lines = append(lines, "  "+field.Name+": "+formatTypeRef(field.Type)+";")
+		}
+		return strings.Join(append(lines, "}"), "\n"), true
 	}
 	var detail string
 	visitProgramExpressions(program, func(expression ast.Expression) {
@@ -83,6 +97,20 @@ func builtinExceptionHover(program *ast.Program, doc document, offset int) (stri
 		// members with the same generated Go name always carry a declaration span.
 		if member.ResolvedDeclaration.Path != "" {
 			return
+		}
+		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
+			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ast.IsDecoratorBuiltinObjectTypeName(ref.Name) {
+				fields := ast.DecoratorContextFields()
+				if ref.Name == ast.DecoratorValueTypeName {
+					fields = ast.DecoratorValueFields()
+				}
+				for _, field := range fields {
+					if member.Name == field.Name {
+						detail = field.Name + ": " + formatTypeRef(field.Type)
+						return
+					}
+				}
+			}
 		}
 		switch member.ResolvedName {
 		case "Message":
@@ -100,7 +128,7 @@ func (s *Server) definition(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	program := s.analyze(doc)
-	if _, builtin := builtinExceptionHover(program, doc, offset); builtin {
+	if _, builtin := builtinHover(program, doc, offset); builtin {
 		// Compiler-provided declarations have no source file to navigate to.
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
@@ -177,6 +205,9 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 		return declarationInfo{}, false
 	}
 	if occurrence, ok := occurrenceAt(s.symbolOccurrences(program), doc.Path, offset); ok {
+		if alias, found := s.importAliasInfo(program, occurrence.Declaration); found {
+			return alias, true
+		}
 		if alias, found := s.exportAliasInfo(program, occurrence.Declaration); found {
 			return alias, true
 		}
@@ -285,7 +316,16 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
 			for _, field := range declaration.Fields {
-				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: field.Name + ": " + formatTypeRef(field.Type), Kind: 8, Span: field.Span, Selection: field.NameSpan})
+				detail := field.Name + ": " + formatTypeRef(field.Type)
+				kind := 8
+				if field.Constant {
+					detail = "const " + detail
+					kind = 14
+				}
+				if field.Static {
+					detail = "static " + detail
+				}
+				info.Children = append(info.Children, declarationInfo{Name: field.Name, Detail: detail, Kind: kind, Span: field.Span, Selection: field.NameSpan})
 			}
 			if declaration.Constructor != nil {
 				for _, parameter := range declaration.Constructor.Parameters {
@@ -296,6 +336,9 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			}
 			for _, method := range declaration.Methods {
 				child := declarationInfo{Name: method.Name, Detail: methodDetail(method, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan}
+				if method.Accessor != "" {
+					child.Kind = 7
+				}
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
@@ -362,7 +405,13 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 			}
 			for _, method := range declaration.Methods {
-				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: functionDetail(method.Name, method.Parameters, method.ReturnType), Kind: 6, Span: method.Span, Selection: method.NameSpan})
+				detail := functionDetail(method.Name, method.Parameters, method.ReturnType)
+				kind := 6
+				if method.Accessor != "" {
+					detail = method.Accessor + " " + strings.TrimPrefix(detail, "function ")
+					kind = 7
+				}
+				info.Children = append(info.Children, declarationInfo{Name: method.Name, Detail: detail, Kind: kind, Span: method.Span, Selection: method.NameSpan})
 			}
 			result = append(result, info)
 		case *ast.VariableDecl:
@@ -539,6 +588,16 @@ func functionDeclarationDetail(function *ast.FunctionDecl) string {
 }
 
 func methodDetail(method *ast.MethodDecl, parameters []ast.Parameter, result ast.TypeRef) string {
+	if method.Accessor != "" {
+		detail := method.Accessor + " " + strings.TrimPrefix(functionDetail(method.Name, parameters, result), "function ")
+		if method.Abstract {
+			detail = "abstract " + detail
+		}
+		if method.Static {
+			detail = "static " + detail
+		}
+		return detail
+	}
 	name := method.Name
 	if !method.External && len(method.TypeParameters) != 0 {
 		name += formatTypeParameters(method.TypeParameters)

@@ -87,7 +87,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"class missing body", `class Broken function recovered(): void {}`},
 		{"duplicate constructors", `class Broken { constructor() {} constructor() {} }`},
 		{"static constructor", `class Broken { static constructor() {} }`},
-		{"static field", `class Broken { static value: int; }`},
+		{"virtual field", `class Broken { virtual value: int; }`},
 		{"interface missing separator", `interface Broken { function value(): int function other(): int; }`},
 		{"interface method body", `interface Broken { function value(): int {} }`},
 		{"implements missing type", `class Broken implements {}`},
@@ -195,6 +195,11 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	f.Add(`import { First as Local, Second, Third as Third } from "./library";`)
+	f.Add(`import go { Println as println, Sprint as text } from "fmt";`)
+	f.Add(`import go { Println as } from "fmt";`)
+	f.Add(`@api.Controller("/users") export class C{constructor(@Inject("x") private x:int){} @Get("/") public function f(@Param("id") id:string):string{return id;}}`)
+	f.Add(`function f():void{const x=(@D a:int)=>a;} @`)
 	for _, seed := range []string{`const main=()=>{};`, `const f=(n)=>n;`, `const f=(...values)=>{};`, `const f=(a,b:int)=>{return b;};`} {
 		f.Add(seed)
 	}

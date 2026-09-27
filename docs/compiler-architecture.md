@@ -96,6 +96,13 @@ baseline for accepted constructs with a Go equivalent.
 - Reject relative import cycles.
 - Resolve public/private names before mapping them to Go capitalization.
 - Manage Go keywords, predeclared identifiers, and generated-name collisions through deterministic mangling.
+
+  The linker and emitter share identifier escaping in `internal/goname`.
+  Dependency and package name allocation reserves emitted lexical spellings;
+  lexical scope indexes retain both source bindings and their emitted names.
+  This preserves source shadowing while detecting captures introduced by Go
+  escaping, including nested-local and multiple-assignment references.
+
 - Place relative imports and Go package aliases in the same file scope.
 - Do not expose transitive relative imports; every reference must resolve to a local declaration or explicit import.
 - Keep imported `main` declarations module-local regardless of name collisions.
@@ -202,6 +209,21 @@ Semantic analysis is organized within `internal/sema` by responsibility:
 - `constructor_range_proofs.go` derives non-empty collection facts keyed by
   declaration identity; `constant_expressions.go` evaluates constant expressions
   used by control-flow and numeric checks.
+- `target_numeric.go` checks numeric expressions with the selected Go target's
+  `types.Sizes`. The compiler shares these sizes between semantic checking and
+  generated Go validation. Since `types.CheckExpr` assumes 64-bit integers,
+  32-bit checks use synthetic declarations without executing source expressions;
+  untyped runtime shifts retain their destination-dependent type until used.
+- `unsafe_layout_constants.go` uses Go's builtin layout checker with those
+  same target sizes. Checked Go-storage field receivers are retained for `Offsetof`,
+  avoiding a second semantic traversal of its operand. Constant results enter
+  the shared scalar-value cache; variable-size generic layouts do not become
+  constants. Initializer checkers inherit target sizes and checked field metadata.
+  Source struct/object receivers keep ordinary native member-flow flags. For
+  layout probes only, already-checked native selectors are projected onto a
+  struct with exported field names and identical field order/types/tags; this
+  avoids synthetic-package privacy mismatches without changing generated code
+  or weakening imported Go field visibility.
 - `label_validation.go`, `return_flow.go`, and `nullable_flow.go` contain label
   resolution, termination predicates, and nullable/task-flow snapshot joins.
   Nullable joins retain their existing checker integration; this extraction
@@ -451,6 +473,13 @@ The official Visual Studio Code client is a thin adapter in `editors/vscode`. It
 Local VSIX packaging includes production dependencies, excludes development-only inputs, fixes archive timestamps, and compares two independently generated archives byte for byte. Tagged releases attach the matching VSIX beside the `keika` command archives; marketplace publication remains future release work. Other LSP-capable clients can launch `keika lsp --stdio` directly.
 
 The LSP must never acquire dependencies, update manifests, or mutate external state implicitly.
+
+Member completion uses a request-local analysis overlay when a selector is being
+edited. Blank the full member token, including the suffix after the cursor, while
+preserving source byte offsets and line endings. At EOF, matching call/index/body
+delimiters may be appended to retain the receiver's scope; mismatched delimiters
+and lexical errors are not guessed away. Completion still uses ordinary checked
+receiver types and visibility rules, and never edits the original document.
 
 ## Diagnostics
 

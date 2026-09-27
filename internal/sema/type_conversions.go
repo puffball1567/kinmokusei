@@ -4,7 +4,6 @@ import (
 	"fmt"
 	goast "go/ast"
 	"go/constant"
-	gotoken "go/token"
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
@@ -85,10 +84,10 @@ func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
 	valueGo, valueOK := goTypeOf(value)
-	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) {
+	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, converted, value)
 	}
-	if target.GoType == nil || !valueOK || !gotypes.ConvertibleTo(valueGo, target.GoType) {
+	if target.GoType == nil || !valueOK || !gotypes.ConvertibleTo(valueGo, target.GoType) || !c.conversionPreservesSourceContract(converted, value) {
 		c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 	}
 	return converted
@@ -111,33 +110,32 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
 	targetGo, targetOK := goTypeOf(target)
-	if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) {
+	if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, target, value)
 	}
 	valueGo, valueOK := goTypeOf(value)
 	if target.Kind == TypeParameter && value.Kind == Nil {
 		valueGo, valueOK = gotypes.Typ[gotypes.UntypedNil], true
 	}
-	convertible := targetOK && valueOK && value.Kind != Nullable && gotypes.ConvertibleTo(valueGo, targetGo)
+	convertible := targetOK && valueOK && gotypes.ConvertibleTo(valueGo, targetGo) && c.conversionPreservesSourceContract(target, value)
 	if !convertible {
 		c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 	} else if target.IsNumeric() {
-		if integer, known := c.resolvedIntegerConstantValue(expr.Arguments[0]); known && !integerConstantFitsFixedType(integer, target) {
+		if integer, known := c.resolvedIntegerConstantValue(expr.Arguments[0]); known && !c.integerConstantFitsFixedType(integer, target) {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", integer.String(), target.String()))
 		}
 	}
 	if target.Kind == TypeParameter && convertible && value.Kind != TypeParameter {
 		if integer, known := c.resolvedIntegerConstantValue(expr.Arguments[0]); known {
 			// ConvertibleTo checks type sets, but not the particular constant's
-			// representability. CheckExpr applies Go's constant rules to every
-			// possible type argument. Target-dependent int bounds are also
-			// validated when checking the generated Go for the selected target.
+			// representability. Apply Go's constant rules to every possible
+			// type argument using the selected target's integer width.
 			pkg := gotypes.NewPackage("kinmokusei.synthetic/conversion", "conversion")
 			pkg.Scope().Insert(gotypes.NewTypeName(0, pkg, "Target", targetGo))
 			pkg.Scope().Insert(gotypes.NewConst(0, pkg, "value", valueGo, constant.Make(integer)))
 			pkg.MarkComplete()
 			call := &goast.CallExpr{Fun: goast.NewIdent("Target"), Args: []goast.Expr{goast.NewIdent("value")}}
-			if err := gotypes.CheckExpr(gotoken.NewFileSet(), pkg, gotoken.NoPos, call, nil); err != nil {
+			if _, err := c.evalNumericGo(pkg, call); err != nil {
 				c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("integer constant %s cannot be converted to every type in %s's type set", integer.String(), target.String()))
 			}
 		}

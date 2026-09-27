@@ -87,7 +87,7 @@
       "patterns": [
         {
           "name": "support.function.builtin.kinmokusei",
-          "match": "\\b(len|cap|append|copy|delete|clear|min|max|makeSlice|makeMap|copyArray|viewArray|goChannel|closeGoChannel|ok|fail)\\b"
+          "match": "\\b(len|cap|append|copy|delete|clear|min|max|make|makeSlice|makeMap|copyArray|viewArray|goChannel|closeGoChannel|ok|fail)\\b"
         }
       ]
     },

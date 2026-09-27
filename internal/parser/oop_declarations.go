@@ -29,6 +29,13 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 		return nil
 	}
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
+		if p.at(token.Identifier) && (p.peek().Lexeme == "get" || p.peek().Lexeme == "set") && p.atNext(token.Identifier) {
+			if accessor := p.parseAccessor(p.advance(), true); accessor != nil {
+				declaration.Methods = append(declaration.Methods, ast.InterfaceMethod{Accessor: accessor.Accessor,
+					Name: accessor.Name, NameSpan: accessor.NameSpan, Parameters: accessor.Parameters, ReturnType: accessor.ReturnType, Span: accessor.Span})
+			}
+			continue
+		}
 		methodStart, valid := p.expect(token.Function, "expected interface method")
 		if !valid {
 			// Statement recovery can stop immediately at a statement keyword or
@@ -59,7 +66,7 @@ func (p *Parser) parseInterface(start token.Token) *ast.InterfaceDecl {
 			p.synchronizeStatement()
 			continue
 		}
-		returnType, valid := p.parseType()
+		returnType, valid := p.parseCallableReturnType()
 		if !valid {
 			p.synchronizeStatement()
 			continue
@@ -91,7 +98,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		return nil
 	}
 	typeParameters, typeParametersValid := p.parseTypeParameters("class")
-	class := &ast.ClassDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
+	class := &ast.ClassDecl{Name: name.Lexeme, SourceName: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
 	if p.match(token.Extends) {
 		base, valid := p.parseType()
 		if !valid {
@@ -115,6 +122,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		return nil
 	}
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
+		decorators := p.parseDecorators()
 		visibility := ast.Private
 		if p.match(token.Public) {
 			visibility = ast.Public
@@ -157,11 +165,22 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 		}
 	modifiersComplete:
 		switch {
+		case p.at(token.Identifier) && (p.peek().Lexeme == "get" || p.peek().Lexeme == "set") && p.atNext(token.Identifier):
+			accessor := p.parseAccessor(p.advance(), abstract)
+			if accessor != nil {
+				accessor.Decorators = decorators
+				accessor.Visibility = visibility
+				accessor.Static, accessor.Virtual, accessor.Override, accessor.Final, accessor.Abstract = static, virtual, override, final, abstract
+				class.Methods = append(class.Methods, accessor)
+			}
 		case p.match(token.Constructor):
 			if static || virtual || override || final || abstract {
 				p.report(p.previous(), "constructor cannot have static, virtual, override, final, or abstract modifiers")
 			}
 			constructor := p.parseConstructor(p.previous())
+			if constructor != nil {
+				constructor.Decorators = decorators
+			}
 			if class.Constructor != nil {
 				p.report(p.previous(), "class can only declare one constructor")
 			} else {
@@ -176,15 +195,24 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 			}
 			if function != nil {
 				class.Methods = append(class.Methods, &ast.MethodDecl{
-					Name: function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
+					Decorators: decorators,
+					Name:       function.Name, NameSpan: function.NameSpan, TypeParameters: function.TypeParameters, Parameters: function.Parameters, ReturnType: function.ReturnType,
 					Body: function.Body, Visibility: visibility, Static: static, Virtual: virtual, Override: override, Final: final, Abstract: abstract, Span: function.Span,
 				})
 			}
-		case p.at(token.Identifier):
-			if static || virtual || override || final || abstract {
-				p.report(p.peek(), "fields cannot have static, virtual, override, final, or abstract modifiers")
+		case p.at(token.Identifier) || p.at(token.Const):
+			constant := p.match(token.Const)
+			if constant && !static {
+				p.report(p.previous(), "class constants require the static modifier")
 			}
-			fieldName := p.advance()
+			if virtual || override || final || abstract {
+				p.report(p.peek(), "fields cannot have virtual, override, final, or abstract modifiers")
+			}
+			fieldName, valid := p.expect(token.Identifier, "expected field name")
+			if !valid {
+				p.synchronizeStatement()
+				continue
+			}
 			if _, ok = p.expect(token.Colon, "expected ':' after field name"); !ok {
 				p.synchronizeStatement()
 				continue
@@ -203,7 +231,7 @@ func (p *Parser) parseClass(start token.Token) *ast.ClassDecl {
 				p.synchronizeStatement()
 				end = p.previous()
 			}
-			class.Fields = append(class.Fields, ast.FieldDecl{Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
+			class.Fields = append(class.Fields, ast.FieldDecl{Decorators: decorators, Static: static, Constant: constant, Name: fieldName.Lexeme, NameSpan: fieldName.Span, Type: fieldType, Initializer: initializer, Visibility: visibility, Span: fieldName.Span.Merge(end.Span)})
 		default:
 			p.report(p.peek(), "expected a field, constructor, or method")
 			p.advance()
@@ -316,6 +344,7 @@ func (p *Parser) parseConstructorParameters() ([]ast.Parameter, bool) {
 		return parameters, true
 	}
 	for {
+		decorators := p.parseDecorators()
 		visibility := ast.Private
 		isField := false
 		if p.match(token.Public) {
@@ -341,7 +370,7 @@ func (p *Parser) parseConstructorParameters() ([]ast.Parameter, bool) {
 			p.report(name, "rest parameter type must be a slice")
 			return nil, false
 		}
-		parameters = append(parameters, ast.Parameter{Name: name.Lexeme, Type: typeRef, Variadic: variadic, Visibility: visibility, IsField: isField, Span: name.Span.Merge(typeRef.Span)})
+		parameters = append(parameters, ast.Parameter{Decorators: decorators, Name: name.Lexeme, Type: typeRef, Variadic: variadic, Visibility: visibility, IsField: isField, Span: name.Span.Merge(typeRef.Span)})
 		if !p.match(token.Comma) {
 			break
 		}

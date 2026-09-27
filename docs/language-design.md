@@ -119,7 +119,13 @@ Indices, slice bounds, and collection/channel sizes accept untyped constants
 with an integer value, including `2.0` and `2+0i`. Explicitly typed floating or
 complex constants and variables are not integer indices. Constant negative,
 oversized, or out-of-bounds indices and invalid size/bound ordering are rejected.
-Target-dependent `int` width remains subject to generated Go validation.
+Machine-width `int`, `uint` and `uintptr` constants are checked against the
+selected Go target at the Kinmokusei source location. The project lock selects
+the target when present; otherwise the compiler uses its host architecture.
+Generated Go validation uses the same target sizes. For example,
+`int(2147483648)` is rejected on 32-bit targets, while `uint32(^uint(0))` is valid
+only on 32-bit targets. Untyped constants retain precision until materialized,
+and runtime shifts acquire their type from the assignment or argument context.
 Since v0.4.0, references to numeric Go-emittable constants retain
 precision, explicit types, and representability checks through chains such as
 `const copy = original` and `const next = copy + 1`. This includes local and
@@ -154,6 +160,34 @@ behavior. Integer-to-string conversion produces one Unicode code point as Go
 does; it is not decimal formatting. Fixed arrays do not convert directly to
 strings.
 
+Conversions must also preserve Kinmokusei's source contracts: Go storage
+compatibility does not permit dropping or adding nullable qualifiers inside
+function signatures, collections or struct fields. This check follows named
+types and generic constraint terms. Writable collection element contracts are
+invariant; a conversion must not create a view that can store `null` in a
+collection whose element type excludes it. Narrow a nullable value before
+converting it, including to an imported Go type.
+
+```ts
+alias Maybe = *int | null;
+type OptionalLoad = distinct () => Result<Maybe>;
+type RequiredLoad = distinct () => Result<*int>;
+function invalid(load: OptionalLoad): RequiredLoad {
+  return RequiredLoad(load); // error: cannot convert OptionalLoad to RequiredLoad
+}
+```
+
+Matching `Result<T>` and raw Go result-list function types may still be
+converted; their success-slot contracts must match. No runtime conversion
+wrapper or implicit null check is added.
+
+The same nested-contract checks apply to assignment, return and argument
+passing, including constructor arguments and generic class/interface upcasts.
+For example, `List<Maybe>` cannot be assigned to `List<*int>` even if both
+instantiate to the same Go storage type. Ordinary value-level widening from
+`T` to `T | null` and valid class-to-base/interface assignments remain supported;
+this does not make writable containers covariant.
+
 ### Go interop types
 
 Go exports may be imported by package alias (`import go time from "time"`) or
@@ -165,6 +199,13 @@ may shadow imported types. Both forms can share a package import. Generated Go
 always qualifies imported exports; it does not copy imported variables or
 introduce runtime wrappers. Names must match exported Go declarations exactly.
 Named lists support trailing commas and the ordinary optional-semicolon rules.
+
+Named source and Go imports also support file-local aliases:
+`import { User as Account } from "./users"` and
+`import go { Sprint as render } from "fmt"`. Only the local spelling is bound;
+the selected export retains its original type and storage identity. See
+[import syntax](packages-and-interop.md#import-syntax) for collision, re-export
+and editor rename rules.
 
 
 Complex numbers use `complex64` (two float32 components) or `complex128` (two
@@ -196,7 +237,9 @@ retain their complete exported method sets. Inferred locals can call or bind
 their methods, pass them to compatible Go APIs, and consume multiple results.
 They may also occur inside collection and callback types. For an explicitly
 typed source callback, an imported Go alias to the same anonymous interface can
-provide the annotation; source anonymous-interface literal syntax is not added.
+provide the annotation. Source code may also spell a method-only anonymous
+interface as `interface { read(offset: int): string; }`; it lowers to the
+corresponding Go interface without introducing a named source contract.
 Source classes still use explicit interface implementation contracts.
 Anonymous interfaces with private methods are rejected because re-emitting those
 methods in another Go package would change their identity. Type-set constraints
@@ -581,8 +624,9 @@ function classify(status: Status): string {
 The underlying type defaults to `int` and must be an integer type. The first
 implicit member is zero; each later implicit member is one greater than the
 previous member, including after an explicit value. Explicit initializers must
-be compile-time integer constant expressions. Values outside a fixed-width
-underlying type are rejected at their source location. Empty enums, duplicate
+be compile-time integer constant expressions without enum-member references.
+Values outside the underlying type's range, including target-dependent `int`,
+are rejected at their source location. Empty enums, duplicate
 members, the blank member name `_`, and unknown members are also rejected.
 
 An enum is nominal: a runtime `int` is not implicitly assignable to `Status`.
@@ -869,8 +913,8 @@ alongside the identical `byte`/`uint8` spellings. They preserve Go's overflow
 behavior for dynamic operations. Negative
 unsigned constants and fixed-width out-of-range constants are rejected at the
 source; signed/unsigned and different-width values require an explicit
-conversion. Positive `uint` constant range remains target-dependent and is
-validated against the selected Go build target.
+conversion. Machine-width constant ranges and unsigned complements are checked
+against the selected Go build target before generation.
 
 - Typed bitwise operands must have identical types; defined type identity is preserved.
 - An untyped integer constant may combine with a typed operand only when representable.
@@ -924,10 +968,13 @@ let [nextValue, nextPresent] = lookup["next"];
   typed `int` constant values when the operand contains no runtime calls or
   channel receives. Such operands are not evaluated, including pointer
   dereferences, indexing, and slice-to-array conversions. No user function is
-  run at compile time. Checked constant calls and uncalled arrow bodies do not
-  force evaluation. Aliases preserve the resulting constant for bounds/size
-  checks; taking its address is rejected. Nullable wrappers and constant
-  intrinsics not yet recognized by semantic analysis remain further work.
+  run at compile time. Uncalled arrow bodies and nested constant `len`/`cap`
+  do not force evaluation. Go's call scan still sees calls/receives inside
+  unsafe layout arguments, including through constant conversions, so an outer
+  `len`/`cap` can remain nonconstant even though `Sizeof` itself is constant.
+  Aliases preserve the resulting constant for bounds/size checks; taking its
+  address is rejected. Nullable array pointers follow the same rules without
+  establishing a non-null proof.
 - `append`: returns the slice; it never silently reassigns the original variable.
 - `copy`: returns the number of elements copied.
 - `append`/`copy` accept type parameters with one common underlying slice type,
@@ -1092,6 +1139,106 @@ let timeout: time.Duration = time.Second;
 
 Functions have explicit parameter and return types. Arrow functions support expression and block bodies, function-type annotations, callbacks, and Go function values. A block body with a non-void result must return on every path.
 
+Callable result lists may contain two or more ordinary value types. A matching
+multiple-result call can be forwarded directly, or each value can be supplied
+in a comma-separated return:
+
+```typescript
+import go strings from "strings";
+function cut(text: string): (string, string, boolean) {
+  return strings.Cut(text, ":");
+}
+function pair(value: int): (int, string) {
+  return value, "label";
+}
+const split: (text: string) => (string, string, boolean) =
+  (text) => strings.Cut(text, ":");
+```
+
+This is a callable result list, not a storable tuple. Destructuring consumes
+its values. Counts, nullable qualifiers and per-element types are checked;
+direct forwarding cannot insert a class upcast for an individual result.
+Arrow result lists can also be inferred from a forwarded call or an explicit
+return list. Block inference takes the first return's result types (defaulting
+untyped literals) and checks subsequent returns against them. It does not widen
+incompatible branches or guess a type for nil/null; use an explicit annotation
+when those types cannot be established. For example:
+
+```typescript
+const pair = (value: int) => { return value, "label"; };
+const split = (text: string) => strings.Cut(text, ":");
+```
+
+Each explicit return expression is checked in its result slot's type context,
+including numeric representability and class upcasts. A result-list call cannot
+be mixed with other expressions in that list. Returns through try/catch/finally
+evaluate all values before executing finally. A return or throw in finally
+replaces the pending return. Typed result payloads preserve nil interfaces,
+numeric widths and generic type identity. Getters still return one property value.
+`void`, `Result<T>` and `Task<T>` cannot be elements of a result list.
+
+A multiple-result call can also supply all arguments to a function,
+method or variadic callable, following Go's sole-argument rule:
+
+```typescript
+function inputs(): (string, int) { return "hi", 2; }
+function repeat(text: string, count: int): string {
+  return strings.Repeat(text, count);
+}
+const repeated = repeat(inputs());
+```
+
+The inner call executes once. Its result count and types must match the outer
+call; variadic parameters consume any remaining results. This cannot be mixed
+with other arguments or a spread marker. Per-value class upcasts require
+destructuring before the call. Result effects still require explicit handling.
+Generic source and Go functions infer type arguments from the returned values;
+explicit type arguments are also supported, including variadic functions.
+Native generic functions also infer from callback result lists: for a parameter
+`produce: () => (T, U)`, passing a function returning `(int, string)` infers
+`T = int` and `U = string`. This applies to direct arrows, generic methods and
+partially explicit type arguments; conflicting results remain errors.
+Named function types also participate: a value of
+`type Pair = distinct () => (int, string)` can supply the same inference to an
+unnamed callback parameter. Conversely, an ordinary function or arrow can infer
+the arguments of `type Pair<T, U> = distinct () => (T, U)` when used as a
+parameter type. This does not make two different distinct function types
+assignable, erase nullable qualifiers, or turn a `Result<T>` effect into an
+ordinary value.
+The same named/unnamed inference applies to slices, fixed arrays, maps,
+pointers and channels. For example, `first<T>(values: T[]): T` can infer `int`
+from a `distinct int[]` argument, including named slices imported from Go.
+Argument compatibility still checks nominal identity, array length, channel
+direction and nullable elements; inference does not insert a type conversion.
+A caller's type parameter constrained to a common slice, array, map or
+receive-capable channel shape can supply these types too. For example,
+`function forward<E, S extends Slice<E>>(values: S): E { return first(values); }`
+works with `constraint Slice<E> = ~E[]`. The inferred element remains the
+caller's `E`; an ambiguous bound such as `~int[] | ~string[]` does not supply
+a single element type.
+Concrete native class elements are supported at this boundary as well:
+`constraint Items = ~Item[]` permits forwarding an `S extends Items` value to
+an `Item[]` parameter. Collections remain invariant: a `Child[]` cannot become
+an `Item[]`, nor can nullable and non-nullable element contracts be exchanged.
+Generic instance methods also support expansion, evaluating the receiver before
+the producer exactly once. Deferred calls capture both at registration time.
+The built-ins `append`, `copy`, `delete`, `min`, `max`, and `complex` also support
+expansion. For example, `complex(parts())` accepts a function returning two
+matching floating-point values; typed integers are not implicitly converted.
+Other built-ins still require destructuring first. A `go` expression captures
+the callee/receiver and the producer's values before starting its Task, just as
+it captures ordinary arguments; this also applies to generic calls.
+
+Value-only built-ins such as `min`, `complex`, and `append` require their result
+to be used, or explicitly discarded with `_ = min(values());`. They cannot be
+used directly as `go` or `defer` statements. This restriction also applies when
+their arguments come from a multiple-result call. Side-effect operations such
+as `copy`, `delete`, `clear`, and `closeGoChannel` remain valid statements.
+Type conversions follow the same result-use rule: `int(value);` is invalid,
+while `_ = int(value);` explicitly discards the converted value. Conversions
+are not callable operations for `go` or `defer`; ordinary functions returning
+values remain usable as statements.
+
 ```ts
 const add = (left: int, right: int): int => left + right;
 const checked = (value: int): int => { return value; };
@@ -1161,9 +1308,14 @@ change width, and immutable bindings lowered as Go variables remain typed.
 Multiple Go results are locally destructured:
 
 ```ts
-const [value, err] = strconv.Atoi(text);
+let [value, err] = strconv.Atoi(text);
 [value, err] = strconv.Atoi(other);
 ```
+
+Multiple assignment to existing variables also performs derived-to-base class
+conversions, including nullable and generic classes. The producer is evaluated
+once before any target is updated. This also works with checked map lookups and
+channel receives, blank targets, and assignments in a `for` update clause.
 
 Multi-values are not first-class values and cannot silently discard `error`.
 

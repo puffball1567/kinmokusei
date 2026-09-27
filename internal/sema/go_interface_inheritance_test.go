@@ -50,6 +50,7 @@ type Hidden interface { hidden() }
 type Unsafe interface { Pointer() unsafe.Pointer }
 type Anonymous interface { Read(interface{Read() int}) }
 type Integers interface { ~int }
+type Property[E any] interface { GetValue() E; SetValue(E) }
 `, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +60,10 @@ type Integers interface { ~int }
 		t.Fatal(err)
 	}
 	for _, test := range []struct{ name, source, want string }{
+		{"property Go ancestor", `interface Cell<T> extends c.Property<T>{get value():T;set value(v:T);}class Box<T> implements Cell<T>{constructor(private raw:T){}public get value():T{return this.raw;}public set value(v:T){this.raw=v;}}function f(c:Cell<int>):int{c.value++;return c.GetValue();}`, ""},
+		{"property Go ancestor conflict", `interface Cell extends c.Property<int>{get value():string;}`, "incompatible signatures for Go method GetValue"},
+		{"property split Go ancestor conflict", `interface R{get value():string;}interface G extends c.Property<int>{}interface Cell extends R,G{}`, "incompatible signatures for Go method GetValue"},
+		{"property reverse Go ancestor conflict", `interface R{get value():string;}interface G extends c.Property<int>{}interface Cell extends G,R{}`, "incompatible signatures for Go method GetValue"},
 		{"generic inherited call", `interface Reader<T> extends c.Reader<T>{} class Box<T> implements Reader<T>{constructor(private value:T){}public function read():T{return this.value;}} function use(value:Reader<int>):int{return value.Read();} function make():c.Reader<int>{return new Box<int>(1);}`, ""},
 		{"nullable generic result", `class Leaf{public value:int=1;} alias Maybe=Leaf|null; interface Reader<T> extends c.Reader<T>{} function bad(value:Reader<Maybe>):int{return value.Read().value;}`, "nullable"},
 		{"concrete nullable result", `class Leaf{public value:int=1;} alias Maybe=Leaf|null; interface Generic<T> extends c.Reader<T>{} interface Reader extends Generic<Maybe>{} function bad(value:Reader):int{return value.Read().value;}`, "nullable"},

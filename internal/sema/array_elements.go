@@ -10,7 +10,7 @@ import (
 // Reconstructing elements from Go storage alone loses class identity and
 // nullable qualifiers, notably after indexing or slicing a viewArray result.
 func (c *Checker) fixedArrayElementType(array *gotypes.Array, owner Type, span source.Span) Type {
-	shape := owner
+	shape := c.constraintArgumentShape(owner)
 	if shape.Kind == GoPointer && shape.Element != nil {
 		shape = *shape.Element
 	}

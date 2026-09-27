@@ -1248,6 +1248,10 @@ func TestFramingAndURIErrorMatrix(t *testing.T) {
 		{"too large", fmt.Sprintf("Content-Length: %d\r\n\r\n", maxMessageSize+1)},
 		{"truncated", "Content-Length: 5\r\n\r\n{}"},
 		{"malformed header", "broken\r\n\r\n"},
+		{"duplicate length", "Content-Length: 2\r\ncontent-length: 2\r\n\r\n{}"},
+		{"conflicting length", "Content-Length: 2\r\nContent-Length: 0\r\n\r\n{}"},
+		{"oversized header line", "X-Header: " + strings.Repeat("x", maxHeaderSize) + "\r\nContent-Length: 2\r\n\r\n{}"},
+		{"oversized aggregate headers", strings.Repeat("X: x\r\n", maxHeaderSize/6+1) + "Content-Length: 2\r\n\r\n{}"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1259,6 +1263,20 @@ func TestFramingAndURIErrorMatrix(t *testing.T) {
 	for _, uri := range []string{"https://example.com/main.km", "file://remote/main.km", "://bad"} {
 		if _, err := filePath(uri); err == nil {
 			t.Errorf("filePath(%q) unexpectedly succeeded", uri)
+		}
+	}
+}
+
+func TestFramingBoundedHeaderReads(t *testing.T) {
+	t.Parallel()
+	input := "X-Header: " + strings.Repeat("x", 5000) + "\r\nContent-Length: 2\r\n\r\n{}Content-Length: 2\r\n\r\n[]"
+	for _, bufferSize := range []int{16, 4096, maxHeaderSize} {
+		reader := bufio.NewReaderSize(strings.NewReader(input), bufferSize)
+		for _, want := range []string{"{}", "[]"} {
+			got, err := readMessage(reader)
+			if err != nil || string(got) != want {
+				t.Fatalf("buffer=%d payload=%q err=%v want=%q", bufferSize, got, err, want)
+			}
 		}
 	}
 }

@@ -118,6 +118,24 @@ func enclosingMemberOwner(program *ast.Program, path string, offset int) string 
 }
 
 func visibleValueType(program *ast.Program, path string, offset int, name string) (ast.TypeRef, bool) {
+	var arrowType ast.TypeRef
+	arrowFound := false
+	visitProgramExpressions(program, func(expression ast.Expression) {
+		arrow, ok := expression.(*ast.ArrowExpr)
+		if !ok || !spanContains(arrow.Span, path, offset) {
+			return
+		}
+		if ref, found := visibleValueTypeInBlock(program, arrow.BlockBody, path, offset, name); found {
+			arrowType, arrowFound = ref, true
+			return
+		}
+		if ref, found := parameterType(arrow.Parameters, name); found {
+			arrowType, arrowFound = ref, true
+		}
+	})
+	if arrowFound {
+		return arrowType, true
+	}
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
 			continue
@@ -220,6 +238,9 @@ func expressionCompletionType(program *ast.Program, expression ast.Expression) (
 	case *ast.AwaitExpr:
 		return expression.ValueType, expression.ValueType.IsSpecified()
 	case *ast.CallExpr:
+		if member, ok := expression.Callee.(*ast.MemberExpr); ok && member.Property && expression.Signature != nil {
+			return simpleSignatureType(expression.Signature.Result)
+		}
 		if ref, ok := callableDeclarationReturn(program, expression.Callee); ok {
 			return ref, true
 		}
@@ -469,6 +490,22 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 		}
 		return
 	}
+	if ast.IsDecoratorContextTypeName(ref.Name) {
+		if !static {
+			for _, field := range ast.DecoratorContextFields() {
+				add(completionItem{Label: field.Name, Kind: 5, Detail: field.Name + ": " + formatTypeRef(field.Type), SortText: "0_" + field.Name})
+			}
+		}
+		return
+	}
+	if ref.Name == ast.DecoratorValueTypeName {
+		if !static {
+			for _, field := range ast.DecoratorValueFields() {
+				add(completionItem{Label: field.Name, Kind: 5, Detail: field.Name + ": " + formatTypeRef(field.Type), SortText: "0_" + field.Name})
+			}
+		}
+		return
+	}
 	if ref.Name == "error" {
 		if !static {
 			add(completionItem{Label: "Error", Kind: 2, Detail: "function Error(): string", SortText: "0_Error"})
@@ -488,9 +525,21 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			collectTypeMemberCompletions(program, base, owner, static, seen, add)
 		}
 		for _, field := range declaration.Fields {
-			if !static && memberVisible(program, owner, declaration.Name, field.Visibility) {
+			if field.Static == static && memberVisible(program, owner, declaration.Name, field.Visibility) {
 				fieldType := substituteTypeRefParameters(field.Type, bindings)
-				add(completionItem{Label: field.Name, Kind: 5, Detail: visibilityName(field.Visibility) + " " + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
+				if field.Static {
+					fieldType = field.Type
+				}
+				prefix := visibilityName(field.Visibility) + " "
+				if field.Static {
+					prefix += "static "
+				}
+				kind := 5
+				if field.Constant {
+					prefix += "const "
+					kind = 21
+				}
+				add(completionItem{Label: field.Name, Kind: kind, Detail: prefix + field.Name + ": " + formatTypeRef(fieldType), SortText: "0_" + field.Name})
 			}
 		}
 		if declaration.Constructor != nil {
@@ -505,11 +554,26 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			if method.Static != static || !memberVisible(program, owner, declaration.Name, method.Visibility) {
 				continue
 			}
+			methodBindings := bindings
+			if method.Static && method.Accessor != "" {
+				methodBindings = nil
+			}
 			parameters := append([]ast.Parameter(nil), method.Parameters...)
 			for index := range parameters {
-				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
+				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, methodBindings)
 			}
-			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			result := substituteTypeRefParameters(method.ReturnType, methodBindings)
+			if method.Accessor != "" {
+				if method.Accessor == "set" && len(parameters) == 1 {
+					result = parameters[0].Type
+				}
+				prefix := visibilityName(method.Visibility) + " "
+				if method.Static {
+					prefix += "static "
+				}
+				add(completionItem{Label: method.Name, Kind: 10, Detail: prefix + method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
+				continue
+			}
 			add(completionItem{Label: method.Name, Kind: 2, Detail: visibilityName(method.Visibility) + " " + methodDetail(method, parameters, result), SortText: "0_" + method.Name})
 		}
 	case *ast.StructDecl:
@@ -615,6 +679,13 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 				parameters[index].Type = substituteTypeRefParameters(parameters[index].Type, bindings)
 			}
 			result := substituteTypeRefParameters(method.ReturnType, bindings)
+			if method.Accessor != "" {
+				if method.Accessor == "set" && len(parameters) == 1 {
+					result = parameters[0].Type
+				}
+				add(completionItem{Label: method.Name, Kind: 10, Detail: method.Accessor + " " + method.Name + ": " + formatTypeRef(result), SortText: "0_" + method.Name})
+				continue
+			}
 			add(completionItem{Label: method.Name, Kind: 2, Detail: functionDetail(method.Name, parameters, result), SortText: "0_" + method.Name})
 		}
 		for _, base := range declaration.Bases {
@@ -856,10 +927,11 @@ func sourceVisibleNamedType(program *ast.Program, path, name string) ast.Declara
 		if imported.Go || !samePath(imported.Span.Path, path) {
 			continue
 		}
-		for _, importedName := range imported.Names {
-			if importedName != name {
+		for index, importedName := range imported.Names {
+			if imported.BindingName(index) != name {
 				continue
 			}
+			name = importedName
 			explicit := false
 			for _, exported := range program.Exports {
 				if !samePath(exported.Span.Path, imported.ResolvedPath) {

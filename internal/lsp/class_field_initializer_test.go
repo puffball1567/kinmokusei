@@ -78,3 +78,64 @@ class Box<T extends Number> {
 		t.Fatalf("signature = %q active=%v", label, active)
 	}
 }
+
+func TestEarlierClassFieldInitializerNavigation(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "ordered_fields.km")
+	uri := fileURI(path)
+	input := `class Pair {
+  public first: int = 2;
+  public second: int = this.first + 3;
+}`
+	reference := positionOf(input, "first", 1)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, reference, ""),
+		requestAt("textDocument/rename", 3, uri, reference, `"newName":"initial"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("definition = %#v", messages[2])
+	}
+	start := definition["range"].(map[string]any)["start"].(map[string]any)
+	if start["line"] != float64(1) || start["character"] != float64(9) {
+		t.Fatalf("definition = %#v", definition)
+	}
+	rename, ok := messages[3]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("rename = %#v", messages[3])
+	}
+	changes := rename["changes"].(map[string]any)
+	if got := len(changes[uri].([]any)); got != 2 {
+		t.Fatalf("rename edits = %d, want 2", got)
+	}
+}
+
+func TestInheritedClassFieldInitializerNavigation(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	dependency := filepath.Join(root, "base.km")
+	entry := filepath.Join(root, "entry.km")
+	if err := os.WriteFile(dependency, []byte(`export class Base { public value: int = 3; }`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	uri := fileURI(entry)
+	input := `import { Base } from "./base";
+class Child extends Base { public next: int = this.value + 1; }`
+	reference := positionOf(input, "value", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, reference, ""),
+		requestAt("textDocument/rename", 3, uri, reference, `"newName":"initial"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != fileURI(dependency) {
+		t.Fatalf("definition = %#v", messages[2])
+	}
+	rename, ok := messages[3]["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("rename = %#v", messages[3])
+	}
+	changes := rename["changes"].(map[string]any)
+	if len(changes[uri].([]any)) != 1 || len(changes[fileURI(dependency)].([]any)) != 1 {
+		t.Fatalf("rename = %#v", rename)
+	}
+}

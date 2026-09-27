@@ -8,18 +8,22 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-// Initializers have class type parameters and module lexical bindings, but no
-// receiver or constructor parameters. In particular, callbacks cannot capture
-// a partially initialized receiver through this context.
+// Initializers have module lexical bindings but no constructor parameters.
+// Instance initializers may read initialized inherited fields and earlier
+// initialized fields of their own class through this.
+// Callbacks cannot capture a partially initialized receiver through this context.
 func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 	previousInitializer, previousConstructor := c.inFieldInitializer, c.inConstructor
+	previousAvailable, previousStatic, previousArrowDepth := c.fieldInitializerAvailable, c.fieldInitializerStatic, c.fieldInitializerArrowDepth
 	previousFlow, previousResult := c.memberFlow, c.result
 	c.inFieldInitializer, c.inConstructor = true, false
+	c.fieldInitializerAvailable, c.fieldInitializerStatic, c.fieldInitializerArrowDepth = map[string]bool{}, false, 0
 	c.memberFlow, c.result = map[memberFlowKey]memberFlowState{}, builtins["void"]
 	c.pushScope()
 	defer func() {
 		c.popScope()
 		c.inFieldInitializer, c.inConstructor = previousInitializer, previousConstructor
+		c.fieldInitializerAvailable, c.fieldInitializerStatic, c.fieldInitializerArrowDepth = previousAvailable, previousStatic, previousArrowDepth
 		c.memberFlow, c.result = previousFlow, previousResult
 	}()
 	for i := range decl.Fields {
@@ -27,9 +31,23 @@ func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 		if field.Initializer == nil {
 			continue
 		}
+		if field.Constant {
+			c.ensureClassConstantChecked(decl.Name, field)
+			continue
+		}
+		c.fieldInitializerStatic = field.Static
+		previousScopes, previousDependency := c.typeParameterScopes, c.globalDependencyOwner
+		if field.Static {
+			c.typeParameterScopes = nil
+			c.globalDependencyOwner = staticFieldDependency(decl.Name, field.Name)
+		}
 		expected := c.resolveType(field.Type)
 		actual := c.checkExpressionExpectedSlot(&field.Initializer, expected)
 		c.requireAssignable(expected, actual, field.Initializer.GetSpan())
+		c.typeParameterScopes, c.globalDependencyOwner = previousScopes, previousDependency
+		if !field.Static {
+			c.fieldInitializerAvailable[field.Name] = true
+		}
 	}
 }
 
@@ -40,6 +58,9 @@ func (c *Checker) checkClassFieldInitialization(decl *ast.ClassDecl) {
 	}
 	required := map[string]source.Span{}
 	for _, field := range decl.Fields {
+		if field.Static {
+			continue
+		}
 		symbol, exists := class.fields[field.Name]
 		if !exists || symbol.typeInfo.Kind == Invalid || symbol.typeInfo.Kind == Nullable || !isNullableBaseType(symbol.typeInfo) {
 			continue
@@ -51,7 +72,7 @@ func (c *Checker) checkClassFieldInitialization(decl *ast.ClassDecl) {
 	}
 	initialized := map[string]bool{}
 	for _, field := range decl.Fields {
-		if field.Initializer != nil {
+		if !field.Static && field.Initializer != nil {
 			initialized[field.Name] = true
 		}
 	}

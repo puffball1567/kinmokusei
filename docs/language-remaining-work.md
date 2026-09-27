@@ -1,7 +1,7 @@
 # Remaining language work: Go compatibility and OOP
 
 This is an implementation audit, not a claim of full Go compatibility. The
-100 runtime contract groups cover accepted features only. The baseline output
+103 runtime contract groups cover accepted features only. The baseline output
 remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
@@ -19,7 +19,9 @@ Callable return/control-transfer state now has a shared entry and restoration
 boundary, with nested-callable regression coverage. The parser has been split
 into grammar-focused files while retaining shared token state and recovery.
 Go generation likewise has responsibility-focused files, retaining identical
-lowering and runtime helpers. Lexical/capture/nullable state still needs further
+lowering and runtime helpers. Channel send/receive/close checking is now grouped
+in a dedicated semantic-checking module without changing operation-specific
+diagnostics or source type rules. Lexical/capture/nullable state still needs further
 decomposition.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor
@@ -29,10 +31,69 @@ require a minor release and migration notes.
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
 Go programs, and document deliberate source-language differences. Neither the
-100 existing runtime contract groups nor statement coverage alone establishes
+103 existing runtime contract groups nor statement coverage alone establishes
 that milestone. OOP work continues alongside Go compatibility.
 
 ## Approved implementation queue
+
+Decorator language support is now requested in addition to this queue. See
+[decorator design and implementation stages](decorators-design.md). Syntax and
+AST retention, factory expression checking, typed decorator context target
+descriptors, per-factory target restrictions and Go `init` registration are
+implemented. Override chains are exposed without implicitly replaying inherited
+decorators. Canonical external-package identities and dependency-first
+registration are verified across checkout paths and import aliases. Checked
+constructor adapters are implemented for concrete classes, including variadic
+constructors. Public instance method adapters are implemented with checked
+receivers and arguments, Result propagation, and virtual dispatch. Static method
+adapters use a separate receiver-free call. Public getter/setter adapters reuse
+these checked calls, preserving independent visibility and virtual dispatch;
+generic-independent static accessors are supported as well. Multiple-result
+methods return an ordered array of individually checked boxed values through
+the same invocation adapters, preserving error slots separately from Result
+propagation and leaving ordinary typed calls unchanged. Override adapters
+preserve dispatch through further-derived implementations, including accessors;
+uninitialized virtual receivers supplied by Go interop are rejected. Field and
+parameter nominal identities resolve transparent aliases and distinguish
+concrete generic arguments, including nested nullable contracts; open generic
+consumers do not claim concrete DI keys.
+Concrete generic instantiations
+remain; context type/field completion and hover are implemented.
+
+Constrained collection forwarding now infers common slice/array/map/channel
+element types, including native class elements. Assignment checks both Go
+storage compatibility and source nullable contracts for every constraint term;
+class inheritance does not make writable collections covariant.
+
+Explicit native and imported Go conversions now retain source nullable
+contracts through function signatures (including Result/multiple results),
+collections, struct fields, named types and generic constraint terms. Matching
+conversions still lower directly to Go, with linked-module runtime comparisons
+and editor diagnostics in `conversion_contracts_test.go`. This closes an
+explicit-conversion bypass; it is not a claim that every interop path has been
+audited.
+
+The same checked-storage comparison now covers assignments, returns, arguments
+and generic class/interface ancestor matching, including nested named containers
+and callable types. Recursive generic named storage uses semantic Go type
+identity to terminate even when substitution creates fresh instances. Accepted
+aliasing, callback and generic DI behavior is compared with independent Go in
+`assignment_contracts_test.go`. Indexing and slicing native named collections
+retain their declared element/key qualifiers, including after generic
+substitution and checked map indexing.
+
+Native defined collections also retain these contracts during range, channel
+send/receive/select and map deletion, including sole multiple-result delete
+arguments. Native named iterator signatures preserve their yielded source
+types. Coverage in `named_collection_contracts_test.go` includes linked export
+aliases, nullable keys/elements, array-pointer views and editor inference.
+
+Nullable conditions now retain separate true/false flow states through `&&`,
+`||` and `!`, including short-circuit operands and loop exits. Mutation effects
+and Task consumption are merged only across the paths that can evaluate them;
+compile-time boolean left operands preserve guaranteed/skipped awaits.
+`nullable_conditions_test.go` covers semantic rejection, independent Go runtime
+comparison and editor diagnostics. Boolean aliases do not retain null proofs.
 
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
@@ -49,15 +110,30 @@ feature work without mixing unrelated changes into its implementation.
 | 6 | Additional export forms, including re-exports and aliases | Implemented: named re-exports and export aliases |
 | 7 | Constraint intersections and interface composition | Source/imported Go type sets, Go method interfaces, and comparable requirements can be composed; native interface contracts remain |
 | 8 | Remaining constant contexts | Scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` preserve values and types; bounds and size checks consume these constants; further contexts remain |
-| 9 | Source anonymous-interface syntax | Queued |
-| 10 | Source-declared multiple results | Queued |
+| 9 | Source anonymous-interface syntax | Implemented for method-only `interface { name(parameters): result; }` types; exported method sets lower to Go anonymous interfaces |
+| 10 | Source-declared multiple results | Implemented for `(T, U)` signatures, explicit returns, forwarding, contextual callbacks, arrow result inference, try/catch/finally and sole-argument expansion including generic source/Go functions, instance methods, Task launches, append/copy/delete/min/max/complex, and permitted unsafe Add/Slice/String; named results and an audit of remaining builtin argument forms remain |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
-| 12 | Getter/setter properties | Queued |
-| 13 | Static fields and constants | Queued |
-| 14 | Receiver/constructor-dependent field initializers | Queued |
+| 12 | Getter/setter properties | Instance/static accessors and interface contracts implemented, including independent visibility, generic inheritance, virtual/abstract/final instance overrides, DI, ordered updates and editor support |
+| 13 | Static fields and constants | Mutable fields and typed scalar `static const` members implemented, with inherited visibility, generic-independent scope, Go variables/constants and initialization checks |
+| 14 | Receiver/constructor-dependent field initializers | Earlier initialized fields and accessible inherited fields may be read through `this`; constructor parameters and receiver capture remain |
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
 | 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
 | 17 | Lexical, capture, and nullable-state boundaries | Queued |
+
+Local arrows can return parameterized classes using an enclosing function's
+type parameter in result lists, including inherited classes:
+
+```ts
+class Box<T> { constructor(public value: T) {} }
+function example<T>(value: T): void {
+  const pair = (): (Box<T>, int) => { return new Box<T>(value), 1; };
+}
+```
+
+Result-list signature comparison checks each slot even before a complete Go
+storage type is available. Nominal class identity, type arguments, nullability,
+result count and element types remain checked. Generic inherited-class arrows
+and their use in multiple assignment are covered by runtime tests.
 
 ## Completed through v0.3.0
 
@@ -225,6 +301,10 @@ relative to v0.3.0:
   Rename follows each explicit alias boundary independently of runtime identity.
   Pipeline, handwritten-Go differential, and editor tests in
   `export_aliases_test.go` and `export_aliases_runtime_test.go` cover the addition.
+  Local named-import aliases (`import { A as B }`, including `import go`)
+  preserve original type/storage identity and support generic values and source
+  re-exports. Compiler differential and editor tests in `import_aliases_test.go`
+  cover alias boundaries, collisions, shadowing and unsafe permissions.
   Any source export
   opts that file into explicit visibility; `export {}` exposes none. Files
   without source exports retain legacy selective imports. Source visibility
@@ -239,6 +319,36 @@ Keep feature work separate from refactoring and bug fixes; advance matching
 compiler/editor version metadata when preparing each v0.4.x release.
 
 ## Confirmed Go-facing gaps
+
+Permitted `unsafe.Slice`/`SliceData` calls now support constrained pointer/slice
+operands and source class elements without erasing source nullability. Shared
+integer-context checks handle constant reference chains, integer-valued untyped
+floating/complex constants and nonconstant shifts in lengths/offsets. Coverage
+in `unsafe_collections_test.go` compares generic helpers, generic class methods,
+aliasing, writes, nil/empty behavior and evaluation order with independent Go.
+Negative/nil-invalid runtime lengths are checked in ordinary runs; race runs
+retain valid operations because Go checkptr makes those failures unrecoverable.
+The explicit unsafe permission and its lifetime/pointer obligations are unchanged.
+
+Permitted `unsafe.Sizeof`, `Alignof` and `Offsetof` now retain target-dependent
+`uintptr` constants for fixed layouts. Variable-size generic operands remain
+nonconstant; concrete pointer/slice headers keep fixed sizes. Source and class
+constant aliases, Go export constants, promoted Go fields, unevaluated operands
+and nested `len` classification are checked in `unsafe_layout_constants_test.go`.
+Source structs and structural objects also support `Offsetof`, including
+aliases, distinct types, pointers and generics. `source_offset_constants_test.go`
+compares private storage names, padding, zero-length fields, linked exports and
+unevaluated selectors with independent Go. Class storage and property/method
+selectors remain excluded.
+
+After v0.4.3, `make[T](...)` allocates concrete, named and constrained slices,
+maps and channels without losing target identity. Source and imported bounds,
+generic class methods, nullable elements, integer-valued constant sizes,
+ordered evaluation, empty/non-nil allocation and dynamic size failures are
+compared with independent Go in `collection_make_test.go`. Different underlying
+slice/map types and conflicting channel directions remain source errors.
+Constructor nonempty-range proofs distinguish slice lengths from map hints
+and channel capacities. Existing element-oriented allocation helpers remain.
 
 After v0.4.1, `closeGoChannel` accepts send-capable channel type parameters,
 including mixed element types, named channels, source/imported constraints and
@@ -293,27 +403,36 @@ these constants; differential coverage is in `nullable_array_constants_test.go`.
 
 | Area | Current limitation | Next implementation boundary |
 |---|---|---|
+| Import alias name isolation | Dependency and canonical Go package names avoid local bindings and type parameters; explicit local shadowing and shared imported storage are preserved | Aliased references between multiple explicitly supplied root modules that would capture a local binding are diagnosed; rename that binding rather than changing the root's public Go name |
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, linked export aliases and provably disjoint parameter-dependent collection shapes | Add native source interface contracts; preserve source-only method argument shapes; handle intersections whose overlap depends on later substitution |
-| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; ordered built-ins also preserve contextual nonconstant shifts; type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining deferred shift contexts, constant layout intrinsics, remaining constant contexts, and target-dependent sizes without treating immutable runtime bindings as Go constants |
-| Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs and inference; no source anonymous-interface literal syntax | Source callback annotations can use an imported Go alias; consider source syntax separately, and retain rejection of anonymous private method identities |
-| Source-declared multiple results | Raw Go multiple-result calls can be consumed; source callable results use a single type or `Result<T>` | Decide a source result-list syntax and propagation rules before expanding declarations |
+| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); machine-width and unsafe layout constants use selected target sizes in semantic and generated Go checking; type-parameter values and runtime bindings remain nonconstant; declared array lengths require integer literal syntax | Audit remaining contextual-expression combinations and constant contexts without treating immutable runtime bindings as Go constants; nonliteral array type lengths remain |
+| Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs, inference and source method-only `interface { ... }` type literals | Source fields, private method identities and richer anonymous-interface members remain rejected |
+| Source-declared multiple results | Source functions, methods, arrows and function types accept `(T, U)` signatures, explicit returns and forwarding, including try/catch/finally; arrow result inference preserves per-slot types; explicit values support contextual checks and class upcasts, while forwarding requires direct Go assignability | Inference rejects ambiguous nil/null slots and incompatible branches; named results and multiple-result properties are not supported |
 
 These entries come from the parser, `internal/sema/checker.go`,
 `internal/sema/types.go`, and `internal/sema/go_audit.go`; they do not imply that
 an API classified as supported by the Go API audit has equivalent native syntax.
 
+Value-switch constant checks now default untyped subjects, preserve interface
+dynamic-type identity, and check duplicate scalar expressions after contextual
+rounding. Imported/re-exported constants and runtime-versus-constant bindings
+are covered by `switch_constants_test.go`; `switch_go_parity_test.go` checks
+the duplicate rules directly against Go's type checker. Repeated boolean and
+complex cases follow Go's first-match behavior. The existing duplicate
+`nil`/`null` case restriction remains a source-language difference.
+
 ## OOP gaps and design decisions
 
 | Area | Current state | Required work |
 |---|---|---|
-| Receiver-dependent field initializers | Module-scope defaults are implemented; `this`, `super`, and constructor parameters are intentionally unavailable in defaults | Any expansion needs read-before-initialization and receiver-escape rules; use the constructor today |
+| Receiver-dependent field initializers | Module-scope defaults and reads of earlier initialized or accessible inherited fields through `this.field` are implemented; later local fields, `super`, constructor parameters and receiver capture remain unavailable | Extend only with explicit initialization-order and receiver-escape rules; use the constructor for other dependencies |
 | Go interface inheritance boundary | Exported runtime contracts are supported; private methods, type-set-only bases, and unsupported interop signatures are rejected | Expand anonymous interface interop independently; preserve package identity and unsafe policy |
 | Go 1.23 comparable-bound import order | Forward comparable-dependent bounds are semantically checked, but Go 1.23 vet can panic while importing their export data | Write comparable element parameters before dependent bounds when targeting Go 1.23 tooling |
 | Recursive comparable source bounds | Array/struct comparability that depends on a still-resolving parameter is diagnosed rather than allowed to deadlock Go type resolution; recursive pointer and method contracts remain supported | Break the dependency with an independently constrained element parameter; broader cyclic value-bound solving remains unsupported |
 | Source struct constraint terms | Terms requiring source struct value storage before it is finalized are diagnosed, including generic instances, instead of panicking | Coordinate constraint and source storage completion before enabling these terms; imported Go concrete types remain available |
 | Abstract classes/methods | Explicit abstract method declarations and concrete implementation checks are implemented; abstract classes cannot be constructed directly | Interface requirements must be declared explicitly; direct constructor access to abstract methods is rejected, while indirect access to an unimplemented construction-phase slot panics; method-level generics remain nonvirtual |
-| Getter/setter properties | Not implemented; use explicit methods | Define assignment lowering, visibility, receiver evaluation, and restrictions on hidden effects |
-| Static fields/constants | Not implemented; use module constants or static methods | Define initialization, inheritance/name lookup, mutability, and public Go API shape |
+| Getter/setter properties | Instance/static properties and interface contracts support independent visibility, exact paired types, generic/diamond interface inheritance, DI, virtual/abstract/final and partial instance overrides, phase-local construction dispatch, single-evaluation updates, nullable-flow invalidation and public Go accessor APIs; differential coverage in `class_properties_test.go`, `virtual_properties_test.go`, `interface_properties_test.go` and `static_properties_test.go` | Static accessors cannot capture class type parameters or be overridden; adding a missing accessor to an inherited class property is rejected; no property storage, implicit Result/Task handling or stable getter narrowing |
+| Static fields/constants | Mutable fields and typed compile-time scalar constants implemented with explicit initializers, enum-member references, shared inherited/generic scope and Go package APIs | Nonliteral array type lengths remain |
 
 Multiple class inheritance, prototype mutation, dynamic field creation, and
 runtime metaprogramming are deliberate exclusions, not missing Go compatibility.

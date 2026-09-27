@@ -22,6 +22,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			} else if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok && ref.Name != "" {
 				ref.ResolvedDeclaration = imported.span
 				lowered := *ref
+				lowered.Name = imported.name
 				lowered.LoweredType = nil
 				lowered.Qualifier = imported.pack.declaration.ResolvedAlias
 				if lowered.Qualifier == "" {
@@ -99,6 +100,10 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitType(&expression.Type)
 		case *ast.CallExpr:
 			visitExpression(expression.Callee)
+			for i := range expression.CaptureArgumentTypes {
+				visitType(&expression.CaptureArgumentTypes[i])
+			}
+			visitType(expression.MultipleArgumentResult)
 			for i := range expression.ResolvedTypeArguments {
 				visitType(&expression.ResolvedTypeArguments[i])
 			}
@@ -181,10 +186,15 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitStatement(child)
 			}
 		case *ast.ReturnStmt:
+			visitType(&statement.ResultType)
 			visitExpression(statement.Value)
+			for _, value := range statement.AdditionalValues {
+				visitExpression(value)
+			}
 		case *ast.ThrowStmt:
 			visitExpression(statement.Value)
 		case *ast.TryStmt:
+			visitType(&statement.ReturnType)
 			visitStatement(statement.Body)
 			for _, clause := range statement.Catches {
 				visitType(&clause.Type)
@@ -208,6 +218,11 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(statement.Target)
 		case *ast.MultiAssignmentStmt:
 			visitExpression(statement.Value)
+			for _, upcast := range statement.Upcasts {
+				if upcast != nil {
+					visitExpression(upcast)
+				}
+			}
 		case *ast.WhileStmt:
 			visitExpression(statement.Condition)
 			visitStatement(statement.Body)
@@ -310,8 +325,13 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitType(&declaration.Implements[i])
 			}
 			for i := range declaration.Fields {
+				previous := activeTypeParameters
+				if declaration.Fields[i].Static {
+					activeTypeParameters = nil
+				}
 				visitType(&declaration.Fields[i].Type)
 				visitExpression(declaration.Fields[i].Initializer)
+				activeTypeParameters = previous
 			}
 			if declaration.Constructor != nil {
 				for i := range declaration.Constructor.Parameters {
@@ -323,7 +343,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				classTypeParameters := activeTypeParameters
 				activeTypeParameters = make(map[string]source.Span, len(classTypeParameters)+len(method.TypeParameters))
 				for name, span := range classTypeParameters {
-					activeTypeParameters[name] = span
+					if !method.Static || method.Accessor == "" {
+						activeTypeParameters[name] = span
+					}
 				}
 				for _, parameter := range method.TypeParameters {
 					activeTypeParameters[parameter.Name] = parameter.NameSpan
@@ -419,6 +441,10 @@ func substituteNativeTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.
 	}
 	result := ref
 	result.LoweredType = nil
+	result.GoResults = append([]ast.TypeRef(nil), ref.GoResults...)
+	for index := range result.GoResults {
+		result.GoResults[index] = substituteNativeTypeRefParameters(result.GoResults[index], bindings)
+	}
 	result.GenericArguments = append([]ast.TypeRef(nil), ref.GenericArguments...)
 	for index := range result.GenericArguments {
 		result.GenericArguments[index] = substituteNativeTypeRefParameters(result.GenericArguments[index], bindings)
@@ -494,14 +520,24 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 	}
 	if t.Kind == GoChannel && t.Element != nil {
 		name := "GoChannel"
-		if channel, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Chan); ok {
-			if channel.Dir() == gotypes.SendOnly {
-				name = "GoSendChannel"
-			} else if channel.Dir() == gotypes.RecvOnly {
-				name = "GoReceiveChannel"
+		if t.Name == "GoSendChannel" || t.Name == "GoReceiveChannel" {
+			name = t.Name
+		}
+		// Substitution may retain only the source channel shape, especially
+		// for native class elements. Cached Go storage is optional.
+		if t.GoType != nil {
+			if channel, ok := gotypes.Unalias(t.GoType).Underlying().(*gotypes.Chan); ok {
+				if channel.Dir() == gotypes.SendOnly {
+					name = "GoSendChannel"
+				} else if channel.Dir() == gotypes.RecvOnly {
+					name = "GoReceiveChannel"
+				}
 			}
 		}
 		return ast.TypeRef{Name: name, GenericArguments: []ast.TypeRef{typeRefFromType(*t.Element, span)}, Go: true, Span: span}
+	}
+	if t.Kind == Object && ast.IsDecoratorBuiltinObjectTypeName(t.Name) {
+		return ast.TypeRef{Name: t.Name, Span: span}
 	}
 	if t.Kind == Object {
 		names := make([]string, 0, len(t.Fields))

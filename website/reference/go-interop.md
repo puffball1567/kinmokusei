@@ -49,6 +49,13 @@ The compiler loads real export/type information for the selected Go version, mod
 | Raw goroutine and `defer` calls | Implemented |
 | Supported `unsafe` compiler built-ins | Implemented behind allow policy |
 
+With explicit unsafe permission, `unsafe.Slice` and `unsafe.SliceData` accept
+constrained pointer/slice types with a common element contract, including native
+class elements. Source nullability is preserved. Lengths and offsets support
+integer-valued untyped constants and contextual shifts; negative constant lengths
+and overflowing constants are rejected. These checks do not make pointer arithmetic,
+lifetimes, aliasing, or `unsafe.String` backing storage safe automatically.
+
 No implicit bridge turns `(T, error)` into a hidden wrapper, erases pointer identity for nullability, or converts a Go interface into a Kinmokusei class hierarchy.
 
 ## Package and target behavior

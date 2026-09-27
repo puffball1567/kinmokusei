@@ -8,8 +8,9 @@ import (
 )
 
 type loopFlowContext struct {
-	continues []nullableFlowSnapshot
-	breaks    []nullableFlowSnapshot
+	continues     []nullableFlowSnapshot
+	breaks        []nullableFlowSnapshot
+	conditionExit *nullableFlowSnapshot
 }
 
 type breakFlowContext struct {
@@ -310,7 +311,9 @@ func (c *Checker) mergeValueScopes(entry []map[string]valueSymbol, continuing ..
 	return merged
 }
 
-func (c *Checker) checkLoopFixedPoint(entry nullableFlowSnapshot, checkIteration func() (nullableFlowSnapshot, bool)) {
+func (c *Checker) checkLoopFixedPoint(statement ast.Statement, entry nullableFlowSnapshot, checkIteration func() (nullableFlowSnapshot, bool)) {
+	c.pushBranchFlowTarget(statement, true)
+	defer c.popBranchFlowTarget()
 	header := nullableFlowSnapshot{scopes: cloneValueScopes(entry.scopes), members: cloneMemberFlow(entry.members)}
 	limit := nullableFlowSymbolCount(entry.scopes)*2 + len(entry.members)*2 + 4
 	for iteration := 0; iteration < limit; iteration++ {
@@ -326,7 +329,7 @@ func (c *Checker) checkLoopFixedPoint(entry nullableFlowSnapshot, checkIteration
 		}
 		next := c.mergeNullableFlow(entry, append([]nullableFlowSnapshot{entry}, backedges...)...)
 		if sameNullableFlowSnapshot(header, next) {
-			exits := append([]nullableFlowSnapshot{next}, flow.breaks...)
+			exits := loopExitFlows(next, flow)
 			c.restoreNullableFlow(c.mergeNullableFlow(entry, exits...))
 			return
 		}
@@ -347,8 +350,20 @@ func (c *Checker) checkLoopFixedPoint(entry nullableFlowSnapshot, checkIteration
 		backedges = append(backedges, backedge)
 	}
 	next := c.mergeNullableFlow(entry, append([]nullableFlowSnapshot{entry}, backedges...)...)
-	exits := append([]nullableFlowSnapshot{next}, flow.breaks...)
+	exits := loopExitFlows(next, flow)
+	// The fallback has not established a fixed point. Do not let the last
+	// condition's facts hide a loss of precision on the newly found backedges.
+	exits = append(exits, next)
 	c.restoreNullableFlow(c.mergeNullableFlow(entry, exits...))
+}
+
+func loopExitFlows(header nullableFlowSnapshot, flow loopFlowContext) []nullableFlowSnapshot {
+	// A condition may mutate storage even when the body never runs. Preserve
+	// its false edge instead of treating the loop header as an exit edge.
+	if flow.conditionExit != nil {
+		header = *flow.conditionExit
+	}
+	return append([]nullableFlowSnapshot{header}, flow.breaks...)
 }
 
 func nullableFlowSymbolCount(scopes []map[string]valueSymbol) int {

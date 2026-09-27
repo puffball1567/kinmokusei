@@ -32,6 +32,8 @@ func TestDefinedTypeAndAliasSemanticMatrix(t *testing.T) {
 		{"recursive channel", `type Stream = distinct GoChannel<Stream>;`},
 		{"mutual recursion through pointer", `type Left = distinct Right; type Right = distinct *Left;`},
 		{"distinct native struct conversions and fields", `struct Point { public x: int; public y: int; } type Offset = distinct Point; function use(point: Point): int { const offset = Offset(point); const restored = Point(offset); return offset.x + restored.y; }`},
+		{"struct alias conversion", `struct Point{public x:int;private y:int;}alias A=Point;type D=distinct Point;function f(p:A):int{return D(p).x;}`},
+		{"generic struct alias conversion", `struct Point<T>{public x:T;}alias A<T>=Point<T>;type D<T>=distinct Point<T>;function f(p:A<int>):int{return D<int>(p).x;}`},
 		{"distinct native struct literal", `struct Point { public x: int; public y: int; } type Offset = distinct Point; function use(): Offset { return Offset { x: 1, y: 2 }; }`},
 		{"generic distinct native struct", `struct Box<T> { public value: T; } type NamedBox<T> = distinct Box<T>; public function get<U>(this: NamedBox<U>): U { return this.value; } function use(value: string): string { const box = NamedBox<string> { value: value }; return box.get(); }`},
 		{"distinct struct with nested native values", `class User { public name: string; constructor(name: string) { this.name = name; } } struct Entry { public owner: User; public tags: string[]; } type NamedEntry = distinct Entry; function use(value: Entry): string { const entry = NamedEntry(value); return entry.owner.name; }`},

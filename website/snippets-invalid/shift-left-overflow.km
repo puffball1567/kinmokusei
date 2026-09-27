@@ -1,0 +1,3 @@
+function mask(n: uint): byte {
+  return 300 << n;
+}

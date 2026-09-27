@@ -1,0 +1,19 @@
+import go { Println } from "fmt"
+
+constraint Slice<E> = ~E[]
+type Numbers = distinct int[]
+
+function allocate<E, T extends Slice<E>>(length: int, capacity: int): T {
+  return make[T](length, capacity)
+}
+
+function main(): void {
+  const numbers = allocate<int, Numbers>(2, 4)
+  numbers[0] = 7
+  const lookup = make[Map<string, int>]()
+  lookup["answer"] = numbers[0]
+  const channel = make[GoChannel<int>](1)
+  channel <- lookup["answer"]
+  Println(len(numbers), cap(numbers), <-channel)
+  closeGoChannel(channel)
+}

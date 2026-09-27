@@ -10,7 +10,10 @@ import (
 
 func (c *Checker) checkTaskStart(expr *ast.TaskStartExpr) Type {
 	c.usesTasks = true
+	previous := c.taskLaunchCall
+	c.taskLaunchCall = expr.Call
 	result := c.checkExpression(expr.Call)
+	c.taskLaunchCall = previous
 	if expr.Call.Conversion {
 		c.report(expr.Call.Span, "go expression requires a function or method call; type conversions are not calls")
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -159,7 +162,13 @@ func (c *Checker) reportUnconsumedTasks(scope map[string]valueSymbol) {
 }
 
 func (c *Checker) reportPendingTasksBeforeExit() {
-	for _, scope := range c.scopes {
+	// Returning or propagating from a callback does not exit its enclosing
+	// callable. Task capture is checked separately by consumeTask.
+	base := 0
+	if len(c.callableScopeBases) != 0 {
+		base = c.callableScopeBases[len(c.callableScopeBases)-1]
+	}
+	for _, scope := range c.scopes[base:] {
 		c.reportUnconsumedTasks(scope)
 	}
 }

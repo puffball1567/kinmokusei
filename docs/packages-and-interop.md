@@ -97,6 +97,8 @@ The lock's target controls export loading, checking, and building. Cross-build i
 import { User, findUser } from "./users";
 import { Router } from "kinmokusei/http";
 import go http from "net/http";
+import { User as Account } from "./users";
+import go { Println as println } from "fmt";
 ```
 
 - Each `.km` file has an independent module scope.
@@ -104,13 +106,44 @@ import go http from "net/http";
 - Transitive imports do not leak names.
 - Import aliases, imported names, and local declarations share collision checks.
 - Multiple root files never share names implicitly.
-- Go symbols are always referenced through their alias namespace.
+- Go symbols can be selected by named imports or referenced through a package
+  alias namespace.
 - `kinmokusei/*` is reserved for standard/compiler-managed packages. The exact
   `kinmokusei/http` package is implemented and embedded in the compiler; unknown,
   differently cased, traversal-like, or otherwise noncanonical `kinmokusei/*`
   paths are rejected rather than normalized or fetched.
 
 Go package internals may use reflection, unsafe, assembly, generated code, or CGO if the selected Go target can build them. Only public boundary types affect Kinmokusei source compatibility.
+
+`as` introduces a file-local binding: `Account` and `println` above do not also
+introduce `User` and `Println`. Different local names can select the same export;
+they keep its nominal type and mutable storage identity without wrappers or
+copies. Source aliases can be re-exported with `export { Account }`. Local
+declarations/imports cannot collide, and aliases cannot replace reserved types,
+channel helpers or compiler-internal names. A local variable or parameter may
+shadow an imported value. Go imports retain the same visibility and `unsafe`
+permission checks regardless of spelling.
+
+Dependency implementation names and canonical Go package aliases avoid local
+variables, parameters and type parameters. For example, importing `read as load`
+does not let an unrelated local `read` replace the target of `load()`. Explicitly
+shadowing `load` itself still selects the local binding. This also applies through
+re-exports and does not copy imported mutable storage. When multiple root files
+are supplied explicitly, their Go names are preserved; an alias that would be
+captured by a root-name collision is diagnosed and requires renaming the local
+binding.
+
+Collision checks also use the emitted Go spelling: for example, source `copy`
+is escaped to `copy_`. A dependency imported as another name is isolated from
+an unrelated local `copy_`. If escaping would instead redirect a root or outer
+local reference, compilation reports the source reference and asks for a local
+rename; it does not silently call or update the shadowing binding. Builtin
+operations such as `len` and `copy` keep their ordinary Go names.
+
+Editor rename stops at explicit `as` boundaries: renaming a local alias updates
+its uses, not the imported declaration. Renaming the selected source export
+updates its import selectors without changing local aliases. This is separate
+from manifest `[imports]`, which shortens module paths rather than symbol names.
 
 ## Direct Go interop model
 
@@ -219,7 +252,63 @@ Supported special built-ins have dedicated type rules rather than guessed functi
 - `String` -> `string`
 - `StringData` -> `*byte`
 
-They are not first-class function values. `Offsetof` accepts a Go struct field selector and rejects invalid pointer-embedding paths. Named pointer/slice underlying types determine element types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic behavior remain exactly as unsafe Go; enabling the capability does not make them safe.
+They are not first-class function values. `Offsetof` accepts source struct,
+structural-object and imported Go struct field selectors, and rejects invalid
+pointer-embedding paths. Named pointer/slice underlying types determine element
+types. Nil, alias, lifetime, GC reachability, pointer arithmetic, and panic
+behavior remain exactly as unsafe Go; enabling the capability does not make
+them safe.
+
+`Add`, `Slice` and `String` also accept a single call returning both arguments,
+as in `Slice(pointerAndLength())`. Each result must satisfy the corresponding
+pointer or integer contract; a runtime floating-point length is not accepted.
+The producer runs exactly once, and generic/nullable slice element contracts
+are preserved. Named Go imports and aliases support the same form. Mixing a
+multiple-result call with other arguments, spreading it, or passing an
+unhandled `Result` is rejected. Unsafe permission is still required.
+
+`Sizeof`, `Alignof` and `Offsetof` retain typed `uintptr` constants when the
+operand's storage layout is fixed. Sizes, alignment and field offsets use the
+selected Go target, including 32-bit targets. Constant references, source
+exports, static constants, bounds checks and duplicate switch checks preserve
+those values. Their operands are not executed, including function calls,
+channel receives and nil-pointer field selections permitted by source typing.
+Untyped arguments must still fit their default Go type.
+
+Following [Go's layout rules](https://go.dev/ref/spec#Package_unsafe), a type
+parameter or an array/struct containing variable-size elements produces a
+nonconstant result. Concrete pointer and slice headers remain fixed-size even
+when their element is a type parameter. Source struct aliases, distinct types,
+pointers and generic instances use their actual generated field order and
+types. Structural-object layout uses its deterministic generated field order,
+not literal property order. Source private fields retain their package-private
+Go names; imported Go private fields remain inaccessible. Class storage,
+properties and methods are not accepted as `Offsetof` selectors.
+
+```ts
+import go { Offsetof } from "unsafe";
+struct Packet {
+  public tag: byte;
+  public value: int64;
+}
+function valueOffset(packet: *Packet): int {
+  const offset = Offsetof(packet.value);
+  return int(offset);
+}
+```
+
+The offset includes target-specific alignment padding; this expression does
+not dereference `packet` at runtime. Source nullable pointers still require a
+non-null proof before field selection.
+
+`Slice` and `SliceData` also accept constrained pointer/slice parameters with a
+common underlying shape and identical source element contracts. Source class
+elements and their nullability survive both operations; conflicting element
+types or nullability are rejected. Lengths and offsets accept integer-valued
+untyped constants, including aliases and arithmetic, and contextual shifts such
+as `1.0 << n`. Constant lengths must be nonnegative and representable as `int`;
+offsets may be negative but must also fit `int`. Runtime bounds and pointer
+validity remain the caller's responsibility.
 
 ## Environment-dependent packages
 

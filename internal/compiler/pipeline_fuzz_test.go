@@ -15,6 +15,49 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{}}}`,
+	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{const n=await t;}}}`,
+	`class C{public x:int=0;}class B{constructor(public p:C|null){}}function clear(b:B):int{b.p=null;return 0;}function f(b:B,ch:GoChannel<int>):void{if(b.p===null){return;}select{default{const n=b.p.x;}case ch<-clear(b){}}}`,
+	`class C{public x:int=0;}function f(p:C|null,b:boolean):void{for(;b;p.x++){if(b){p=null;continue;}p=new C();}}`,
+	`class C{public x:int=0;}function f(b:boolean):void{for(let p:C|null=new C();b;p=new C()){const n=p.x;p=null;continue;}}`,
+	`function w():void{}function f(b:boolean):void{const t=go w();for(;b;await t){continue;}await t;}`,
+	`function w():void{}function f(b:boolean):void{const t=go w();if(b){goto done;}await t;done:return;}`,
+	`function w():void{}function f(b:boolean):void{const t=go w();again:await t;if(b){goto again;}}`,
+	`function w():void{}function f(b:boolean):void{while(b){const t=go w();if(b){continue;}await t;}}`,
+	`function f(p:*int|null,b:boolean):int{outer:while(p===null){while(b){break outer;}return 0;}return *p;}`,
+	`function v():int{return 1;}function f():int{const task=go v();const g=()=>{return 2;};return await task+g();}`,
+	`function v():Result<int>{return ok(1);}function f():Result<int>{const task=go v();const n=v()?;const m=await task?;return ok(n+m);}`,
+	`function f(p:*int|null,b:boolean):boolean{return p!==null && *p>0 || !(p===null || !b);}`,
+	`function f(p:*int|null,b:boolean):int{while(p===null || !b){return 0;}return *p;}`,
+	`function v():boolean{return true;}function f(b:boolean):boolean{const task=go v();return b && await task;}`,
+	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):*int{for(const x of v){return x;}return nil;}`,
+	`alias M=*int|null;type C<T>=distinct GoChannel<T>;function f(v:C<M>):M{v<-null;return <-v;}`,
+	`alias M=*int|null;type I<T>=distinct (emit:(x:T)=>boolean)=>void;function f(v:I<M>):*int{for(const x of v){return x;}return nil;}`,
+	`alias M=*int|null;type A<T>=distinct [2]T;type P<T>=distinct *A<T>;function f(v:P<M>):M{return v[:][0];}`,
+	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):S<*int>{return v;}`,
+	`alias M=*int|null;type S<T>=distinct T[];function f(v:S<M>):*int{return v[:][0];}`,
+	`type Link<T>=distinct *Link<T>;function f(v:Link<int>):Link<int>{return v;}`,
+	`type Nodes<T>=distinct Nodes<T>[];function f(v:Nodes<int>[]):Nodes<int>{return Nodes<int>(v);}`,
+	`struct Node<T>{public value:T;public next:*Node<T>;}function f(v:Node<int>):Node<int>{return v;}`,
+	`alias Maybe=*int|null;type A=distinct ()=>Result<*int>;type B=distinct ()=>Result<Maybe>;function f(v:B):A{return A(v);}`,
+	`alias Maybe=*int|null;constraint S=~Maybe[];type A=distinct Maybe[];function f<T extends S>(v:Maybe[]):T{return T(v);}`,
+	`type A=distinct A[];function f(v:A[]):A{return A(v);}`,
+	`struct A{public next:*A;}function f(v:A):A{return A(v);}`,
+	`function f(v:float32):void{switch(v){case 16777216.0{}case 16777217.0{}}}`,
+	`const a="a"+"b";const b=a;function f(v:string):void{switch(v){case b{}case "ab"{}}}`,
+	`constraint N=~int|~int64;function f<T extends N>(v:T):void{switch(v){case T(1){}case 1{}}}`,
+	`function f(v:int):void{for(const i=1;i<2;){switch(v){case i{}case 1{}}break;}}`,
+	`function f(n:uint):void{switch(1.0<<n){default{}}}`,
+	`function f(n:uint):byte{return (300<<n)+2;}`,
+	`function f(n:uint):byte{return byte(1.0<<n);}`,
+	`function f(n:uint,v:byte):boolean{return (1.0<<n)==v;}`,
+	`function f(n:uint):int[]{return make[int[]](1.0<<n,2.0<<n);}`,
+	`constraint B=~byte|~uint16;function f<T extends B>(n:uint):T{return 300<<n;}`,
+	`constraint S<E>=~E[];function f<E,T extends S<E>>(n:int):T{return make[T](n,n+1);}`,
+	`constraint C=~GoChannel<int>|~GoSendChannel<int>;function f<T extends C>():T{return make[T](2);}`,
+	`constraint C=~GoSendChannel<int>|~GoReceiveChannel<int>;function f<T extends C>():T{return make[T]();}`,
+	`class C{}alias Maybe=C|null;function f():Maybe[]{return make[Maybe[]](1.0,2.0);}`,
+	`function f():void{make[void]();make[int[]](-1,2);make[int[]](1...);}`,
 	`constraint A<E>=~[0]E|~[2]E;function f<E,T extends A<E>>(v:E[]):T{return copyArray[T](v);}`,
 	`constraint A=~[2]int|~[3]int;function f<T extends A>(v:int[]):int{const n=len(copyArray[T](v));const p=&n;return *p;}`,
 	`class C{}constraint A=~[2]C|~[3](C|null);function f<T extends A>(v:C[]):T{return copyArray[T](v);}`,
@@ -209,6 +252,7 @@ var pipelineFuzzSeeds = []string{
 	`function collect(values: int[]): int { let total = 0; for (const value of values) { total += value; } return total; }`,
 	`function count(n: int): int { let total = 0; for (const i of n) { total += i; } return total; }`,
 	`constraint Integer = ~int8 | ~int64; function convert<T extends Integer>(value: int): T { return T(value); }`,
+	`constraint B=byte;function A<T extends B>():T{return 700}`,
 	`function values(yield: (value: int) => boolean): void { yield(1); } function sum(): int { let result = 0; for (const value of values) { result += value; } return result; }`,
 	`function ticks(yield: () => boolean): void { yield(); } function use(): void { for (const _ of ticks) {} }`,
 	`interface Child<T> extends Root<T> {} interface Root<T> { function read(): T; } class Value implements Child<int> { public function read(): int { return 1; } } function read<T>(value: Root<T>): T { return value.read(); } function use(): int { return read(new Value()); }`,
@@ -230,6 +274,10 @@ var pipelineFuzzSeeds = []string{
 }
 
 func compilePipelineProperty(input string) ([]byte, bool, error) {
+	return compilePipelinePropertyWithPolicy(input, sema.GoInteropPolicy{})
+}
+
+func compilePipelinePropertyWithPolicy(input string, policy sema.GoInteropPolicy) ([]byte, bool, error) {
 	tokens, lexDiagnostics := lexer.Lex("fuzz.km", input)
 	program, parseDiagnostics := kinmokuseiParser.Parse(tokens)
 	if program == nil {
@@ -239,14 +287,14 @@ func compilePipelineProperty(input string) ([]byte, bool, error) {
 		return nil, false, nil
 	}
 	goImporter := importer.Default()
-	if diagnostics := sema.CheckScopedWithGoImporter(program, nil, goImporter); len(diagnostics) != 0 {
+	if diagnostics := sema.CheckScopedWithGoImporterAndPolicy(program, nil, goImporter, policy); len(diagnostics) != 0 {
 		return nil, false, nil
 	}
-	first, err := codegen.GenerateWithImporter(program, "fuzzpkg", goImporter)
+	first, err := codegen.GenerateWithTarget(program, "fuzzpkg", goImporter, policy.Sizes)
 	if err != nil {
 		return nil, true, err
 	}
-	second, err := codegen.GenerateWithImporter(program, "fuzzpkg", goImporter)
+	second, err := codegen.GenerateWithTarget(program, "fuzzpkg", goImporter, policy.Sizes)
 	if err != nil {
 		return nil, true, err
 	}

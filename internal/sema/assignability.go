@@ -17,6 +17,21 @@ func (c *Checker) requireAssignable(target, value Type, span source.Span) {
 		return
 	}
 	if value.Kind == MultiValue {
+		if target.Kind == MultiValue && len(target.Results) != len(value.Results) {
+			c.report(span, fmt.Sprintf("multiple result count mismatch: got %d results, expected %d", len(value.Results), len(target.Results)))
+			return
+		}
+		if target.Kind == MultiValue && len(target.Results) == len(value.Results) {
+			for index := range target.Results {
+				// Forwarding a Go result list cannot insert per-element class
+				// upcasts or other source coercions. Require storage assignability
+				// as well as the source contract.
+				if !c.isAssignable(target.Results[index], value.Results[index]) || !assignable(target.Results[index], value.Results[index]) {
+					c.report(span, fmt.Sprintf("cannot use result %d of %s as %s", index+1, value.String(), target.Results[index].String()))
+				}
+			}
+			return
+		}
 		c.report(span, fmt.Sprintf("multiple values %s require destructuring", value.String()))
 		return
 	}
@@ -93,7 +108,7 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	}
 	if target.Kind == Class && value.Kind == Class {
 		if ancestor, ok := c.classAncestorType(value, target.Name); ok {
-			return exactType(target, ancestor)
+			return exactType(target, ancestor) && c.sourceStorageContractsMatch(target, ancestor)
 		}
 	}
 	// A type parameter's underlying interface is a constraint, not an
@@ -101,7 +116,7 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	// concrete receiver assignable to every possible instantiation of T.
 	if target.Kind == TypeParameter && (value.Kind == Class || value.Kind == Struct) {
 		storage, ok := c.goTypeForNativeStorage(value)
-		return ok && target.GoType != nil && gotypes.AssignableTo(storage, target.GoType)
+		return ok && target.GoType != nil && gotypes.AssignableTo(storage, target.GoType) && c.sourceStorageContractsMatch(target, value)
 	}
 	if value.Kind == Struct {
 		if contract := underlyingGoInterface(target.GoType); contract != nil && contract.NumMethods() == 0 {
@@ -116,6 +131,12 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		if class == nil {
 			return false
 		}
+		// Source anonymous interfaces are structural at the value boundary.
+		// Match their exported Go method set against the class's lowered methods
+		// even when the class did not declare a named `implements` contract.
+		if c.classSatisfiesSourceAnonymousInterface(target) {
+			return c.classSatisfiesGoInterface(class, value, target)
+		}
 		for _, declared := range class.goImplements {
 			if gotypes.AssignableTo(declared, target.GoType) || gotypes.Identical(declared, target.GoType) {
 				return true
@@ -129,7 +150,49 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 		return false
 	}
-	return assignable(target, value)
+	if value.Kind == TypeParameter && unnamedInferenceCollection(target) {
+		return c.constrainedCollectionAssignable(target, value)
+	}
+	if target.Kind == GoChannel && value.Kind == GoChannel {
+		// Generic substitution can discard cached Go storage. Rebuild both
+		// sides while retaining the invariant source element contract.
+		targetStorage, targetOK := c.goTypeForNativeStorage(target)
+		valueStorage, valueOK := c.goTypeForNativeStorage(value)
+		return targetOK && valueOK && gotypes.AssignableTo(valueStorage, targetStorage) && c.sourceStorageContractsMatch(target, value)
+	}
+	return assignable(target, value) && c.sourceStorageContractsMatch(target, value)
+}
+
+func (c *Checker) classSatisfiesSourceAnonymousInterface(target Type) bool {
+	for _, method := range target.GoMethods {
+		if method.GoName != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Checker) classSatisfiesGoInterface(class *classSymbol, instance, target Type) bool {
+	bindings := nativeClassBindings(class, instance)
+	for _, required := range target.GoMethods {
+		var provided *methodSymbol
+		for name := range class.methods {
+			method := class.methods[name]
+			if method.goName == required.GoName && !method.static {
+				copy := method
+				provided = &copy
+				break
+			}
+		}
+		if provided == nil {
+			return false
+		}
+		actual := substituteNativeTypeParameters(provided.typeInfo, bindings)
+		if !identicalMethodSignature(actual, required.Type) {
+			return false
+		}
+	}
+	return true
 }
 
 func exactType(left, right Type) bool { return assignable(left, right) && assignable(right, left) }

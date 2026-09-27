@@ -165,6 +165,11 @@ func (c *Checker) resolvedRangeExpressionGuaranteedNonEmpty(expression ast.Expre
 				return len(expression.Arguments) > 1
 			}
 			return len(expression.Arguments) == 2 && c.resolvedRangeExpressionGuaranteedNonEmpty(expression.Arguments[1], seen)
+		case ast.MakeCall:
+			if !expression.MakeSliceTarget {
+				return false
+			}
+			fallthrough
 		case ast.MakeSliceCall:
 			if len(expression.Arguments) == 0 {
 				return false
@@ -197,6 +202,11 @@ func rangeExpressionGuaranteedNonEmpty(expression ast.Expression) bool {
 				return len(expression.Arguments) > 1
 			}
 			return len(expression.Arguments) == 2 && rangeExpressionGuaranteedNonEmpty(expression.Arguments[1])
+		case ast.MakeCall:
+			if !expression.MakeSliceTarget {
+				return false
+			}
+			fallthrough
 		case ast.MakeSliceCall:
 			if len(expression.Arguments) == 0 {
 				return false
@@ -398,6 +408,9 @@ func integerConstantValueWithResolver(expression ast.Expression, resolve func(*a
 }
 
 func (c *Checker) resolvedIntegerConstantValue(expression ast.Expression) (*big.Int, bool) {
+	if info, known := c.scalarConstant(expression); known && info.Value.Kind() == constant.Int {
+		return new(big.Int).SetString(info.Value.ExactString(), 10)
+	}
 	seen := map[*ast.VariableDecl]bool{}
 	var resolve func(*ast.IdentifierExpr) (*big.Int, bool)
 	resolve = func(identifier *ast.IdentifierExpr) (*big.Int, bool) {
@@ -447,6 +460,9 @@ func (c *Checker) integerExpressionIsCompileTimeConstant(expression ast.Expressi
 			target, ok := LookupType(name.Name)
 			return ok && target.IsInteger() && check(expression.Arguments[0])
 		case *ast.MemberExpr:
+			if object, ok := expression.Object.(*ast.IdentifierExpr); ok && c.enums[object.Name] != nil {
+				return false
+			}
 			return expression.Constant
 		default:
 			return false
@@ -455,7 +471,7 @@ func (c *Checker) integerExpressionIsCompileTimeConstant(expression ast.Expressi
 	return check(expression)
 }
 
-func integerConstantFitsFixedType(value *big.Int, target Type) bool {
+func (c *Checker) integerConstantFitsFixedType(value *big.Int, target Type) bool {
 	goType, ok := goTypeOf(target)
 	if !ok {
 		return true
@@ -471,8 +487,12 @@ func integerConstantFitsFixedType(value *big.Int, target Type) bool {
 		bits, signed = 8, true
 	case gotypes.Uint8:
 		bits = 8
-	case gotypes.Uint:
-		return value.Sign() >= 0
+	case gotypes.Int, gotypes.Uint, gotypes.Uintptr:
+		bits = 64
+		if c.goSizes != nil {
+			bits = uint(c.goSizes.Sizeof(basic) * 8)
+		}
+		signed = basic.Kind() == gotypes.Int
 	case gotypes.Int16:
 		bits, signed = 16, true
 	case gotypes.Uint16:
@@ -486,8 +506,6 @@ func integerConstantFitsFixedType(value *big.Int, target Type) bool {
 	case gotypes.Uint64:
 		bits = 64
 	default:
-		// int, uint, and uintptr depend on the selected build target. Generated
-		// Go validation remains authoritative until target sizes are part of sema.
 		return true
 	}
 	if signed {

@@ -3,6 +3,7 @@ package sema
 import (
 	"fmt"
 	gotypes "go/types"
+	"math/big"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -17,7 +18,11 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if ref.GoInterface && !ref.Nullable {
 		result := Type{Kind: GoInterface, Name: "interface{}"}
 		for _, method := range ref.ObjectFields {
-			result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: method.Name, Type: c.resolveType(method.Type)})
+			goName := ""
+			if !ref.Go {
+				goName = memberGoName(method.Name, ast.Public)
+			}
+			result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: method.Name, GoName: goName, Type: c.resolveType(method.Type)})
 		}
 		if converted, ok := goTypeOf(result); ok {
 			result.GoType = converted
@@ -28,7 +33,12 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if len(ref.GoResults) != 0 {
 		result := Type{Kind: MultiValue, Name: "multiple values"}
 		for _, item := range ref.GoResults {
-			result.Results = append(result.Results, c.resolveType(item))
+			resolved := c.resolveType(item)
+			if !ref.Go && (resolved.Kind == Void || resolved.Kind == Result || resolved.Kind == MultiValue || containsTaskType(resolved)) {
+				c.report(item.Span, "multiple result elements must be ordinary value types; void, Result and Task are not allowed")
+				resolved = Type{Kind: Invalid}
+			}
+			result.Results = append(result.Results, resolved)
 		}
 		return result
 	}
@@ -85,6 +95,10 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if ref.IsFixedArray() {
+			if !c.integerConstantFitsFixedType(big.NewInt(*ref.FixedLength), builtins["int"]) {
+				c.report(ref.Span, "array length is out of range for int")
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 			if element.Kind == Invalid {
 				return element
 			}
@@ -167,6 +181,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			}
 		}
 		if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok {
+			ref.Name = imported.name
 			ref.Qualifier = imported.pack.declaration.ResolvedAlias
 			if ref.Qualifier == "" {
 				ref.Qualifier = imported.pack.declaration.Alias
@@ -339,6 +354,9 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	if t, ok := LookupType(ref.Name); ok {
+		if ast.IsDecoratorBuiltinObjectTypeName(ref.Name) {
+			c.usesDecoratorContext = true
+		}
 		return t
 	}
 	c.report(ref.Span, fmt.Sprintf("unknown type %q", ref.Name))

@@ -146,6 +146,9 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 					return Type{Kind: Invalid, Name: "<invalid>"}
 				}
 				expression.ResolvedName = method.Name
+				if method.GoName != "" {
+					expression.ResolvedName = method.GoName
+				}
 				return method.Type
 			}
 		}
@@ -178,6 +181,10 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 		expression.Addressable = addressable || indirect || goTypeIsPointer(receiver.GoType)
 		expression.GoField = true
 		expression.GoFieldViaPointer = goFieldEmbeddedViaPointer(receiver.GoType, index)
+		if c.goFieldReceivers == nil {
+			c.goFieldReceivers = map[*ast.MemberExpr]gotypes.Type{}
+		}
+		c.goFieldReceivers[expression] = receiver.GoType
 	case *gotypes.Func:
 		result, err = kinmokuseiFunctionFromGo(object.Type().(*gotypes.Signature))
 	default:

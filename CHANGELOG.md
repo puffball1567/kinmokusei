@@ -9,6 +9,320 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-09-27
+
+- Add typed decorator registration for classes, members, constructors and
+  parameters, with checked construction and method/accessor invocation adapters.
+  External libraries can use these contracts for dependency injection and
+  routing without compiler-specific framework names. Concrete generic decorator
+  construction/invocation remains outside the supported adapter surface.
+
+- Allow instance field initializers to read earlier initialized fields and
+  accessible inherited fields through `this.field`. Preserve base-before-derived
+  initialization; reject later-field reads and receiver capture.
+
+- Check all `select` channel operands and send values in source order before
+  checking any case body, matching Go evaluation. Carry nullable mutations and
+  Task consumption into every case, including `default`, while keeping receive
+  assignment targets lazy. Reject repeated awaits across operands or bodies and
+  accept tasks consumed by send/receive operands even when another case wins.
+
+- Check three-clause `for` updates on both ordinary body completion and
+  `continue`, including labeled continues from nested loops and switches.
+  Reject nullable dereferences and repeated Task consumption on these paths,
+  accept values restored by the update, and keep `break` paths independent
+  of updates they do not execute.
+
+- Check Task ownership across forward and backward `goto` edges. Reject jumps
+  that skip an await/detach, repeat consumption, or leave/restart a binding
+  while its task is pending. Preserve jumps with matching ownership states,
+  fresh tasks on subsequent passes and independent callback labels.
+
+- Track `break` and `continue` against their actual lexical or labeled targets
+  across nested loops, switches and selects. Check pending tasks on every
+  exited-scope edge, and retain nullable facts from the correct loop/switch
+  exit. Tasks in scopes that survive the branch can still be awaited later;
+  callbacks have independent branch-target stacks.
+
+- Check Task ownership at Result propagation (`?`) as well as explicit returns:
+  other pending tasks must be handled before the possible error exit. Callback
+  returns, throws and propagation check only their own tasks, so unrelated
+  outer tasks no longer prevent ordinary or mutually recursive local arrows.
+  Task capture and unconsumed callback-local tasks remain errors.
+
+- Narrow nullable values through short-circuit `&&`, `||` and `!`, including
+  right operands, branches, guard returns and loop conditions. Retain mutation
+  effects on each evaluation path and on a loop's false exit; calls cannot
+  reuse invalidated member proofs. Track conditional Task awaits without
+  treating skipped right operands as consumed. Generated Go keeps its native
+  short-circuit evaluation order.
+
+- Preserve source element/key contracts in native named collection ranges,
+  channel send/receive/select, map deletion and named iterator ranges. Nullable
+  elements require narrowing after reads, while permitted null sends and map
+  keys remain usable. Named pointer-to-array views retain their element types;
+  range integer identity, channel direction and iterator restrictions are unchanged.
+  Editor completion now displays inferred range-binding types as well.
+
+- Apply source nullable-contract checks to assignments, returns, arguments,
+  constructors and generic class/interface upcasts, including nested named
+  collections and callable types. Keep ordinary nullable widening and valid
+  inheritance remapping. Preserve native named collection element qualifiers
+  during indexing and slicing. Bound recursive generic storage checks by Go type
+  identity rather than transient instantiation objects.
+
+- Reject explicit native/Go type conversions that erase source nullable
+  contracts, including function parameters, ordinary/Result/multiple returns,
+  collection elements, struct fields and constrained generic conversions.
+  Compatible conversions retain direct Go lowering, shared collection storage
+  and Result propagation; nullable values must be narrowed before conversion.
+
+- Check import/linker name collisions using the same Go identifier lowering
+  as code generation. Avoid captures such as an imported `copy` binding being
+  shadowed by an unrelated local `copy_`, including canonical package aliases.
+  Diagnose unresolvable root and nested-local captures at the source reference;
+  ordinary builtin calls and same-spelling local shadowing remain unchanged.
+
+- Prevent source import/re-export aliases from being captured by unrelated
+  local variables or type parameters after linking. Choose dependency and Go
+  package names against lexical bindings, preserving source shadowing, shared
+  mutable storage and editor identities. Diagnose remaining captures involving
+  explicitly supplied root modules instead of silently selecting another value.
+
+- Accept sole multiple-result arguments to permitted `unsafe.Add`, `Slice`
+  and `String` calls. Check each result's pointer/integer contract, retain
+  generic and nullable element types, and evaluate the producer exactly once.
+  Fix inferred `unsafe.Add` result types emitting an invalid qualified name.
+
+- Support `unsafe.Offsetof` on source struct and structural-object fields,
+  including pointers, aliases, distinct types, private Go storage names and
+  concrete generic instances. Preserve target layout and variable-size generic
+  results without evaluating operands or changing native nullable-flow rules.
+  Fix stale struct-alias storage metadata rejecting valid distinct conversions.
+
+- Preserve compile-time `uintptr` values from permitted `unsafe.Sizeof`,
+  `Alignof` and `Offsetof` calls using the selected Go target. Support constant
+  aliases, exported/class constants, bounds checks and duplicate switch cases;
+  variable-size generic results remain runtime values. Keep Go's unevaluated
+  operands and nested `len`/`cap` constant-classification rules.
+
+- Preserve selected target sizes while checking global and class constant
+  initializers, including forward dependencies and unsigned complements.
+
+- Check machine-width integer constants against the selected Go target before
+  generation, including conversions, generic arguments, indices, array lengths,
+  collection sizes and unsafe offsets. Preserve target-dependent unsigned
+  complements and contextual runtime shifts. Use the same target sizes for
+  generated Go validation; a locked target takes precedence over ambient GOARCH.
+
+- Restore member completion while editing inside an existing selector, including
+  imported generic classes and Go values. Recover unfinished calls, indexes and
+  bodies at EOF without modifying the document, changing source offsets or
+  exposing private/instance members through an invalid access path.
+
+- Support local aliases in source and named Go imports (`import { A as B }`
+  and `import go { Sprint as render }`). Preserve original type/storage identity,
+  generic calls, source re-exports and unsafe permissions. Add editor completion,
+  navigation, signature help and alias-local rename with collision checks.
+
+- Fix decorator field/parameter type identities losing transparent aliases and
+  conflating different generic instances. Use checked nominal types across
+  class, interface and struct aliases/re-exports; preserve nullable contracts
+  in generic arguments and leave unresolved generic consumer keys empty.
+
+- Fix decorated overrides bypassing further-derived implementations. Method,
+  getter and setter adapters now use the ordinary virtual dispatch slot across
+  multiple inheritance levels, preserving Result failures and multiple returns.
+  Reject uninitialized virtual receivers supplied through Go interop before
+  calling a method body.
+
+- Support checked decorator invocation of public getters and setters, including
+  static properties, virtual overrides, and generic-independent static
+  accessors. Preserve independent visibility, exact property types, receiver
+  checks and arity checks.
+
+- Support result-list methods through decorator invocation adapters. Return
+  an ordered boxed `DecoratorValue[]` with exact per-slot contracts, preserving
+  narrow types, nullable values, interfaces and concrete generic values. Keep
+  ordinary error result slots separate from Result failure propagation and
+  invoke instance/static, variadic and virtual methods exactly once.
+
+- Harden external package source boundaries: reject entries, exports and
+  relative imports under unhashed metadata directories, including symlink and
+  case/trailing-dot aliases of `.git` and `.kinmokusei`.
+
+- Preserve declared storage and source contracts across decorator values and
+  all callable adapters. Fix numeric-width and typed-nil round-trips; reject
+  nullable/context contract confusion, including nested collections/callbacks.
+  Interface DI uses an explicitly boxed interface contract; open type-parameter
+  payloads now produce a source diagnostic instead of erasing their contract.
+  Resolve adapter parameter types before Go generation, including interfaces.
+
+- Accept keyword-named members after `.` so decorator metadata such as
+  `context.static` is accessible without special-case parsing.
+
+- Bound LSP header size independently of payload size and reject duplicate
+  Content-Length headers, including identical duplicates.
+
+- Fix sending, select sending and closing class-valued channels returned by
+  generic helpers. Reconstruct native Go storage without dropping source
+  element types, nullable checks or send/receive direction restrictions.
+  Accept these channels as generic arguments and prevent a compiler panic
+  when storing inferred channels without cached Go storage in local variables.
+
+- Accept constrained collection assignment with native class elements using
+  Go storage compatibility plus per-term source nullability checks. Preserve
+  invariant elements, array lengths and channel directions. Fix direct and
+  checked receives from explicitly typed channels carrying native classes.
+
+- Infer element/key types when generic wrappers forward constrained slices,
+  arrays, maps and receive-capable channels to native generic helpers. Preserve
+  caller type-parameter identity and contextual callback inference; ambiguous
+  collection bounds and incompatible nullable elements remain rejected.
+
+- Infer native generic arguments between named and unnamed slices, arrays,
+  maps, pointers and channels, including imported Go collections and dependent
+  callbacks. Keep named identity, array lengths, channel directions and nullable
+  element checks enforced by argument compatibility.
+
+- Infer native generic arguments across named and unnamed callback signatures,
+  including scalar/multiple results, dependent arrows and generic methods.
+  Preserve distinct function identity, nullable contracts and Result effects.
+
+- Infer native generic type arguments from each callback result-list slot,
+  including named function values, direct arrows, partially explicit arguments,
+  generic methods, nested class arguments and dependent callback contexts.
+  Diagnose conflicting results, mismatched arity and unsatisfied constraints.
+  Preserve inferred arguments explicitly in Go output for interfaces nested
+  inside callback result lists, consistently with single-result callbacks.
+
+- Fix identical generic class result-list signatures being rejected for local
+  arrows when Go storage types are unavailable. Compare individual result
+  contracts while retaining nominal identity, type arguments and nullability;
+  cover contextual/inferred arrows and inherited classes with regression tests.
+
+- Apply class upcasts in multiple assignment to existing base-class variables,
+  including generic and nullable classes, checked map lookups and channel
+  receives. Capture results once before converting and assigning them; preserve
+  blank targets, repeated targets, virtual dispatch and for-post use.
+
+- Reject unused type conversions in statement and for-clause positions during
+  source checking, including native, imported Go and type-parameter conversions.
+  Keep explicit discards and ordinary function calls, with evaluation verified
+  against handwritten Go.
+
+- Diagnose unused value-only built-ins (including sole-call result expansion)
+  in expression statements and `go`/`defer` statements before Go generation.
+  Explicit `_ = ...` discards remain available; copy/delete/clear/close and
+  user-defined functions shadowing built-in names retain statement use.
+
+- Accept sole-call multiple-result arguments in `min`, `max`, and `complex`.
+  Preserve runtime operand types, generic ordered constraints, complex64 width,
+  single evaluation, NaN and signed-zero behavior; reject incompatible result
+  types, wrong arity and spread syntax before Go generation.
+
+- Expand collection built-in tuple arguments through explicit bindings in
+  generated Go, avoiding a Go 1.26+ vet panic while retaining single evaluation,
+  generic result types and eager capture for deferred calls. Vet remains enabled.
+
+- Reuse ordinary call lowering for all Task launches, preserving inferred and
+  explicit generic calls, generic method receivers, spread arguments, and
+  contextual argument types such as `byte` and nil pointers. Generate fresh
+  capture names so user variables cannot be shadowed by Task temporaries.
+
+- Support sole-call multiple-result expansion in `append`, `copy`, and `delete`,
+  retaining slice element and map key checks. Fix Task launch argument capture
+  for multiple-result producers, including generic functions and methods;
+  evaluate the callee/receiver and producer before starting the worker.
+
+- Accept a multiple-result call as the sole unspread argument to functions,
+  methods and variadic callables: `consume(produce())`. Generic source and Go
+  functions support inferred and explicit type arguments. Check result
+  count and each argument type while preserving single evaluation. Calls that
+  need per-value source conversions must destructure first. Generic instance
+  methods capture the receiver before expanding results, including when deferred.
+
+- Add source function, method, arrow and function-type result lists such as
+  `function cut(text: string): (string, string, boolean)`. Matching multiple-result
+  calls can be forwarded directly, including contextual callbacks and generic
+  function aliases. Preserve nullable contracts and type references in editor
+  rename/references. Comma-separated returns (`return a, b`) check each value
+  in its declared context, including numeric bounds and class upcasts.
+  Multiple-result returns also cross try/catch/finally, preserving evaluation
+  order, typed nil values, generic types and finally overrides. Arrow result
+  lists can be inferred from forwarded calls or explicit return expressions,
+  including forward dependencies and try/finally. Ambiguous nil/null results,
+  mismatched branches and numeric overflow are diagnosed; multiple-result
+  properties remain unsupported.
+
+- Add method-only anonymous interface type syntax, for example
+  `interface { read(offset: int): string; }`. Source declarations preserve
+  exported method signatures and lower directly to Go anonymous interfaces;
+  fields and unsupported private identities remain rejected.
+  Structural class matching substitutes class type arguments and checks source
+  nullable parameter/result contracts before Go storage erases their qualifiers.
+
+- Allow enum members in typed class constant initializers. Their existing
+  generated Go constant identity and underlying enum type are preserved.
+
+- Add typed `static const` class members with compile-time scalar initializers,
+  inherited visibility, forward/module references, generic-independent scope,
+  exact constant operations and typed rounding. Emit public Go constants and
+  support editor completion, navigation and rename. Reject mutation, address
+  taking, runtime initializers and cycles, including cyclic constant array
+  `len`/`cap` dependencies.
+
+- Add explicitly initialized mutable static class fields, shared across generic
+  instantiations and descendants, with visibility checks, addressable storage,
+  collection/callable values and public Go package variables. Exclude static
+  state from instance construction and JSON. Diagnose initialization cycles
+  through fields, static accessors/methods and constructors. Editor completion,
+  navigation and rename recognize static fields and module-level type scope.
+
+- Add static getter/setter properties accessed through class names, with
+  inherited owner lookup, independent visibility, ordered updates and public
+  Go package functions. Generic classes may declare type-argument-independent
+  static accessors. Diagnose global initialization cycles through static
+  accessors and methods; keep ordinary assignments independent of getters.
+  Reject local bindings that would shadow a selected generated static accessor
+  or method, preventing calls from being silently redirected.
+
+- Add instance getter/setter properties with independent visibility, generic
+  and inherited types, read/write diagnostics and single-evaluation updates.
+  Support virtual/abstract accessors, explicit and final overrides, partial
+  accessor overrides and phase-local construction dispatch. Generated Go exposes
+  accessor methods; LSP supports completion, navigation and inheritance-aware
+  paired getter/setter rename. Interfaces can declare public property contracts,
+  including generic/diamond inheritance and class or abstract-class DI.
+
+- Extend permitted `unsafe.Slice`/`SliceData` calls to compatible pointer/slice
+  type parameters and source class elements, preserving source nullability.
+  Accept integer-valued untyped constants and contextual shifts in unsafe lengths
+  and offsets; diagnose negative lengths and overflowing constant reference
+  chains. The explicit unsafe permission and Go lifetime obligations are unchanged.
+
+- Extend scalar constant checking for value switches: default the subject's
+  type, reject overflowing subjects/cases, recognize constant expression and
+  re-export chains, and account for floating-point rounding and interface
+  dynamic-type identity when checking duplicates. Preserve Go's first-match
+  behavior for repeated boolean/complex cases and runtime bindings. Separate
+  value-switch and constant-case checks from channel/type-switch checking.
+
+- Preserve contextual types for nonconstant shifts in assignments, returns,
+  conversions, operators and generic calls. Diagnose overflowing left operands
+  and floating-point shift contexts before Go generation, while accepting
+  integer-valued untyped floating shifts in indices, slice bounds and allocation
+  sizes. Keep runtime bindings typed and preserve evaluation and panic behavior.
+
+- Prevent slice-allocation temporaries from shadowing user size bindings,
+  including existing `makeSlice` calls with explicit capacity.
+
+- Add `make[T](...)` for concrete, named and constrained slice, map and channel
+  targets, preserving the requested type and source nullability. Check type-set
+  compatibility, sizes and channel directions; retain ordered size evaluation,
+  constructor slice-cardinality proofs and editor signatures/navigation. Existing
+  element-oriented allocation helpers remain supported.
+
 ## [0.4.3] - 2026-09-19
 
 - Automatically register a source import alias when `keika deps add` installs

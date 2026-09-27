@@ -55,6 +55,31 @@ Named Go ordered types, compatible untyped constants, NaN, signed zero, and left
 
 ## Allocation
 
+In the next patch, `make[T](...)` allocates a complete collection type, preserving
+named types and generic type parameters:
+
+| Form | Target | Result |
+| --- | --- | --- |
+| `make[T](length, capacity?)` | Slice | Initialized slice of type `T` |
+| `make[T](capacity?)` | Map | Empty, non-nil map of type `T` |
+| `make[T](capacity?)` | Channel | Empty channel of type `T`, unbuffered by default |
+
+<<< ../snippets/collection-make.km{ts}
+
+A constrained target must have one underlying slice or map type. Channel
+alternatives must have identical element types and compatible directions.
+The target itself cannot be nullable; nullable element types remain supported.
+Generic class methods and imported/re-exported constraints follow the same rules.
+The result is not a constant and must be used (or explicitly discarded with `_`).
+Empty slices and maps are non-nil; a map capacity
+is only a hint, not an initial number of entries. Channel capacity likewise
+does not enqueue values. Positive known slice lengths can establish a
+constructor's nonempty-range proof; map hints and channel capacities cannot.
+
+<<< ../snippets-invalid/collection-make.km{ts}
+
+The existing element-oriented helpers remain supported:
+
 ```ts
 const values = makeSlice[int](length);
 const buffered = makeSlice[int](length, capacity);

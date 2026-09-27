@@ -21,7 +21,7 @@ func (c *Checker) interfaceAncestors(value Type) []Type {
 			return
 		}
 		for _, previous := range seen[current.Name] {
-			if exactType(previous, current) {
+			if exactType(previous, current) && c.sourceStorageContractsMatch(previous, current) {
 				return
 			}
 		}
@@ -47,7 +47,7 @@ func (c *Checker) interfaceAncestors(value Type) []Type {
 
 func (c *Checker) interfaceExtends(value, target Type) bool {
 	for _, ancestor := range c.interfaceAncestors(value) {
-		if exactType(ancestor, target) {
+		if exactType(ancestor, target) && c.sourceStorageContractsMatch(ancestor, target) {
 			return true
 		}
 	}

@@ -88,6 +88,38 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		if expr.Builtin == kinmokuseiAST.ResultOKCall || expr.Builtin == kinmokuseiAST.ResultFailCall {
 			return nil, fmt.Errorf("Result constructor was not lowered from a return statement")
 		}
+		if expr.Builtin == kinmokuseiAST.DecoratorValueCall {
+			if len(expr.ResolvedTypeArguments) != 1 || len(expr.Arguments) != 1 {
+				return nil, fmt.Errorf("decoratorValue lowering received an invalid call shape")
+			}
+			value, err := generateExpression(expr.Arguments[0])
+			if err != nil {
+				return nil, err
+			}
+			return decoratorBox(value, expr.ResolvedTypeArguments[0], expr.DecoratorValueIdentity, expr.DecoratorValueContract), nil
+		}
+		if expr.Builtin == kinmokuseiAST.DecoratorValueAsCall {
+			if len(expr.ResolvedTypeArguments) != 1 || len(expr.Arguments) != 1 {
+				return nil, fmt.Errorf("decoratorValueAs lowering received an invalid call shape")
+			}
+			value, err := generateExpression(expr.Arguments[0])
+			if err != nil {
+				return nil, err
+			}
+			target := expr.ResolvedTypeArguments[0]
+			decoded := goast.NewIdent("decoded")
+			ok := goast.NewIdent("ok")
+			body := &goast.BlockStmt{List: []goast.Stmt{
+				&goast.AssignStmt{Lhs: []goast.Expr{decoded, ok}, Tok: token.DEFINE, Rhs: []goast.Expr{decoratorDecode(value, target, expr.DecoratorValueContract)}},
+				&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: ok}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{
+					zeroValue(target), &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiDecoratorAdapterError"), Args: []goast.Expr{stringLiteral("decorator value does not contain " + expr.DecoratorValueIdentity)}},
+				}}}}},
+				&goast.ReturnStmt{Results: []goast.Expr{decoded, goast.NewIdent("nil")}},
+			}}
+			return &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{
+				Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: goType(target)}, {Type: goast.NewIdent("error")}}},
+			}, Body: body}}, nil
+		}
 		if expr.Builtin == kinmokuseiAST.CopyArrayCall || expr.Builtin == kinmokuseiAST.ViewArrayCall {
 			if len(expr.TypeArguments) != 1 || len(expr.Arguments) != 1 {
 				return nil, fmt.Errorf("slice-to-array lowering received an invalid call shape")
@@ -102,12 +134,14 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: target, Args: []goast.Expr{argument}}, nil
 		}
-		if expr.Builtin == kinmokuseiAST.MakeSliceCall || expr.Builtin == kinmokuseiAST.MakeMapCall {
-			if (expr.Builtin == kinmokuseiAST.MakeSliceCall && len(expr.TypeArguments) != 1) || (expr.Builtin == kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 2) {
+		if expr.Builtin == kinmokuseiAST.MakeSliceCall || expr.Builtin == kinmokuseiAST.MakeMapCall || expr.Builtin == kinmokuseiAST.MakeCall {
+			if (expr.Builtin != kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 1) || (expr.Builtin == kinmokuseiAST.MakeMapCall && len(expr.TypeArguments) != 2) {
 				return nil, fmt.Errorf("collection make lowering received invalid type arguments")
 			}
 			var collectionType goast.Expr
-			if expr.Builtin == kinmokuseiAST.MakeSliceCall {
+			if expr.Builtin == kinmokuseiAST.MakeCall {
+				collectionType = goType(expr.TypeArguments[0])
+			} else if expr.Builtin == kinmokuseiAST.MakeSliceCall {
 				collectionType = &goast.ArrayType{Elt: goType(expr.TypeArguments[0])}
 			} else {
 				collectionType = &goast.MapType{Key: goType(expr.TypeArguments[0]), Value: goType(expr.TypeArguments[1])}
@@ -120,7 +154,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				}
 				arguments[index] = generated
 			}
-			if expr.Builtin == kinmokuseiAST.MakeSliceCall && len(arguments) == 2 {
+			if expr.Builtin != kinmokuseiAST.MakeMapCall && len(arguments) == 2 {
 				// Evaluate size expressions in source order before invoking Go's make
 				// intrinsic so behavior does not vary between Go toolchains.
 				for index := range arguments {
@@ -173,6 +207,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				args[i] = generated
 			}
 			call := &goast.CallExpr{Fun: goast.NewIdent(name), Args: args}
+			if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
+				return generateCapturedMultipleCall(expr, call, false), nil
+			}
 			if expr.Expanded {
 				call.Ellipsis = token.Pos(1)
 			}
@@ -231,6 +268,12 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			args = append(args, generated)
 		}
 		call := &goast.CallExpr{Fun: callee, Args: args}
+		if genericReceiver != nil && expr.MultipleArgumentCount > 0 {
+			return generateGenericMultipleCall(expr, call), nil
+		}
+		if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
+			return generateCapturedMultipleCall(expr, call, false), nil
+		}
 		if expr.Expanded {
 			call.Ellipsis = token.Pos(1)
 		}
@@ -315,6 +358,13 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.CompositeLit{Type: goType(expr.Type), Elts: fields}, nil
 	case *kinmokuseiAST.MemberExpr:
+		if expr.Property {
+			object, err := generatePropertyReceiver(expr)
+			if err != nil {
+				return nil, err
+			}
+			return propertyCall(object, propertyAccessorName(expr, false)), nil
+		}
 		if expr.Static {
 			return goast.NewIdent(goName(expr.ResolvedName)), nil
 		}

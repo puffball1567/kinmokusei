@@ -42,12 +42,16 @@ func (l *moduleLoader) resolveSourceExports(key string, program *ast.Program) {
 		if imported.Go {
 			continue
 		}
-		for _, name := range imported.Names {
-			if _, local := locals[name]; local {
+		for index, name := range imported.Names {
+			localName := imported.BindingName(index)
+			if _, local := locals[localName]; local {
 				continue
 			}
 			if binding, ok := l.exports[imported.ResolvedPath][name]; ok {
-				visible[name] = binding
+				if imported.HasNameAlias(index) {
+					binding.publicSpan = imported.BindingSpan(index)
+				}
+				visible[localName] = binding
 			}
 		}
 	}

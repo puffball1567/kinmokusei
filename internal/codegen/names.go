@@ -1,10 +1,10 @@
 package codegen
 
 import (
-	"go/token"
 	"strings"
 
 	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/goname"
 )
 
 func memberName(name string, visibility kinmokuseiAST.Visibility) string {
@@ -24,19 +24,7 @@ func staticMethodName(className, methodName string, visibility kinmokuseiAST.Vis
 }
 
 func goName(name string) string {
-	if token.Lookup(name).IsKeyword() || isGoPredeclaredName(name) {
-		return name + "_"
-	}
-	return name
-}
-
-func isGoPredeclaredName(name string) bool {
-	switch name {
-	case "append", "cap", "clear", "close", "complex", "copy", "delete", "imag", "len", "make", "max", "min", "new", "panic", "print", "println", "real", "recover":
-		return true
-	default:
-		return false
-	}
+	return goname.Identifier(name)
 }
 
 func goTypeName(name string) string {

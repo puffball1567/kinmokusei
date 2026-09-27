@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	"go/constant"
 	gotypes "go/types"
 	"math/big"
 
@@ -17,13 +18,28 @@ func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Ty
 		return c.checkArrayLiteralExpected(array, expected)
 	}
 	if object, ok := expr.(*ast.ObjectLiteralExpr); ok && expected.Kind == Object {
+		if ast.IsDecoratorBuiltinObjectTypeName(expected.Name) {
+			c.checkObjectLiteral(object)
+			c.report(object.Span, fmt.Sprintf("%s is compiler-owned and cannot be constructed with an object literal", expected.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
 		return c.checkObjectLiteralExpected(object, expected)
 	}
 	actual := c.checkExpression(expr)
-	if actual.Kind == UntypedInt && expected.IsInteger() {
-		if value, known := c.resolvedIntegerConstantValue(expr); known && !integerConstantFitsFixedType(value, expected) {
-			c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
-			return Type{Kind: Invalid, Name: "<invalid>"}
+	if actual.Kind == UntypedInt {
+		if value, known := c.resolvedIntegerConstantValue(expr); known {
+			if expected.Kind == TypeParameter && expected.IsInteger() {
+				if target, ok := goTypeOf(expected); ok {
+					info := gotypes.TypeAndValue{Type: gotypes.Typ[gotypes.UntypedInt], Value: constant.Make(value)}
+					if err := c.checkNumericConstantAssignment(info, target); err != nil {
+						c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented by every type in %s's type set", value.String(), expected.String()))
+						return Type{Kind: Invalid, Name: "<invalid>"}
+					}
+				}
+			} else if expected.IsInteger() && !c.integerConstantFitsFixedType(value, expected) {
+				c.report(expr.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 		}
 	}
 	if !c.checkNumericMaterialization(expr, expected) {
@@ -134,6 +150,10 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 		return c.checkChannelReceive(expr, false)
 	}
 	operand := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
+	return c.checkUnaryOperand(expr, operand)
+}
+
+func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 	if expr.Operator == "&" {
 		if operand.Kind == Invalid {
 			return operand
@@ -217,57 +237,6 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 		}
 		return operand
 	}
-}
-
-func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
-	operand := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
-	if operand.Kind == Nullable {
-		c.report(expr.Operand.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before receiving", operand.String()))
-		if operand.Element == nil {
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		operand = *operand.Element
-	}
-	if operand.Kind == Invalid {
-		return operand
-	}
-	goType, ok := goTypeOf(operand)
-	if !ok {
-		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if parameter, ok := gotypes.Unalias(goType).(*gotypes.TypeParam); ok {
-		element, valid := c.genericChannelElement(parameter, false)
-		if !valid {
-			c.report(expr.Span, "channel receive type parameter requires only receive-capable channels with identical element types and nullability")
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		if checked {
-			return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
-		}
-		return element
-	}
-	channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
-	if !ok {
-		c.report(expr.Span, fmt.Sprintf("operator <- requires a Go channel operand, got %s", operand.String()))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if channel.Dir() == gotypes.SendOnly {
-		c.report(expr.Span, fmt.Sprintf("cannot receive from send-only channel %s", operand.String()))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	element, err := kinmokuseiTypeFromGo(channel.Elem())
-	if err != nil {
-		c.report(expr.Span, fmt.Sprintf("channel element type is not supported: %v", err))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	if operand.Element != nil {
-		element = *operand.Element
-	}
-	if checked {
-		return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
-	}
-	return element
 }
 
 func (c *Checker) isAddressableExpression(expression ast.Expression) bool {
@@ -522,7 +491,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		if constant, known := c.integerContextValue(bound.expression); known {
 			if constant.Sign() < 0 {
 				c.report(bound.expression.GetSpan(), fmt.Sprintf("slice %s bound cannot be negative", bound.name))
-			} else if !constant.IsInt64() {
+			} else if !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 				c.report(bound.expression.GetSpan(), fmt.Sprintf("slice %s bound is out of range", bound.name))
 			}
 		}
@@ -653,6 +622,9 @@ func (c *Checker) checkBinary(expr *ast.BinaryExpr) Type {
 }
 
 func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Type {
+	if c.hasDeferredShift(expr.Left) || c.hasDeferredShift(expr.Right) {
+		return c.checkGoBinary(expr, left, right)
+	}
 	if scalarBinaryOperation(expr.Operator, left, right) {
 		return c.checkGoBinary(expr, left, right)
 	}
@@ -685,7 +657,7 @@ func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Ty
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if right.Kind == UntypedInt && left.Kind != UntypedInt {
-			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !integerConstantFitsFixedType(value, left) {
+			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !c.integerConstantFitsFixedType(value, left) {
 				c.report(expr.Right.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), left.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
@@ -706,13 +678,13 @@ func (c *Checker) checkBinaryOperands(expr *ast.BinaryExpr, left, right Type) Ty
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if left.Kind == UntypedInt && right.Kind != UntypedInt {
-			if value, known := c.resolvedIntegerConstantValue(expr.Left); known && !integerConstantFitsFixedType(value, right) {
+			if value, known := c.resolvedIntegerConstantValue(expr.Left); known && !c.integerConstantFitsFixedType(value, right) {
 				c.report(expr.Left.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), right.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 		}
 		if right.Kind == UntypedInt && left.Kind != UntypedInt {
-			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !integerConstantFitsFixedType(value, left) {
+			if value, known := c.resolvedIntegerConstantValue(expr.Right); known && !c.integerConstantFitsFixedType(value, left) {
 				c.report(expr.Right.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), left.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}

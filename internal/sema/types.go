@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
 type TypeKind int
@@ -75,8 +77,9 @@ type Type struct {
 }
 
 type GoInterfaceMethod struct {
-	Name string
-	Type Type
+	Name   string
+	GoName string
+	Type   Type
 }
 
 type GoStructField struct {
@@ -109,6 +112,52 @@ var builtins = map[string]Type{
 	"byte":       {Kind: Byte, Name: "byte"},
 	"error":      {Kind: GoNamed, Name: "error", GoType: gotypes.Universe.Lookup("error").Type()},
 	"Exception":  {Kind: Class, Name: "Exception"},
+}
+
+func init() {
+	builtins[ast.DecoratorValueTypeName] = decoratorValueType()
+	for _, definition := range ast.DecoratorContextDefinitions() {
+		builtins[definition.Name] = decoratorContextType(definition.Name)
+	}
+}
+
+func decoratorValueType() Type {
+	return Type{
+		Kind: Object, Name: ast.DecoratorValueTypeName,
+		Fields:     map[string]Type{"typeIdentity": builtins["string"]},
+		FieldNames: map[string]string{"typeIdentity": memberGoName("typeIdentity", ast.Public)},
+	}
+}
+
+func decoratorContextType(name string) Type {
+	fields := map[string]Type{}
+	fieldNames := map[string]string{}
+	for _, field := range ast.DecoratorContextFields() {
+		var fieldType Type
+		switch {
+		case field.Type.IsArray() && field.Type.Element != nil && field.Type.Element.Name == "string":
+			element := Type{Kind: String, Name: "string"}
+			fieldType = Type{Kind: Array, Name: "array", Element: &element}
+		case field.Type.Name == "string":
+			fieldType = Type{Kind: String, Name: "string"}
+		case field.Type.Name == "int":
+			fieldType = Type{Kind: Int, Name: "int"}
+		case field.Type.Name == "boolean":
+			fieldType = Type{Kind: Boolean, Name: "boolean"}
+		case field.Type.IsFunction():
+			value := decoratorValueType()
+			arguments := Type{Kind: Array, Name: "array", Element: &value}
+			result := Type{Kind: Result, Name: "Result", Element: &value}
+			parameters := []Type{arguments}
+			if field.Name == "invoke" {
+				parameters = []Type{value, arguments}
+			}
+			fieldType = Type{Kind: Function, Name: "function", Parameters: parameters, Result: &result}
+		}
+		fields[field.Name] = fieldType
+		fieldNames[field.Name] = memberGoName(field.Name, ast.Public)
+	}
+	return Type{Kind: Object, Name: name, Fields: fields, FieldNames: fieldNames}
 }
 
 func LookupType(name string) (Type, bool) {
@@ -180,6 +229,9 @@ func (t Type) isComparable(visiting map[string]bool) bool {
 func assignable(target, value Type) bool {
 	if target.Kind == Invalid || value.Kind == Invalid {
 		return true
+	}
+	if decoratorContextContractMismatch(target, value) {
+		return false
 	}
 	if target.Kind == MultiValue || value.Kind == MultiValue {
 		return false
@@ -273,7 +325,16 @@ func assignable(target, value Type) bool {
 				return false
 			}
 		}
-		return target.Result != nil && value.Result != nil && sameType(*target.Result, *value.Result)
+		if target.Result == nil || value.Result == nil {
+			return false
+		}
+		if target.Result.Kind == MultiValue || value.Result.Kind == MultiValue {
+			// Generic source classes may not have Go storage types yet. Compare
+			// each result contract rather than treating the list as a value:
+			// standalone MultiValue assignment is intentionally forbidden.
+			return identicalMethodSignature(*target.Result, *value.Result)
+		}
+		return sameType(*target.Result, *value.Result)
 	}
 	if target.Kind == Array || value.Kind == Array || target.Kind == FixedArray || value.Kind == FixedArray {
 		if target.Kind != value.Kind || target.Element == nil || value.Element == nil {
@@ -290,6 +351,13 @@ func assignable(target, value Type) bool {
 	if target.Kind == Object || value.Kind == Object {
 		if target.Kind != Object || value.Kind != Object || len(target.Fields) != len(value.Fields) {
 			return false
+		}
+		// Decorator target contexts deliberately remain nominal even though
+		// their runtime fields currently match. Structural assignment would let
+		// a class-only callback be widened to DecoratorContext and then applied
+		// to methods or parameters, silently erasing its target restriction.
+		if ast.IsDecoratorBuiltinObjectTypeName(target.Name) || ast.IsDecoratorBuiltinObjectTypeName(value.Name) {
+			return target.Name == value.Name
 		}
 		for name, targetField := range target.Fields {
 			valueField, ok := value.Fields[name]
@@ -325,6 +393,26 @@ func assignable(target, value Type) bool {
 		return true
 	}
 	return value.Kind == UntypedInt && target.IsNumeric()
+}
+
+func decoratorContextContractMismatch(left, right Type) bool {
+	leftContext := left.Kind == Object && ast.IsDecoratorContextTypeName(left.Name)
+	rightContext := right.Kind == Object && ast.IsDecoratorContextTypeName(right.Name)
+	if leftContext || rightContext {
+		return !leftContext || !rightContext || left.Name != right.Name
+	}
+	if left.Kind != Function || right.Kind != Function {
+		return false
+	}
+	if len(left.Parameters) != len(right.Parameters) {
+		return false
+	}
+	for index := range left.Parameters {
+		if decoratorContextContractMismatch(left.Parameters[index], right.Parameters[index]) {
+			return true
+		}
+	}
+	return left.Result != nil && right.Result != nil && decoratorContextContractMismatch(*left.Result, *right.Result)
 }
 
 func sameType(left, right Type) bool {
@@ -380,6 +468,9 @@ func (t Type) String() string {
 				}
 			}
 		case Object:
+			if ast.IsDecoratorBuiltinObjectTypeName(t.Name) {
+				return t.Name
+			}
 			names := make([]string, 0, len(t.Fields))
 			for name := range t.Fields {
 				names = append(names, name)
@@ -431,7 +522,11 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 			if !ok {
 				return nil, false
 			}
-			methods[i] = gotypes.NewFunc(0, nil, method.Name, signature)
+			name := method.Name
+			if method.GoName != "" {
+				name = method.GoName
+			}
+			methods[i] = gotypes.NewFunc(0, nil, name, signature)
 		}
 		return gotypes.NewInterfaceType(methods, nil).Complete(), true
 	case Nullable:

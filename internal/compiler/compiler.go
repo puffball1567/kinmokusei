@@ -7,6 +7,7 @@ import (
 	gotypes "go/types"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -24,6 +25,7 @@ type Result struct {
 	Program     *ast.Program
 	Diagnostics []diagnostic.Diagnostic
 	goImporter  gotypes.Importer
+	goSizes     gotypes.Sizes
 }
 
 type GoExport struct {
@@ -454,14 +456,22 @@ func CheckFilesWithOverlayInProject(paths []string, overlay map[string]string, p
 		}
 	}
 	goImporter := goImporterForProgram(loader.merged, ordered, lockedRoot, lockedTarget)
+	goarch := runtime.GOARCH
+	if lockedTarget != nil {
+		goarch = lockedTarget.GOARCH
+	}
+	sizes := gotypes.SizesFor("gc", goarch)
+	if sizes == nil {
+		return Result{}, fmt.Errorf("unsupported Go target architecture %q", goarch)
+	}
 	if len(loader.diagnostics) == 0 {
 		allowed := loader.linkModules(ordered)
 		if len(loader.diagnostics) == 0 {
-			loader.diagnostics = append(loader.diagnostics, sema.CheckScopedWithGoImporterAndPolicy(loader.merged, allowed, goImporter, sema.GoInteropPolicy{AllowUnsafe: allowUnsafeGo})...)
-			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter}, nil
+			loader.diagnostics = append(loader.diagnostics, sema.CheckScopedWithGoImporterAndPolicy(loader.merged, allowed, goImporter, sema.GoInteropPolicy{AllowUnsafe: allowUnsafeGo, Sizes: sizes})...)
+			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes}, nil
 		}
 	}
-	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter}, nil
+	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes}, nil
 }
 
 func goImporterForProgram(program *ast.Program, rootPaths []string, lockedRoot string, lockedTarget *project.BuildTarget) gotypes.Importer {
@@ -551,6 +561,7 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 	l.resolveSourceExports(key, program)
 	l.states[key] = 2
 	l.merged.Imports = append(l.merged.Imports, program.Imports...)
+	l.merged.Decorators = append(l.merged.Decorators, program.Decorators...)
 	l.merged.Declarations = append(l.merged.Declarations, program.Declarations...)
 	l.merged.Exports = append(l.merged.Exports, program.Exports...)
 	return nil
@@ -586,11 +597,12 @@ func (l *moduleLoader) validateImport(imported ast.ImportDecl, target *ast.Progr
 	}
 	seen := map[string]bool{}
 	for index, name := range imported.Names {
-		if seen[name] {
-			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate imported name %q", name), Span: imported.Span})
+		local := imported.BindingName(index)
+		if seen[local] {
+			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: fmt.Sprintf("duplicate imported name %q", local), Span: imported.BindingSpan(index)})
 			continue
 		}
-		seen[name] = true
+		seen[local] = true
 		if !available[name] {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
 				Message: fmt.Sprintf("module %q does not declare %q", imported.Path, name), Span: imported.Span,
@@ -615,7 +627,7 @@ func EmitGo(paths []string, packageName string) ([]byte, []diagnostic.Diagnostic
 	if len(result.Diagnostics) != 0 {
 		return nil, result.Diagnostics, nil
 	}
-	generated, err := codegen.GenerateWithImporter(result.Program, packageName, result.goImporter)
+	generated, err := codegen.GenerateWithTarget(result.Program, packageName, result.goImporter, result.goSizes)
 	return generated, nil, err
 }
 
@@ -629,7 +641,7 @@ func EmitCABI(paths []string) (CABIArtifacts, []diagnostic.Diagnostic, error) {
 	if len(result.Diagnostics) != 0 {
 		return CABIArtifacts{}, result.Diagnostics, nil
 	}
-	generated, err := codegen.GenerateWithImporter(result.Program, "main", result.goImporter)
+	generated, err := codegen.GenerateWithTarget(result.Program, "main", result.goImporter, result.goSizes)
 	if err != nil {
 		return CABIArtifacts{}, nil, err
 	}

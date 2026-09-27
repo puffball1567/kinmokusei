@@ -33,7 +33,13 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 		if arrow, ok := argument.(*ast.ArrowExpr); ok {
 			pending[i] = arrow
 		} else {
-			actuals[i] = c.singleValue(c.checkExpression(argument), argument.GetSpan())
+			actual := c.checkExpression(argument)
+			_, isCall := argument.(*ast.CallExpr)
+			if actual.Kind == MultiValue && isCall && len(call.Arguments) == 1 && !call.Expanded {
+				actuals[i] = actual
+			} else {
+				actuals[i] = c.singleValue(actual, argument.GetSpan())
+			}
 		}
 	}
 	if len(pending) == 0 {

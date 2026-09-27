@@ -38,6 +38,10 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		}
 		if !c.hasCallBinding(name.Name, name.Span) {
 			switch name.Name {
+			case "decoratorValue":
+				return c.checkDecoratorValueBuiltin(expr, false)
+			case "decoratorValueAs":
+				return c.checkDecoratorValueBuiltin(expr, true)
 			case "ok":
 				return c.checkResultConstructor(expr, true)
 			case "fail":
@@ -60,6 +64,8 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				return c.checkComplexBuiltin(expr, name.Name)
 			case "makeSlice":
 				return c.checkMakeSlice(expr)
+			case "make":
+				return c.checkMakeCollection(expr)
 			case "makeMap":
 				return c.checkMakeMap(expr)
 			case "copyArray":
@@ -101,7 +107,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				return target
 			}
 			value := c.checkExpression(expr.Arguments[0])
-			if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) {
+			if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 				return c.checkComplexConversion(expr, target, value)
 			}
 			targetGo, targetRepresentable := goTypeOf(target)
@@ -111,7 +117,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				c.report(expr.Span, fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 			} else if target.IsNumeric() {
 				integer, known := c.resolvedIntegerConstantValue(expr.Arguments[0])
-				if known && !integerConstantFitsFixedType(integer, target) {
+				if known && !c.integerConstantFitsFixedType(integer, target) {
 					c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", integer.String(), target.String()))
 				}
 			}
@@ -186,6 +192,19 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	} else if callable.Generic {
 		return c.checkInferredGenericCall(expr, callableName, callable)
 	}
+	// Go permits a multi-result call as the sole, unspread argument. Check
+	// that expression once, then reuse its type on the ordinary scalar path.
+	var checkedArgument *Type
+	if !expr.Expanded && len(expr.Arguments) == 1 {
+		if _, call := expr.Arguments[0].(*ast.CallExpr); call {
+			actual := c.checkExpression(expr.Arguments[0])
+			if actual.Kind == MultiValue {
+				c.checkMultipleCallArguments(expr, callableName, callable, actual)
+				return *callable.Result
+			}
+			checkedArgument = &actual
+		}
+	}
 	if expr.Expanded {
 		if !callable.Variadic || len(callable.Parameters) == 0 {
 			c.report(expr.Span, fmt.Sprintf("%s is not variadic and cannot receive a spread argument", callableName))
@@ -237,9 +256,21 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		}
 		if parameterIndex >= 0 && parameterIndex < len(callable.Parameters) {
 			expected := callable.Parameters[parameterIndex]
-			actual := c.checkExpressionExpectedSlot(&expr.Arguments[i], expected)
+			var actual Type
+			if checkedArgument != nil {
+				actual = *checkedArgument
+				if actual.Kind == UntypedInt && expected.IsInteger() {
+					if value, known := c.resolvedIntegerConstantValue(arg); known && !c.integerConstantFitsFixedType(value, expected) {
+						c.report(arg.GetSpan(), fmt.Sprintf("integer constant %s cannot be represented as %s", value.String(), expected.String()))
+					}
+				}
+				c.checkNumericMaterialization(arg, expected)
+				c.applyClassUpcast(&expr.Arguments[i], expected, actual)
+			} else {
+				actual = c.checkExpressionExpectedSlot(&expr.Arguments[i], expected)
+			}
 			c.requireAssignable(expected, actual, arg.GetSpan())
-		} else {
+		} else if checkedArgument == nil {
 			c.checkExpression(arg)
 		}
 	}
@@ -273,6 +304,17 @@ func (c *Checker) checkSuperConstructorCall(expr *ast.CallExpr) Type {
 func (c *Checker) recordCallSignature(expr *ast.CallExpr, callable Type) {
 	if callable.Kind != Function || callable.Result == nil {
 		return
+	}
+	expr.GenericCall = expr.GenericCall || callable.Generic
+	if c.taskLaunchCall == expr && !callable.Generic {
+		expr.CaptureArgumentTypes = make([]ast.TypeRef, len(expr.Arguments))
+		for i := range expr.Arguments {
+			parameter := genericArgumentParameter(callable, expr, i)
+			if parameter.Kind != Invalid {
+				c.prepareGoTypeForEmission(&parameter, expr.Span)
+				expr.CaptureArgumentTypes[i] = typeRefFromType(parameter, expr.Span)
+			}
+		}
 	}
 	signature := &ast.CallableSignature{
 		ParameterNames: make([]string, len(callable.Parameters)),

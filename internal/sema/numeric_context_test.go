@@ -47,6 +47,13 @@ func TestNumericConstantContexts(t *testing.T) {
 		{"capacity ordering", `const n=3.0;function f():int[]{return makeSlice<int>(n,2.0);}`, "capacity cannot be smaller"},
 		{"channel overflow", `function f():void{const c=goChannel<int>(1e40);}`, "capacity is out of range"},
 		{"map key overflow", `function f(a:Map<float32,int>):int{return a[1e40];}`, "overflows"},
+		{"type parameter exact constant", `constraint B=byte;function f<T extends B>():T{return 255;}`, ""},
+		{"type parameter exact overflow", `constraint B=byte;function f<T extends B>():T{return 700;}`, "cannot be represented by every type"},
+		{"type parameter constant alias overflow", `const n=700;constraint B=byte;function f<T extends B>():T{return n;}`, "cannot be represented by every type"},
+		{"type parameter union overflow", `constraint B=~int8|~int64;function f<T extends B>():T{return 128;}`, "cannot be represented by every type"},
+		{"type parameter float constant", `constraint F=~float32;function f<T extends F>():T{return 1.5;}`, ""},
+		{"type parameter float overflow", `constraint F=~float32;function f<T extends F>():T{return 1e40;}`, "cannot convert"},
+		{"type parameter complex overflow", `constraint C=~complex64;function f<T extends C>():T{return 1e40i;}`, "cannot convert"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			diagnostics := checkSource(t, test.source)

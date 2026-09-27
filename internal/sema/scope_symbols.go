@@ -208,6 +208,9 @@ func isBuiltinTypeName(name string) bool {
 }
 
 func (c *Checker) hasCallBinding(name string, span source.Span) bool {
+	if _, exists := c.lookupNamedGoImport(name, span); exists {
+		return true
+	}
 	if _, exists := c.lookupValue(name, span); exists {
 		return true
 	}

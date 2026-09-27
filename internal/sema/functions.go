@@ -38,6 +38,10 @@ func (c *Checker) checkArrow(expr *ast.ArrowExpr) Type {
 }
 
 func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
+	if c.inFieldInitializer {
+		c.fieldInitializerArrowDepth++
+		defer func() { c.fieldInitializerArrowDepth-- }()
+	}
 	expected = c.arrowContext(expected)
 	inferredParameters := c.inferArrowParameters(expr, expected)
 	// Returns and super-constructor calls belong to the current callable, even
@@ -95,7 +99,7 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		result = c.resolveType(*expr.ReturnType)
 		c.rejectTaskAPIType(result, expr.ReturnType.Span, "arrow return types")
 		c.result = result
-	} else if expected.Kind == Function && expected.Result != nil && expected.Result.Kind != MultiValue {
+	} else if expected.Kind == Function && expected.Result != nil {
 		result = *expected.Result
 		c.result = result
 	}
@@ -105,12 +109,15 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		}
 		actual := c.checkExpressionExpectedSlot(&expr.ExpressionBody, result)
 		if expr.ReturnType == nil && result.Kind == Invalid {
-			actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())
+			if actual.Kind != MultiValue {
+				actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())
+			}
 			if actual.Kind == Nil {
 				c.report(expr.ExpressionBody.GetSpan(), "cannot infer an arrow function return type from nil")
 				result = Type{Kind: Invalid, Name: "<invalid>"}
 			} else {
 				result = defaultLiteralType(actual)
+				c.checkNumericMaterialization(expr.ExpressionBody, result)
 			}
 		} else {
 			c.requireAssignable(result, actual, expr.ExpressionBody.GetSpan())

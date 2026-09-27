@@ -52,20 +52,6 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: items})
 }
 
-func memberCompletionAnalysisText(value string, offset int, prefix string) string {
-	start := offset - len(prefix) - 1
-	if start < 0 || offset > len(value) || value[start] != '.' {
-		return value
-	}
-	result := []byte(value)
-	for index := start; index < offset; index++ {
-		if result[index] != '\r' && result[index] != '\n' {
-			result[index] = ' '
-		}
-	}
-	return string(result)
-}
-
 func goCompletionType(ref ast.TypeRef) bool {
 	_, _, ok := goCompletionTypeInfo(ref)
 	return ok
@@ -182,10 +168,14 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, keyword := range []string{"abstract", "alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
-	for _, name := range []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel"} {
+	builtinTypes := []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel", ast.DecoratorValueTypeName}
+	for _, definition := range ast.DecoratorContextDefinitions() {
+		builtinTypes = append(builtinTypes, definition.Name)
+	}
+	for _, name := range builtinTypes {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
-	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail"} {
+	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "make", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail", "decoratorValue", "decoratorValueAs"} {
 		add(completionItem{Label: name, Kind: 3, Detail: "compiler built-in", SortText: "2_" + name})
 	}
 	for _, imported := range program.Imports {
@@ -196,14 +186,16 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 			if len(imported.Names) == 0 {
 				add(completionItem{Label: imported.Alias, Kind: 9, Detail: "Go package " + imported.Path, SortText: "1_" + imported.Alias})
 			} else {
-				for _, name := range imported.Names {
+				for index := range imported.Names {
+					name := imported.BindingName(index)
 					add(completionItem{Label: name, Kind: 9, Detail: "Go export from " + imported.Path, SortText: "1_" + name})
 				}
 			}
 			continue
 		}
-		for _, name := range imported.Names {
-			if !sourceImportVisible(program, imported.ResolvedPath, name) {
+		for index, selected := range imported.Names {
+			name := imported.BindingName(index)
+			if !sourceImportVisible(program, imported.ResolvedPath, selected) {
 				continue
 			}
 			add(completionItem{Label: name, Kind: 9, Detail: "imported from " + imported.Path, SortText: "1_" + name})
@@ -407,7 +399,11 @@ func addVisibleBlock(block *ast.BlockStmt, path string, offset int, add func(com
 			if spanContains(statement.Body.Span, path, offset) {
 				for _, binding := range statement.Bindings {
 					if binding.Name != "_" {
-						add(variableCompletion(binding.Name, binding.Type, statement.Constant))
+						ref := binding.Type
+						if !ref.IsSpecified() {
+							ref = binding.ResolvedType
+						}
+						add(variableCompletion(binding.Name, ref, statement.Constant))
 					}
 				}
 			}

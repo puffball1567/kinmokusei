@@ -42,6 +42,7 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 	value := c.checkMultipleValueExpression(stmt.Value)
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
+	stmt.Upcasts = make([]*ast.ClassUpcastExpr, len(stmt.Bindings))
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
 		if binding.Name == "_" {
@@ -73,6 +74,9 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 				declared = symbol.typeInfo
 			}
 			c.requireAssignable(declared, results[i], binding.Span)
+			var slot ast.Expression = &ast.IdentifierExpr{Name: "_", Span: binding.Span}
+			c.applyClassUpcast(&slot, declared, results[i])
+			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
 			c.updateIdentifierFlow(binding.Name, binding.Span, results[i])
 			if value.Kind == Result && i == len(results)-1 {
 				c.trackResultError(binding.Name, binding.Span)
@@ -135,10 +139,22 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 		}
 		return symbol.typeInfo
 	}
-	target := c.checkExpression(expr)
+	var target Type
+	if member, ok := expr.(*ast.MemberExpr); ok {
+		target = c.checkMemberAccess(member, true)
+		if member.Property {
+			return target
+		}
+	} else {
+		target = c.checkExpression(expr)
+	}
 	if member, ok := expr.(*ast.MemberExpr); ok {
 		if member.Constant {
-			c.report(member.Span, fmt.Sprintf("cannot assign to Go constant %q", member.Name))
+			kind := "Go constant"
+			if id, ok := member.Object.(*ast.IdentifierExpr); ok && member.Static && c.classes[id.Name] != nil {
+				kind = "class constant"
+			}
+			c.report(member.Span, fmt.Sprintf("cannot assign to %s %q", kind, member.Name))
 		} else if !member.Addressable {
 			c.report(member.Span, fmt.Sprintf("member %q is not assignable", member.Name))
 		}
@@ -154,6 +170,20 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 }
 
 func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
+	if member, ok := expr.(*ast.MemberExpr); ok && member.Property {
+		c.checkAbstractPropertyAccess(member, member.PropertyGetterAbstract, "getter")
+		if identifier, named := member.Object.(*ast.IdentifierExpr); member.Static && named {
+			if class := c.classes[identifier.Name]; class != nil {
+				if getter, exists := class.methods["get "+member.Name]; exists && getter.static {
+					c.recordGlobalDependency(staticMemberDependency(getter.declaringClass, getter.goName))
+					c.checkStaticMemberShadowing(staticMethodGoName(getter.declaringClass, getter.goName, getter.visibility), member.Span)
+				}
+			}
+		}
+	}
+	if member, ok := expr.(*ast.MemberExpr); ok && member.Property && member.PropertyGetter == "" {
+		c.report(member.Span, fmt.Sprintf("property %q requires an accessible getter for an update", member.Name))
+	}
 	if identifier, ok := expr.(*ast.IdentifierExpr); ok {
 		if symbol, exists := c.lookupSymbol(identifier.Name, identifier.Span); exists {
 			identifier.ResolvedDeclaration = symbol.declarationSpan
@@ -162,8 +192,12 @@ func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
 }
 
 func (c *Checker) checkLoopCondition(expr ast.Expression) {
-	condition := c.checkExpression(expr)
+	condition, trueFlow, falseFlow := c.checkCondition(expr)
 	if condition.Kind != Invalid && !condition.IsBoolean() {
 		c.report(expr.GetSpan(), fmt.Sprintf("loop condition must be boolean, got %s", condition.String()))
 	}
+	if len(c.loopFlowContexts) != 0 {
+		c.loopFlowContexts[len(c.loopFlowContexts)-1].conditionExit = &falseFlow
+	}
+	c.restoreNullableFlow(trueFlow)
 }

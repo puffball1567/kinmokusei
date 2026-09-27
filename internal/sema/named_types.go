@@ -328,7 +328,7 @@ func (c *Checker) checkEnum(declaration *ast.EnumDecl) {
 			}
 			value.Set(resolved)
 		}
-		if typeInfo.Kind != Invalid && !integerConstantFitsFixedType(value, typeInfo) {
+		if typeInfo.Kind != Invalid && !c.integerConstantFitsFixedType(value, typeInfo) {
 			c.report(member.Span, fmt.Sprintf("enum value %s cannot be represented as %s", value.String(), declaration.Name))
 		}
 		member.ResolvedValue = value.String()
@@ -341,6 +341,14 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	if symbol.state == 2 {
+		// An alias may have been resolved before source struct storage was
+		// finalized. Refresh that snapshot from the canonical struct symbol,
+		// retaining the alias's original generic arguments and source fields.
+		if symbol.declaration.Alias && symbol.typeInfo.Kind == Struct && symbol.typeInfo.GoType == nil && c.structGoTypesFinalized {
+			if storage, ok := c.goTypeForNativeStorage(symbol.typeInfo); ok {
+				symbol.typeInfo.GoType = storage
+			}
+		}
 		return symbol.typeInfo
 	}
 	if symbol.state == 1 {

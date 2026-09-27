@@ -76,6 +76,7 @@ const (
 	RightBracket Kind = "]"
 	Dot          Kind = "."
 	Ellipsis     Kind = "..."
+	At           Kind = "@"
 
 	Assign        Kind = "="
 	PlusAssign    Kind = "+="
@@ -177,6 +178,15 @@ func LookupIdentifier(text string) Kind {
 		return kind
 	}
 	return Identifier
+}
+
+// Keywords are reserved in declarations, but can name a selected member.
+func IsIdentifierName(kind Kind) bool {
+	if kind == Identifier {
+		return true
+	}
+	_, keyword := keywords[string(kind)]
+	return keyword
 }
 
 type Token struct {

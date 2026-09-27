@@ -128,7 +128,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			}
 			decl.Base.ResolvedDeclaration = base.declarationSpan
 			for name, field := range base.fields {
-				field.typeInfo = substituteNativeTypeParameters(field.typeInfo, baseBindings)
+				if !field.static {
+					field.typeInfo = substituteNativeTypeParameters(field.typeInfo, baseBindings)
+				}
 				symbol.fields[name] = field
 			}
 			for name, method := range base.methods {
@@ -146,7 +148,10 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			symbol.goImplements = append(symbol.goImplements, base.goImplements...)
 		}
 	}
-	declareField := func(name string, typeRef ast.TypeRef, visibility ast.Visibility, span, declarationSpan source.Span, setGoName func(string)) {
+	declareField := func(name string, typeRef ast.TypeRef, visibility ast.Visibility, static bool, span, declarationSpan source.Span, setGoName func(string)) {
+		if hasClassProperty(symbol, name) {
+			c.report(span, fmt.Sprintf("field %q conflicts with an inherited property", name))
+		}
 		if name == "__kinmokuseiRoot" {
 			c.report(span, fmt.Sprintf("field %q is reserved for class identity", name))
 			return
@@ -174,15 +179,28 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			return
 		}
 		goName := memberGoName(name, visibility)
+		if static {
+			goName = staticMethodGoName(decl.Name, goName, visibility)
+			previous := c.typeParameterScopes
+			c.typeParameterScopes = nil
+			defer func() { c.typeParameterScopes = previous }()
+		}
 		setGoName(goName)
 		fieldType := c.resolveType(typeRef)
 		c.rejectResultValueType(fieldType, typeRef.Span, "fields")
 		c.rejectTaskAPIType(fieldType, typeRef.Span, "class fields")
-		symbol.fields[name] = fieldSymbol{typeInfo: fieldType, visibility: visibility, goName: goName, declarationSpan: declarationSpan, declaringClass: decl.Name}
+		symbol.fields[name] = fieldSymbol{static: static, typeInfo: fieldType, visibility: visibility, goName: goName, declarationSpan: declarationSpan, declaringClass: decl.Name}
 	}
 	for i := range decl.Fields {
 		field := &decl.Fields[i]
-		declareField(field.Name, field.Type, field.Visibility, field.Span, field.NameSpan, func(name string) { field.GoName = name })
+		declareField(field.Name, field.Type, field.Visibility, field.Static, field.Span, field.NameSpan, func(name string) { field.GoName = name })
+		if declared, exists := symbol.fields[field.Name]; exists && declared.declarationSpan == field.NameSpan {
+			declared.declaration = field
+			symbol.fields[field.Name] = declared
+		}
+		if field.Static && field.Initializer == nil {
+			c.report(field.NameSpan, "static fields require an explicit initializer")
+		}
 	}
 	if decl.Constructor != nil {
 		c.validateLabels(decl.Constructor.Body)
@@ -194,12 +212,19 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.rejectTaskAPIType(resolved, parameter.Type.Span, "constructor parameters")
 			symbol.constructor[i] = c.callableParameterType(*parameter, resolved)
 			if parameter.IsField {
-				declareField(parameter.Name, parameter.Type, parameter.Visibility, parameter.Span, declarationNameSpan(parameter.Name, parameter.Span), func(string) {})
+				declareField(parameter.Name, parameter.Type, parameter.Visibility, false, parameter.Span, declarationNameSpan(parameter.Name, parameter.Span), func(string) {})
 			}
 		}
 		symbol.constructorVariadic = hasVariadicParameter(decl.Constructor.Parameters)
 	}
 	for _, method := range decl.Methods {
+		if method.Accessor != "" {
+			c.declareClassAccessor(decl, symbol, method)
+			continue
+		}
+		if hasClassProperty(symbol, method.Name) {
+			c.report(method.Span, fmt.Sprintf("method %q conflicts with a property", method.Name))
+		}
 		c.declareAbstractMethod(decl, method)
 		c.validateLabels(method.Body)
 		for _, parameter := range method.TypeParameters {
@@ -225,21 +250,6 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if field, conflicts := symbol.fields[method.Name]; conflicts {
 			c.report(method.Span, fmt.Sprintf("method %q conflicts with field declared by class %s", method.Name, field.declaringClass))
 		}
-		if method.Static && (method.Virtual || method.Override) {
-			c.report(method.Span, "static methods cannot be virtual or override")
-		}
-		if len(method.TypeParameters) != 0 && (method.Virtual || method.Override || method.Final) {
-			c.report(method.Span, "generic methods cannot be virtual, override, or final because Go method sets cannot represent method type parameters")
-		}
-		if method.Virtual && method.Override {
-			c.report(method.Span, "override already remains virtual; remove the virtual modifier")
-		}
-		if method.Final && !method.Override {
-			c.report(method.Span, "final methods must override an inherited virtual method")
-		}
-		if method.Virtual && method.Visibility == ast.Private {
-			c.report(method.Span, "virtual methods must be public or protected")
-		}
 		methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
 		if len(methodTypeParameters) != 0 {
 			methodType.TypeParameters = append(methodType.TypeParameters, methodTypeParameters...)
@@ -250,34 +260,9 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		if len(methodType.TypeParameters) != 0 {
 			methodType.Generic = true
 		}
-		virtualOwner := ""
-		if replaces && inherited.declaringClass == decl.Name {
-			c.report(method.Span, fmt.Sprintf("duplicate method %q", method.Name))
+		virtualOwner, valid := c.methodDispatchOwner(decl, method, methodType, inherited, replaces)
+		if !valid {
 			continue
-		}
-		if replaces {
-			switch {
-			case !method.Override:
-				c.report(method.Span, fmt.Sprintf("method %q replaces inherited method from %s; add override", method.Name, inherited.declaringClass))
-			case inherited.final:
-				c.report(method.Span, fmt.Sprintf("method %q in %s is final and cannot be overridden", method.Name, inherited.declaringClass))
-			case inherited.static:
-				c.report(method.Span, fmt.Sprintf("static method %q cannot be overridden", method.Name))
-			case !inherited.virtual:
-				c.report(method.Span, fmt.Sprintf("method %q in %s is not virtual", method.Name, inherited.declaringClass))
-			case method.Static:
-				c.report(method.Span, fmt.Sprintf("override method %q cannot be static", method.Name))
-			case method.Visibility != inherited.visibility:
-				c.report(method.Span, fmt.Sprintf("override method %q must preserve inherited visibility", method.Name))
-			case !identicalMethodSignature(methodType, inherited.typeInfo):
-				c.report(method.Span, fmt.Sprintf("override method %q has an incompatible signature", method.Name))
-			}
-			virtualOwner = inherited.virtualOwner
-		} else if method.Override {
-			c.report(method.Span, fmt.Sprintf("method %q has override but no inherited method", method.Name))
-		}
-		if method.Virtual && virtualOwner == "" {
-			virtualOwner = decl.Name
 		}
 		method.VirtualOwner = virtualOwner
 		symbol.methods[method.Name] = methodSymbol{
@@ -286,6 +271,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			virtual: method.Virtual || method.Override, final: method.Final, abstract: method.Abstract, virtualOwner: virtualOwner,
 		}
 	}
+	c.checkClassPropertyContracts(decl, symbol)
 	owners := map[string]bool{}
 	c.checkConcreteClassMethods(decl, symbol)
 	for _, method := range symbol.methods {
@@ -384,6 +370,11 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 	if class != nil {
 		thisType.TypeArguments = append([]Type(nil), class.typeParameters...)
 	}
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = classConstructionDependency(decl.Name)
+	if class != nil && class.base != "" {
+		c.recordGlobalDependency(classConstructionDependency(class.base))
+	}
 	c.checkClassFieldInitializers(decl)
 	if decl.Constructor == nil {
 		if class := c.classes[decl.Name]; class != nil && class.base != "" {
@@ -412,8 +403,17 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.memberFlow = previousMemberFlow
 	}
 	c.inConstructor = false
+	c.globalDependencyOwner = previousDependency
 	c.checkClassFieldInitialization(decl)
 	for _, method := range decl.Methods {
+		previousTypeScopes := c.typeParameterScopes
+		previousDependency := c.globalDependencyOwner
+		if method.Static {
+			c.globalDependencyOwner = staticMemberDependency(decl.Name, method.GoName)
+		}
+		if method.Static && method.Accessor != "" {
+			c.typeParameterScopes = nil
+		}
 		c.pushTypeParameterScope(c.methodTypeParameters[method])
 		previousMemberFlow := c.memberFlow
 		c.memberFlow = map[memberFlowKey]memberFlowState{}
@@ -436,6 +436,8 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.popScope()
 		c.memberFlow = previousMemberFlow
 		c.popTypeParameterScope()
+		c.typeParameterScopes = previousTypeScopes
+		c.globalDependencyOwner = previousDependency
 	}
 	c.currentClass = previousClass
 }
