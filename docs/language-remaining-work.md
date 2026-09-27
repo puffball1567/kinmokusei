@@ -82,6 +82,19 @@ aliasing, callback and generic DI behavior is compared with independent Go in
 retain their declared element/key qualifiers, including after generic
 substitution and checked map indexing.
 
+Native defined collections also retain these contracts during range, channel
+send/receive/select and map deletion, including sole multiple-result delete
+arguments. Native named iterator signatures preserve their yielded source
+types. Coverage in `named_collection_contracts_test.go` includes linked export
+aliases, nullable keys/elements, array-pointer views and editor inference.
+
+Nullable conditions now retain separate true/false flow states through `&&`,
+`||` and `!`, including short-circuit operands and loop exits. Mutation effects
+and Task consumption are merged only across the paths that can evaluate them;
+compile-time boolean left operands preserve guaranteed/skipped awaits.
+`nullable_conditions_test.go` covers semantic rejection, independent Go runtime
+comparison and editor diagnostics. Boolean aliases do not retain null proofs.
+
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
 where applicable, and documentation. Refactoring can accompany the relevant

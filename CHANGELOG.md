@@ -9,6 +9,20 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Narrow nullable values through short-circuit `&&`, `||` and `!`, including
+  right operands, branches, guard returns and loop conditions. Retain mutation
+  effects on each evaluation path and on a loop's false exit; calls cannot
+  reuse invalidated member proofs. Track conditional Task awaits without
+  treating skipped right operands as consumed. Generated Go keeps its native
+  short-circuit evaluation order.
+
+- Preserve source element/key contracts in native named collection ranges,
+  channel send/receive/select, map deletion and named iterator ranges. Nullable
+  elements require narrowing after reads, while permitted null sends and map
+  keys remain usable. Named pointer-to-array views retain their element types;
+  range integer identity, channel direction and iterator restrictions are unchanged.
+  Editor completion now displays inferred range-binding types as well.
+
 - Apply source nullable-contract checks to assignments, returns, arguments,
   constructors and generic class/interface upcasts, including nested named
   collections and callable types. Keep ordinary nullable widening and valid

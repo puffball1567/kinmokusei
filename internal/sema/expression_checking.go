@@ -150,6 +150,10 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 		return c.checkChannelReceive(expr, false)
 	}
 	operand := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
+	return c.checkUnaryOperand(expr, operand)
+}
+
+func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 	if expr.Operator == "&" {
 		if operand.Kind == Invalid {
 			return operand

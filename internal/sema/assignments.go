@@ -192,8 +192,12 @@ func (c *Checker) markAssignmentTargetRead(expr ast.Expression) {
 }
 
 func (c *Checker) checkLoopCondition(expr ast.Expression) {
-	condition := c.checkExpression(expr)
+	condition, trueFlow, falseFlow := c.checkCondition(expr)
 	if condition.Kind != Invalid && !condition.IsBoolean() {
 		c.report(expr.GetSpan(), fmt.Sprintf("loop condition must be boolean, got %s", condition.String()))
 	}
+	if len(c.loopFlowContexts) != 0 {
+		c.loopFlowContexts[len(c.loopFlowContexts)-1].conditionExit = &falseFlow
+	}
+	c.restoreNullableFlow(trueFlow)
 }

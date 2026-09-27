@@ -396,8 +396,9 @@ func (c *Checker) mapCollectionTypes(value Type, span source.Span) (Type, Type, 
 	if value.Kind == Nullable && value.Element != nil {
 		return c.mapCollectionTypes(*value.Element, span)
 	}
-	if value.Kind == Map && value.Key != nil && value.Element != nil {
-		return *value.Key, *value.Element, true
+	shape, _ := c.nativeDefinedShape(value)
+	if shape.Kind == Map && shape.Key != nil && shape.Element != nil {
+		return *shape.Key, *shape.Element, true
 	}
 	goType, ok := goTypeOf(value)
 	if !ok {

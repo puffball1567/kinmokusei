@@ -50,8 +50,9 @@ func (c *Checker) checkChannelSend(stmt *ast.ChannelSendStmt) {
 		c.checkExpression(stmt.Value)
 		return
 	}
-	if channelType.Element != nil {
-		element = *channelType.Element
+	shape, _ := c.nativeDefinedShape(channelType)
+	if shape.Element != nil {
+		element = *shape.Element
 	}
 	value := c.checkExpressionExpectedSlot(&stmt.Value, element)
 	c.requireAssignable(element, value, stmt.Value.GetSpan())
@@ -99,8 +100,9 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 		c.report(expr.Span, fmt.Sprintf("channel element type is not supported: %v", err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	if operand.Element != nil {
-		element = *operand.Element
+	shape, _ := c.nativeDefinedShape(operand)
+	if shape.Element != nil {
+		element = *shape.Element
 	}
 	if checked {
 		return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
