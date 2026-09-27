@@ -14,6 +14,7 @@ func TestCallableControlStateNestedRestoration(t *testing.T) {
 			c := &Checker{callableControlState: callableControlState{
 				result: builtins["int"], loopDepth: 2, breakableDepth: 3,
 				exceptionDepth: 4, catchTargets: catches,
+				branchFlowTargets: []branchFlowTarget{{scopeBase: 3, loopIndex: 1, breakIndex: -1}},
 			}, currentClass: "Owner", inConstructor: true}
 			outer := c.callableControlState
 			savedOuter := c.enterCallableControl()

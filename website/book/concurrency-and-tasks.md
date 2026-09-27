@@ -32,6 +32,30 @@ Leaving a task unconsumed is a source error:
 
 <<< ../snippets-invalid/task-unconsumed.km{ts}
 
+This also applies when `break` or `continue` leaves the scope containing the
+task. A later await on a different path cannot satisfy the skipped path:
+
+```ts
+while (running) {
+  const task = go calculate();
+  if (stop) { break; } // Error: task is still pending on this exit.
+  const value = await task;
+}
+```
+
+Await or explicitly detach the task before leaving its scope. A task declared
+outside the loop can still be awaited afterwards: breaking the loop does not
+leave that outer scope. Labeled branches follow the same rule for every scope
+between the branch and its target.
+
+`goto` also preserves Task ownership. Forward jumps merge the processing state
+of each binding at the target label; a backward jump must keep that state
+unchanged. Jumping over an await, jumping back to consume the same task again,
+or leaving a pending task's scope is rejected. Jumping back before a task's
+declaration is allowed after consuming the current task: the declaration then
+starts a fresh task on the next pass. Merely jumping within the pending phase
+and awaiting the task afterwards is also allowed.
+
 ## Eager evaluation and start
 
 ```ts
@@ -55,6 +79,25 @@ const user: User = await task?;
 ```
 
 `await` first joins and transports panic; `?` then propagates the ordinary operation error through the enclosing `Result` function.
+
+The error path of `?` exits the current function just like an explicit return.
+Consume its other pending tasks before that point; an await written after `?`
+cannot run if propagation returns early. For example:
+
+```ts
+const background = go calculate();
+const computed = await background;
+const user = loadChecked(id)?;
+```
+
+`await task?` consumes that task before checking the error path. If several
+Result-returning tasks are running, explicitly split and await their results
+before returning an error, instead of propagating the first result while
+another task is still pending.
+
+A callback has its own task scope. Its return or `?` does not exit the outer
+function, so an unrelated outer task may remain pending until the caller joins
+it. The callback still cannot capture or consume that outer task.
 
 Without `?`, the `Result` layer has not been consumed:
 

@@ -11,6 +11,8 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 	defaultSeen := false
 	entryFlow := c.snapshotNullableFlow()
 	continuing := make([]nullableFlowSnapshot, 0, len(stmt.Cases))
+	c.pushBranchFlowTarget(stmt, false)
+	defer c.popBranchFlowTarget()
 	c.breakFlowContexts = append(c.breakFlowContexts, breakFlowContext{})
 	for index := range stmt.Cases {
 		clause := &stmt.Cases[index]
@@ -102,6 +104,8 @@ func (c *Checker) checkTypeSwitch(stmt *ast.TypeSwitchStmt) {
 	var caseTypes []gotypes.Type
 	entryFlow := c.snapshotNullableFlow()
 	continuing := make([]nullableFlowSnapshot, 0, len(stmt.Cases)+1)
+	c.pushBranchFlowTarget(stmt, false)
+	defer c.popBranchFlowTarget()
 	c.breakFlowContexts = append(c.breakFlowContexts, breakFlowContext{})
 	for index := range stmt.Cases {
 		clause := &stmt.Cases[index]

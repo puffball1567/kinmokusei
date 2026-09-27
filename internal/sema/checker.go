@@ -62,6 +62,8 @@ type Checker struct {
 	receiverTypeParameters     map[*ast.MethodDecl]map[string]Type
 	methodTypeParameters       map[*ast.MethodDecl]map[string]Type
 	validFallthrough           map[*ast.BranchStmt]bool
+	resolvedBranchTargets      map[*ast.BranchStmt]ast.Statement
+	gotoTargetBlocks           map[*ast.BranchStmt]*ast.BlockStmt
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
@@ -192,6 +194,11 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 		c.pushScope()
 		defer c.popScope()
 	}
+	if c.blockScopeCounts == nil {
+		c.blockScopeCounts = map[*ast.BlockStmt]int{}
+	}
+	c.blockScopeCounts[block] = len(c.scopes)
+	defer delete(c.blockScopeCounts, block)
 	terminated := false
 	var reachableFlow *nullableFlowSnapshot
 	groupEnd := 0
@@ -203,6 +210,7 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 				c.predeclareLocalArrowGroup(group)
 			}
 		}
+		labelFallsThrough := !terminated
 		if _, labeled := stmt.(*ast.LabeledStmt); labeled && terminated {
 			if reachableFlow != nil {
 				c.suppressFlowEffects--
@@ -212,7 +220,11 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 			terminated = false
 		}
 		if !terminated {
-			c.checkStatement(stmt)
+			if label, ok := stmt.(*ast.LabeledStmt); ok {
+				c.checkLabeledStatement(label, labelFallsThrough)
+			} else {
+				c.checkStatement(stmt)
+			}
 			terminated = statementDefinitelyStopsBlock(stmt)
 			continue
 		}
@@ -232,8 +244,7 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 func (c *Checker) checkStatement(stmt ast.Statement) {
 	switch stmt := stmt.(type) {
 	case *ast.LabeledStmt:
-		c.invalidateControlTransferFlow(stmt.Span)
-		c.checkStatement(stmt.Statement)
+		c.checkLabeledStatement(stmt, true)
 	case *ast.VariableDecl:
 		c.checkLocalBinding(stmt)
 	case *ast.MultiVariableDecl:
@@ -375,7 +386,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		c.checkMultiAssignment(stmt)
 	case *ast.WhileStmt:
 		entryFlow := c.snapshotNullableFlow()
-		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
+		c.checkLoopFixedPoint(stmt, entryFlow, func() (nullableFlowSnapshot, bool) {
 			c.checkLoopCondition(stmt.Condition)
 			stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
 			c.loopDepth++
@@ -398,7 +409,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			}
 		}
 		entryFlow := c.snapshotNullableFlow()
-		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
+		c.checkLoopFixedPoint(stmt, entryFlow, func() (nullableFlowSnapshot, bool) {
 			if stmt.Condition != nil {
 				c.checkLoopCondition(stmt.Condition)
 				stmt.GuaranteedEntry = c.expressionAlwaysTrue(stmt.Condition)
@@ -420,7 +431,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.invalidateAllMemberFacts(stmt.Span, "an iterator call with unknown mutation effects")
 		}
 		entryFlow := c.snapshotNullableFlow()
-		c.checkLoopFixedPoint(entryFlow, func() (nullableFlowSnapshot, bool) {
+		c.checkLoopFixedPoint(stmt, entryFlow, func() (nullableFlowSnapshot, bool) {
 			if iterator {
 				c.invalidateAllMemberFacts(stmt.Span, "an iterator advancing between yields")
 			}
@@ -450,22 +461,11 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.report(stmt.Span, "continue may only be used inside a loop")
 		}
 		if stmt.Kind == ast.GotoBranch {
+			c.checkGotoTasks(stmt)
 			c.invalidateControlTransferFlow(stmt.Span)
 			return
 		}
-		if c.suppressFlowEffects == 0 && len(c.loopFlowContexts) != 0 {
-			context := &c.loopFlowContexts[len(c.loopFlowContexts)-1]
-			switch {
-			case stmt.Kind == ast.ContinueBranch && c.loopDepth != 0:
-				context.continues = append(context.continues, c.snapshotNullableFlow())
-			case stmt.Kind == ast.BreakBranch && c.loopDepth != 0 && c.breakableDepth == 0:
-				context.breaks = append(context.breaks, c.snapshotNullableFlow())
-			}
-		}
-		if c.suppressFlowEffects == 0 && stmt.Kind == ast.BreakBranch && c.breakableDepth != 0 && len(c.breakFlowContexts) != 0 {
-			context := &c.breakFlowContexts[len(c.breakFlowContexts)-1]
-			context.breaks = append(context.breaks, c.snapshotNullableFlow())
-		}
+		c.recordBranchFlow(stmt)
 	case *ast.CallControlStmt:
 		call, ok := stmt.Value.(*ast.CallExpr)
 		if !ok {

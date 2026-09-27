@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function w():void{}function f(b:boolean):void{const t=go w();if(b){goto done;}await t;done:return;}`,
+	`function w():void{}function f(b:boolean):void{const t=go w();again:await t;if(b){goto again;}}`,
+	`function w():void{}function f(b:boolean):void{while(b){const t=go w();if(b){continue;}await t;}}`,
+	`function f(p:*int|null,b:boolean):int{outer:while(p===null){while(b){break outer;}return 0;}return *p;}`,
+	`function v():int{return 1;}function f():int{const task=go v();const g=()=>{return 2;};return await task+g();}`,
+	`function v():Result<int>{return ok(1);}function f():Result<int>{const task=go v();const n=v()?;const m=await task?;return ok(n+m);}`,
 	`function f(p:*int|null,b:boolean):boolean{return p!==null && *p>0 || !(p===null || !b);}`,
 	`function f(p:*int|null,b:boolean):int{while(p===null || !b){return 0;}return *p;}`,
 	`function v():boolean{return true;}function f(b:boolean):boolean{const task=go v();return b && await task;}`,

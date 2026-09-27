@@ -311,7 +311,9 @@ func (c *Checker) mergeValueScopes(entry []map[string]valueSymbol, continuing ..
 	return merged
 }
 
-func (c *Checker) checkLoopFixedPoint(entry nullableFlowSnapshot, checkIteration func() (nullableFlowSnapshot, bool)) {
+func (c *Checker) checkLoopFixedPoint(statement ast.Statement, entry nullableFlowSnapshot, checkIteration func() (nullableFlowSnapshot, bool)) {
+	c.pushBranchFlowTarget(statement, true)
+	defer c.popBranchFlowTarget()
 	header := nullableFlowSnapshot{scopes: cloneValueScopes(entry.scopes), members: cloneMemberFlow(entry.members)}
 	limit := nullableFlowSymbolCount(entry.scopes)*2 + len(entry.members)*2 + 4
 	for iteration := 0; iteration < limit; iteration++ {
