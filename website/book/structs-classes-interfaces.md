@@ -161,7 +161,8 @@ preserves compatible shared contracts; cycles and conflicting signatures are
 diagnostics. Exported Go runtime interfaces can also be bases. Inherited Go
 methods retain their exported Go names and signature requirements, including
 variadic and Result-shaped methods. Anonymous runtime interfaces imported from
-Go retain their method sets; source anonymous interface literals are not added.
+Go retain their method sets. Method-only source interface literals such as
+`interface { read(offset: int): string; }` are also supported.
 
 Interfaces also support property contracts:
 
