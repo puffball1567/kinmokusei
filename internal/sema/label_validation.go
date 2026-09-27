@@ -185,6 +185,12 @@ func (c *Checker) validateLabels(body *ast.BlockStmt) {
 					c.report(statement.LabelSpan, fmt.Sprintf("goto %q cannot jump into a nested block", statement.Label))
 					return
 				}
+				if len(targetLocation.blocks) != 0 {
+					if c.gotoTargetBlocks == nil {
+						c.gotoTargetBlocks = map[*ast.BranchStmt]*ast.BlockStmt{}
+					}
+					c.gotoTargetBlocks[statement] = targetLocation.blocks[len(targetLocation.blocks)-1]
+				}
 				if statement.Span.Start.Offset < target.LabelSpan.Start.Offset && len(targetLocation.blocks) != 0 {
 					targetBlock := targetLocation.blocks[len(targetLocation.blocks)-1]
 					for _, candidate := range targetBlock.Statements {

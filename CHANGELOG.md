@@ -9,6 +9,11 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check Task ownership across forward and backward `goto` edges. Reject jumps
+  that skip an await/detach, repeat consumption, or leave/restart a binding
+  while its task is pending. Preserve jumps with matching ownership states,
+  fresh tasks on subsequent passes and independent callback labels.
+
 - Track `break` and `continue` against their actual lexical or labeled targets
   across nested loops, switches and selects. Check pending tasks on every
   exited-scope edge, and retain nullable facts from the correct loop/switch

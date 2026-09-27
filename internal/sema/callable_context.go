@@ -1,5 +1,10 @@
 package sema
 
+import (
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
+)
+
 // callableControlState contains the return and control-transfer context saved
 // across callable boundaries. Lexical scopes, receiver access, closure capture
 // tracking, and nullable flow have separate lifetimes and are not reset here.
@@ -11,6 +16,8 @@ type callableControlState struct {
 	catchTargets      []int
 	arrowReturns      *arrowReturnInference
 	branchFlowTargets []branchFlowTarget
+	blockScopeCounts  map[*ast.BlockStmt]int
+	taskLabelFlows    map[source.Span]*taskLabelFlow
 }
 
 // enterCallableControl starts a new control-transfer boundary and returns the

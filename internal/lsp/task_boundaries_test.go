@@ -17,6 +17,8 @@ func TestTaskBoundaryDiagnostics(t *testing.T) {
 		{`const task=go value();const callback=():int=>{return 2;};const joined=await task;const n=load()?;return ok(n+joined+callback());`, true},
 		{`while(true){const task=go value();if(value()>0){break;}const n=await task;}return ok(0);`, false},
 		{`const task=go value();while(true){break;}return ok(await task);`, true},
+		{`const task=go value();let n=0;if(value()>0){goto done;}n=await task;done:return ok(n);`, false},
+		{`const task=go value();goto done;done:return ok(await task);`, true},
 	} {
 		input := "function value():int{return 7;}function load():Result<int>{return ok(2);}\nfunction f():Result<int>{" + test.body + "}"
 		uri := fileURI(filepath.Join(t.TempDir(), "entry.km"))
@@ -41,7 +43,7 @@ func TestTaskBoundaryDiagnostics(t *testing.T) {
 				t.Fatalf("expected one Task diagnostic, got %v", diagnostics)
 			}
 			diagnostic := diagnostics[0].(map[string]any)
-			if !strings.Contains(diagnostic["message"].(string), `Task "task" must be consumed`) {
+			if !strings.Contains(diagnostic["message"].(string), `Task "task"`) {
 				t.Fatalf("wrong diagnostic: %v", diagnostic)
 			}
 			start := diagnostic["range"].(map[string]any)["start"].(map[string]any)

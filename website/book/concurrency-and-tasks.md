@@ -48,6 +48,14 @@ outside the loop can still be awaited afterwards: breaking the loop does not
 leave that outer scope. Labeled branches follow the same rule for every scope
 between the branch and its target.
 
+`goto` also preserves Task ownership. Forward jumps merge the processing state
+of each binding at the target label; a backward jump must keep that state
+unchanged. Jumping over an await, jumping back to consume the same task again,
+or leaving a pending task's scope is rejected. Jumping back before a task's
+declaration is allowed after consuming the current task: the declaration then
+starts a fresh task on the next pass. Merely jumping within the pending phase
+and awaiting the task afterwards is also allowed.
+
 ## Eager evaluation and start
 
 ```ts

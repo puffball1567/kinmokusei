@@ -63,6 +63,7 @@ type Checker struct {
 	methodTypeParameters       map[*ast.MethodDecl]map[string]Type
 	validFallthrough           map[*ast.BranchStmt]bool
 	resolvedBranchTargets      map[*ast.BranchStmt]ast.Statement
+	gotoTargetBlocks           map[*ast.BranchStmt]*ast.BlockStmt
 	capturedMemberWrites       []source.Span
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
@@ -193,6 +194,11 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 		c.pushScope()
 		defer c.popScope()
 	}
+	if c.blockScopeCounts == nil {
+		c.blockScopeCounts = map[*ast.BlockStmt]int{}
+	}
+	c.blockScopeCounts[block] = len(c.scopes)
+	defer delete(c.blockScopeCounts, block)
 	terminated := false
 	var reachableFlow *nullableFlowSnapshot
 	groupEnd := 0
@@ -204,6 +210,7 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 				c.predeclareLocalArrowGroup(group)
 			}
 		}
+		labelFallsThrough := !terminated
 		if _, labeled := stmt.(*ast.LabeledStmt); labeled && terminated {
 			if reachableFlow != nil {
 				c.suppressFlowEffects--
@@ -213,7 +220,11 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 			terminated = false
 		}
 		if !terminated {
-			c.checkStatement(stmt)
+			if label, ok := stmt.(*ast.LabeledStmt); ok {
+				c.checkLabeledStatement(label, labelFallsThrough)
+			} else {
+				c.checkStatement(stmt)
+			}
 			terminated = statementDefinitelyStopsBlock(stmt)
 			continue
 		}
@@ -233,8 +244,7 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 func (c *Checker) checkStatement(stmt ast.Statement) {
 	switch stmt := stmt.(type) {
 	case *ast.LabeledStmt:
-		c.invalidateControlTransferFlow(stmt.Span)
-		c.checkStatement(stmt.Statement)
+		c.checkLabeledStatement(stmt, true)
 	case *ast.VariableDecl:
 		c.checkLocalBinding(stmt)
 	case *ast.MultiVariableDecl:
@@ -451,6 +461,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.report(stmt.Span, "continue may only be used inside a loop")
 		}
 		if stmt.Kind == ast.GotoBranch {
+			c.checkGotoTasks(stmt)
 			c.invalidateControlTransferFlow(stmt.Span)
 			return
 		}
