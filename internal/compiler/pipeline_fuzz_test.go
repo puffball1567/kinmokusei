@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public x:int=0;}function f(p:C|null,b:boolean):void{for(;b;p.x++){if(b){p=null;continue;}p=new C();}}`,
+	`class C{public x:int=0;}function f(b:boolean):void{for(let p:C|null=new C();b;p=new C()){const n=p.x;p=null;continue;}}`,
+	`function w():void{}function f(b:boolean):void{const t=go w();for(;b;await t){continue;}await t;}`,
 	`function w():void{}function f(b:boolean):void{const t=go w();if(b){goto done;}await t;done:return;}`,
 	`function w():void{}function f(b:boolean):void{const t=go w();again:await t;if(b){goto again;}}`,
 	`function w():void{}function f(b:boolean):void{while(b){const t=go w();if(b){continue;}await t;}}`,

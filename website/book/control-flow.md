@@ -58,6 +58,14 @@ for (; ready(); ) {
 
 The initializer has loop scope. The post clause accepts a simple assignment/update/call form without a trailing semicolon. Loop backedges conservatively join nullable and task-flow state.
 
+Both normal body completion and `continue` execute the post clause before the
+next condition check. This also applies to `continue label` targeting the loop
+from a nested loop or switch. Nullable and Task checks include all of these
+paths: an update cannot dereference a value that a continue path made nullable,
+or await the same Task on repeated iterations. An update that restores a
+non-null value can establish that fact for the next iteration. `break` leaves
+the loop without running its post clause.
+
 ## Range loops
 
 One binding receives values:

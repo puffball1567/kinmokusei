@@ -275,6 +275,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"variadic.test":                       {implementedGoCompatibilityContracts[65]},
 	"labels.test":                         {implementedGoCompatibilityContracts[66]},
 	"branch-flow.test":                    {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[53], implementedGoCompatibilityContracts[66]},
+	"for-post-flow.test":                  {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[53], implementedGoCompatibilityContracts[66]},
 	"genericconstraint.test":              {implementedGoCompatibilityContracts[67]},
 	"checkedmap.test":                     {implementedGoCompatibilityContracts[68]},
 	"signednarrow.test":                   {implementedGoCompatibilityContracts[70]},

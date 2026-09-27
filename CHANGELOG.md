@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check three-clause `for` updates on both ordinary body completion and
+  `continue`, including labeled continues from nested loops and switches.
+  Reject nullable dereferences and repeated Task consumption on these paths,
+  accept values restored by the update, and keep `break` paths independent
+  of updates they do not execute.
+
 - Check Task ownership across forward and backward `goto` edges. Reject jumps
   that skip an await/detach, repeat consumption, or leave/restart a binding
   while its task is pending. Preserve jumps with matching ownership states,
