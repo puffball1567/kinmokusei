@@ -181,6 +181,13 @@ Matching `Result<T>` and raw Go result-list function types may still be
 converted; their success-slot contracts must match. No runtime conversion
 wrapper or implicit null check is added.
 
+The same nested-contract checks apply to assignment, return and argument
+passing, including constructor arguments and generic class/interface upcasts.
+For example, `List<Maybe>` cannot be assigned to `List<*int>` even if both
+instantiate to the same Go storage type. Ordinary value-level widening from
+`T` to `T | null` and valid class-to-base/interface assignments remain supported;
+this does not make writable containers covariant.
+
 ### Go interop types
 
 Go exports may be imported by package alias (`import go time from "time"`) or

@@ -8,10 +8,17 @@ func (c *Checker) conversionPreservesSourceContract(target, value Type) bool {
 	if value.Kind == Nullable {
 		return false
 	}
-	return c.conversionContractsMatch(target, value, map[[2]gotypes.Type]bool{})
+	return c.sourceStorageContractsMatch(target, value)
 }
 
-func (c *Checker) conversionContractsMatch(target, value Type, visiting map[[2]gotypes.Type]bool) bool {
+// Source qualifiers are invariant within shared storage and callable contracts.
+// The caller separately checks Go assignment/conversion and nominal identity;
+// ordinary nullable widening and class upcasts are handled at the value boundary.
+func (c *Checker) sourceStorageContractsMatch(target, value Type) bool {
+	return c.sourceStorageContractsMatchSeen(target, value, nil)
+}
+
+func (c *Checker) sourceStorageContractsMatchSeen(target, value Type, visiting [][2]gotypes.Type) bool {
 	if (target.Kind == Nullable) != (value.Kind == Nullable) {
 		return false
 	}
@@ -22,7 +29,7 @@ func (c *Checker) conversionContractsMatch(target, value Type, visiting map[[2]g
 	}
 	if parameter, ok := target.GoType.(*gotypes.TypeParam); target.Kind == TypeParameter && ok {
 		for _, term := range c.collectionTerms(parameter) {
-			if !c.conversionContractsMatch(term, value, visiting) {
+			if !c.sourceStorageContractsMatchSeen(term, value, visiting) {
 				return false
 			}
 		}
@@ -30,7 +37,7 @@ func (c *Checker) conversionContractsMatch(target, value Type, visiting map[[2]g
 	}
 	if parameter, ok := value.GoType.(*gotypes.TypeParam); value.Kind == TypeParameter && ok {
 		for _, term := range c.collectionTerms(parameter) {
-			if !c.conversionContractsMatch(target, term, visiting) {
+			if !c.sourceStorageContractsMatchSeen(target, term, visiting) {
 				return false
 			}
 		}
@@ -44,17 +51,21 @@ func (c *Checker) conversionContractsMatch(target, value Type, visiting map[[2]g
 		// unrelated comparison of the same Go storage and different qualifiers.
 		targetStorage, _ := c.goTypeForNativeStorage(target)
 		valueStorage, _ := c.goTypeForNativeStorage(value)
-		pair := [2]gotypes.Type{targetStorage, valueStorage}
-		if visiting[pair] {
-			return true
+		if targetStorage != nil && valueStorage != nil {
+			// Substitution can instantiate equivalent named types as distinct
+			// Go objects, so pointer identity is not a valid cycle key.
+			for _, pair := range visiting {
+				if gotypes.Identical(pair[0], targetStorage) && gotypes.Identical(pair[1], valueStorage) {
+					return true
+				}
+			}
+			visiting = append(visiting, [2]gotypes.Type{targetStorage, valueStorage})
 		}
-		visiting[pair] = true
-		defer delete(visiting, pair)
 	}
 	target, value = c.constraintArgumentShape(target), c.constraintArgumentShape(value)
 	records := (target.Kind == Object || target.Kind == Struct) && (value.Kind == Object || value.Kind == Struct)
 	if target.Kind != value.Kind && !records {
-		return true // Go convertibility checks non-qualifier shape differences.
+		return true // The caller checks non-qualifier shape differences.
 	}
 	if target.Kind == Function && target.Result != nil && value.Result != nil {
 		if !compatibleResultFunctionTypes(target, value) {
@@ -72,14 +83,14 @@ func (c *Checker) conversionContractsMatch(target, value Type, visiting map[[2]g
 		target.Result, value.Result = &targetResult, &valueResult
 	}
 	for _, pair := range [][2]*Type{{target.Element, value.Element}, {target.Key, value.Key}, {target.Result, value.Result}} {
-		if pair[0] != nil && pair[1] != nil && !c.conversionContractsMatch(*pair[0], *pair[1], visiting) {
+		if pair[0] != nil && pair[1] != nil && !c.sourceStorageContractsMatchSeen(*pair[0], *pair[1], visiting) {
 			return false
 		}
 	}
 	for _, pair := range [][2][]Type{{target.Parameters, value.Parameters}, {target.TypeArguments, value.TypeArguments}, {target.Results, value.Results}} {
 		if len(pair[0]) == len(pair[1]) {
 			for i := range pair[0] {
-				if !c.conversionContractsMatch(pair[0][i], pair[1][i], visiting) {
+				if !c.sourceStorageContractsMatchSeen(pair[0][i], pair[1][i], visiting) {
 					return false
 				}
 			}
@@ -99,7 +110,7 @@ func (c *Checker) conversionContractsMatch(target, value Type, visiting map[[2]g
 			if emitted := target.FieldNames[name]; emitted != "" {
 				name = emitted
 			}
-			if other, ok := fields[name]; ok && !c.conversionContractsMatch(field, other, visiting) {
+			if other, ok := fields[name]; ok && !c.sourceStorageContractsMatchSeen(field, other, visiting) {
 				return false
 			}
 		}

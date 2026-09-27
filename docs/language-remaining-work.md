@@ -73,6 +73,15 @@ and editor diagnostics in `conversion_contracts_test.go`. This closes an
 explicit-conversion bypass; it is not a claim that every interop path has been
 audited.
 
+The same checked-storage comparison now covers assignments, returns, arguments
+and generic class/interface ancestor matching, including nested named containers
+and callable types. Recursive generic named storage uses semantic Go type
+identity to terminate even when substitution creates fresh instances. Accepted
+aliasing, callback and generic DI behavior is compared with independent Go in
+`assignment_contracts_test.go`. Indexing and slicing native named collections
+retain their declared element/key qualifiers, including after generic
+substitution and checked map indexing.
+
 These are ordered work areas, not equal-size tasks or a promise that every area
 is complete in v0.4.0. Each needs semantic checks, runtime comparisons, editor support
 where applicable, and documentation. Refactoring can accompany the relevant

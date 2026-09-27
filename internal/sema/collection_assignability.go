@@ -19,7 +19,7 @@ func (c *Checker) constrainedCollectionAssignable(target, value Type) bool {
 		return false
 	}
 	for _, term := range terms {
-		if !sameConstraintNullability(target, c.constraintArgumentShape(term)) {
+		if !c.sourceStorageContractsMatch(target, term) {
 			return false
 		}
 	}
