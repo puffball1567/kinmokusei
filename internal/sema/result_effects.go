@@ -124,6 +124,10 @@ func (c *Checker) checkPropagateExpression(expr *ast.PropagateExpr) Type {
 		}
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	// The error edge returns from the current callable before later awaits
+	// can run. Checking after the operand lets await task? consume that task
+	// while still requiring any other outstanding tasks to be handled first.
+	c.reportPendingTasksBeforeExit()
 	c.prepareGoTypeForEmission(&value, expr.Span)
 	resultElement := *c.result.Element
 	c.prepareGoTypeForEmission(&resultElement, expr.Span)

@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check Task ownership at Result propagation (`?`) as well as explicit returns:
+  other pending tasks must be handled before the possible error exit. Callback
+  returns, throws and propagation check only their own tasks, so unrelated
+  outer tasks no longer prevent ordinary or mutually recursive local arrows.
+  Task capture and unconsumed callback-local tasks remain errors.
+
 - Narrow nullable values through short-circuit `&&`, `||` and `!`, including
   right operands, branches, guard returns and loop conditions. Retain mutation
   effects on each evaluation path and on a loop's false exit; calls cannot

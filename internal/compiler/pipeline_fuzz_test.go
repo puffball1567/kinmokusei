@@ -15,6 +15,8 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function v():int{return 1;}function f():int{const task=go v();const g=()=>{return 2;};return await task+g();}`,
+	`function v():Result<int>{return ok(1);}function f():Result<int>{const task=go v();const n=v()?;const m=await task?;return ok(n+m);}`,
 	`function f(p:*int|null,b:boolean):boolean{return p!==null && *p>0 || !(p===null || !b);}`,
 	`function f(p:*int|null,b:boolean):int{while(p===null || !b){return 0;}return *p;}`,
 	`function v():boolean{return true;}function f(b:boolean):boolean{const task=go v();return b && await task;}`,
