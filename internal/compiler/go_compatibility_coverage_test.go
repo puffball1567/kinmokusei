@@ -204,6 +204,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"field-initialization.test":           {implementedGoCompatibilityContracts[15]},
 	"result.test":                         {implementedGoCompatibilityContracts[16]},
 	"valueswitch.test":                    {implementedGoCompatibilityContracts[17], implementedGoCompatibilityContracts[69]},
+	"switch-flow.test":                    {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[17], implementedGoCompatibilityContracts[53], implementedGoCompatibilityContracts[69]},
 	"switch-constants.test":               {implementedGoCompatibilityContracts[17], implementedGoCompatibilityContracts[69]},
 	"typeswitch.test":                     {implementedGoCompatibilityContracts[18]},
 	"execution.test":                      {implementedGoCompatibilityContracts[19]},

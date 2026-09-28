@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case await t{}default{}}}`,
+	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case 0{const n=await t;fallthrough;}case await t{}default{}}}`,
+	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case 0,await t{}default{const n=await t;}}}`,
 	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{}}}`,
 	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{const n=await t;}}}`,
 	`class C{public x:int=0;}class B{constructor(public p:C|null){}}function clear(b:B):int{b.p=null;return 0;}function f(b:B,ch:GoChannel<int>):void{if(b.p===null){return;}select{default{const n=b.p.x;}case ch<-clear(b){}}}`,

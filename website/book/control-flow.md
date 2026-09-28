@@ -117,6 +117,12 @@ switch (method) {
 
 The subject evaluates once. Case expressions are tested in source order and stop after the first match. A case body does not enter the next case automatically.
 
+Mutations and Task consumption in a case expression affect subsequent case
+tests and the selected body. `default` is entered after every test fails,
+regardless of where it appears in the source. A grouped case can match before
+its last expression: in `case 0, await task`, the Task is not consumed if the
+subject matches `0`. The checker includes each possible first-match path.
+
 Explicit `fallthrough;` must be the final direct statement of a non-final value-switch case:
 
 ```ts
@@ -130,7 +136,8 @@ switch (value) {
 }
 ```
 
-Fallthrough does not re-test the next case expressions and does not carry a nullable proof into the next case.
+Fallthrough does not evaluate the next case expressions. The next body joins
+direct selection and fallthrough paths; nullable proofs must hold on both.
 
 ## Go interface type switch
 

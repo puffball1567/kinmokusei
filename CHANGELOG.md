@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Check value-switch case expressions in selection order, carrying nullable
+  mutations and Task consumption to later tests, default and unmatched exits.
+  Merge the possible first matches of grouped cases, and enter fallthrough
+  bodies without rechecking their case expressions. Reject missed/repeated
+  awaits while accepting tasks consumed on every real selection path.
+
 ## [0.4.4] - 2026-09-27
 
 - Add typed decorator registration for classes, members, constructors and

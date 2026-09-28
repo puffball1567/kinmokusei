@@ -15,8 +15,8 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 		c.report(stmt.Value.GetSpan(), fmt.Sprintf("value switch expression type %s is not comparable", value.String()))
 	}
 	defaultSeen := false
-	constantCases := switchConstantCases{}
 	entryFlow := c.snapshotNullableFlow()
+	caseEntries, unmatched := c.checkValueSwitchCases(stmt, value, entryFlow)
 	continuing := make([]nullableFlowSnapshot, 0, len(stmt.Cases)+1)
 	var fallthroughFlow *nullableFlowSnapshot
 	c.pushBranchFlowTarget(stmt, false)
@@ -31,9 +31,9 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 				c.validFallthrough[branch] = true
 			}
 		}
-		caseEntry := entryFlow
+		caseEntry := caseEntries[index]
 		if fallthroughFlow != nil {
-			caseEntry = c.mergeNullableFlow(entryFlow, entryFlow, *fallthroughFlow)
+			caseEntry = c.mergeNullableFlow(entryFlow, caseEntry, *fallthroughFlow)
 		}
 		c.restoreNullableFlow(caseEntry)
 		if clause.Default {
@@ -41,14 +41,6 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 				c.report(clause.Span, "value switch may contain at most one default case")
 			}
 			defaultSeen = true
-		}
-		for _, expression := range clause.Values {
-			caseType := c.singleValue(c.checkExpressionExpected(expression, value), expression.GetSpan())
-			c.requireAssignable(value, caseType, expression.GetSpan())
-			if caseType.Kind != Invalid && caseType.Kind != Nil && caseType.Kind != Null && !caseType.IsComparable() {
-				c.report(expression.GetSpan(), fmt.Sprintf("value switch case type %s is not comparable", caseType.String()))
-			}
-			c.checkSwitchCaseConstant(expression, caseType, value, constantCases)
 		}
 		c.breakableDepth++
 		c.checkBlock(clause.Body, true)
@@ -64,7 +56,7 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 		}
 	}
 	if !defaultSeen {
-		continuing = append(continuing, entryFlow)
+		continuing = append(continuing, unmatched)
 	}
 	flow := c.breakFlowContexts[len(c.breakFlowContexts)-1]
 	c.breakFlowContexts = c.breakFlowContexts[:len(c.breakFlowContexts)-1]
