@@ -18,6 +18,7 @@ type callableControlState struct {
 	branchFlowTargets []branchFlowTarget
 	blockScopeCounts  map[*ast.BlockStmt]int
 	taskLabelFlows    map[source.Span]*taskLabelFlow
+	exceptionFlows    []*exceptionFlowContext
 }
 
 // enterCallableControl starts a new control-transfer boundary and returns the

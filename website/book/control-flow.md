@@ -232,4 +232,10 @@ Catch clauses are tested in source order. The checker rejects a specific catch a
 
 `finally` executes for normal completion, handled/rethrown language exceptions, return, and ordinary Go/runtime panic. A return or throw from finally replaces the earlier completion. Ordinary panics run finally but do not become catchable typed exceptions.
 
+Handler checks conservatively include intermediate states, not just the state
+at the normal end of the try block. If a nullable variable becomes `null` before
+a later assignment restores it, an exception can skip that assignment. Likewise,
+`finally` can run after an early return or an interrupted catch body. Check the
+value again inside the handler, or assign a non-null value before using it there.
+
 Control flow determines which names and facts remain valid at each program point. [Modules and imports](./modules-and-imports) explains how those checked regions combine across files and package boundaries.

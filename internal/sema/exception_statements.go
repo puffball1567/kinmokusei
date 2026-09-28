@@ -18,10 +18,13 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 		}
 	}
 	entry := c.snapshotNullableFlow()
+	exceptionFlow := &exceptionFlowContext{entry: entry, flow: entry}
+	c.exceptionFlows = append(c.exceptionFlows, exceptionFlow)
 
 	c.restoreNullableFlow(entry)
 	c.checkExceptionBlock(stmt.Body)
 	tryFlow := c.snapshotNullableFlow()
+	catchEntry := exceptionFlow.flow
 	continuing := []nullableFlowSnapshot{}
 	if !statementDefinitelyStopsBlock(stmt.Body) {
 		continuing = append(continuing, tryFlow)
@@ -51,7 +54,7 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 			}
 			sort.Strings(clause.MatchingClasses[1:])
 		}
-		c.restoreNullableFlow(c.mergeNullableFlow(entry, entry, tryFlow))
+		c.restoreNullableFlow(catchEntry)
 		c.pushScope()
 		if clause.Name != "_" {
 			c.declareCatchLocal(clause, catchType)
@@ -65,6 +68,7 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 			continuing = append(continuing, catchFlow)
 		}
 	}
+	c.exceptionFlows = c.exceptionFlows[:len(c.exceptionFlows)-1]
 
 	c.restoreNullableFlow(c.mergeNullableFlow(entry, continuing...))
 	if stmt.FinallyBody != nil {
@@ -72,7 +76,7 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 		// the try/catch path, so it must not inherit facts established only by a
 		// normally completing path.
 		current := c.snapshotNullableFlow()
-		c.restoreNullableFlow(c.mergeNullableFlow(entry, entry, current))
+		c.restoreNullableFlow(c.mergeNullableFlow(entry, exceptionFlow.flow, current))
 		c.checkExceptionBlock(stmt.FinallyBody)
 	}
 	stmt.Terminal = statementDefinitelyStopsBlock(stmt)

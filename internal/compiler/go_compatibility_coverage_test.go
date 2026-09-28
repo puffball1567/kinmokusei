@@ -255,6 +255,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"stringconversion.test":               {implementedGoCompatibilityContracts[54]},
 	"fetch.test":                          {implementedGoCompatibilityContracts[55]},
 	"exception.test":                      {implementedGoCompatibilityContracts[56]},
+	"exception-flow.test":                 {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[56]},
 	"example.com/exceptions":              {implementedGoCompatibilityContracts[56]},
 	"example.com/staticapi":               {implementedGoCompatibilityContracts[57]},
 	"http-router.test":                    {implementedGoCompatibilityContracts[58]},

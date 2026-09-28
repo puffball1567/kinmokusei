@@ -242,6 +242,9 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 }
 
 func (c *Checker) checkStatement(stmt ast.Statement) {
+	if len(c.exceptionFlows) != 0 {
+		defer c.recordExceptionFlow()
+	}
 	switch stmt := stmt.(type) {
 	case *ast.LabeledStmt:
 		c.checkLabeledStatement(stmt, true)
@@ -521,6 +524,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 }
 
 func (c *Checker) checkExpression(expr ast.Expression) Type {
+	if len(c.exceptionFlows) != 0 {
+		defer c.recordExceptionFlow()
+	}
 	if expr == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}

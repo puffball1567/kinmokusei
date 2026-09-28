@@ -9,6 +9,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Include intermediate try/catch states when checking exception handlers and
+  finally blocks, rather than only their entry and normal completion states.
+  Reject nullable reads after an interrupted path, including early returns and
+  nested exceptions. Preserve explicit handler guards, finally restorations,
+  normal-path facts and independent nested callable control state.
+
 - Check value-switch case expressions in selection order, carrying nullable
   mutations and Task consumption to later tests, default and unmatched exits.
   Merge the possible first matches of grouped cases, and enter fallthrough
