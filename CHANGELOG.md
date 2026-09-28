@@ -9,6 +9,13 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+- Let `finally` await or detach a Task before an enclosing `return` or
+  Result propagation (`?`) completes. Check Task ownership after the handler
+  on each exit edge, while still rejecting missed or repeated consumption.
+  Propagation inside `try` now exits the enclosing Result function through
+  the same return control path as an explicit return, so `finally` runs and
+  generated Go remains valid.
+
 - Include intermediate try/catch states when checking exception handlers and
   finally blocks, rather than only their entry and normal completion states.
   Reject nullable reads after an interrupted path, including early returns and

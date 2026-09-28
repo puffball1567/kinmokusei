@@ -127,13 +127,14 @@ func (c *Checker) checkPropagateExpression(expr *ast.PropagateExpr) Type {
 	// The error edge returns from the current callable before later awaits
 	// can run. Checking after the operand lets await task? consume that task
 	// while still requiring any other outstanding tasks to be handled first.
-	c.reportPendingTasksBeforeExit()
+	c.reportOrDeferTasksBeforeReturn()
 	c.prepareGoTypeForEmission(&value, expr.Span)
 	resultElement := *c.result.Element
 	c.prepareGoTypeForEmission(&resultElement, expr.Span)
 	expr.ValueType = typeRefFromType(value, expr.Span)
 	expr.ResultType = typeRefFromType(resultElement, expr.Span)
 	expr.ErrorName = fmt.Sprintf("__kinmokusei_result_error_%d", expr.Span.Start.Offset)
+	expr.CrossesTry = c.exceptionDepth != 0
 	return value
 }
 

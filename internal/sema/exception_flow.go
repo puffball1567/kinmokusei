@@ -5,8 +5,10 @@ package sema
 // value. Keep a bounded join of intermediate states, restricted to the scopes
 // visible on entry. Nested callable bodies have independent collectors.
 type exceptionFlowContext struct {
-	entry nullableFlowSnapshot
-	flow  nullableFlowSnapshot
+	entry   nullableFlowSnapshot
+	flow    nullableFlowSnapshot
+	finally bool
+	returns []nullableFlowSnapshot
 }
 
 func (c *Checker) recordExceptionFlow() {

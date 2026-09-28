@@ -250,6 +250,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"inheritance.test":                    {implementedGoCompatibilityContracts[49], implementedGoCompatibilityContracts[50], implementedGoCompatibilityContracts[51]},
 	"example.com/hierarchy":               {implementedGoCompatibilityContracts[52]},
 	"task.test":                           {implementedGoCompatibilityContracts[53]},
+	"finallytask.test":                    {implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[53], implementedGoCompatibilityContracts[56]},
 	"task-goto.test":                      {implementedGoCompatibilityContracts[53], implementedGoCompatibilityContracts[66]},
 	"task-boundaries.test":                {implementedGoCompatibilityContracts[53]},
 	"stringconversion.test":               {implementedGoCompatibilityContracts[54]},
