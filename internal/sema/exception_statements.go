@@ -18,10 +18,13 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 		}
 	}
 	entry := c.snapshotNullableFlow()
+	exceptionFlow := &exceptionFlowContext{entry: entry, flow: entry, finally: stmt.FinallyBody != nil}
+	c.exceptionFlows = append(c.exceptionFlows, exceptionFlow)
 
 	c.restoreNullableFlow(entry)
 	c.checkExceptionBlock(stmt.Body)
 	tryFlow := c.snapshotNullableFlow()
+	catchEntry := exceptionFlow.flow
 	continuing := []nullableFlowSnapshot{}
 	if !statementDefinitelyStopsBlock(stmt.Body) {
 		continuing = append(continuing, tryFlow)
@@ -51,7 +54,7 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 			}
 			sort.Strings(clause.MatchingClasses[1:])
 		}
-		c.restoreNullableFlow(c.mergeNullableFlow(entry, entry, tryFlow))
+		c.restoreNullableFlow(catchEntry)
 		c.pushScope()
 		if clause.Name != "_" {
 			c.declareCatchLocal(clause, catchType)
@@ -65,15 +68,37 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 			continuing = append(continuing, catchFlow)
 		}
 	}
+	c.exceptionFlows = c.exceptionFlows[:len(c.exceptionFlows)-1]
 
-	c.restoreNullableFlow(c.mergeNullableFlow(entry, continuing...))
+	normal := c.mergeNullableFlow(entry, continuing...)
+	c.restoreNullableFlow(normal)
 	if stmt.FinallyBody != nil {
 		// finally also runs while an exception is propagating from any point in
 		// the try/catch path, so it must not inherit facts established only by a
 		// normally completing path.
-		current := c.snapshotNullableFlow()
-		c.restoreNullableFlow(c.mergeNullableFlow(entry, entry, current))
+		// A terminal try has no normal continuation. The synthetic consumed
+		// state at its unreachable join must not make a pending Task appear
+		// maybe-consumed when finally awaits it.
+		inputs := []nullableFlowSnapshot{exceptionFlow.flow}
+		inputs = append(inputs, continuing...)
+		c.restoreNullableFlow(c.mergeNullableFlow(entry, inputs...))
+		before := c.snapshotNullableFlow()
 		c.checkExceptionBlock(stmt.FinallyBody)
+		after := c.snapshotNullableFlow()
+		for _, returning := range exceptionFlow.returns {
+			applyFinallyTaskEffect(&returning, before, after)
+			c.reportOrDeferTasksInFlow(returning)
+		}
+		// An exceptional or returning edge executes finally but cannot reach
+		// the next statement. Keep only the normal path's Task ownership at
+		// that join; otherwise an earlier possible panic can create a false
+		// maybe-consumed Task after an otherwise complete await.
+		applyFinallyTaskEffect(&normal, before, after)
+		c.restoreTaskStates(normal)
+	} else {
+		for _, returning := range exceptionFlow.returns {
+			c.reportOrDeferTasksInFlow(returning)
+		}
 	}
 	stmt.Terminal = statementDefinitelyStopsBlock(stmt)
 }

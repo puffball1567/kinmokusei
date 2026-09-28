@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public x:int=1;}function f(e:error,b:boolean):void{let p:C|null=new C();try{p=null;if(b){throw e;}p=new C();}catch(_:error){const n=p.x;}}`,
+	`class C{public x:int=1;}function f():int{let p:C|null=new C();try{p=null;return 0;}finally{if(p===null){return -1;}return p.x;}}`,
+	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case await t{}default{}}}`,
+	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case 0{const n=await t;fallthrough;}case await t{}default{}}}`,
+	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case 0,await t{}default{const n=await t;}}}`,
 	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{}}}`,
 	`function w():int{return 1;}function f(ch:GoChannel<int>):void{const t=go w();select{case ch<-await t{}default{const n=await t;}}}`,
 	`class C{public x:int=0;}class B{constructor(public p:C|null){}}function clear(b:B):int{b.p=null;return 0;}function f(b:B,ch:GoChannel<int>):void{if(b.p===null){return;}select{default{const n=b.p.x;}case ch<-clear(b){}}}`,

@@ -172,3 +172,80 @@ func (c *Checker) reportPendingTasksBeforeExit() {
 		c.reportUnconsumedTasks(scope)
 	}
 }
+
+// A return (including the error edge of ?) crosses every enclosing finally.
+// Keep its Task state until those handlers have had a chance to consume it.
+func (c *Checker) reportOrDeferTasksBeforeReturn() {
+	if c.suppressFlowEffects != 0 {
+		return
+	}
+	c.reportOrDeferTasksInFlow(c.snapshotNullableFlow())
+}
+
+func (c *Checker) reportOrDeferTasksInFlow(flow nullableFlowSnapshot) {
+	if len(flow.scopes) > len(c.scopes) {
+		flow.scopes = flow.scopes[:len(c.scopes)]
+	}
+	for index := len(c.exceptionFlows) - 1; index >= 0; index-- {
+		context := c.exceptionFlows[index]
+		if !context.finally {
+			continue
+		}
+		// Locals introduced inside the try/catch cannot be reached by its
+		// finally. Their own scope exit checks still run, but a return also
+		// needs to diagnose them on the terminating edge.
+		for _, scope := range flow.scopes[len(context.entry.scopes):] {
+			c.reportUnconsumedTasks(scope)
+		}
+		context.returns = append(context.returns, flow)
+		return
+	}
+	c.reportPendingTasksInFlow(flow)
+}
+
+func (c *Checker) reportPendingTasksInFlow(flow nullableFlowSnapshot) {
+	base := 0
+	if len(c.callableScopeBases) != 0 {
+		base = c.callableScopeBases[len(c.callableScopeBases)-1]
+	}
+	for _, scope := range flow.scopes[base:] {
+		c.reportUnconsumedTasks(scope)
+	}
+}
+
+// Apply the Task effect of a checked finally to a saved early-return edge.
+// Nullable narrowing is intentionally not copied: only Task ownership is
+// relevant to the return obligation.
+func applyFinallyTaskEffect(flow *nullableFlowSnapshot, before, after nullableFlowSnapshot) {
+	for index, scope := range flow.scopes {
+		if index >= len(before.scopes) || index >= len(after.scopes) {
+			break
+		}
+		for name, symbol := range scope {
+			prior, exists := before.scopes[index][name]
+			if !exists || symbol.declarationSpan != prior.declarationSpan || prior.taskState == taskNotTracked {
+				continue
+			}
+			next, exists := after.scopes[index][name]
+			if exists && next.declarationSpan == prior.declarationSpan && next.taskState != prior.taskState {
+				symbol.taskState = next.taskState
+				scope[name] = symbol
+			}
+		}
+	}
+}
+
+func (c *Checker) restoreTaskStates(flow nullableFlowSnapshot) {
+	for index, scope := range c.scopes {
+		if index >= len(flow.scopes) {
+			break
+		}
+		for name, symbol := range scope {
+			original, exists := flow.scopes[index][name]
+			if exists && original.declarationSpan == symbol.declarationSpan && symbol.taskState != taskNotTracked {
+				symbol.taskState = original.taskState
+				scope[name] = symbol
+			}
+		}
+	}
+}

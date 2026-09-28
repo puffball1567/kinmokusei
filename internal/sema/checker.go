@@ -242,6 +242,13 @@ func (c *Checker) checkBlock(block *ast.BlockStmt, nested bool) {
 }
 
 func (c *Checker) checkStatement(stmt ast.Statement) {
+	if len(c.exceptionFlows) != 0 {
+		defer func() {
+			if !statementDefinitelyStopsBlock(stmt) {
+				c.recordExceptionFlow()
+			}
+		}()
+	}
 	switch stmt := stmt.(type) {
 	case *ast.LabeledStmt:
 		c.checkLabeledStatement(stmt, true)
@@ -261,24 +268,24 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		}
 		if c.arrowReturns != nil {
 			c.collectArrowReturn(stmt)
-			c.reportPendingTasksBeforeExit()
+			c.reportOrDeferTasksBeforeReturn()
 			return
 		}
 		if len(stmt.AdditionalValues) != 0 {
 			c.checkMultipleReturn(stmt)
-			c.reportPendingTasksBeforeExit()
+			c.reportOrDeferTasksBeforeReturn()
 			return
 		}
 		if c.result.Kind == Result {
 			c.checkResultReturn(stmt)
-			c.reportPendingTasksBeforeExit()
+			c.reportOrDeferTasksBeforeReturn()
 			return
 		}
 		if stmt.Value == nil {
 			if c.result.Kind != Void {
 				c.report(stmt.Span, fmt.Sprintf("expected return value of type %s", c.result.Name))
 			}
-			c.reportPendingTasksBeforeExit()
+			c.reportOrDeferTasksBeforeReturn()
 			return
 		}
 		value := c.checkExpressionExpectedSlot(&stmt.Value, c.result)
@@ -287,7 +294,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		} else {
 			c.requireAssignable(c.result, value, stmt.Value.GetSpan())
 		}
-		c.reportPendingTasksBeforeExit()
+		c.reportOrDeferTasksBeforeReturn()
 	case *ast.ThrowStmt:
 		c.usesExceptions = true
 		if stmt.Bare {
@@ -521,6 +528,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 }
 
 func (c *Checker) checkExpression(expr ast.Expression) Type {
+	if len(c.exceptionFlows) != 0 {
+		defer c.recordExceptionFlow()
+	}
 	if expr == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}

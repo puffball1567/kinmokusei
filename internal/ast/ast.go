@@ -789,6 +789,7 @@ type PropagateExpr struct {
 	ValueType  TypeRef
 	ResultType TypeRef
 	ErrorName  string
+	CrossesTry bool
 	Span       source.Span
 }
 

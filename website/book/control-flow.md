@@ -117,6 +117,12 @@ switch (method) {
 
 The subject evaluates once. Case expressions are tested in source order and stop after the first match. A case body does not enter the next case automatically.
 
+Mutations and Task consumption in a case expression affect subsequent case
+tests and the selected body. `default` is entered after every test fails,
+regardless of where it appears in the source. A grouped case can match before
+its last expression: in `case 0, await task`, the Task is not consumed if the
+subject matches `0`. The checker includes each possible first-match path.
+
 Explicit `fallthrough;` must be the final direct statement of a non-final value-switch case:
 
 ```ts
@@ -130,7 +136,8 @@ switch (value) {
 }
 ```
 
-Fallthrough does not re-test the next case expressions and does not carry a nullable proof into the next case.
+Fallthrough does not evaluate the next case expressions. The next body joins
+direct selection and fallthrough paths; nullable proofs must hold on both.
 
 ## Go interface type switch
 
@@ -224,5 +231,11 @@ try {
 Catch clauses are tested in source order. The checker rejects a specific catch already covered by an earlier base or `error` catch. `throw value;` requires an error-compatible value; bare `throw;` rethrows the current catch value.
 
 `finally` executes for normal completion, handled/rethrown language exceptions, return, and ordinary Go/runtime panic. A return or throw from finally replaces the earlier completion. Ordinary panics run finally but do not become catchable typed exceptions.
+
+Handler checks conservatively include intermediate states, not just the state
+at the normal end of the try block. If a nullable variable becomes `null` before
+a later assignment restores it, an exception can skip that assignment. Likewise,
+`finally` can run after an early return or an interrupted catch body. Check the
+value again inside the handler, or assign a non-null value before using it there.
 
 Control flow determines which names and facts remain valid at each program point. [Modules and imports](./modules-and-imports) explains how those checked regions combine across files and package boundaries.
