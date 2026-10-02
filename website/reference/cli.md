@@ -33,10 +33,43 @@ keika <command> [options] [arguments]
 | --- | --- | --- |
 | `check` | Silent on success; diagnostics use stderr; `--json` uses stdout | None |
 | `run` | Connects the generated program to the current stdin, stdout, and stderr | Compiler-managed `.kinmokusei/gen/` state |
-| `build` | Go build diagnostics use stdout/stderr | Executable at `-o`, or `keika.out` |
+| `build` | Go build/attribution diagnostics use stdout/stderr | Compiler-managed `.kinmokusei/gen/` state, executable at `-o` (default `keika.out`), and `<output>.licenses/` |
 | `emit-go` | Formatted Go uses stdout unless `-o` is present | The exact `-o` file when selected |
 
 All source arguments form one generated package. Relative imports may load additional `.km` files, so callers normally pass entry files rather than every file in a project. Project-aware invocations validate the existing manifest, lock, and generated dependency state before compilation.
+
+## Application redistribution notices
+
+Since v0.4.5, `keika build -o app` produces `app` and `app.licenses/` (or
+`app.exe.licenses/` when `-o app.exe` is selected). Ship the entire notice
+directory alongside the executable. It contains:
+
+- Go's original license and patent grant from the actual build toolchain;
+- nested licenses/notices and complete additional-attribution source supplements
+  for target-selected Go packages, including cgo source/header files;
+- detected notice files for imported Go modules, local/version replacements and
+  the locked external Kinmokusei source-package graph;
+- the Apache-2.0 license for Kinmokusei-generated runtime/standard-library code;
+- `INDEX.json` with toolchain, target, tags, dependency identities, notice hashes
+  and the executable's SHA-256 digest, without local checkout paths.
+
+Collection is conservative: notices may cover code discarded by the linker and
+unused files/dependencies in source packages. Recognized file families are
+`LICENSE`, `LICENCE`, `COPYING`, `NOTICE`, and `PATENTS`, case-insensitively,
+including suffixes such as `.txt` or `-MIT`, and text files in `LICENSES/` or
+`LICENCES/` directories. Missing license text, empty notices,
+unsafe paths, oversized attribution files or opaque binary objects stop the
+build. An SPDX identifier in a manifest is not sufficient license text.
+
+Collection and compilation are offline/read-only dependency operations. Failed
+builds preserve the previous executable and notice directory. Rebuilding an
+unmodified generated directory replaces the pair; an unmanaged or manually
+modified notice directory is preserved and produces an error. Keep additional
+handwritten notices separately rather than editing generated output.
+
+This inventory is not legal-compliance certification or a source-offer generator.
+Review the actual terms and separately linked native/system libraries. `run`,
+`emit-go` and direct `go build` do not create an application notice directory.
 
 ## C ABI and FFI
 

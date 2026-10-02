@@ -68,6 +68,9 @@ func TestNewProjectsConnectThroughLocalReplacement(t *testing.T) {
 	if err := os.Chdir(app); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(library, "LICENSE"), []byte("MIT fixture license\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if status, _, stderr := captureRun(t, "deps", "add", "--offline", "--replace", "../mylib", "pkg.test/greeting@v0.1.0"); status != 0 {
 		t.Fatalf("new library dependency: %s", stderr)
 	}
