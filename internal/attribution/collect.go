@@ -322,7 +322,11 @@ func safeRelative(root, file string) (string, error) {
 			return "", fmt.Errorf("symlinked attribution source %s", filepath.ToSlash(relative))
 		}
 	}
-	return filepath.ToSlash(relative), nil
+	relative = filepath.ToSlash(relative)
+	if relative != "." && !portablePath(relative) {
+		return "", fmt.Errorf("nonportable attribution source path")
+	}
+	return relative, nil
 }
 
 func readOriginal(root, file string) ([]byte, string, error) {
@@ -393,6 +397,14 @@ func (b Bundle) Write(directory string) error {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	portableNames := map[string]bool{"INDEX.JSON": true}
+	for _, name := range names {
+		folded := strings.ToUpper(name)
+		if !portablePath(name) || portableNames[folded] {
+			return fmt.Errorf("unsafe or case-colliding attribution output path")
+		}
+		portableNames[folded] = true
+	}
 	b.Index.Files = []File{}
 	for _, name := range names {
 		data := b.Files[name]
@@ -400,7 +412,7 @@ func (b Bundle) Write(directory string) error {
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(file, data, 0o644); err != nil {
+		if err := writeNewFile(file, data); err != nil {
 			return err
 		}
 		digest := sha256.Sum256(data)
@@ -410,10 +422,43 @@ func (b Bundle) Write(directory string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(directory, "INDEX.json"), append(index, '\n'), 0o644); err != nil {
+	if err := writeNewFile(filepath.Join(directory, "INDEX.json"), append(index, '\n')); err != nil {
 		return err
 	}
 	return nil
+}
+
+func writeNewFile(file string, contents []byte) error {
+	output, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	_, err = output.Write(contents)
+	closeErr := output.Close()
+	if err != nil {
+		return err
+	}
+	return closeErr
+}
+
+func portablePath(name string) bool {
+	if !fs.ValidPath(name) || name == "." || strings.ContainsAny(name, `\:<>"|?*`) || strings.IndexFunc(name, func(ch rune) bool { return ch < 32 }) >= 0 {
+		return false
+	}
+	for _, part := range strings.Split(name, "/") {
+		if strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") {
+			return false
+		}
+		stem := strings.ToUpper(strings.SplitN(part, ".", 2)[0])
+		switch stem {
+		case "CON", "PRN", "AUX", "NUL":
+			return false
+		}
+		if len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '1' && stem[3] <= '9' {
+			return false
+		}
+	}
+	return true
 }
 
 const applicationNotices = `# Application third-party notices
