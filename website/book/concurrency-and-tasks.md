@@ -90,6 +90,23 @@ const computed = await background;
 const user = loadChecked(id)?;
 ```
 
+An enclosing `finally` runs on both explicit returns and `?` propagation, so
+it may join a task before either exit completes:
+
+```ts
+const background = go calculate();
+try {
+  const user = loadChecked(id)?;
+  return ok(user);
+} finally {
+  const completed = await background;
+}
+```
+
+The join must happen on every exit path. A conditional await in `finally`
+does not satisfy the Task ownership check, and awaiting an already consumed
+task is still an error.
+
 `await task?` consumes that task before checking the error path. If several
 Result-returning tasks are running, explicitly split and await their results
 before returning an error, instead of propagating the first result while

@@ -34,6 +34,22 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.5 highlights
+
+- Application binaries from `keika build` now include `<output>.licenses/` with
+  original Go/module/source-package notices, generated-runtime attribution and
+  a target-specific inventory with executable and notice hashes.
+- Missing dependency license text stops the build. Offline dependency policy,
+  old outputs and manually added notice files are preserved.
+- Nullable/Task checking follows intermediate exception states, `finally`
+  cleanup and ordered value-switch selection.
+
+Ship the complete notice directory with redistributed executables. Review
+actual terms and separately linked native/system libraries; see
+[application redistribution notices](../reference/cli#application-redistribution-notices).
+Use matching compiler/editor v0.4.5 artifacts and the
+[v0.4.5 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.5).
+
 ## v0.4.4 highlights
 
 - Instance and static getter/setter properties, interface property contracts,

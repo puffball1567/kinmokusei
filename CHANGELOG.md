@@ -9,6 +9,34 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-10-02
+
+- Collect original redistribution licenses, notices and patent grants alongside
+  application binaries as `<output>.licenses/`, with target-specific Go/package
+  inventories and executable/notice SHA-256 hashes. Cover Go/module replacements,
+  external source packages, cgo source supplements and generated runtime helpers.
+  Stop on missing/unsafe attribution; keep dependency operations offline and
+  preserve old outputs or manually added notices on failure.
+
+- Let `finally` await or detach a Task before an enclosing `return` or
+  Result propagation (`?`) completes. Check Task ownership after the handler
+  on each exit edge, while still rejecting missed or repeated consumption.
+  Propagation inside `try` now exits the enclosing Result function through
+  the same return control path as an explicit return, so `finally` runs and
+  generated Go remains valid.
+
+- Include intermediate try/catch states when checking exception handlers and
+  finally blocks, rather than only their entry and normal completion states.
+  Reject nullable reads after an interrupted path, including early returns and
+  nested exceptions. Preserve explicit handler guards, finally restorations,
+  normal-path facts and independent nested callable control state.
+
+- Check value-switch case expressions in selection order, carrying nullable
+  mutations and Task consumption to later tests, default and unmatched exits.
+  Merge the possible first matches of grouped cases, and enter fallthrough
+  bodies without rechecking their case expressions. Reject missed/repeated
+  awaits while accepting tasks consumed on every real selection path.
+
 ## [0.4.4] - 2026-09-27
 
 - Add typed decorator registration for classes, members, constructors and

@@ -77,18 +77,7 @@ func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
 }
 
 func generateExceptionReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
-	returnPanic := func(value, errValue goast.Expr) goast.Stmt {
-		fields := []goast.Expr{}
-		if value != nil {
-			fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent("value"), Value: value})
-		}
-		if errValue != nil {
-			fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent("err"), Value: errValue})
-		}
-		return &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{
-			&goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiReturn"), Elts: fields},
-		}}}
-	}
+	returnPanic := exceptionReturnPanic
 
 	if stmt.ResultKind == kinmokuseiAST.NormalReturn {
 		if len(stmt.ResultType.GoResults) != 0 {
@@ -153,6 +142,19 @@ func generateExceptionReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error)
 	}
 }
 
+func exceptionReturnPanic(value, errValue goast.Expr) goast.Stmt {
+	fields := []goast.Expr{}
+	if value != nil {
+		fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent("value"), Value: value})
+	}
+	if errValue != nil {
+		fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent("err"), Value: errValue})
+	}
+	return &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{
+		&goast.CompositeLit{Type: goast.NewIdent("__kinmokuseiReturn"), Elts: fields},
+	}}}
+}
+
 func generatePropagationStatements(expr *kinmokuseiAST.PropagateExpr, variable *kinmokuseiAST.VariableDecl) ([]goast.Stmt, error) {
 	value, err := generateExpression(expr.Value)
 	if err != nil {
@@ -179,14 +181,20 @@ func generatePropagationStatements(expr *kinmokuseiAST.PropagateExpr, variable *
 	declaration := &goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{
 		Names: names, Values: []goast.Expr{value},
 	}}}}
-	results := []goast.Expr{}
-	if expr.ResultType.Name != "void" {
-		results = append(results, zeroValue(expr.ResultType))
+	var exit goast.Stmt
+	if expr.CrossesTry {
+		exit = exceptionReturnPanic(nil, goast.NewIdent(errorName))
+	} else {
+		results := []goast.Expr{}
+		if expr.ResultType.Name != "void" {
+			results = append(results, zeroValue(expr.ResultType))
+		}
+		results = append(results, goast.NewIdent(errorName))
+		exit = &goast.ReturnStmt{Results: results}
 	}
-	results = append(results, goast.NewIdent(errorName))
 	propagate := &goast.IfStmt{
 		Cond: &goast.BinaryExpr{X: goast.NewIdent(errorName), Op: token.NEQ, Y: goast.NewIdent("nil")},
-		Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: results}}},
+		Body: &goast.BlockStmt{List: []goast.Stmt{exit}},
 	}
 	statements := []goast.Stmt{declaration, propagate}
 	if explicitType && expr.ValueType.Name != "void" {

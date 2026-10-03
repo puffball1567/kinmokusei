@@ -225,3 +225,9 @@ Kinmokusei is available under the [Apache License 2.0](LICENSE).
 CLI binary distributions also include Go runtime/standard-library attribution
 materials. See [third-party notices](THIRD_PARTY_NOTICES.md); retain the bundled
 `licenses/` directory when redistributing a release.
+
+Starting with v0.4.5, `keika build -o app` also writes `app.licenses/` with
+original Go and dependency notices and a target-specific inventory. Keep the
+entire directory with redistributed applications. Missing dependency license
+text stops the build; this collection does not replace reviewing license terms
+or notices for separately linked native/system libraries.

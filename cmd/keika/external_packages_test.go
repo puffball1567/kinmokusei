@@ -28,6 +28,8 @@ func testExternalPackageCLIWorkflow(t *testing.T, alias string) {
 	base := t.TempDir()
 	root := filepath.Join(base, "app")
 	files := map[string]string{
+		"app/helper/LICENSE":               "MIT fixture license\n",
+		"command/LICENSE":                  "MIT fixture license\n",
 		"app/kinmokusei.toml":              "[project]\nname = \"app\"\nversion = \"0.1.0\"\ngo-module = \"app.test/main\"\ngo-version = \"1.23\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n[go.replacements]\n\"go.test/helper\" = \"./helper\"\n",
 		"app/helper/go.mod":                "module go.test/helper\n\ngo 1.23\n",
 		"app/helper/helper.go":             "package helper\nfunc Message()string{return \"external command works\"}\n",

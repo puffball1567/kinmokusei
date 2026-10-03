@@ -11,6 +11,13 @@ Both are checked and compiled into the application's Go output.
 
 ## Define a library
 
+Since v0.4.5, applications built with `keika build` require detected original
+license text for their dependencies. Include your chosen `LICENSE`/`LICENCE`/
+`COPYING` file (or a `LICENSES/` directory) in the library, including local
+replacements. A manifest license identifier alone does not satisfy this check.
+The build copies these materials into the application's notice directory;
+see [application redistribution notices](../reference/cli#application-redistribution-notices).
+
 Generate a minimal library with:
 
 ```sh
