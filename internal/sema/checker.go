@@ -5,7 +5,9 @@ import (
 	"go/importer"
 	gotypes "go/types"
 	"runtime"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/diagnostic"
@@ -47,6 +49,7 @@ type Checker struct {
 	usesTasks                  bool
 	usesExceptions             bool
 	usesDecoratorContext       bool
+	usesUTF8                   bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
 	taskLaunchCall             *ast.CallExpr
@@ -186,6 +189,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
 	program.UsesDecoratorContext = c.usesDecoratorContext
+	program.UsesUTF8 = c.usesUTF8
 	return c.diagnostics
 }
 
@@ -542,7 +546,12 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		case ast.FloatLiteral, ast.ImaginaryLiteral:
 			return c.finishNumeric(expr, gotypes.NewPackage("kinmokusei.synthetic/literal", "literal"), scalarLiteralTree(expr))
 		case ast.StringLiteral:
+			if value, err := strconv.Unquote(expr.Text); err == nil && !utf8.ValidString(value) {
+				c.report(expr.Span, "string literal is not valid UTF-8; use a bstring literal (b\"...\") for raw bytes")
+			}
 			return preserveUntypedScalar(builtins["string"], gotypes.Typ[gotypes.UntypedString])
+		case ast.ByteStringLiteral:
+			return preserveUntypedScalar(builtins["bstring"], gotypes.Typ[gotypes.UntypedString])
 		case ast.BooleanLiteral:
 			return preserveUntypedScalar(builtins["boolean"], gotypes.Typ[gotypes.UntypedBool])
 		case ast.NilLiteral:

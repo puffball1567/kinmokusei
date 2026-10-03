@@ -18,32 +18,33 @@ struct Envelope<T> {
 }
 
 class Base<T> {
-  constructor(public value: T, private secret: string) {}
-  public virtual function describe(): string { return "base"; }
+  constructor(public value: T, private secret: bstring) {}
+  public virtual function describe(): bstring { return "base"; }
 }
 
 class Child<T> extends Base<T> {
-  constructor(value: T, secret: string, public label: string) {
+  constructor(value: T, secret: bstring, public label: bstring) {
     super(value, secret);
   }
-  public override function describe(): string { return this.label; }
+  public override function describe(): bstring { return this.label; }
 }
 
-function EncodeEnvelope<T>(value: T): Result<byte[]> {
+constraint RawText = ~bstring;
+function EncodeEnvelope<T extends RawText>(value: T): Result<byte[]> {
   const encoded = json.Marshal(Envelope<T> { item: value })?;
   return ok(encoded);
 }
 
-function EncodeChild(value: string, label: string): Result<byte[]> {
-  const encoded = json.Marshal(new Child<string>(value, "not serialized", label))?;
+function EncodeChild(value: bstring, label: bstring): Result<byte[]> {
+  const encoded = json.Marshal(new Child<bstring>(value, "not serialized", label))?;
   return ok(encoded);
 }
 
-function DecodeChild(data: byte[], child: Child<string>): error {
+function DecodeChild(data: byte[], child: Child<bstring>): error {
   return json.Unmarshal(data, child);
 }
 
-function Describe(child: Child<string>): string {
+function Describe(child: Child<bstring>): bstring {
   return child.describe();
 }
 `

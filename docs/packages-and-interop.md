@@ -2,21 +2,24 @@
 
 ## Policy
 
-Kinmokusei uses three explicit package paths:
+Kinmokusei uses explicit package paths:
 
 1. Relative imports between Kinmokusei modules.
-2. Versioned source-only Kinmokusei packages hosted in GitHub repositories
-   (future installation work).
-3. Namespaced direct Go imports through `import go`.
+2. Compiler-managed standard modules under reserved `kinmokusei/*` paths.
+3. Versioned Kinmokusei source packages distributed through Go module acquisition.
+4. Direct Go imports through `import go`, using qualified or selected names.
 
 Direct Go interop is the low-level ecosystem boundary. Higher-level Kinmokusei wrappers should improve ergonomics without hiding the underlying Go package or changing values implicitly.
 
-Kinmokusei packages distribute `.km` source, manifests, licenses, and optional
-C/C++ shim source rather than prebuilt library binaries. They compile into the
-consumer's ordinary generated Go module. The initial package source is GitHub;
-there is no dedicated binary registry or requirement for a central package
-server. A future optional catalog may map short names to canonical GitHub
-repositories without becoming the source of package contents.
+Kinmokusei packages distribute `.km` source, manifests, and licenses rather
+than prebuilt library binaries. Native C source compiled through cgo belongs in
+a separately versioned Go module declared by the Kinmokusei package; see
+[Distributing a C-backed Kinmokusei package](c-ffi.md#distributing-a-c-backed-kinmokusei-package).
+They compile into the consumer's ordinary generated Go module. Source-package
+acquisition uses the existing Go module repository/proxy/cache infrastructure;
+there is no dedicated binary registry or requirement for a Kinmokusei package
+server. `keika deps add` registers a consumer-local short import alias while
+the canonical module path continues to identify the dependency.
 
 This makes Kinmokusei a source dialect in the Go ecosystem rather than a
 parallel runtime or binary ecosystem. It is not Go-source-compatible: the
@@ -33,8 +36,8 @@ The project files are `kinmokusei.toml` and canonical JSON `kinmokusei.lock`.
 [project]
 name = "example"
 version = "0.1.0"
-source = "."
 go-module = "example.com/example"
+go-version = "1.23"
 
 [target]
 goos = "linux"
@@ -47,6 +50,7 @@ unsafe = "deny"
 
 [go.dependencies]
 "github.com/google/uuid" = "v1.6.0"
+"example.com/local/api" = "v0.1.0"
 
 [go.replacements]
 "example.com/local/api" = "./local-api"
@@ -54,12 +58,12 @@ unsafe = "deny"
 
 Rules:
 
-- The four `[project]` keys are required; unknown/duplicate sections and keys are rejected.
+- The four `[project]` keys shown above are required; `source` is not a supported key. Unknown/duplicate sections and keys are rejected.
 - `[target]` accepts only `goos`, `goarch`, `cgo`, and `tags`. CGO is `auto`, `enabled`, or `disabled`; tags are unique and canonicalized in sorted order.
 - Omitted GOOS/GOARCH use the compiler host, not ambient process overrides. Cross-target `auto` CGO becomes disabled.
 - `[go.interop].unsafe` is `deny` by default and may be explicitly `allow` project-wide.
-- Dependencies use complete versions, including complete pseudo-versions.
-- Initial replacements are project-relative local paths inside the project root and must correspond to dependencies.
+- Go dependencies use complete versions, including complete pseudo-versions. Source `[dependencies]` use complete tags matching their library manifests.
+- Go replacements are project-relative local paths inside the project root and must correspond to Go dependencies. Source `[replace]` overrides may point to sibling checkouts, including overrides of transitive source dependencies; dependency-owned replacement paths are not inherited.
 - The lock records manifest hash, Go version, resolved target/tags/CGO, module graph/checksums, project-relative replacements, generated `go.mod`/`go.sum` hashes, and license file hashes. It contains no machine-specific absolute paths.
 - Dependency locking parses the project's `.km` files, collects explicit
   `import go` paths, and lets the selected Go toolchain materialize the required
@@ -70,22 +74,40 @@ Rules:
 Only explicit dependency mutation commands (`install --go-module`, `deps add`,
 `deps update`, `deps remove`, and `deps lock`) may resolve the graph and update
 `.kinmokusei/deps/` or the lock. `--offline` uses `GOPROXY=off` and existing caches.
+`deps fetch` separately restores the exact locked graph and module files without
+resolving new versions or changing the manifest/lock. Schema 4 locks include
+source package identities, dependencies, manifest/content hashes and licenses,
+as well as the Go module file contents needed for restoration.
 
 Explicit commands:
 
 - `keika install --go-module <module>@<version> [project]`
-- `keika deps add <module>@<version> [project]`
-- `keika deps update <module>@<version> [project]`
+- `keika deps add [--offline] [--replace path] [--alias name] <module>@<version> [project]`
+- `keika deps update [--offline] [module[@version]] [project]`
 - `keika deps remove <module> [project]`
 - `keika deps lock [--offline] [project]`
 - `keika deps check [project]`
+- `keika deps list [project]`
+- `keika deps fetch [--offline] [project]`
 - `keika deps licenses [--strict] [project]`
 - `keika target [project]`
 
-`install --go-module` is the user-facing spelling for adding a direct Go module;
-it uses the same transactional implementation as `deps add`. The latter remains
-available as the lower-level dependency command. Both accept `--offline` and a
-project-local `--replace` for development and reproducible fixtures.
+`install --go-module` explicitly adds a direct Go module. `deps add` recognizes a
+Kinmokusei source package by its `[package]` manifest and otherwise adds a Go
+dependency. Both are transactional and accept `--offline` and `--replace`, with
+the distinct replacement rules above. `--alias` applies only to source packages.
+An update without an explicit version selects the latest of the declared source
+package, or all direct source packages when no module is given; exact versions
+remain required for Go updates and offline source updates.
+
+Source libraries declare `[package]` entry/minimum compiler version/backend/license
+and optional `[exports]` submodule mappings. Applications declare direct source
+dependencies in `[dependencies]`; `[imports]` shortens their module paths and is
+written automatically on add. Resolution uses the importing package's own
+dependencies and aliases, not every package in the consumer's transitive graph.
+See the [project-file reference](../website/reference/project-files.md) and
+[external package guide](../website/guide/external-packages.md) for complete,
+current manifests and the offline two-project workflow.
 
 Add/update/remove are transactional: failed resolution keeps the previous manifest, lock, and locked state. Normal check/build/run/emit/LSP paths only validate and use the locked graph read-only and offline.
 
@@ -95,7 +117,7 @@ The lock's target controls export loading, checking, and building. Cross-build i
 
 ```ts
 import { User, findUser } from "./users";
-import { Router } from "kinmokusei/http";
+import { App } from "kinmokusei/http";
 import go http from "net/http";
 import { User as Account } from "./users";
 import go { Println as println } from "fmt";

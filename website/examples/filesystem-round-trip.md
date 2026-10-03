@@ -34,7 +34,9 @@ The temporary path is intentionally absent from the output, so the example has t
 2. return the result type's zero value plus the error when it is non-nil;
 3. otherwise yield `T` to the binding.
 
-`WriteString` reports a byte count, so the function also rejects a short write even when the returned error is nil. `len(text)` is correct here because file writes count UTF-8 bytes, not Unicode code points.
+`WriteString` reports a byte count, so the function also rejects a short write
+even when the returned error is nil. `len(text)` is correct here because file
+writes count raw bytes, not Unicode code points, regardless of UTF-8 validity.
 
 At the call site, `[contents, err]` exposes the generated Go `(string, error)` boundary. The non-nil branch returns before `err.Error()` can be called with a nil receiver.
 

@@ -9,12 +9,36 @@ Kinmokusei preserves Go-compatible representations where they matter. It does no
 
 ## Scalar types
 
-- `boolean`, `string`, and `void`
+- `boolean`, `string`, `bstring`, and `void`
 - `int`, `uint`, and fixed-width signed/unsigned integers
 - `byte` and the Go-compatible `uint8` alias
 - `float32`, `float64`, `float`, and `number`
+- `complex64` and `complex128`, with imaginary literals and `complex` / `real` / `imag`
 
 `number`, `float`, and `float64` are the same type. `int` remains a separate integer type.
+
+## Text and bytes
+
+This text-contract split is available in v0.4.6; older compilers have the
+previous Go byte-string behavior. See [migration notes](../project/releases#migrating-from-v045).
+
+`string` guarantees valid UTF-8 text in checked Kinmokusei code. `bstring`
+stores arbitrary immutable bytes and represents strings received from Go.
+`byte[]` is mutable byte storage. Both string types lower to Go `string`, not
+JavaScript UTF-16. Length and indexing count bytes; `for-of` decodes `int32`
+code points. A `string` slice checks UTF-8 boundaries and panics if it splits
+a code point; a `bstring` slice permits any in-range byte boundary.
+
+To edit encoded data, use a mutable byte slice via `alias Bytes = byte[]` and
+`Bytes(text)`, then validate it back with `const text = string(bytes)?` inside
+a `Result` function. Alternatively split the result and handle its error.
+Invalid input is rejected, not silently replaced. Use `bstring(bytes)` when
+raw bytes are intended, or `b"\xff"` for a raw literal. For code-point editing,
+use an `int32[]` alias instead. Those conversions preserve independence from
+later slice mutations. Use `strconv`/`fmt` for numeric formatting, not
+`string(number)`, which encodes one code point. Follow the
+[string recipe](../examples/unicode-strings#conversion-and-validation) and
+[detailed string rules](../book/types-and-values#strings-and-unicode).
 
 ## Collections
 
@@ -70,8 +94,24 @@ function minimum<T extends cmp.Ordered>(left: T, right: T): T {
 }
 ```
 
-`cmp.Ordered` accepts integers, floating-point values, strings, and defined
-types with those underlying representations. An external integer-only
-constraint also enables integer arithmetic, remainder, bitwise operators, and
-shifts. Source-declared type-set expressions are not currently part of the
-language; publish them from a Go package and import them instead.
+`cmp.Ordered` accepts integers, floating-point values, raw `bstring` and defined
+types with those underlying representations. Source constraints can describe
+type sets directly:
+
+```ts
+constraint Whole = ~int | ~int64
+
+function addWhole<T extends Whole>(left: T, right: T): T {
+  return left + right
+}
+```
+
+Exact terms name one type; `~T` includes types with that underlying shape.
+Unions use `|`, intersections use `&`, and compatible Go method interfaces can
+add behavior requirements. These are compile-time bounds, not runtime values.
+Use `~string` in a native constraint for verified text; imported Go string
+terms have the raw contract. Unbounded parameters must not erase unknown text
+storage at an opaque Go boundary; use a provable raw/numeric bound there.
+Every operation in generic code must be valid for the whole set. See
+[constraints](./functions-and-generics#constraints) for dependent bounds,
+method contracts and inference rules.

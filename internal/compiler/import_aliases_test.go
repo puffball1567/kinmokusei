@@ -13,7 +13,7 @@ func TestImportAliasesMatchIndependentGo(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	files := map[string]string{
-		"other.km": `export class Box{constructor(public value:string){}}`,
+		"other.km": `export class Box{constructor(public value:bstring){}}`,
 		"library.km": `export let count:int=0;
 export class Box<T>{constructor(public value:T){}}
 export function make<T>(value:T):Box<T>{return new Box<T>(value);}
@@ -34,9 +34,9 @@ import go {MaxUint8 as maximum} from "math";
 import go {Args as arguments} from "os";
 import go {Join as join} from "strings";
 function compareValues<T extends Order>(a:T,b:T):int{return compare(a,b);}
-function restore(saved:string[]):void{arguments=saved;}
+function restore(saved:bstring[]):void{arguments=saved;}
 function identity<Span>(value:Span):Span{return value;}
-export function Run(n:int):Result<string>{
+export function Run(n:int):Result<bstring>{
  const saved=arguments;defer restore(saved);
  arguments=["one"];const pointer=&arguments;arguments=append(arguments,"two");(*pointer)[0]="changed";
  const a=&first;const b=&second;first+=n;const next=increment();
@@ -44,7 +44,7 @@ export function Run(n:int):Result<string>{
  const duration:Span=Span(identity(n))*secondUnit;let buffer:Bytes=Bytes{};
  const [written,err]=buffer.WriteString(render(duration));
  const narrow:byte=maximum;
- const render=():string=>new OtherBox("local").value;
+ const render=():bstring=>new OtherBox("local").value;
  return ok(text(a==b,";",value.value,";",loaded,";",compareValues(n,0),";",narrow,";",buffer.String(),";",join(arguments,","),";",render(),";",len(42)));
 }
 `,
@@ -119,7 +119,7 @@ func TestImportAliasDiagnostics(t *testing.T) {
 		{`import {value as _} from "./lib";`, "cannot be '_'"},
 		{`import {value as} from "./lib";`, "local name"},
 		{`import {value as local} from "./lib";export {value};`, "not a local"},
-		{`import go {Sprint as local} from "fmt";function f():string{return Sprint(1);}`, "undefined"},
+		{`import go {Sprint as local} from "fmt";function f():bstring{return Sprint(1);}`, "undefined"},
 		{`import go {Sprint as local} from "fmt";import {value as local} from "./lib";`, "duplicate"},
 		{`import go {Sprint as local,Sprintln as local} from "fmt";`, "duplicate"},
 		{`import go {Sprint as int} from "fmt";`, "built-in"},

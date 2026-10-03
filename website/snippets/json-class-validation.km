@@ -1,0 +1,30 @@
+import go json from "encoding/json"
+import go { New } from "errors"
+import go { Println } from "fmt"
+
+class Person {
+  constructor(private storedName: string, private storedTags: string[]) {}
+  public get name(): string { return this.storedName }
+  public function tagCount(): int { return len(this.storedTags) }
+}
+
+function decodePerson(text: string): Result<Person> {
+  let input: { name: bstring, tags: bstring[] } = { name: "", tags: [] }
+  json.Unmarshal(json.RawMessage(text), &input)?
+  const name = string(input.name)?
+  if (name === "") { return fail(New("name is required")) }
+  let tags = makeSlice<string>(0)
+  for (const rawTag of input.tags) {
+    const tag = string(rawTag)?
+    tags = append(tags, tag)
+  }
+  return ok(new Person(name, tags))
+}
+
+const main = () => {
+  const [person, err] = decodePerson("{\"name\":\"Aki\",\"tags\":[\"cli\",\"web\"]}")
+  if (err !== nil) { Println(err); return }
+  Println(person.name, person.tagCount())
+  const [_, missing] = decodePerson("{\"name\":null}")
+  Println(missing !== nil)
+}

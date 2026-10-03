@@ -29,7 +29,7 @@ func TestMalformedUTF8ReportedBeforeCodegen(t *testing.T) {
 func TestByteEscapesStillGenerateValidGo(t *testing.T) {
 	t.Parallel()
 	for _, input := range []string{
-		`function value(): string { return "\xFF\324"; }`,
+		`function value(): bstring { return b"\xFF\324"; }`,
 		`function value(): string { return "\x00\000\u0000\U00000000"; }`,
 		`function value(): string { return "日本語 😀 �"; }`,
 	} {

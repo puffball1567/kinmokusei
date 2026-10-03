@@ -55,6 +55,23 @@ func (c *Checker) checkOrderedBuiltin(expr *ast.CallExpr, name string) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	result := c.finishNumeric(expr, pkg, &goast.CallExpr{Fun: goast.NewIdent(name), Args: arguments})
+	if result.Kind != BString && c.constraintArgumentShape(result).Kind == String {
+		for _, value := range values {
+			if c.constraintArgumentShape(value).Kind == BString {
+				c.report(expr.Span, "ordered builtin cannot mix raw bstring with verified named text; validate the raw input first")
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
+		}
+	}
+	if result.Kind == BString {
+		verified := true
+		for _, value := range values {
+			verified = verified && c.constraintArgumentShape(value).Kind == String
+		}
+		if verified {
+			result.Kind, result.Name = String, "string"
+		}
+	}
 	if result.Kind != Invalid {
 		c.recordBuiltinMultipleResult(expr, result)
 	}

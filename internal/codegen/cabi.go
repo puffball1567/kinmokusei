@@ -201,10 +201,13 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, program *kinmokusei
 		goSource.WriteString("outResult *" + resultType.cgoType)
 	}
 	goSource.WriteString(") (__kinmokuseiStatus C.int32_t) {\n")
-	goSource.WriteString("\tdefer func() {\n\t\tif recover() != nil {\n\t\t\t__kinmokuseiStatus = C.int32_t(1)\n\t\t}\n\t}()\n")
 	if resultType.goType != "void" {
 		goSource.WriteString("\tif outResult == nil {\n\t\treturn C.int32_t(2)\n\t}\n")
 	}
+	// A nil recovered value may still mean panic(nil) under Go's legacy
+	// compatibility setting. Install recovery after boundary validation so an
+	// invalid out pointer remains status 2, not a completion failure.
+	goSource.WriteString("\t__kinmokuseiCompleted := false\n\tdefer func() {\n\t\tif value := recover(); value != nil || !__kinmokuseiCompleted {\n\t\t\t__kinmokuseiStatus = C.int32_t(1)\n\t\t}\n\t}()\n")
 	if resultType.goType != "void" {
 		goSource.WriteString("\t__kinmokuseiResult := ")
 	}
@@ -227,7 +230,7 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, program *kinmokusei
 			goSource.WriteString("\t*outResult = " + resultType.cgoType + "(__kinmokuseiResult)\n")
 		}
 	}
-	goSource.WriteString("\treturn C.int32_t(0)\n}\n\n")
+	goSource.WriteString("\t__kinmokuseiCompleted = true\n\treturn C.int32_t(0)\n}\n\n")
 
 	cHeader.WriteString("int32_t " + export.Symbol + "(")
 	if len(parameterTypes) == 0 && resultType.goType == "void" {

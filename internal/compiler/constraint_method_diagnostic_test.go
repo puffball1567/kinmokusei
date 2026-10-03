@@ -10,7 +10,7 @@ import (
 func TestConstraintMethodDiagnostics(t *testing.T) {
 	for _, test := range []struct{ name, source, want string }{
 		{"conflicting method", `constraint Bad=c.IntMethod&c.StringMethod;`, "incompatible signatures for method Value"},
-		{"conflicting generic methods", `constraint Bad=c.Getter<int>&c.Getter<string>;`, "incompatible signatures for method Get"},
+		{"conflicting generic methods", `constraint Bad=c.Getter<int>&c.Getter<bstring>;`, "incompatible signatures for method Get"},
 		{"same generic methods", `constraint A<E>=c.Getter<E>&c.Getter<E>; function get<T extends A<int>>(value:T):int{return value.Get();}`, ""},
 		{"self constraint", `constraint Equal<E>=c.Equal<E>; function same<T extends Equal<T>>(a:T,b:T):boolean{return a.Equal(b);}`, ""},
 		{"pointer receiver required", `constraint A=c.Getter<int>; function get<T extends A>(value:T):int{return value.Get();} function bad(value:c.Box):int{return get(value);}`, "does not satisfy"},

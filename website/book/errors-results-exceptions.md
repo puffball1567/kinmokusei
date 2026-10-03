@@ -105,6 +105,9 @@ function load(): void {
 ```
 
 `Exception` implements Go's error contract. `throw` accepts error-compatible values, including raw Go errors.
+Its public `message` field and `.error()` result use `bstring`, matching Go's
+raw error-message contract. A verified constructor argument can widen to raw
+bytes; decode caught messages explicitly with `string(raw)` when text is needed.
 
 ## Catch ordering
 
@@ -137,6 +140,13 @@ try {
 ```
 
 Finally runs after normal completion, return, caught/rethrown language exceptions, and ordinary Go/runtime panic. If finally itself returns or throws, it replaces the earlier completion.
+
+Postfix `?` inside `try` propagates an error from the enclosing Result function,
+not into a typed `catch`; it still executes `finally` before returning. An
+unconditional await/detach in the enclosing finally may consume a pending Task
+before that exit completes. See [awaiting failure](./concurrency-and-tasks#awaiting-failure)
+for the ownership rules and example. Interrupted paths also reach handlers, so
+a nullable value restored only at the end of `try` must be checked again there.
 
 ## Panics stay panics
 

@@ -35,12 +35,15 @@ function NewApp(): *fiber.App {
   });
 
   app.Post("/api/todos", (ctx: fiber.Ctx): error => {
-    let input = { title: "" };
+    let input: { title: bstring } = { title: "" };
     const err: error = ctx.Bind().Body(&input);
     if (err != nil) {
       return fiberError(ctx, http.StatusBadRequest, "request body must be JSON with a title");
     }
-    const title = normalizedTitle(input.title);
+    const [title, textErr] = normalizedTitle(input.title);
+    if (textErr !== nil) {
+      return fiberError(ctx, http.StatusBadRequest, "title must be valid UTF-8");
+    }
     if (title == "") {
       return fiberError(ctx, http.StatusBadRequest, "title is required");
     }

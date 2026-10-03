@@ -16,10 +16,13 @@ Kinmokusei deliberately feels familiar to TypeScript readers, but familiarity st
 | Classes and interfaces | `class`, `interface`, visibility | Reference classes lower to Go structs/methods/interfaces; no prototype model |
 | Objects | `{ name: string }` | Structural value objects generate anonymous Go structs with JSON tags |
 | Numbers | `number` spelling exists | `number` is `float64`; `int` and fixed-width integers remain distinct |
+| Strings | Double-quoted literals and `+` | Verified UTF-8 `string`, raw `bstring`; byte length/indexing, checked text slicing, code-point range |
 | Null | `T \| null` | Only nil-backed reference types; flow proof required before access |
 | Errors | Promise rejection / thrown values | Explicit `Result<T>`, raw Go `error`, or typed exceptions |
 | Async | `Promise<T>` / `await` | Non-escaping, exactly-once `Task<T>`; not a Promise runtime |
-| Modules | npm/ES modules | Relative `.km` modules and explicit Go package namespaces |
+| Modules | npm/ES modules | Relative or locked external `.km` modules, source exports and explicit Go imports |
+| Properties | `get` / `set`, `static` | Checked accessor calls; shared static fields/constants independent of generic instantiations |
+| Decorators | `@Name` / `@Factory(...)` | Typed package-initialization registration with checked construction/invocation adapters |
 
 ## There is no JavaScript runtime
 
@@ -30,8 +33,8 @@ This is valid because `strings` is a real Go namespace:
 ```ts
 import go strings from "strings";
 
-function normalize(value: string): string {
-  return strings.ToUpper(strings.TrimSpace(value));
+function normalize(value: string): Result<string> {
+  return string(strings.ToUpper(strings.TrimSpace(value)));
 }
 ```
 
@@ -50,6 +53,13 @@ Slices and maps carry shared backing storage even when held inside a copied stru
 `number`, `float`, and `float64` are identical. `int`, `uint`, fixed-width signed and unsigned integers, `byte`, and `float32` are separate types. Numeric values do not silently widen or cross signedness; use an explicit conversion when Go conversion rules permit it.
 
 ## Rejected implicit behavior
+
+Text handling also differs: `len("湯a")` is `4` bytes, not two UTF-16 code
+units or two characters. `text[0]` is a byte; range yields decoded `int32`
+code points. No `.length`, template interpolation or automatic Unicode
+normalization is provided. See the [Unicode string recipe](../examples/unicode-strings).
+Runtime strings from Go are `bstring`: use checked `string(raw)` decoding
+before treating them as UTF-8 text. A string slice cannot split a code point.
 
 Familiar surface syntax never enables JavaScript coercion. A string condition is rejected rather than converted by truthiness:
 

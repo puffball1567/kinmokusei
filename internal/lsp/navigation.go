@@ -68,7 +68,7 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 func builtinHover(program *ast.Program, doc document, offset int) (string, bool) {
 	name := identifierAt(doc, offset)
 	if name == "Exception" {
-		return "class Exception {\n  public message: string;\n  public function error(): string;\n}", true
+		return "class Exception {\n  public message: bstring;\n  public function error(): bstring;\n}", true
 	}
 	if ast.IsDecoratorContextTypeName(name) {
 		lines := []string{"type " + name + " = {"}
@@ -114,9 +114,9 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 		}
 		switch member.ResolvedName {
 		case "Message":
-			detail = "public message: string"
+			detail = "public message: bstring"
 		case "Error":
-			detail = "public function error(): string"
+			detail = "public function error(): bstring"
 		}
 	})
 	return detail, detail != ""

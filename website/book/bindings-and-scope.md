@@ -83,7 +83,8 @@ Compound assignments and `++`/`--` are statements. Their target evaluates once, 
 
 ## Multiple-result bindings
 
-Direct Go calls and specific language operations may produce multiple results. Bind all positions explicitly:
+Source functions with result lists, direct Go calls and specific language
+operations may produce multiple results. Bind all positions explicitly:
 
 ```ts
 const [value, err] = strconv.Atoi(text);
@@ -176,5 +177,12 @@ class Account {
 ## Definite initialization
 
 Local bindings always initialize at their declaration. A class constructor must initialize each non-null class field on every completing path. A native struct literal must provide every required field. Use an explicit nullable type when absence is a valid state rather than relying on an implicit zero reference.
+
+Class field defaults and completed base construction participate in that proof;
+defaults execute before the current class's constructor-field parameters and
+body. Source initialization checks do not validate arbitrary business rules or
+bulk mutation performed by a native decoder. See
+[class initialization](./structs-classes-interfaces#initialization-order-and-construction-dispatch)
+and [JSON input validation](../guide/classes-and-structs#json).
 
 [Expressions and evaluation](./expressions) uses these binding rules to explain when reads, calls, conversions, and propagation execute.

@@ -15,7 +15,7 @@ func (c *Checker) collectionOperandShape(value Type) Type {
 		return value
 	}
 	switch shape.Kind {
-	case Array, FixedArray, Map, String, GoPointer:
+	case Array, FixedArray, Map, String, BString, GoPointer:
 		return shape
 	default:
 		return value

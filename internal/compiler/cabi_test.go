@@ -24,8 +24,30 @@ func TestCABISharedLibraryCompileAndCCallerMatrix(t *testing.T) {
 
 	directory := t.TempDir()
 	source := filepath.Join(directory, "library.km")
+	// Install the Go dependency before checking the Kinmokusei entry point so
+	// imported signatures are resolved through a real local module.
+	for name, contents := range map[string]string{
+		"go.mod": "module cabi.test\n\ngo 1.23\n",
+		"failure/fixture.go": `package failure
+func Number() int32 { panic(nil) }
+func Void() { panic(nil) }
+func Bool() bool { panic(nil) }
+`,
+	} {
+		path := filepath.Join(directory, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	input := `
+import go failure from "cabi.test/failure";
 function add(left: int32, right: int32): int32 { return left + right; }
+function nilPanics(): int32 { return failure.Number(); }
+function voidNilPanics(): void { failure.Void(); }
+function boolNilPanics(): boolean { return failure.Bool(); }
 const ping = (): void => {};
 const panics = (): int32 => { const values: int32[] = []; return values[0]; };
 const logicalNot = (value: boolean): boolean => !value;
@@ -50,6 +72,9 @@ export c(
   "kinmokusei_not",
   "kinmokusei_ping",
   "kinmokusei_panics",
+  "kinmokusei_nil_panics",
+  "kinmokusei_void_nil_panics",
+  "kinmokusei_bool_nil_panics",
 ) {
   add,
   add16,
@@ -60,6 +85,9 @@ export c(
   logicalNot,
   ping,
   panics,
+  nilPanics,
+  voidNilPanics,
+  boolNilPanics,
 };
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
@@ -83,7 +111,6 @@ export c(
 		"generated_cabi.go":   artifacts.Gateway,
 		"kinmokusei_abi.h":    artifacts.Header,
 		"kinmokusei_abi.json": artifacts.Manifest,
-		"go.mod":              []byte("module cabi.test\n\ngo 1.23\n"),
 		"caller.c": []byte(`#include <stdint.h>
 #include <stdio.h>
 #include <pthread.h>
@@ -106,6 +133,12 @@ int main(void) {
   if (kinmokusei_add(1, 2, NULL) != KINMOKUSEI_ABI_INVALID_ARGUMENT) return 11;
   if (kinmokusei_ping() != KINMOKUSEI_ABI_OK) return 12;
   if (kinmokusei_panics(&result) != KINMOKUSEI_ABI_PANIC) return 13;
+  if (kinmokusei_nil_panics(&result) != KINMOKUSEI_ABI_PANIC) return 31;
+  if (kinmokusei_nil_panics(NULL) != KINMOKUSEI_ABI_INVALID_ARGUMENT) return 32;
+  if (kinmokusei_void_nil_panics() != KINMOKUSEI_ABI_PANIC) return 33;
+  uint8_t nil_flag = 99;
+  if (kinmokusei_bool_nil_panics(&nil_flag) != KINMOKUSEI_ABI_PANIC) return 34;
+  if (kinmokusei_bool_nil_panics(NULL) != KINMOKUSEI_ABI_INVALID_ARGUMENT) return 35;
   uint8_t flag = 99;
   if (kinmokusei_not(0, &flag) != KINMOKUSEI_ABI_OK || flag != 1) return 16;
   if (kinmokusei_not(1, &flag) != KINMOKUSEI_ABI_OK || flag != 0) return 17;
@@ -141,7 +174,11 @@ int main(void) {
 `),
 	}
 	for name, contents := range files {
-		if err := os.WriteFile(filepath.Join(directory, name), contents, 0o644); err != nil {
+		path := filepath.Join(directory, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, contents, 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -160,10 +197,14 @@ int main(void) {
 	if output, err := compile.CombinedOutput(); err != nil {
 		t.Fatalf("C caller compilation failed: %v\n%s\n--- header ---\n%s", err, output, artifacts.Header)
 	}
-	caller := exec.Command(filepath.Join(directory, "caller"))
-	caller.Env = append(os.Environ(), "LD_LIBRARY_PATH="+directory, "DYLD_LIBRARY_PATH="+directory)
-	if output, err := caller.CombinedOutput(); err != nil || string(output) != "c-abi-ok\n" {
-		t.Fatalf("C caller failed: %v output=%q", err, output)
+	for _, mode := range []string{"panicnil=1", "panicnil=0"} {
+		t.Run(mode, func(t *testing.T) {
+			caller := exec.Command(filepath.Join(directory, "caller"))
+			caller.Env = append(os.Environ(), "LD_LIBRARY_PATH="+directory, "DYLD_LIBRARY_PATH="+directory, "GODEBUG="+mode)
+			if output, err := caller.CombinedOutput(); err != nil || string(output) != "c-abi-ok\n" {
+				t.Fatalf("C caller failed: %v output=%q", err, output)
+			}
+		})
 	}
 }
 

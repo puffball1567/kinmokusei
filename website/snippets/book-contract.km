@@ -17,7 +17,7 @@ class User implements Named {
 
 function identity<T>(value: T): T { return value; }
 
-function render(user: User | null, mode: Mode): string {
+function render(user: User | null, mode: Mode): bstring {
   if (user === null) { return "guest"; }
   const decorate = (value: string): string => "[" + value + "]";
   const pair = Pair<int> { left: 1, right: 2 };

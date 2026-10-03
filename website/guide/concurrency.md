@@ -65,6 +65,14 @@ A worker panic is contained until `await`, then re-panicked in the awaiting goro
 
 `Task<Result<T>>` keeps operation failure distinct from task transport. `await task?` propagates the result error through an enclosing `Result` function.
 
+Propagation is an early exit: other pending tasks cannot rely on an await
+written later in the same body. Consume them before propagating, or use an
+enclosing unconditional finally whose ownership checks cover that exit. The
+[manual's executable finally example](../book/concurrency-and-tasks#awaiting-failure)
+documents the latter development-branch correction and release availability.
+Task tracking does not provide automatic cancellation or protect shared data
+from races.
+
 ## Cancellation and shared state
 
 Pass `context.Context` explicitly through direct Go interop when work needs cancellation today. Automatic task-context inheritance and cancellation propagation are planned, not part of the current runtime contract.

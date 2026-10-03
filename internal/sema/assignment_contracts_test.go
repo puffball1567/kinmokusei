@@ -59,7 +59,7 @@ func TestAssignmentSourceContractCompatibility(t *testing.T) {
 		`struct Node<T>{public value:T;public next:*Node<T>;}function f(v:Node<int>):Node<int>{return v;}`,
 		`type Link<T>=distinct *Link<T>;function f(v:Link<int>):Link<int>{return Link<int>(v);}`,
 		`type Nodes<T>=distinct Nodes<T>[];function f(v:Nodes<int>[]):Nodes<int>{return Nodes<int>(v);}`,
-		`import go fs from "io/fs";function f(v:(path:string,entry:fs.DirEntry,err:error)=>Result<void>):fs.WalkDirFunc{return v;}`,
+		`import go fs from "io/fs";function f(v:(path:bstring,entry:fs.DirEntry,err:error)=>Result<void>):fs.WalkDirFunc{return v;}`,
 		`import go fmt from "fmt";function f(v:int[]|null):void{if(v!==null){fmt.Println(v);}}`,
 	} {
 		t.Run(input, func(t *testing.T) {

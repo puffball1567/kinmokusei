@@ -9,8 +9,8 @@ func TestTypedExceptionSemanticMatrix(t *testing.T) {
 	diagnostics := checkSource(t, `
 import go errors from "errors";
 
-function run(shouldThrow: boolean): string {
-  let outcome = "normal";
+function run(shouldThrow: boolean): bstring {
+  let outcome: bstring = "normal";
   try {
     if (shouldThrow) { throw errors.New("boom"); }
     outcome = "success";
@@ -55,7 +55,7 @@ function terminalTry(err: error): int { try { throw err; } finally {} }
 class NotFoundException extends Exception {
   constructor(message: string) { super(message); }
 }
-function typedReturns(kind: int): string {
+function typedReturns(kind: int): bstring {
   try {
     if (kind == 0) { return "ok"; }
     if (kind == 1) { throw new NotFoundException("missing"); }

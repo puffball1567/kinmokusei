@@ -113,7 +113,7 @@ function use(box: Box, reader: Reader): int {
 
 func TestResolvedBindingTypeMetadataForGoValues(t *testing.T) {
 	input := `import go web from "net/http";
-function use(): string {
+function use(): bstring {
   const client = web.DefaultClient;
   client.CloseIdleConnections();
   const [request, err] = web.NewRequest(web.MethodGet, "https://example.com", nil);

@@ -30,20 +30,20 @@ func TestAnonymousGoInterfaceCompletionAndSignature(t *testing.T) {
 	}
 	path := filepath.Join(root, "main.km")
 	input := `import go c from "anonymous-editor.test/contracts";
-function use():string{const value=c.New();return value.Read(1);}
+function use():bstring{const value=c.New();return value.Read(1);}
 `
 	position := positionOf(input, "Read(1)", 0)
 	completionText := strings.Replace(input, "value.Read(1)", "value.", 1)
 	items := completionLabels(completionItemsAt(t, path, completionText, position.Line, position.Character))
-	if items["Read"] == nil || !strings.Contains(items["Read"]["detail"].(string), "(int) => string") {
+	if items["Read"] == nil || !strings.Contains(items["Read"]["detail"].(string), "(int) => bstring") {
 		t.Fatalf("completion=%#v", items)
 	}
-	if items["Pair"] == nil || !strings.Contains(items["Pair"]["detail"].(string), "(int, string)") {
+	if items["Pair"] == nil || !strings.Contains(items["Pair"]["detail"].(string), "(int, bstring)") {
 		t.Fatalf("multiple-result completion=%#v", items)
 	}
 	position.Character += len("Read(")
 	label, _, _ := signatureResult(t, signatureHelpAt(t, path, input, position))
-	if !strings.Contains(label, "value.Read(") || !strings.Contains(label, "int") || !strings.HasSuffix(label, ": string") {
+	if !strings.Contains(label, "value.Read(") || !strings.Contains(label, "int") || !strings.HasSuffix(label, ": bstring") {
 		t.Fatalf("signature=%q", label)
 	}
 }

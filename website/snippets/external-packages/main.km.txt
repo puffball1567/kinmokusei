@@ -1,0 +1,8 @@
+import { greet as hello } from "greeting"
+import { greet as canonicalHello } from "example.com/greeting"
+import go { Println } from "fmt"
+
+const main = () => {
+  Println(hello("Kinmokusei"))
+  Println(canonicalHello("Go"))
+}

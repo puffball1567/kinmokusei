@@ -1,0 +1,25 @@
+import go { Println } from "fmt"
+
+interface Reader<T> { get item(): T }
+
+class Box<T> implements Reader<T> {
+  private stored: T
+  constructor(value: T) { this.stored = value }
+  public virtual get item(): T { return this.stored }
+  public virtual set item(value: T) { this.stored = value }
+  public function map<U>(transform: (value: T) => U): U {
+    return transform(this.item)
+  }
+}
+
+class NamedBox extends Box<string> {
+  constructor() { super("base") }
+  public override get item(): string { return super.item + "!" }
+}
+
+const main = () => {
+  const box = new NamedBox()
+  box.item = "Go"
+  const reader: Reader<string> = box
+  Println(reader.item, box.map((value: string): int => len(value)))
+}

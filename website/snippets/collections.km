@@ -36,5 +36,5 @@ function main(): void {
     copied, copiedMiddle, destination[1], score, present, temporaryPresent,
     min(2, 8, 4), max(2, 8, 4),
   );
-  fmt.Println(string(encoded), encodedCount);
+  fmt.Println(bstring(encoded), encodedCount);
 }

@@ -1,6 +1,6 @@
 ---
 title: Function semantics and generics
-description: Declare functions, returns, arrows, callbacks, variadics, generic constraints, methods, and Go multiple-result boundaries.
+description: Declare functions, returns, arrows, callbacks, variadics, generic constraints, methods, and separate result lists.
 ---
 
 # Function semantics and generics
@@ -63,9 +63,9 @@ Arrows have statically checked function types. Captured bindings use lexical
 scope; captures do not create a JavaScript runtime or dynamic closure environment
 beyond the generated Go closure.
 
-### Arrow definitions and main (development)
+### Arrow definitions and main
 
-Development builds support arrow-style entry points and function definitions:
+Arrow-style entry points and function definitions are supported:
 
 <<< ../snippets/arrow-functions.km{ts}
 
@@ -93,8 +93,8 @@ Its body can refer to later globals. For example,
 `const twice: (n: int) => int = (n) => { return n * 2 }` declares the whole signature
 without repeating it on the arrow.
 
-Callable declarations cannot be reassigned or addressed with `&`. This is a
-development-version API change: Go consumers receive a function rather than an
+Callable declarations cannot be reassigned or addressed with `&`. Since
+v0.4.0, Go consumers receive a function rather than an
 assignable function variable. `let` bindings remain function storage that can be
 reassigned. An explicit named Go function type retains its named storage/type
 contract; local arrows continue to be lexical function values.
@@ -108,7 +108,7 @@ application's entry point; the application must declare its own entry. Importing
 `main` and declaring another `main` in the same source module is still a duplicate
 binding; a re-export alias can give the imported symbol a different name.
 
-### Local recursive arrows (development)
+### Local recursive arrows
 
 Local `const` and `let` arrows can call themselves when the binding has a complete
 function type or the arrow has explicit parameter and result types:
@@ -127,7 +127,7 @@ block still reads an outer `n`.
 
 An inferred recursive result requires an annotation.
 
-### Recursive loop-initializer arrows (development)
+### Recursive loop-initializer arrows
 
 A three-clause `for` initializer can also declare a recursive arrow:
 
@@ -142,7 +142,7 @@ binding; copying the function into later iterations does not rebuild it or
 retarget its captures. A `let` can be reassigned, while `const` remains immutable.
 The loop binding is not visible after the loop.
 
-### Local mutually recursive arrow groups (development)
+### Local mutually recursive arrow groups
 
 Consecutive direct arrow declarations form a group. Each arrow body can refer
 to any peer in the group, including later declarations:
@@ -165,7 +165,7 @@ later ordinary local, and calls before a group do not see its declarations.
 Keep mutually recursive definitions together, and call or publish them after
 the group. This avoids exposing a not-yet-initialized peer.
 
-### Local forward result inference (development)
+### Local forward result inference
 
 Within a group, results can also be inferred through references to later peers:
 
@@ -179,7 +179,7 @@ checks are preserved. Parameters still need annotations or a matching function
 type on the binding. A cycle whose result cannot be determined requires an
 explicit result or binding function type to break the inference dependency.
 
-### Contextual types and block results (development)
+### Contextual types and block results
 
 When a binding, field, callback parameter, assignment, or return position supplies
 a matching function type, arrow parameters can omit their type annotations and
@@ -215,7 +215,7 @@ function apply(value: int, transform: (value: int) => int): int {
 const result = apply(21, (value: int): int => value * 2);
 ```
 
-### Generic callback inference (development)
+### Generic callback inference
 
 Direct arrow arguments can also omit parameter types when a generic call supplies
 their context, including imported Go generic functions:
@@ -421,7 +421,7 @@ const page: Page<string> = Page<string> { items: ["one", "two"] };
 
 Classes, structs, interfaces, and defined types may have type parameters. Named type positions require full explicit instantiation. Methods may use the enclosing parameters and introduce separate method-local parameters. Those methods lower to standalone Go helpers; they are excluded from virtual dispatch and Go interface method sets.
 
-Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Property accessors and static fields are not implemented.
+Generic class inheritance, virtual methods using class parameters, static methods, and generic aliases are available. Class type parameters and generic method parameters must not hide the enclosing type name in generated helper signatures. Instance properties can use class parameters; static fields and accessors are shared across instantiations and cannot use them. See [properties and shared class storage](./structs-classes-interfaces#properties-and-shared-class-storage).
 
 ### Abstract classes and dependency injection
 
@@ -443,7 +443,7 @@ classes cannot be instantiated, including those with no abstract methods:
 
 <<< ../snippets-invalid/abstract-instantiation.km{ts}
 
-Interfaces remain method-only contracts; abstract classes may additionally own
+Interfaces remain state-free method/accessor contracts; abstract classes may additionally own
 state and behavior and use single class inheritance. An abstract class declaring
 `implements` must explicitly declare (or inherit) each required method signature.
 `super` cannot access an abstract method without a base implementation.
@@ -455,15 +455,30 @@ behavior after construction. Generated Go has no public constructor factory for
 abstract classes. Manually created zero-value Go structs do not establish source
 class invariants and also panic on unimplemented abstract slots.
 
-## Multiple Go results
+## Multiple results
 
-Imported Go functions expose their actual result list:
+Source functions can declare separate results, just as imported Go functions
+expose their actual result list:
+
+<<< ../snippets/multiple-results.km{ts}
+
+This prints `7 true 8`. Destructuring remains function-local; source result
+signatures and forwarding do not enable top-level multiple bindings.
+
+Methods, interface signatures, arrows, and function types can also declare a
+result list. A multiple-result call expands only when it is the sole argument
+of a call; its result types and count must match the parameters. It cannot be
+combined with additional arguments or stored as one tuple value.
+
+Imported Go results use the same explicit binding rules:
 
 ```ts
 const [value, err] = strconv.Atoi(text);
 ```
 
-There is no hidden error discard and no tuple wrapper. Bind every result or use `_` explicitly. Multiple results remain local to declaration/assignment/control forms.
+There is no hidden error discard and no tuple wrapper. Bind every result or use
+`_` explicitly, or forward a matching result list. Use `Result<T>` and `?` when
+the signature should expose a checked error effect instead of an ordinary list.
 
 ## Result functions
 

@@ -14,9 +14,9 @@ func TestImportsAvoidEmittedNameCapture(t *testing.T) {
 		"lib.km": `import go len from "strings";
 export function copy(n:int):int{return n+10;}
 export function func(n:int):int{return n+20;}
-export function text():string{return len.TrimSpace(" a ");}`,
+export function text():bstring{return len.TrimSpace(" a ");}`,
 		"entry.km": `import {copy as read,func as run,text} from "./lib";import go textutil from "strings";
-export function Run():string{const copy_=(n:int):int=>n+100;const func_=(n:int):int=>n+200;let len_=3;return text()+textutil.TrimSpace(" b ")+string(int32(read(1)+run(2)+copy_(3)+func_(4)+len_));}`,
+export function Run():bstring{const copy_=(n:int):int=>n+100;const func_=(n:int):int=>n+200;let len_=3;return text()+textutil.TrimSpace(" b ")+bstring(int32(read(1)+run(2)+copy_(3)+func_(4)+len_));}`,
 	}
 	for name, input := range files {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(input), 0o644); err != nil {

@@ -27,7 +27,7 @@ Import selected declarations with braces:
 import { User, findUser } from "./users";
 ```
 
-The path resolves relative to the importing file. The `.km` extension may be omitted or written explicitly. The list cannot be empty, duplicate a name, or request a declaration the target does not contain or export.
+The path resolves relative to the importing file. The `.km` extension may be omitted or written explicitly. The list cannot be empty, repeat a local binding, or request a declaration the target does not contain or export. Different aliases may select the same declaration.
 
 Every imported name becomes one binding in the caller's module scope. It may refer to a function, class, struct, interface, enum, defined type, alias, or top-level value supported by the compiler.
 
@@ -43,11 +43,44 @@ function load(id: string): User | null {
 }
 ```
 
-Calling `normalizeID` without importing it is an undefined-name diagnostic. This is module encapsulation by explicit binding, not by filename naming convention.
+Calling `normalizeID` without importing it is an undefined-name diagnostic. This
+controls which bindings the caller sees, not whether another caller may import
+the helper. Use explicit source exports to make helpers private.
 
-## Explicit source exports (development)
+## Local import aliases
 
-Development builds let a module choose its public declarations. Prefix a named
+Use `as` to choose a file-local name for a selected source or Go declaration.
+This source module exports a mutable value, a generic class and a function:
+
+<<< ../snippets/import-aliases-library.km{ts}
+
+The caller can rename each selection, including selecting one declaration twice:
+
+<<< ../snippets/import-aliases-main.km{ts}
+
+It prints `41 true 41 2s`. `first` and `second` are two names for the same
+mutable storage, not copied values; their addresses compare equal. `Container`
+retains the generic class's identity, and `Span` remains Go's `time.Duration`.
+Renaming a function does not introduce a wrapper or change its signature.
+
+Only the local name is introduced: `Println as print` binds `print`, not
+`Println`. Using the original name without a separate import is an error:
+
+<<< ../snippets-invalid/import-alias-original-name.km{ts}
+
+Local import names cannot collide with another module-level binding or reserved
+compiler names/types, and `_` is not an import alias. Local variables and
+parameters can shadow imported values normally. To publish a source alias,
+select it explicitly with `export { localName }`; imports alone do not re-export.
+Editor rename keeps the local alias separate from the selected public name.
+
+This is different from a manifest `[imports]` alias: `as` renames a declaration
+in one file, while `[imports]` shortens a package path throughout the importing
+project. See [external packages](../guide/external-packages#short-import-names).
+
+## Explicit source exports
+
+A module can choose its public declarations. Prefix a named
 top-level declaration with `export`, or select local declarations in a list:
 
 <<< ../snippets/source-exports-library.km{ts}
@@ -156,7 +189,10 @@ This prevents distant implementation details from leaking whenever an intermedia
 
 Two dependency modules may each declare a local `Helper` or `normalize` without colliding. The compiler links declarations by module identity and generates stable private names independent of the checkout's absolute path.
 
-A collision occurs only when the caller tries to bind two declarations under the same imported name or conflicts with its own top-level declaration/Go alias/built-in.
+Import binding collisions occur when the caller selects two declarations under
+the same local name, conflicts with its own top-level declaration/Go alias, or
+uses a reserved type/compiler name. Names also undergo generated-Go collision
+checks; a diagnostic asks for a rename when a reference cannot be preserved.
 
 ## Import cycles
 
@@ -188,7 +224,7 @@ An alias cannot use a built-in type or an existing module binding.
 
 ### Named Go imports
 
-Development builds also allow selected Go exports without a source qualifier:
+Selected Go exports can also be used without a source qualifier:
 
 ```ts
 import go { Println } from "fmt"
@@ -227,7 +263,30 @@ Reserved `kinmokusei/*` modules use the named import form:
 import { App, Context, fetch } from "kinmokusei/http";
 ```
 
-They are embedded, compiler-versioned Kinmokusei source modules—not remote packages. Unknown, differently cased, or noncanonical reserved paths are rejected. v0.2 implements `kinmokusei/http`.
+They are embedded, compiler-versioned Kinmokusei source modules—not remote packages. Unknown, differently cased, or noncanonical reserved paths are rejected. The implemented module is `kinmokusei/http`.
+
+## External Kinmokusei packages
+
+Use ordinary named imports for a locked source package, not `import go`:
+
+```ts
+import { greet } from "example.com/greeting"
+import { format } from "example.com/greeting/format"
+```
+
+The package's `[package].entry` selects its root source file; `[exports]`
+selects the public submodule files. Source `export` statements within each file
+then select the public declarations. These are distinct levels of visibility:
+exporting a function does not publish an arbitrary source file as a submodule.
+
+`keika deps add` locks the dependency and registers a short import path, such as
+`greeting`. Canonical and short paths retain the same declaration/type/storage
+identity. Each package must declare its own direct dependencies; a transitive
+package is not automatically importable by its consumer. Imports and re-exports
+are resolved using the importing package's own aliases and dependency edges.
+
+The [external package guide](../guide/external-packages) provides tagged
+distribution, local replacement and offline restoration workflows.
 
 ## External Go modules
 
@@ -249,7 +308,11 @@ Normal `check`, `build`, `run`, LSP, and emit operations validate and consume lo
 
 `kinmokusei.toml` establishes project identity, Go module path/version, optional target, unsafe policy, dependencies, and replacements. `kinmokusei.lock` records the canonical resolved graph and target-sensitive module state.
 
-Source module paths remain relative to source files. Go package availability may depend on the locked GOOS, GOARCH, build tags, CGO mode, and Go version. A package that works on the host can still be unavailable for a cross target.
+Relative source paths resolve from their importing files; external source paths
+resolve through the locked package graph and its explicit submodule mappings.
+Go package availability may depend on the locked GOOS, GOARCH, build tags, CGO
+mode, and Go version. A package that works on the host can still be unavailable
+for a cross target.
 
 ## Organizing a medium project
 
@@ -277,7 +340,9 @@ service/
 | --- | --- |
 | Cannot load relative module | Path spelling, location, `.km`, import cycle |
 | Module does not declare a name | Named import list and target declaration spelling |
+| Module does not export a name | Source export list, public alias spelling, re-export chain |
 | Duplicate import binding | Relative names, Go aliases, and local declarations |
+| Source package/submodule unavailable | Direct dependency, automatic path alias, package entry and `[exports]` mapping |
 | Go package load failure | Lock state, target, build tags, CGO, dependency version |
 | Standard package unavailable | Exact supported `kinmokusei/*` path and compiler version |
 

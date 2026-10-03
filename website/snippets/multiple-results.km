@@ -1,0 +1,19 @@
+import go { Println } from "fmt"
+
+function pair(): (int, boolean) {
+  return 7, true
+}
+
+function forward(): (int, boolean) {
+  return pair()
+}
+
+function describe(value: int, present: boolean): int {
+  if (present) { return value + 1 }
+  return 0
+}
+
+const main = () => {
+  const [value, present] = forward()
+  Println(value, present, describe(pair()))
+}

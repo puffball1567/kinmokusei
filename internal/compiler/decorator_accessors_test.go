@@ -49,8 +49,8 @@ class Guarded{
  @Write private set value(next:int){this.stored=next;}
 }
 class Pair{@Method public static function split():(int,string){return 1,"pair";}}
-export function TypedPair():string{const [count,text]=Pair.split();return strconv.Itoa(count)+text;}
-export function MultipleResults():Result<string>{const boxed=CallStatic(10,[])?;const values=decoratorValueAs<DecoratorValue[]>(boxed)?;const count=decoratorValueAs<int>(values[0])?;const text=decoratorValueAs<string>(values[1])?;return ok(strconv.Itoa(count)+text);}
+export function TypedPair():bstring{const [count,text]=Pair.split();return strconv.Itoa(count)+text;}
+export function MultipleResults():Result<string>{const boxed=CallStatic(10,[])?;const values=decoratorValueAs<DecoratorValue[]>(boxed)?;const count=decoratorValueAs<int>(values[0])?;const text=decoratorValueAs<string>(values[1])?;return string(strconv.Itoa(count)+text);}
 export function Run():Result<string>{
  const child=new Child();
  const base=decoratorValue<Base>(child);
@@ -67,7 +67,7 @@ export function Run():Result<string>{
  const sharedWrite=CallStatic(7,[decoratorValue(9)])?;
  const sharedValue=CallStatic(6,[])?;
  const shared=decoratorValueAs<int>(sharedValue)?;
- return ok(first+";"+second+";"+written.typeIdentity+";"+strconv.Itoa(int(count))+";"+strconv.Itoa(shared));
+ return string(first+";"+second+";"+written.typeIdentity+";"+strconv.Itoa(int(count))+";"+strconv.Itoa(shared));
 }
 export function WrongReceiver():Result<DecoratorValue>{return Call(0,decoratorValue("wrong"),[]);}
 export function WrongGetterArity():Result<DecoratorValue>{return Call(0,decoratorValue(new Base()),[decoratorValue(1)]);}

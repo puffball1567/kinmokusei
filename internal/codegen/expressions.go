@@ -30,7 +30,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			kind = token.FLOAT
 		case kinmokuseiAST.ImaginaryLiteral:
 			kind = token.IMAG
-		case kinmokuseiAST.StringLiteral:
+		case kinmokuseiAST.StringLiteral, kinmokuseiAST.ByteStringLiteral:
 			kind = token.STRING
 		}
 		return &goast.BasicLit{Kind: kind, Value: expr.Text}, nil
@@ -70,6 +70,19 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	case *kinmokuseiAST.PropagateExpr:
 		return nil, fmt.Errorf("result propagation was not lowered from its statement context")
 	case *kinmokuseiAST.CallExpr:
+		if expr.Builtin == kinmokuseiAST.DecodeUTF8Call {
+			if expr.ConversionType == nil || len(expr.Arguments) != 1 {
+				return nil, fmt.Errorf("UTF-8 conversion has invalid checked shape")
+			}
+			value, err := generateExpression(expr.Arguments[0])
+			if err != nil {
+				return nil, err
+			}
+			return &goast.CallExpr{
+				Fun:  &goast.IndexExpr{X: goast.NewIdent("__kinmokuseiDecodeUTF8"), Index: goType(*expr.ConversionType)},
+				Args: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("string"), Args: []goast.Expr{value}}},
+			}, nil
+		}
 		if expr.SuperConstructor {
 			args := []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(expr.SuperBase)}}}
 			for _, argument := range expr.Arguments {
@@ -419,6 +432,15 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		max, err := generateBound(expr.Max)
 		if err != nil {
 			return nil, err
+		}
+		if expr.UTF8 {
+			unsigned := func(bound goast.Expr) goast.Expr {
+				if bound == nil {
+					return &goast.BasicLit{Kind: token.INT, Value: "0"}
+				}
+				return &goast.CallExpr{Fun: goast.NewIdent("uint64"), Args: []goast.Expr{bound}}
+			}
+			return &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiSliceUTF8"), Args: []goast.Expr{object, unsigned(low), unsigned(high), goast.NewIdent(strconv.FormatBool(expr.High != nil))}}, nil
 		}
 		return &goast.SliceExpr{X: object, Low: low, High: high, Max: max, Slice3: expr.Full}, nil
 	case *kinmokuseiAST.NewExpr:

@@ -250,7 +250,7 @@ func (s *Server) sourceSignature(program *ast.Program, path string, context call
 		if context.Name == "Exception" {
 			return ast.CallableSignature{
 				ParameterNames: []string{"message"},
-				ParameterTypes: []string{"string"},
+				ParameterTypes: []string{"bstring"},
 				Result:         "Exception",
 			}, true
 		}

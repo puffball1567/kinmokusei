@@ -37,7 +37,11 @@ Welcome, Aki
 Welcome, guest
 ```
 
-`main.km` imports `Greeting` and `greeting`; it cannot call the unimported `normalize` helper. Imports used by `format.km` would not become visible transitively either.
+`main.km` imports the explicitly exported `Greeting` and `greeting` declarations.
+`normalize` is private: trying to import it would also be rejected, not just
+trying to call it without an import. Imports used by `format.km` do not become
+visible transitively. Files without any source export retain legacy importability
+of all top-level declarations; selective imports alone do not make helpers private.
 
 Relative paths may include or omit `.km`. Resolution is relative to the importing file. Cycles, missing modules, missing declarations, duplicate bindings, and import/declaration conflicts are diagnosed before Go generation.
 

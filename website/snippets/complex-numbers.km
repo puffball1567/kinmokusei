@@ -1,0 +1,8 @@
+import go { Println } from "fmt"
+
+const main = () => {
+  const value: complex64 = complex(float32(3), float32(4))
+  const square = value * value
+  const literal: complex128 = 1 + 2i
+  Println(real(value), imag(value), real(square), imag(square), literal)
+}

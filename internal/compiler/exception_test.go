@@ -18,16 +18,16 @@ let runtimeFinalized = 0;
 let returnFinalized = 0;
 
 class NotFoundException extends Exception {
-  constructor(message: string) { super(message); }
+  constructor(message: bstring) { super(message); }
 }
 class GoneException extends NotFoundException {
-  constructor(message: string) { super(message); }
+  constructor(message: bstring) { super(message); }
 }
 class PermissionException extends Exception {
-  constructor(message: string) { super(message); }
+  constructor(message: bstring) { super(message); }
 }
 
-function typedReturn(kind: int): string {
+function typedReturn(kind: int): bstring {
   try {
     if (kind == 0) { return "ok"; }
     if (kind == 1) { throw new NotFoundException("missing"); }
@@ -42,8 +42,8 @@ function typedReturn(kind: int): string {
   }
 }
 
-function bareRethrow(): string {
-  let result = "start";
+function bareRethrow(): bstring {
+  let result: bstring = "start";
   try {
     try {
       throw new GoneException("again");
@@ -59,7 +59,7 @@ function bareRethrow(): string {
   return result;
 }
 
-function finallyOverridesReturn(): string {
+function finallyOverridesReturn(): bstring {
   try { return "try"; } finally { return "finally"; }
 }
 
@@ -74,8 +74,8 @@ function resultInsideTry(succeed: boolean): Result<int> {
 
 function resetReturnFinalized(): void { returnFinalized = 0; }
 
-function outcome(shouldThrow: boolean): string {
-  let result = "try";
+function outcome(shouldThrow: boolean): bstring {
+  let result: bstring = "try";
   try {
     if (shouldThrow) { throw errors.New("boom"); }
     result += ":success";
@@ -87,14 +87,14 @@ function outcome(shouldThrow: boolean): string {
   return result;
 }
 
-function blankCatch(): string {
-  let result = "try";
+function blankCatch(): bstring {
+  let result: bstring = "try";
   try { throw errors.New("ignored"); } catch (_: error) { result += ":caught"; }
   return result;
 }
 
-function nestedRethrow(): string {
-  let result = "outer";
+function nestedRethrow(): bstring {
+  let result: bstring = "outer";
   try {
     try {
       result += ":inner";
@@ -113,8 +113,8 @@ function nestedRethrow(): string {
   return result;
 }
 
-function finallyOnly(): string {
-  let result = "start";
+function finallyOnly(): bstring {
+  let result: bstring = "start";
   try {
     try { throw errors.New("only"); } finally { result += ":finally"; }
   } catch (err: error) {
@@ -123,8 +123,8 @@ function finallyOnly(): string {
   return result;
 }
 
-function replacingFinally(): string {
-  let result = "";
+function replacingFinally(): bstring {
+  let result: bstring = "";
   try {
     try { throw errors.New("first"); } finally { throw errors.New("replacement"); }
   } catch (err: error) {
@@ -139,15 +139,15 @@ function nilError(): boolean {
   return caughtNil;
 }
 
-function loopInsideTry(): string {
+function loopInsideTry(): bstring {
   let value = 0;
-  let result = "";
+  let result: bstring = "";
   try {
     while (value < 5) {
       value++;
       if (value == 2) { continue; }
       if (value == 4) { break; }
-      result += string(int32(value + 48));
+      result += bstring(int32(value + 48));
     }
   } finally { result += ":done"; }
   return result;
@@ -157,19 +157,19 @@ function terminalThrow(): int {
   try { throw errors.New("terminal"); } finally {}
 }
 
-function catchTerminal(): string {
-  let result = "";
+function catchTerminal(): bstring {
+  let result: bstring = "";
   try {
     const value = terminalThrow();
-    result = string(int32(value));
+    result = bstring(int32(value));
   } catch (err: error) {
     result = err.Error();
   }
   return result;
 }
 
-function catchCallback(callback: () => void): string {
-  let result = "normal";
+function catchCallback(callback: () => void): bstring {
+  let result: bstring = "normal";
   try {
     callback();
   } catch (err: error) {
@@ -178,7 +178,7 @@ function catchCallback(callback: () => void): string {
   return result;
 }
 
-function catchCallbackAsException(callback: () => void): string {
+function catchCallbackAsException(callback: () => void): bstring {
   try {
     callback();
     return "normal";

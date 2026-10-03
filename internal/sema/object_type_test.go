@@ -17,7 +17,7 @@ func TestObjectTypeSuccessMatrix(t *testing.T) {
 		{"slice", `function value(input: { count: int }[]): int { return input[0].count; }`},
 		{"nil pointer field", `import go http from "net/http"; function value(): { client: *http.Client } { return { client: nil }; }`},
 		{"function field", `function value(input: { callback: (value: int) => string }): string { return input.callback(1); }`},
-		{"Go any", `import go fmt from "fmt"; function value(): string { return fmt.Sprint({ message: "ok", count: 1 }); }`},
+		{"Go any", `import go fmt from "fmt"; function value(): bstring { return fmt.Sprint({ message: "ok", count: 1 }); }`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -7,6 +7,10 @@ description: Exact kinmokusei.toml sections, canonical kinmokusei.lock contents,
 
 Projects use strict `kinmokusei.toml` input and a compiler-written canonical JSON `kinmokusei.lock`. Unknown/duplicate sections and keys are rejected.
 
+The manifest accepts the sections and quoted string values documented here,
+not every TOML feature. For example, write `cgo = "enabled"`, not a Boolean,
+and write build tags as one comma-separated string, not a TOML array.
+
 ## Complete example
 
 ```toml
@@ -27,6 +31,7 @@ unsafe = "deny"
 
 [go.dependencies]
 "github.com/google/uuid" = "v1.6.0"
+"example.com/local/api" = "v0.1.0"
 
 [go.replacements]
 "example.com/local/api" = "./local-api"
@@ -60,16 +65,61 @@ Omitted GOOS/GOARCH resolve to compiler-host values, not ambient process overrid
 
 ## Dependencies and replacements
 
-For external `.km` libraries, `[package]` declares the public entry, minimum
-Kinmokusei version, backend and license identifier; `[exports]` maps named
-submodules to source files. `[dependencies]` records exact source-package versions
-and `[replace]` declares consumer-owned local overrides, including sibling paths.
-These are separate from the existing Go dependency/replacement sections below.
-See [external source packages](../guide/external-packages) for the format and workflow.
+`[dependencies]` records exact external `.km` package versions; `[replace]`
+declares consumer-owned local overrides, including sibling paths and overrides
+of transitive source dependencies. These are separate from the Go dependency
+and replacement sections. See [external source packages](../guide/external-packages)
+for the acquisition, automatic alias and local-development workflows.
 
-Dependencies require complete versions, including complete pseudo-versions. Initial replacements are project-relative local paths inside the project root and must correspond to declared dependencies.
+Go dependencies require complete versions, including complete pseudo-versions;
+source dependencies require complete tags matching their package manifests.
+Go replacements are project-relative local paths inside the project root and
+must correspond to declared Go dependencies. Source `[replace]` entries can
+point to sibling projects; these distinct policies are not interchangeable.
 
 Only explicit dependency commands may resolve or mutate the graph. Normal compilation validates the lock and uses the graph read-only/offline.
+
+## `[package]` and `[exports]`
+
+Applications need no `[package]` section. A distributable source library uses:
+
+```toml
+[package]
+entry = "index.km"
+min-kinmokusei = "0.4.4"
+backend = "go"
+license = "MIT"
+
+[exports]
+"format" = "src/format.km"
+```
+
+| Package key | Required | Meaning |
+| --- | --- | --- |
+| `entry` | Yes | Canonical relative `.km` file selected by the package module path |
+| `min-kinmokusei` | Yes | Complete minimum compiler version, without leading `v` |
+| `backend` | Yes | Currently `go` |
+| `license` | Yes | Nonempty author-provided identifier; no license text is generated |
+
+The library's `[project].go-module` is its canonical source module identity.
+`[project].version` must match the requested tag without its leading `v`, and
+the accompanying `go.mod` uses the same module path. Its `[project].go-version`
+is also a minimum requirement on the consumer's selected Go version.
+
+An `[exports]` key names a public submodule, and its value names the source
+file. Paths are canonical slash-separated paths without a leading `./`, parent
+traversal, or backslashes; source targets end in `.km` and stay inside the
+library root, including after symlink resolution. Internal `.git` and
+`.kinmokusei` paths cannot supply package source. A file-level `export` then
+chooses the available declarations within that file. An undeclared submodule
+is not public merely because its source file contains exports.
+
+In a library, `[target].goos`/`goarch` constrain the consumer to the written
+target; omitted values impose no corresponding source-package requirement.
+`cgo = "enabled"` requires CGO, and every declared tag must be active. These
+requirements are validated, not merged into or enabled on the consumer's target.
+Dependency-owned local replacements are not inherited; the consumer supplies
+any local overrides itself.
 
 ## `[imports]`
 

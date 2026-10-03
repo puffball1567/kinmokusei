@@ -30,11 +30,14 @@ func TestBuildAttributionAndSafeRebuild(t *testing.T) {
 		if status != 0 || stdout != "" || stderr != "" {
 			t.Fatalf("build %d: %d %s %s", i, status, stdout, stderr)
 		}
-		if err := verifyManagedNotices(output + ".licenses"); err != nil {
+		if err := verifyManagedNotices(output + "-licenses"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	indexData, err := os.ReadFile(filepath.Join(output+".licenses", "INDEX.json"))
+	if _, err := os.Stat(output + ".licenses"); !os.IsNotExist(err) {
+		t.Fatal("legacy notice directory generated", err)
+	}
+	indexData, err := os.ReadFile(filepath.Join(output+"-licenses", "INDEX.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,12 +59,12 @@ func TestBuildAttributionAndSafeRebuild(t *testing.T) {
 	if !strings.Contains(string(indexData), `"fmt"`) || strings.Contains(string(indexData), root) {
 		t.Fatal("missing dependency or local path leaked")
 	}
-	license, err := os.ReadFile(filepath.Join(output+".licenses", "go", "LICENSE"))
+	license, err := os.ReadFile(filepath.Join(output+"-licenses", "go", "LICENSE"))
 	if err != nil || !strings.Contains(string(license), "The Go Authors") || !strings.Contains(string(license), "Redistributions in binary form") {
 		t.Fatal("complete Go license not emitted", err)
 	}
 	// Do not discard manually added notices during an ordinary rebuild.
-	custom := filepath.Join(output+".licenses", "CUSTOM.txt")
+	custom := filepath.Join(output+"-licenses", "CUSTOM.txt")
 	if err := os.WriteFile(custom, []byte("user notice\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +109,7 @@ func TestUnattributedDependencyBuildPreservesPreviousOutput(t *testing.T) {
 	if string(data) != "previous executable" {
 		t.Fatal("previous output changed")
 	}
-	if _, err := os.Stat(output + ".licenses"); !os.IsNotExist(err) {
+	if _, err := os.Stat(output + "-licenses"); !os.IsNotExist(err) {
 		t.Fatal("partial attribution published", err)
 	}
 }
@@ -115,13 +118,13 @@ func TestPublicationRollsBackBothArtifacts(t *testing.T) {
 	root := t.TempDir()
 	output := filepath.Join(root, "program")
 	old := attribution.Bundle{Index: attribution.Index{Format: "kinmokusei-attribution-v1"}, Files: map[string][]byte{"go/LICENSE": []byte("Old license\n")}}
-	if err := old.Write(output + ".licenses"); err != nil {
+	if err := old.Write(output + "-licenses"); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(output, []byte("old executable"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	before, _ := os.ReadFile(filepath.Join(output+".licenses", "INDEX.json"))
+	before, _ := os.ReadFile(filepath.Join(output+"-licenses", "INDEX.json"))
 	stage := filepath.Join(root, "stage")
 	if err := os.Mkdir(stage, 0o755); err != nil {
 		t.Fatal(err)
@@ -133,13 +136,55 @@ func TestPublicationRollsBackBothArtifacts(t *testing.T) {
 	if err := publishBuild(stage, filepath.Join(stage, "missing-executable"), stagedNotices, output); err == nil {
 		t.Fatal("missing executable publication succeeded")
 	}
-	after, _ := os.ReadFile(filepath.Join(output+".licenses", "INDEX.json"))
+	after, _ := os.ReadFile(filepath.Join(output+"-licenses", "INDEX.json"))
 	if string(before) != string(after) {
 		t.Fatal("previous notices not restored")
 	}
 	binary, _ := os.ReadFile(output)
 	if string(binary) != "old executable" {
 		t.Fatal("previous executable not restored")
+	}
+}
+
+func TestPublicationUsesHyphenatedNoticesAndPreservesLegacyDirectory(t *testing.T) {
+	for _, name := range []string{"app", "app.exe", "my app", "app.v2"} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			output := filepath.Join(root, name)
+			legacy := output + ".licenses"
+			if err := os.Mkdir(legacy, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			legacyNotice := filepath.Join(legacy, "CUSTOM.txt")
+			if err := os.WriteFile(legacyNotice, []byte("legacy user notice\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			stage := filepath.Join(root, "stage")
+			if err := os.Mkdir(stage, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			stagedNotices := filepath.Join(stage, "licenses")
+			bundle := attribution.Bundle{Index: attribution.Index{Format: "kinmokusei-attribution-v1"}, Files: map[string][]byte{"go/LICENSE": []byte("New license\n")}}
+			if err := bundle.Write(stagedNotices); err != nil {
+				t.Fatal(err)
+			}
+			stagedOutput := filepath.Join(stage, "executable")
+			if err := os.WriteFile(stagedOutput, []byte("new executable"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := publishBuild(stage, stagedOutput, stagedNotices, output); err != nil {
+				t.Fatal(err)
+			}
+			if err := verifyManagedNotices(output + "-licenses"); err != nil {
+				t.Fatal(err)
+			}
+			if data, err := os.ReadFile(output); err != nil || string(data) != "new executable" {
+				t.Fatal("executable not published", err)
+			}
+			if data, err := os.ReadFile(legacyNotice); err != nil || string(data) != "legacy user notice\n" {
+				t.Fatal("legacy user notice changed", err)
+			}
+		})
 	}
 }
 
@@ -226,7 +271,7 @@ func TestBuildAttributionIncludesOfflineReplacedDependency(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("offline build: %d %s", status, stderr)
 	}
-	data, err := os.ReadFile(filepath.Join(output+".licenses", "INDEX.json"))
+	data, err := os.ReadFile(filepath.Join(output+"-licenses", "INDEX.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +286,7 @@ func TestBuildAttributionIncludesOfflineReplacedDependency(t *testing.T) {
 		}
 		found = true
 		for name, expected := range map[string]string{"LICENSE": "Complete fixture license, conditions and disclaimer\n", "pkg/NOTICE": "Additional nested attribution\n"} {
-			actual, err := os.ReadFile(filepath.Join(output+".licenses", filepath.FromSlash(component.Directory), filepath.FromSlash(name)))
+			actual, err := os.ReadFile(filepath.Join(output+"-licenses", filepath.FromSlash(component.Directory), filepath.FromSlash(name)))
 			if err != nil || string(actual) != expected {
 				t.Fatal("original dependency notice missing", err)
 			}

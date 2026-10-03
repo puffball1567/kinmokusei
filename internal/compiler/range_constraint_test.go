@@ -28,10 +28,10 @@ func Iterate(yield func(int) bool) { for _,value:=range []int{1,2,3,4} { if !yie
 `,
 		"ranges.km": `
 import go c from "constrained-range.test/constraints";
-constraint Text = ~string;
+constraint Text = ~bstring;
 type Numbers = distinct int[];
 function weighted<S extends c.Slice<int>>(values: S): int { let total=0; for (const [index,value] of values) { total += (index+1)*value; } return total; }
-function copyValues<S extends c.Slice<string>>(values: S): string[] { let result:string[]=[]; for (const value of values) { result=append(result,value); } return result; }
+function copyValues<S extends c.Slice<bstring>>(values: S): bstring[] { let result:bstring[]=[]; for (const value of values) { result=append(result,value); } return result; }
 function array<S extends c.Array>(values: S): int { let total=0; for (const value of values) { total+=value; } return total; }
 function pointer<S extends c.Pointer>(values: S): int { let total=0; for (const value of values) { total+=value; } return total; }
 function indexes<S extends c.Pointer>(values: S): int { let total=0; for (const [index,_] of values) { total+=index; } return total; }
@@ -59,9 +59,9 @@ class Holder<S extends c.Array> { public leaf:Leaf; constructor(values:S) { for(
 import { Numbers, weighted, copyValues, array, pointer, indexes, maps, text, drain, iterator, narrowed, closures, once, Leaf, Doubled, Collection, Holder, pairTotal } from "./ranges";
 import go c from "constrained-range.test/constraints";
 function Slices(values:int[]):int[] { return [weighted(values), weighted(Numbers(values)), narrowed(values), closures(values), once(values)]; }
-function Copy(values:string[]):string[] { return copyValues(values); }
-function Maps(values:Map<string,int>):int { return maps(values); }
-function Text(value:string):int { return text(value); }
+function Copy(values:bstring[]):bstring[] { return copyValues(values); }
+function Maps(values:Map<bstring,int>):int { return maps(values); }
+function Text(value:bstring):int { return text(value); }
 function Arrays(values:[3]int):int[] { return [array(values), pointer(&values), indexes(&values), new Holder<[3]int>(values).leaf.value]; }
 function PointerValues(values:*[3]int):int { return pointer(values); }
 function PointerIndexes(values:*[3]int):int { return indexes(values); }

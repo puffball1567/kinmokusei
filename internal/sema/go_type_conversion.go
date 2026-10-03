@@ -72,7 +72,7 @@ func kinmokuseiTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]boo
 		case gotypes.Bool, gotypes.UntypedBool:
 			return builtins["boolean"], nil
 		case gotypes.String, gotypes.UntypedString:
-			return builtins["string"], nil
+			return builtins["bstring"], nil
 		case gotypes.Int:
 			return builtins["int"], nil
 		case gotypes.Int8:

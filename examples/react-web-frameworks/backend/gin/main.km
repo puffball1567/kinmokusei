@@ -37,13 +37,17 @@ function NewRouter(): *gin.Engine {
   });
 
   router.POST("/api/todos", (ctx: *gin.Context): void => {
-    let input = { title: "" };
+    let input: { title: bstring } = { title: "" };
     const err: error = ctx.ShouldBindJSON(&input);
     if (err != nil) {
       ginError(ctx, http.StatusBadRequest, "request body must be JSON with a title");
       return;
     }
-    const title = normalizedTitle(input.title);
+    const [title, textErr] = normalizedTitle(input.title);
+    if (textErr !== nil) {
+      ginError(ctx, http.StatusBadRequest, "title must be valid UTF-8");
+      return;
+    }
     if (title == "") {
       ginError(ctx, http.StatusBadRequest, "title is required");
       return;

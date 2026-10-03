@@ -31,7 +31,7 @@ Package import success and symbol support are separate. Unused unsupported expor
 
 Generated source is deterministic, formatted, standalone, buildable, and free of machine-specific paths or an unnecessary compiler runtime. Where a source type has a stable representation, public packages expose ordinary Go APIs usable from an external Go module.
 
-Exact generated helper names are compiler-owned except where the docs explicitly state a public API. Pre-1.0 source and generated API compatibility can change between minor releases with migration notes.
+Exact generated helper names are compiler-owned except where the docs explicitly state a public API. Pre-1.0 source and generated API compatibility can change with migration notes; v0.4.6 intentionally changes text contracts despite its patch version.
 
 ## Outgoing C ABI
 
@@ -43,9 +43,18 @@ Gateways use status/out conventions, panic containment, explicit ASCII symbols, 
 
 ## Incoming C FFI schema 1
 
-Implemented groups include fixed/C-width scalars, borrowed/copying strings and byte buffers, released owned strings/bytes/typed arrays, enum/POD/tagged-union values, call-scoped and registered callbacks, retained registration inputs, opaque handles, status/out errors, target link flags, and thread-safe/serialized/thread-affine policies.
+The published v0.4.4 surface includes fixed/C-width scalars, borrowed/copying
+strings and byte buffers, released owned strings/bytes/typed arrays,
+enum/POD/tagged-union values, call-scoped and registered callbacks, retained
+registration string/byte inputs, opaque handles, status/out errors, target link
+flags and thread-safe/serialized/thread-affine policies.
 
-Unsupported or ambiguous machine-width/pointer/ownership shapes are rejected before cgo generation. Source-level `ffi c library` declarations remain proposed; the checked JSON manifest is the implemented input.
+v0.4.6 adds typed borrowed/retained arrays, typed callback array inputs,
+multiple handles/call-scoped callbacks and `mainThread`. These extensions
+require a [matching compiler](../project/releases#v046-highlights).
+Unsupported or ambiguous pointer/ownership shapes are rejected before cgo
+generation; the checked JSON manifest is the supported input. See the
+[manifest reference](./c-ffi-manifest) for exact combinations and lifetimes.
 
 ## Behavioral compatibility evidence
 

@@ -3,7 +3,7 @@ import go os from "os";
 import go strconv from "strconv";
 import go strings from "strings";
 
-function parseCount(text: string): Result<int> {
+function parseCount(text: bstring): Result<int> {
   const count = strconv.Atoi(text)?;
   if (count < 1 || count > 5) {
     return fail(fmt.Errorf("count must be from 1 through 5"));
@@ -11,8 +11,8 @@ function parseCount(text: string): Result<int> {
   return ok(count);
 }
 
-function render(name: string, count: int): string {
-  let lines = makeSlice[string](0, count);
+function render(name: bstring, count: int): bstring {
+  let lines = makeSlice[bstring](0, count);
   for (let index = 0; index < count; index++) {
     lines = append(lines, fmt.Sprintf("Hello, %s!", name));
   }

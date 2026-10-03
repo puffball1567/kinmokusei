@@ -100,7 +100,7 @@ func TestGeneratedGoSyntaxMatrix(t *testing.T) {
 		},
 		{
 			"Go generic named types and methods",
-			`import go atomic from "sync/atomic"; import go time from "time"; import go unique from "unique"; function pointer(): atomic.Pointer<time.Duration> { return atomic.Pointer<time.Duration>{}; } function handles(value: string): unique.Handle<string>[] { return [unique.Make(value)]; }`,
+			`import go atomic from "sync/atomic"; import go time from "time"; import go unique from "unique"; function pointer(): atomic.Pointer<time.Duration> { return atomic.Pointer<time.Duration>{}; } function handles(value: bstring): unique.Handle<bstring>[] { return [unique.Make(value)]; }`,
 			[]string{"func pointer() atomic.Pointer[time.Duration]", "return atomic.Pointer[time.Duration]{}", "func handles(value string) []unique.Handle[string]", "unique.Make(value)"},
 		},
 		{

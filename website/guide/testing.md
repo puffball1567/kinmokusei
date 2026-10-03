@@ -47,7 +47,7 @@ The documentation CI performs this exact generation and test. It proves that `Ad
 ## Public API discipline
 
 - A top-level source name beginning with an uppercase Unicode letter becomes exported from the generated Go package; lowercase top-level names remain package-local.
-- Relative `.km` imports are a separate boundary and select written names explicitly, regardless of capitalization.
+- Source imports are a separate boundary and select written names explicitly, regardless of capitalization. Any source export opts its file into explicit visibility; without one, legacy selective importability remains.
 - Keep parameter, result, named-type, pointer, interface, generic, channel, and error shapes within the documented interoperability matrix.
 - Treat generated helper names as private unless the generated-Go guide documents them as public API.
 - Regenerate before testing when `.km` source, the dependency lock, target, or compiler version changes.

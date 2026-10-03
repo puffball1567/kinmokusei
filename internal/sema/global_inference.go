@@ -61,4 +61,5 @@ func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.diagnostics = append(c.diagnostics, dependency.diagnostics...)
 	c.usesTasks = c.usesTasks || dependency.usesTasks
 	c.usesExceptions = c.usesExceptions || dependency.usesExceptions
+	c.usesUTF8 = c.usesUTF8 || dependency.usesUTF8
 }

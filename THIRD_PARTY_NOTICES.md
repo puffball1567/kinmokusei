@@ -18,8 +18,10 @@ The release verification regenerates these materials from the build toolchain
 and compares their bytes with every archive. New non-standard Go dependencies
 require a separate licensing review before packaging can proceed.
 
-Starting with v0.4.5, `keika build -o app` writes the executable and an adjacent
-`app.licenses/` directory. Distribute that entire directory with the executable.
+`keika build -o app` writes the executable and an adjacent
+`app-licenses/` directory. Distribute that entire directory with the executable.
+The published v0.4.5 compiler uses `app.licenses/`; v0.4.6 uses the
+hyphenated name and leave existing legacy directories untouched.
 It contains original Go runtime/standard-library licenses, patent grants,
 additional notices and complete source supplements from the selected toolchain
 and target, plus detected notices for imported Go modules, the locked external

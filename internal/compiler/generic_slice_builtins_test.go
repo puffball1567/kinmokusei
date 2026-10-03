@@ -30,7 +30,7 @@ import go contracts from "generic-slice-builtins.test/contracts";
 import go net from "net";
 type Numbers=distinct int[];
 type Other=distinct int[];
-type Text=distinct string;
+type Text=distinct bstring;
 constraint Named=Numbers|Other;
 function repeat<S extends Named>(values:S):S{return append(values,values...);}
 function unchanged<S extends Slice<int>>(values:S):S{return append(values);}

@@ -23,7 +23,7 @@ type Slice[E any] interface{Storage[E];Sequence[E]}
 		"bounds.km": `import go contracts from "parameter-intersections.test/contracts";
 export constraint Slice<E>=contracts.Storage<E>&contracts.Sequence<E>;
 export constraint Array<E>=contracts.Storage<E>&~[2]E;
-export constraint Mapping<E>=contracts.Storage<E>&~Map<string,E>;
+export constraint Mapping<E>=contracts.Storage<E>&~Map<bstring,E>;
 export type Named<E>=distinct E[];
 type Other<E>=distinct E[];
 constraint Names<E>=Named<E>|Other<E>;
@@ -37,7 +37,7 @@ function imported<E,S extends contracts.Slice<E>>(xs:S):E{return xs[0];}
 function named<E,S extends Exact<E>>(xs:S):E{return xs[0];}
 function array<E,A extends Array<E>>(xs:A,value:E):E{xs[0]=value;return xs[0];}
 function mapping<E,M extends Mapping<E>>(xs:M,value:E):E{xs["key"]=value;return xs["key"];}
-export function Values():int[]{const xs:Named<int>=Named<int>([3,4]);const changed=replace(xs,8);const pair:[2]int=[1,2];const value=array(pair,7);const map=makeMap<string,int>();const mapped=mapping(map,9);return [xs[0],changed[0],named(xs),imported<int,Named<int>>(xs),pair[0],value,mapped,map["key"]];}
+export function Values():int[]{const xs:Named<int>=Named<int>([3,4]);const changed=replace(xs,8);const pair:[2]int=[1,2];const value=array(pair,7);const map=makeMap<bstring,int>();const mapped=mapping(map,9);return [xs[0],changed[0],named(xs),imported<int,Named<int>>(xs),pair[0],value,mapped,map["key"]];}
 class Item{constructor(public value:int){}}
 alias Maybe=Item|null;
 class First<E>{public function get<S extends Slices<E>>(xs:S):E{return xs[0];}}

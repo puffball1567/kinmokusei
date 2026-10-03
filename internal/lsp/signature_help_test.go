@@ -252,7 +252,7 @@ func TestSignatureHelpBuiltinExceptionConstructor(t *testing.T) {
 				}
 			}
 			label, active, parameters := signatureResult(t, signatureHelpAt(t, path, test.text, at))
-			if label != "new Exception(message: string): Exception" || active != 0 || len(parameters) != 1 {
+			if label != "new Exception(message: bstring): Exception" || active != 0 || len(parameters) != 1 {
 				t.Fatalf("signature = %q active=%v parameters=%#v", label, active, parameters)
 			}
 		})
@@ -269,11 +269,11 @@ func TestSignatureHelpGoFunctionsGenericAndVariadic(t *testing.T) {
 	}{
 		{
 			"ordinary", `import go strings from "strings"; function value(): string { return strings.ReplaceAll("a", "a", "b"); }`,
-			`"b"`, []string{"strings.ReplaceAll(", "s: string", "old: string", "new: string", "): string"}, 2,
+			`"b"`, []string{"strings.ReplaceAll(", "s: bstring", "old: bstring", "new: bstring", "): bstring"}, 2,
 		},
 		{
 			"variadic clamps to final parameter", `import go path from "path"; function value(): string { return path.Join("a", "b", "c"); }`,
-			`"c"`, []string{"path.Join(", "...elem: string", "): string"}, 0,
+			`"c"`, []string{"path.Join(", "...elem: bstring", "): bstring"}, 0,
 		},
 		{
 			"inferred generic", `import go slices from "slices"; function value(items: int[]): int[] { return slices.Clone(items); }`,
@@ -375,6 +375,10 @@ func TestSignatureHelpBuiltinMatrix(t *testing.T) {
 		{
 			"fixed arity", `function size(values: int[]): int { return len(values); }`,
 			"values);", "len(value: collection): int", 0,
+		},
+		{
+			"checked text decode", `function decode(bytes: bstring): Result<string> { return string(bytes); }`,
+			"bytes);", "string(raw: bstring): Result<string>", 0,
 		},
 		{
 			"variadic", `function grow(values: int[]): int[] { return append(values, 1, 2); }`,

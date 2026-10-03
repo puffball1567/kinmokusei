@@ -1,0 +1,28 @@
+import go { Println } from "fmt"
+
+let trace: int = 0
+function mark(value: int): int { trace = trace * 10 + value; return value }
+
+class Base {
+  public first: int = mark(1)
+  constructor(public seed: int) { mark(2); mark(this.kind()) }
+  public virtual function kind(): int { return 5 }
+}
+
+class Child extends Base {
+  public second: int = mark(3)
+  public total: int = this.first + this.second
+  public inheritedSeed: int = this.seed
+  constructor(seed: int) { super(seed); mark(4); mark(this.kind()) }
+  public override function kind(): int { return 6 }
+}
+
+class Bucket<T> { public values: T[] = [] }
+
+const main = () => {
+  const child = new Child(7)
+  const first = new Bucket<int>()
+  const second = new Bucket<int>()
+  first.values = append(first.values, 9)
+  Println(trace, child.total, child.inheritedSeed, child.kind(), len(first.values), len(second.values))
+}

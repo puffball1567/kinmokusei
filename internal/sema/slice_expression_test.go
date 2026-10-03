@@ -14,7 +14,7 @@ func TestSliceExpressionSemanticSuccessMatrix(t *testing.T) {
 		{"string byte offsets", `function use(value: string): string { return value[1:3]; }`},
 		{"index addressability", `function slicePointer(values: int[]): *int { return &values[0]; } function arrayPointer(values: *[2]int): *int { return &values[0]; }`},
 		{"named slice and index", `import go net from "net"; function tail(value: net.IP): net.IP { const first: byte = value[0]; return value[1:]; }`},
-		{"named map", `import go http from "net/http"; function first(value: http.Header): string { return value["X-Test"][0]; }`},
+		{"named map", `import go http from "net/http"; function first(value: http.Header): bstring { return value["X-Test"][0]; }`},
 		{"named string", `import go template from "html/template"; function middle(value: template.HTML): template.HTML { const first: byte = value[0]; return value[1:3]; }`},
 	}
 	for _, test := range tests {

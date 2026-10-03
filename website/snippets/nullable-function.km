@@ -1,0 +1,13 @@
+import go { Println } from "fmt"
+
+alias Transform = (value: int) => int
+
+function choose(enabled: boolean): Transform | null {
+  if (enabled) { return (value: int): int => value * 2 }
+  return null
+}
+
+const main = () => {
+  const transform = choose(true)
+  if (transform !== null) { Println(transform(21)) }
+}

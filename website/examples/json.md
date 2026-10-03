@@ -37,6 +37,15 @@ Expected output:
 - Generated anonymous Go fields are public and receive deterministic JSON tags preserving `guest` and `temperature`.
 - `json.Marshal` is resolved from real Go export/type data.
 - Its `([]byte, error)` result crosses into `Result<string>` only through explicit postfix `?`.
-- `string(encoded)` is a Go-compatible byte-slice conversion.
+- `string(encoded)` validates UTF-8 and directly forwards `Result<string>`.
 
 For a complete server using direct `net/http` and `encoding/json`, see the repository's [JSON API source](https://github.com/puffball1567/kinmokusei/tree/main/examples/json-api).
+
+## Decode into a domain class
+
+JSON decoding is not a call to a Kinmokusei constructor or setter. Public-field
+updates and newly allocated nested values retain Go's decoding behavior; a
+successful decode does not prove application invariants. Decode a DTO, validate
+it, then construct the class. The [class-input recipe](../guide/classes-and-structs#json)
+shows that boundary with an executable example and the current target-type
+limitations.

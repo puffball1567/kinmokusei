@@ -24,7 +24,17 @@ const task: Task<User> = go loadUser(id);
 const user: User = await task;
 ```
 
-Without statement termination at the call, `go call()` is an expression producing `Task<T>`. The task binding must be consumed exactly once by `await` or `detach` on every continuing path.
+In expression position, such as a binding initializer, `go call()` produces
+`Task<T>`. The distinction is the syntax context, not whether the line has a
+semicolon: `go work();` is raw, while `const task = go work();` is structured.
+The task binding must be consumed exactly once by `await` or `detach` on every
+continuing path.
+
+`Task<void>` is also supported: `await task;` joins it without an ordinary value.
+A direct `await go work()` or `detach go work()` does not require an intermediate
+binding. The start expression requires an ordinary callable, not a compiler
+builtin or type conversion. Ordinary multiple-result calls must first be
+wrapped in a source function returning one value or a checked Result effect.
 
 The compiler rejects copying, reassigning, capturing, storing, escaping, returning, or multiply consuming a task.
 
@@ -93,19 +103,16 @@ const user = loadChecked(id)?;
 An enclosing `finally` runs on both explicit returns and `?` propagation, so
 it may join a task before either exit completes:
 
-```ts
-const background = go calculate();
-try {
-  const user = loadChecked(id)?;
-  return ok(user);
-} finally {
-  const completed = await background;
-}
-```
+<<< ../snippets/finally-task.km{ts}
 
-The join must happen on every exit path. A conditional await in `finally`
-does not satisfy the Task ownership check, and awaiting an already consumed
-task is still an error.
+The output is `joined 7`, `11 true`, `joined 7`, `0 true`: both success and error
+wait for the worker before returning to the caller. The finally/Task ownership
+correction shown here is available since v0.4.5.
+
+Consumption must happen on every checked exit path. An await under an `if`
+without consumption on the other branch leaves a pending Task; consuming it
+on both branches is valid. Awaiting an already consumed task is still an error.
+A try-local task cannot be consumed by a finally outside its lexical scope.
 
 `await task?` consumes that task before checking the error path. If several
 Result-returning tasks are running, explicitly split and await their results
@@ -192,6 +199,11 @@ select {
 ```
 
 Select chooses a ready communication. Multiple ready cases are intentionally nondeterministic. Default makes the operation non-blocking; no default waits. Each case has its own scope.
+
+Every channel operand and send value is evaluated once in source order before
+selection, including operands of cases that do not win. Their Task consumption
+and mutations affect all bodies, even `default`. Receive assignment targets
+are evaluated only if their case wins; see [select evaluation](./control-flow#channel-select).
 
 ## Cancellation and deadlines
 

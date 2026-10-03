@@ -15,12 +15,16 @@ struct Response {
     return this.status >= 200 && this.status < 300;
   }
 
-  public function header(name: string): string {
+  public function header(name: bstring): bstring {
     return this.headers.Get(name);
   }
 
-  public function text(): string {
+  public function text(): Result<string> {
     return string(this.body);
+  }
+
+  public function rawText(): bstring {
+    return bstring(this.body);
   }
 
   public function bytes(): byte[] {
@@ -79,15 +83,15 @@ class Context {
     public request: *http.Request,
   ) {}
 
-  public function path(name: string): string {
+  public function path(name: bstring): bstring {
     return this.request.PathValue(name);
   }
 
-  public function query(name: string): string {
+  public function query(name: bstring): bstring {
     return this.request.URL.Query().Get(name);
   }
 
-  public function header(name: string): string {
+  public function header(name: bstring): bstring {
     return this.request.Header.Get(name);
   }
 
@@ -95,7 +99,7 @@ class Context {
     return this.request.Context();
   }
 
-  public function cookie(name: string): Result<*http.Cookie> {
+  public function cookie(name: bstring): Result<*http.Cookie> {
     const cookie = this.request.Cookie(name)?;
     return ok(cookie);
   }
@@ -112,11 +116,11 @@ class App implements http.Handler {
     this.mux = http.NewServeMux();
   }
 
-  private static function routePattern(method: string, pattern: string): string {
+  private static function routePattern(method: bstring, pattern: bstring): bstring {
     return method + " " + pattern;
   }
 
-  public function handle(method: string, pattern: string, handler: (ctx: Context) => void): void {
+  public function handle(method: bstring, pattern: bstring, handler: (ctx: Context) => void): void {
     this.mux.HandleFunc(App.routePattern(method, pattern), (
       writer: http.ResponseWriter,
       request: *http.Request,
@@ -125,23 +129,23 @@ class App implements http.Handler {
     });
   }
 
-  public function get(pattern: string, handler: (ctx: Context) => void): void {
+  public function get(pattern: bstring, handler: (ctx: Context) => void): void {
     this.handle(http.MethodGet, pattern, handler);
   }
 
-  public function post(pattern: string, handler: (ctx: Context) => void): void {
+  public function post(pattern: bstring, handler: (ctx: Context) => void): void {
     this.handle(http.MethodPost, pattern, handler);
   }
 
-  public function put(pattern: string, handler: (ctx: Context) => void): void {
+  public function put(pattern: bstring, handler: (ctx: Context) => void): void {
     this.handle(http.MethodPut, pattern, handler);
   }
 
-  public function patch(pattern: string, handler: (ctx: Context) => void): void {
+  public function patch(pattern: bstring, handler: (ctx: Context) => void): void {
     this.handle(http.MethodPatch, pattern, handler);
   }
 
-  public function delete(pattern: string, handler: (ctx: Context) => void): void {
+  public function delete(pattern: bstring, handler: (ctx: Context) => void): void {
     this.handle(http.MethodDelete, pattern, handler);
   }
 

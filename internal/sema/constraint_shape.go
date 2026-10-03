@@ -112,6 +112,9 @@ func (c *Checker) nativeDefinedShape(value Type) (Type, bool) {
 // Go satisfaction checks the storage type; this additional check protects the
 // source qualifiers it erases. Other shape/type mismatches remain Go's checks.
 func sameConstraintNullability(expected, actual Type) bool {
+	if textContractMismatch(expected, actual) {
+		return false
+	}
 	if (expected.Kind == Nullable) != (actual.Kind == Nullable) {
 		return false
 	}

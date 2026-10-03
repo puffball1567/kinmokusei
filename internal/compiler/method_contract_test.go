@@ -69,9 +69,9 @@ interface NativeLoader extends GenericLoader<Maybe>{}
 class Base implements Store{constructor(protected value:Maybe){}public virtual function read():Maybe{return this.value;}public function write(value:Maybe):void{this.value=value;}public function snapshot():{value:Maybe}{return {value:this.read()};}public function visit(callback:(value:Maybe)=>void):void{callback(this.read());}public function load():Result<Maybe>{return ok(this.read());}}
 class Derived extends Base implements NativeLoader{constructor(value:Maybe){super(value);}public override function read():Maybe{return super.read();}}
 function Use(value:int,missing:boolean):Result<int>{let input:Maybe=new Leaf(value);if(missing){input=null;}const store:Store=new Derived(input);const read=store.read;const first=read();let total=0;if(first!==null){total+=first.value;}store.visit((leaf:Maybe):void=>{if(leaf!==null){total+=leaf.value;}});const snapshot=store.snapshot();const current=snapshot.value;if(current!==null){total+=current.value;}const loaded=store.load()?;if(loaded!==null){total+=loaded.value;}store.write(null);if(store.read()===null){total+=1;}return ok(total);}
-interface Printed extends fmt.Stringer{function string():string;}
-class Label implements Printed{public function string():string{return "label";}}
-function Names():string{const value:Printed=new Label();return value.string()+value.String();}
+interface Printed extends fmt.Stringer{function string():bstring;}
+class Label implements Printed{public function string():bstring{return "label";}}
+function Names():bstring{const value:Printed=new Label();return value.string()+value.String();}
 function Loaded(value:int,missing:boolean):Result<int>{let input:Maybe=new Leaf(value);if(missing){input=null;}const loader:NativeLoader=new Derived(input);const [loaded,problem]=loader.Load();if(problem!==nil){return fail(problem);}if(loaded===null){return ok(-1);}return ok(loaded.value);}
 `
 	path := filepath.Join(root, "entry.km")

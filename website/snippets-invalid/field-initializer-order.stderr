@@ -1,0 +1,1 @@
+instance field initializers may read only earlier initialized fields

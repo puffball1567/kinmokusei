@@ -107,7 +107,7 @@ function importedValueCopy(): [2]int {
   duplicate.left = 9;
   return [original.left, duplicate.left];
 }
-function formatValue(): string {
+function formatValue(): bstring {
   return fmt.Sprintf("%v", Point { x: 7, y: 8 });
 }
 `
