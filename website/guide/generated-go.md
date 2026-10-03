@@ -41,6 +41,13 @@ Private/protected source declarations do not become public merely because Go cap
 
 ## Publish or integrate
 
+For a distributable executable, `keika build -o app` also creates
+`app.licenses/` starting with v0.4.5. Keep that entire directory with the binary;
+the target-specific index identifies the actual toolchain and dependency notices.
+See [application redistribution notices](../reference/cli#application-redistribution-notices)
+for missing-license errors, safe rebuilding and native-library review boundaries.
+Source-only `emit-go` and a subsequent direct `go build` do not create this bundle.
+
 You may distribute `.km` source, generated Go, or both. A consumer of published generated Go does not need Kinmokusei or a compiler checkout.
 
 Handwritten Go remains a supported neighboring layer for measured optimizations, adapters, or APIs not yet safely expressible in Kinmokusei. Keep the package boundary explicit and test it from an external Go consumer.

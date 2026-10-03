@@ -429,6 +429,9 @@ tags = "kinmokusei_cross"
 	if err := os.WriteFile(filepath.Join(library, "go.mod"), []byte("module example.com/target-library\n\ngo 1.23\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(library, "LICENSE"), []byte("MIT fixture license\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(library, "base.go"), []byte("package targetlibrary\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

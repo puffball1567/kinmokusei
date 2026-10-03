@@ -403,20 +403,8 @@ func runBuild(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	arguments := []string{"build"}
-	if hasTarget {
-		arguments = append(arguments, target.GoBuildFlags()...)
-	}
-	arguments = append(arguments, "-mod=readonly", "-buildvcs=false", "-o", absoluteOutput, ".")
-	command := exec.Command("go", arguments...)
-	command.Dir = generatedDirectory
-	command.Env = project.OfflineEnvironment(command.Environ())
-	if hasTarget {
-		command.Env = target.Environment(command.Environ())
-	}
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	if err = command.Run(); err != nil {
+	if err = buildWithAttribution(generatedDirectory, absoluteOutput, target, hasTarget); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 	return 0

@@ -9,6 +9,15 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-10-02
+
+- Collect original redistribution licenses, notices and patent grants alongside
+  application binaries as `<output>.licenses/`, with target-specific Go/package
+  inventories and executable/notice SHA-256 hashes. Cover Go/module replacements,
+  external source packages, cgo source supplements and generated runtime helpers.
+  Stop on missing/unsafe attribution; keep dependency operations offline and
+  preserve old outputs or manually added notices on failure.
+
 - Let `finally` await or detach a Task before an enclosing `return` or
   Result propagation (`?`) completes. Check Task ownership after the handler
   on each exit edge, while still rejecting missed or repeated consumption.
