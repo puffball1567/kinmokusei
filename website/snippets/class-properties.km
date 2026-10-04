@@ -1,0 +1,20 @@
+import go { Println } from "fmt"
+
+class Counter<T> {
+  public static count: int = 0
+  public static const limit: int = 10
+  private stored: int = 0
+
+  constructor(public label: T) { Counter.count++ }
+
+  public get value(): int { return this.stored }
+  public set value(next: int) { this.stored = next }
+}
+
+const main = () => {
+  const first = new Counter<string>("first")
+  const second = new Counter<int>(2)
+  first.value = 4
+  first.value++
+  Println(first.value, second.value, Counter.count, Counter.limit)
+}

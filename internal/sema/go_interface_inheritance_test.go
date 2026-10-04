@@ -15,16 +15,16 @@ import (
 
 func TestGoInterfaceInheritanceSemanticMatrix(t *testing.T) {
 	for _, test := range []struct{ name, source, want string }{
-		{"method call and value", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} function use(value:Named):string{const read=value.String;return read();}`, ""},
-		{"class and ancestor", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named {public function string():string{return "value";}} function use():fmt.Stringer{return new Value();} function cast(value:Named):fmt.Stringer{return value;}`, ""},
-		{"generic diamond", `import go fmt from "fmt"; interface Root<T> extends fmt.Stringer {function read():T;} interface A<T> extends Root<T>{} interface B<T> extends Root<T>{} interface C<T> extends A<T>,B<T>{} class Value implements C<int>{public function string():string{return "value";}public function read():int{return 1;}} function use(value:C<int>):fmt.Stringer{return value;}`, ""},
-		{"same Go spelling", `import go fmt from "fmt"; interface Named extends fmt.Stringer {function string():string;} class Value implements Named{public function string():string{return "value";}}`, ""},
+		{"method call and value", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} function use(value:Named):bstring{const read=value.String;return read();}`, ""},
+		{"class and ancestor", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named {public function string():bstring{return "value";}} function use():fmt.Stringer{return new Value();} function cast(value:Named):fmt.Stringer{return value;}`, ""},
+		{"generic diamond", `import go fmt from "fmt"; interface Root<T> extends fmt.Stringer {function read():T;} interface A<T> extends Root<T>{} interface B<T> extends Root<T>{} interface C<T> extends A<T>,B<T>{} class Value implements C<int>{public function string():bstring{return "value";}public function read():int{return 1;}} function use(value:C<int>):fmt.Stringer{return value;}`, ""},
+		{"same Go spelling", `import go fmt from "fmt"; interface Named extends fmt.Stringer {function string():bstring;} class Value implements Named{public function string():bstring{return "value";}}`, ""},
 		{"multiple result implementation", `import go io from "io"; interface Reader extends io.Reader {} class Value implements Reader{public function read(buffer:byte[]):Result<int>{return ok(0);}} function use(reader:Reader):int{const [n,err]=reader.Read([]);return n;}`, ""},
 		{"source ancestor conflict", `import go fmt from "fmt"; interface A extends fmt.Stringer {} interface B{function string():int;} interface C extends A,B{}`, "incompatible signatures for Go method String"},
 		{"own conflict", `import go fmt from "fmt"; interface Named extends fmt.Stringer {function string():int;}`, "incompatible signatures for Go method String"},
 		{"missing", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named{}`, "missing method String"},
-		{"private", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named{private function string():string{return "value";}}`, "must be public"},
-		{"static", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named{public static function string():string{return "value";}}`, "cannot be static"},
+		{"private", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named{private function string():bstring{return "value";}}`, "must be public"},
+		{"static", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named{public static function string():bstring{return "value";}}`, "cannot be static"},
 		{"wrong result", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} class Value implements Named{public function string():int{return 0;}}`, "incompatible signature"},
 		{"reverse not implicit", `import go fmt from "fmt"; interface Named extends fmt.Stringer {} function use(value:fmt.Stringer):Named{return value;}`, "cannot use"},
 		{"duplicate", `import go fmt from "fmt"; interface Named extends fmt.Stringer,fmt.Stringer {}`, "duplicate extended interface"},

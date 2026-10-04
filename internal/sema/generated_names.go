@@ -14,6 +14,10 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 	declared := map[string]source.Span{}
 	structMembers := map[string]map[string]source.Span{}
 	claim := func(name string, span source.Span) {
+		if c.usesUTF8 && (name == "__kinmokuseiUTF8" || name == "__kinmokuseiUTF8Error" || name == "__kinmokuseiDecodeUTF8" || name == "__kinmokuseiSliceUTF8") {
+			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the UTF-8 runtime", name))
+			return
+		}
 		if c.usesTasks && (name == "__kinmokuseiTask" || name == "__kinmokuseiVoidTask" || name == "__kinmokuseiResultTask" || name == "__kinmokuseiVoidResultTask") {
 			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the Task runtime", name))
 			return

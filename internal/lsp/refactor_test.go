@@ -158,7 +158,7 @@ func TestRenameProducesPreciseUnicodeWorkspaceEdits(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "unicode.km")
 	uri := fileURI(path)
 	text := `function total(温泉: int): int {
-  const label: string = "温泉";
+  const label: bstring = "温泉";
   // 温泉 in a comment is not a symbol.
   return 温泉 + 1;
 }`
@@ -263,7 +263,7 @@ func TestReferencesAndRenameGoImportAlias(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "go_alias.km")
 	uri := fileURI(path)
 	text := `import go words from "strings";
-function clean(value: string): string { return words.TrimSpace(value); }`
+function clean(value: bstring): bstring { return words.TrimSpace(value); }`
 	at := positionOf(text, "words", 1)
 	messages := serveMessages(t,
 		openDocument(uri, text),
@@ -314,7 +314,7 @@ func TestReferencesBindingKindsMatrix(t *testing.T) {
 		{"value switch case", `function classify(input: int, expected: int): boolean { switch (input) { case expected { return true; } default { return false; } } }`, "expected", 1, 2},
 		{"type switch binding", `function inspect(input: error): boolean { switch (input) { case const typed as error { return typed != nil; } default { return false; } } }`, "typed", 1, 2},
 		{"propagation operand", `function source(): Result<int> { return ok(1); } function use(): Result<int> { const value = source()?; return ok(value); }`, "source", 1, 2},
-		{"catch binding", `function inspect(input: error): string { let result = ""; try { throw input; } catch (caught: error) { result = caught.Error(); } return result; }`, "caught", 1, 2},
+		{"catch binding", `function inspect(input: error): bstring { let result = ""; try { throw input; } catch (caught: error) { result = caught.Error(); } return result; }`, "caught", 1, 2},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

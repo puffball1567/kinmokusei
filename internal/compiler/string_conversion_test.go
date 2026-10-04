@@ -13,9 +13,9 @@ func TestGoCompatibleStringConversions(t *testing.T) {
 	input := `
 import go net from "net";
 
-function bytesText(value: byte[]): string { return string(value); }
+function bytesText(value: byte[]): bstring { return bstring(value); }
 function runesText(value: int32[]): string { return string(value); }
-function namedBytesText(value: net.IP): string { return string(value); }
+function namedBytesText(value: net.IP): bstring { return bstring(value); }
 function integerText(value: int32): string { return string(value); }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {

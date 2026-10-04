@@ -47,7 +47,7 @@ func TestTargetIntegerConstantsMatchGo(t *testing.T) {
 		{"Go named call", `import go {Compare as compare} from "cmp";function f():int{return compare<int>(2147483648,0);}`, `import "cmp";func f()int{return cmp.Compare[int](2147483648,0)}`},
 		{"Go inferred call", `import go cmp from "cmp";function f():int{return cmp.Compare(2147483648,0);}`, `import "cmp";func f()int{return cmp.Compare(2147483648,0)}`},
 		{"Go inferred wide call", `import go cmp from "cmp";function f():int{return cmp.Compare(2147483648,uint64(0));}`, `import "cmp";func f()int{return cmp.Compare(2147483648,uint64(0))}`},
-		{"Go interface argument", `import go fmt from "fmt";function f():string{return fmt.Sprint(2147483648);}`, `import "fmt";func f()string{return fmt.Sprint(2147483648)}`},
+		{"Go interface argument", `import go fmt from "fmt";function f():bstring{return fmt.Sprint(2147483648);}`, `import "fmt";func f()string{return fmt.Sprint(2147483648)}`},
 		{"layout word size", `import go u from "unsafe";const size=u.Sizeof(int(0));function f():byte{return byte(248+size);}`, `import "unsafe";const size=unsafe.Sizeof(int(0));func f()byte{return byte(248+size)}`},
 		{"layout alignment", `import go u from "unsafe";const size=u.Alignof(int64(0));function f():byte{return byte(248+size);}`, `import "unsafe";const size=unsafe.Alignof(int64(0));func f()byte{return byte(248+size)}`},
 		{"layout offset", `import go u from "unsafe";import go r from "reflect";let h:r.StringHeader=r.StringHeader{};const offset=u.Offsetof(h.Len);function f():byte{return byte(248+offset);}`, `import("unsafe";"reflect");var h reflect.StringHeader;const offset=unsafe.Offsetof(h.Len);func f()byte{return byte(248+offset)}`},

@@ -78,7 +78,7 @@ func TestGenericAliasSemanticMatrix(t *testing.T) {
 		{"pointer", `alias Ref<T> = *T; function use(value: Ref<int>): int { return *value; }`},
 		{"channel", `alias Channel<T> = GoChannel<T>; function use(value: Channel<int>): int { value <- 4; return <-value; }`},
 		{"function", `alias Transform<T, U> = (value: T) => U; function use(transform: Transform<int, string>): string { return transform(4); }`},
-		{"imported Go generic", `import go atomic from "sync/atomic"; alias AtomicRef<T> = atomic.Pointer<T>; function use(value: *AtomicRef<int>): *int { return value.Load(); }`},
+		{"imported Go generic", `import go atomic from "sync/atomic"; constraint Raw=~int|~bstring; alias AtomicRef<T extends Raw> = atomic.Pointer<T>; function use(value: *AtomicRef<int>): *int { return value.Load(); }`},
 		{"class reference", `class Box<T> { constructor(public value: T) {} } alias BoxRef<T> = Box<T>; function use(value: BoxRef<string>): string { return value.value; }`},
 		{"struct value", `struct Pair<T> { public left: T; public right: T; } alias PairValue<T> = Pair<T>; function use(value: PairValue<int>): int { return value.left + value.right; }`},
 		{"interface", `interface Reader<T> { function read(): T; } alias ReaderRef<T> = Reader<T>; function use(value: ReaderRef<string>): string { return value.read(); }`},

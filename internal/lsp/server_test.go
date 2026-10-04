@@ -918,7 +918,7 @@ func TestHoverDefinitionAndDocumentSymbolMatrix(t *testing.T) {
 func TestBuiltinExceptionHoverAndDefinition(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "exception.km")
 	uri := fileURI(path)
-	text := `function message(): string {
+	text := `function message(): bstring {
   try { throw new Exception("boom"); }
   catch (err: Exception) { return err.message + err.error(); }
 }`
@@ -936,7 +936,7 @@ func TestBuiltinExceptionHoverAndDefinition(t *testing.T) {
 		requests = append(requests, fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"method":"textDocument/definition","params":{"textDocument":{"uri":%q},"position":{"line":2,"character":%d}}}`, id, uri, positions[hoverID]))
 	}
 	messages := serveMessages(t, requests...)
-	for id, want := range map[float64]string{2: "class Exception", 3: "public message: string", 4: "public function error(): string"} {
+	for id, want := range map[float64]string{2: "class Exception", 3: "public message: bstring", 4: "public function error(): bstring"} {
 		result, ok := messages[id]["result"].(map[string]any)
 		if !ok {
 			t.Fatalf("hover %v = %#v", id, messages[id])

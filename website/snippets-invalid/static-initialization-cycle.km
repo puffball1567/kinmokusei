@@ -1,0 +1,4 @@
+class Counter {
+  public static value: int = Counter.initial()
+  private static function initial(): int { return Counter.value }
+}

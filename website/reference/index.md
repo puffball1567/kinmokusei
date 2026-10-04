@@ -20,14 +20,14 @@ Reference pages state the current compiler contract without tutorial narration. 
   <a class="doc-card" href="./project-files"><strong>Project files</strong><span><code>kinmokusei.toml</code>, <code>kinmokusei.lock</code>, targets, dependencies, and unsafe policy.</span></a>
   <a class="doc-card" href="./diagnostics"><strong>Diagnostics</strong><span>JSON schema, positions, streams, categories, and process status.</span></a>
   <a class="doc-card" href="./compatibility"><strong>Compatibility</strong><span>Toolchains, platforms, Go package connectivity, C boundaries, and generated Go.</span></a>
-  <a class="doc-card" href="./status"><strong>Implementation status</strong><span>Implemented, planned, experimental, and unsupported areas.</span></a>
+  <a class="doc-card" href="./status"><strong>Implementation status</strong><span>Supported features, release availability, and safety boundaries.</span></a>
 </div>
 
 ## Status vocabulary
 
 - <span class="status-label status-implemented">Implemented</span> is accepted by the compiler and covered by automated tests.
 - **Experimental** is implemented but carries an explicitly provisional pre-1.0 contract.
-- <span class="status-label status-planned">Planned</span> is design direction and is not accepted syntax or behavior.
+- **Unreleased** is implemented on the development branch but is not available in the latest published compiler.
 - **Unsupported** is deliberately rejected in the current compiler.
 
 When a guide and a design note disagree, implementation and automated tests are the behavioral source of truth. The public docs describe implemented behavior only.

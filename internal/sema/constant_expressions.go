@@ -115,7 +115,7 @@ func (c *Checker) resolvedStringConstantValue(expression ast.Expression, seen ma
 		delete(seen, symbol.declarationSpan)
 		return value, known
 	case *ast.LiteralExpr:
-		if expression.Kind != ast.StringLiteral {
+		if expression.Kind != ast.StringLiteral && expression.Kind != ast.ByteStringLiteral {
 			return "", false
 		}
 		value, err := strconv.Unquote(expression.Text)
@@ -304,7 +304,7 @@ func compareConstantOrdering(comparison int, operator string) bool {
 func stringConstantValue(expression ast.Expression) (string, bool) {
 	switch expression := expression.(type) {
 	case *ast.LiteralExpr:
-		if expression.Kind != ast.StringLiteral {
+		if expression.Kind != ast.StringLiteral && expression.Kind != ast.ByteStringLiteral {
 			return "", false
 		}
 		value, err := strconv.Unquote(expression.Text)

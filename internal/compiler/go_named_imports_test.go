@@ -17,13 +17,13 @@ func TestNamedGoImportPipeline(t *testing.T) {
 		`import go { MaxUint8, Pi } from "math"; function f():byte{return MaxUint8;} function g():float32{return Pi;}`,
 		`import go { DefaultClient, Client } from "net/http"; function f(value:*Client):void { DefaultClient=value; const pointer=&DefaultClient; }`,
 		`import go { Sprint } from "fmt"; function f(Sprint:(v:int)=>int):int{return Sprint(1);}`,
-		`import go { Sprint } from "fmt"; function f():string { const Sprint=(v:int):string=>{return "local";}; return Sprint(1); }`,
-		`import go { Sprint } from "fmt"; import go fmt from "fmt"; function f():string{return Sprint(1)+fmt.Sprint(2);}`,
-		`import go fmt from "fmt"; import go { Sprint } from "fmt"; function f():string{return Sprint(1)+fmt.Sprint(2);}`,
-		`import go { Sprint } from "fmt"; import go { Sprintln } from "fmt"; function f():string{return Sprint(1)+Sprintln(2);}`,
+		`import go { Sprint } from "fmt"; function f():bstring { const Sprint=(v:int):bstring=>{return "local";}; return Sprint(1); }`,
+		`import go { Sprint } from "fmt"; import go fmt from "fmt"; function f():bstring{return Sprint(1)+fmt.Sprint(2);}`,
+		`import go fmt from "fmt"; import go { Sprint } from "fmt"; function f():bstring{return Sprint(1)+fmt.Sprint(2);}`,
+		`import go { Sprint } from "fmt"; import go { Sprintln } from "fmt"; function f():bstring{return Sprint(1)+Sprintln(2);}`,
 		`import go { Duration } from "time"; function f<Duration>(v:Duration):Duration{return v;}`,
-		`import go fmt from "fmt"; import go { Sprint } from "fmt"; function f(fmt:int):string{return Sprint(fmt);} function g():string{return fmt.Sprint(2);}`,
-		`import go { Sprint } from "fmt"; import go fmt from "fmt"; function f(fmt:int):string{return Sprint(fmt);} function g():string{return fmt.Sprint(2);}`,
+		`import go fmt from "fmt"; import go { Sprint } from "fmt"; function f(fmt:int):bstring{return Sprint(fmt);} function g():bstring{return fmt.Sprint(2);}`,
+		`import go { Sprint } from "fmt"; import go fmt from "fmt"; function f(fmt:int):bstring{return Sprint(fmt);} function g():bstring{return fmt.Sprint(2);}`,
 		`import go time from "time"; import go { Second } from "time"; function f():time.Duration{return Second;}`,
 		`import go { Pi } from "math"; const value=Pi; function f():float32{return value;}`,
 		`import go { Reader } from "io"; interface Input extends Reader {}`,
@@ -76,13 +76,13 @@ func TestNamedGoImportsStayFileLocal(t *testing.T) {
 	helper := filepath.Join(root, "helper.km")
 	main := filepath.Join(root, "main.km")
 	for _, input := range []string{
-		`import { helper } from "./helper"; function f():string{return Sprint(1);}`,
+		`import { helper } from "./helper"; function f():bstring{return Sprint(1);}`,
 		`import { helper } from "./helper"; import go { Sprint } from "fmt"; function Sprint():void{}`,
 		`import { Sprint } from "./helper"; import go { Sprint } from "fmt";`,
 	} {
-		helperSource := `import go { Sprint } from "fmt"; function helper():string{return Sprint(1);}`
+		helperSource := `import go { Sprint } from "fmt"; function helper():bstring{return Sprint(1);}`
 		if strings.Contains(input, "import { Sprint }") {
-			helperSource = `function Sprint():string{return "source";}`
+			helperSource = `function Sprint():bstring{return "source";}`
 		}
 		result, err := CheckFilesWithOverlay([]string{main}, map[string]string{
 			main:   input,
@@ -99,7 +99,7 @@ func TestNamedGoImportsMatchIndependentGo(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
 		"helper.km": `import go { Sprint } from "fmt"
-function helper(value:int):string{return Sprint(value)}`,
+function helper(value:int):bstring{return Sprint(value)}`,
 		"main.km": `import { helper } from "./helper"
 import go { Sprint } from "fmt"
 import go { Compare } from "cmp"
@@ -108,8 +108,8 @@ import go { Pi, MaxUint8 } from "math"
 import go { Buffer } from "bytes"
 import go { Args } from "os"
 import go { Join } from "strings"
-function restoreArgs(saved:string[]):void { Args=saved }
-function MutateArgs():string {
+function restoreArgs(saved:bstring[]):void { Args=saved }
+function MutateArgs():bstring {
   const saved=Args
   defer restoreArgs(saved)
   Args=["left"]
@@ -118,7 +118,7 @@ function MutateArgs():string {
   (*pointer)[0]="updated"
   return Join(Args,",")
 }
-function Run(value:int):string {
+function Run(value:int):bstring {
   const render = Sprint
   const duration:Duration = Duration(value)*Second
   let b:Buffer = Buffer{}

@@ -50,6 +50,10 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 		c.report(expr.Value.GetSpan(), fmt.Sprintf("type assertion requires a Go interface value, got %s", value.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if c.containsVerifiedText(asserted, nil) {
+		c.report(expr.Type.Span, "Go type assertions cannot establish a UTF-8 string contract; assert bstring/raw storage and validate it explicitly")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	assertedGoType, ok := goTypeOf(asserted)
 	if !ok {
 		c.report(expr.Type.Span, fmt.Sprintf("asserted type %s cannot be represented as a Go type", asserted.String()))
@@ -83,6 +87,12 @@ func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {
 		return converted
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
+	if result, text := c.checkTextConversion(expr, converted, value); text {
+		return result
+	}
+	if underlyingGoInterface(converted.GoType) != nil && c.textEscapesThroughGoInterface(value) {
+		c.report(expr.Span, "Go interface conversion would erase a verified UTF-8 text storage contract; use bstring storage at the Go boundary")
+	}
 	valueGo, valueOK := goTypeOf(value)
 	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, converted, value)
@@ -109,6 +119,12 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 		return target
 	}
 	value := c.singleValue(c.checkExpression(expr.Arguments[0]), expr.Arguments[0].GetSpan())
+	if result, text := c.checkTextConversion(expr, target, value); text {
+		return result
+	}
+	if target.Kind != TypeParameter && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
+		c.report(expr.Span, "Go interface conversion would erase a verified UTF-8 text storage contract; use bstring storage at the Go boundary")
+	}
 	targetGo, targetOK := goTypeOf(target)
 	if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, target, value)

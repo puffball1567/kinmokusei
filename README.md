@@ -34,8 +34,11 @@ neither TypeScript-compatible nor Go-source-compatible: its source packages are
 distributed as `.km`, then compiled into ordinary readable Go modules that use
 the Go toolchain, module graph, ABI, runtime, and library ecosystem directly.
 
-The project is currently a pre-1.0 public preview. See
-[docs/index.md](docs/index.md) for the full design documentation.
+The project is currently a pre-1.0 public preview. Start with the
+[Language Manual](website/book/index.md) and
+[syntax reference](website/reference/language.md) for implemented behavior.
+[Release compatibility](website/project/releases.md) distinguishes published
+features from unreleased development changes.
 
 Kinmokusei was published as **OnsenTamago** in v0.1. The v0.2 identity change is
 intentionally breaking; existing users should follow the
@@ -58,23 +61,25 @@ intentionally breaking; existing users should follow the
 
 ## Currently implemented
 
-- `boolean`, `string`, machine-width `int`/`uint`, fixed-width `int8`/`int16`/`int32`/`int64` and `byte`/`uint16`/`uint32`/`uint64`, the Go-compatible `uint8` alias, floating-point types, and `void`.
+- `boolean`, verified UTF-8 `string`, immutable arbitrary-byte `bstring`, machine-width `int`/`uint`, fixed-width `int8`/`int16`/`int32`/`int64` and `byte`/`uint16`/`uint32`/`uint64`, the Go-compatible `uint8` alias, floating-point types, and `void`.
 - Identical `number`, `float`, and `float64` types.
 - Typed functions, top-level generic functions, generic class/struct methods, native generic structs, interfaces, and defined types, arrow functions, function types, and local type inference. Native parameters support TypeScript-shaped `T extends Constraint` bounds across functions, methods, and named generic types. TypeScript-shaped rest declarations such as `...values: int[]` work across functions, methods, interfaces, arrows, and constructors, with individual or spread calls and Go-compatible variadic output. Native generic calls support inference plus TypeScript-shaped `<T>` and Go-shaped `[T]` explicit or partial type arguments; generic named-type instantiation is explicit.
 - Reference-type classes, including generic classes with explicit instantiation and constrained parameters, constructors, `this`, `new`, public/private/protected visibility, instance/static methods, method-local generics with inference or explicit/partial arguments, idiomatic public Go helper APIs, and explicit single inheritance with `extends`, `virtual`, `override`, `final`, `super`, multi-level dispatch, nil/identity-preserving implicit upcasts, checked/forced class downcasts, and public Go hierarchy conversion APIs. Generic classes support substituted base state, constructors, inherited methods and interfaces, concrete or remapped bases, multi-level hierarchies, virtual dispatch with explicit override and construction-phase safety, and type-safe descendant-aware hierarchy conversions.
 - Nominal value-type `struct` declarations, including generic structs with constrained parameters, with complete named literals, Go-compatible assignment/argument/return copying, explicit pointer sharing, nested or external value/pointer receiver methods, method-local generics, ordinary non-generic method values, shallow reference-field copying, comparability, recursive indirection, and relative-module linking.
 - Native nominal defined types with `type Name = distinct T`, including native-struct underlyings, generic definitions such as `type NamedBox<T> = distinct Box<T>`, and finite recursive definitions through slice, map, pointer, function, or channel indirection; transparent aliases such as `alias Values<T> = T[]`; explicit Go-compatible conversions; inferred `comparable` constraints for map keys; untyped-constant assignment; collection/operator support; generic and non-generic value/pointer receiver methods; method values; JSON field preservation; and relative-module linking. Generic aliases are expanded in generated Go so the minimum Go 1.23 target is preserved.
 - Native integer enums with optional fixed-width underlying types, automatic and explicit constant values, namespaced members such as `Status.Pending`, explicit numeric conversion, switches, map keys, generics, relative-module linking, and ordinary generated-Go type/constant APIs.
-- Interfaces, explicit `implements`, and interface-based polymorphism.
+- Interfaces, explicit `implements`, interface inheritance and property contracts; abstract classes/methods/accessors for shared implementations and dependency injection.
+- Instance/static getter/setter properties with separate read/write visibility, virtual and abstract instance accessors, shared typed static fields and class constants.
+- Typed decorators for classes, fields, constructors, methods, accessors and parameters, with checked construction/invocation adapters for external DI and routing libraries.
 - `const`, `let`, simple and compound assignment, statement-only `++`/`--`, `return`, and `if`/`else`.
 - `while`, C-style `for`, collection/channel `for-of` range, `break`, `continue`, labels, labeled branches, and `goto`.
 - Slices `T[]`, fixed arrays `[N]T`, expected-type literals, indexing, two/three-index slicing, and `Map<K, V>`.
 - `len`, `cap`, `append`, `copy`, `delete`, `clear`, `min`, `max`, `makeSlice`, `makeMap`, and explicit copy/view slice-to-array conversion.
 - Explicit structural object types, object literals, member access, deterministic anonymous Go structs, and JSON tags.
 - Arithmetic, comparison, logical, bitwise, shift, address, and pointer-dereference operators.
-- Relative imports, cycle detection, deterministic module loading, file-scoped bindings, and selective imports.
+- Relative and locked external source imports, automatic short import aliases, source exports/re-exports, cycle detection, deterministic module loading and file-scoped bindings. Go imports support both namespace and named forms.
 - Namespaced Go interop for standard and external modules: constants, functions, variables, all Go basic types, named/alias/anonymous types, structs, fields/tags, pointers, `nil`, methods, multiple results, raw `error`, and explicit conversions.
-- Go-compatible explicit conversion to `string` from byte slices, rune slices, named Go byte/rune slices, and integers.
+- Checked raw/byte-slice decoding to `Result<string>`, arbitrary-byte conversion to `bstring`, UTF-8 encoding from rune slices/integers, and verified-text slice boundary checks.
 - Go callbacks, function/method values, and explicit class conformance to Go interfaces.
 - Go generic function inference, partial/full explicit type arguments, constraints, generic named types, and methods.
 - Ordinary value switches with grouped cases, plus checked (`as?`) and unchecked (`as!`) Go interface assertions and explicit type-binding switches.
@@ -83,7 +88,7 @@ intentionally breaking; existing users should follow the
 - Read-only existing Go module graphs, local `replace`, offline checks, strict `kinmokusei.toml`, canonical `kinmokusei.lock`, and dependency/license commands.
 - Locked GOOS, GOARCH, CGO, and build tags; target-aware checking; cross-build; and preflight rejection of cross-run.
 - Default-deny `unsafe` interop with explicit project policy and typed lowering for supported `unsafe` built-ins.
-- Local destructuring of multiple results, blank bindings, multiple-result reassignment, and Go-compatible checked map lookups with `[value, present]`.
+- Source multiple-result signatures, forwarding and sole-call argument expansion; local destructuring, blank bindings, multiple-result reassignment and Go-compatible checked map lookups with `[value, present]`.
 - Explicit `Result<T>`/`Result<void>` returns with `ok`, `fail`, postfix `?` propagation, and explicit split bindings across both Kinmokusei results and Go `(T, error)` APIs.
 - A built-in extensible `Exception`, ordered typed `catch` clauses, and return-safe `try`/`catch`/`finally`, isolated from ordinary Go/runtime panics.
 - Nil-backed `T | null` reference types with a dedicated `null` literal, separation from raw Go `nil`, checked nullable operations, assignment-sensitive local flow narrowing and joins, and definite constructor initialization for non-null reference fields.
@@ -91,12 +96,21 @@ intentionally breaking; existing users should follow the
 - `version`, `check` with text or machine-readable JSON diagnostics, plus `build`, `run`, `emit-go`, `emit-c-abi`, checked incoming `ffi generate`, ABI compatibility checks, transactional `install --go-module` and dependency commands, and `interop audit`.
 - An embedded source-written `kinmokusei/http` kernel with bounded context-aware fetch, a Go `ServeMux`-compatible `App`, method routes, path/query/header/context/cookie access, direct `http.Handler` use, and structured-task compatibility.
 - A 103/103 implemented Go-equivalent runtime contract registry backed by isolated handwritten-Go differential tests; new accepted runtime features must extend the registry and oracle together.
-- Explicit fixed-width scalar and native-enum plus normalized-boolean C ABI exports with status/out parameters, panic isolation, headers, canonical manifests, and SHA-256 fingerprints; incoming C FFI generation supports fixed/C-width scalars, borrowed strings/byte buffers, copied library-owned strings, bytes, and typed-array results with mandatory release, enums, nested POD structs, normalized tagged unions, panic-contained call-scoped and explicitly registered callbacks carrying scalar/enum/POD/tagged-union values, checked copied string/byte inputs, transactional mutable byte buffers, and registered C-owned string/byte/scalar/enum/POD-array results with paired release callbacks, plus optional handle-coupled lifetime leases and registration-owned retained string/byte inputs, target link flags, status and status/out errors, serialized or OS-thread-affine calls, opaque handles, checked release, and a tested Raylib-shaped load/unload shim pattern.
+- Explicit fixed-width scalar/enum and normalized-boolean C ABI exports with status/out parameters, panic isolation, headers, canonical manifests and fingerprints. Checked incoming C FFI supports ownership-aware scalars, strings, buffers, typed-array results, POD structs, enums, tagged unions, opaque handles and callbacks. See the [C ABI and FFI guide](website/guide/c-ffi.md) for supported combinations, lifetimes and thread policies.
 - `gofmt`-formatted Go AST output, generated-Go validation, and `.kinmokusei/gen/` modules.
 - LSP lifecycle, transactional incremental document synchronization, stale-version suppression, asynchronous semantic requests, explicit request cancellation, content-modified result suppression, UTF-16 diagnostics, hover, semantic definition/references, scope-safe rename for values, types, enums and their members, classes, native structs and their literal fields, methods, interface implementation families, and import aliases, document symbols, lexical/import/Go package and value API completion, visibility-aware Kinmokusei enum/class/struct/interface member completion, and signature help for Kinmokusei callables, constructors, compiler built-ins, Go package functions, and Go value methods.
 - An official thin Visual Studio Code client with `.km` syntax highlighting, configurable `keika` discovery, serialized restart behavior, visible retryable startup failures, real Extension Host end-to-end coverage, and reproducible local VSIX packaging.
 
-Not yet implemented include distinct definitions over native classes/interfaces, general Kinmokusei package distribution, remaining general retained/static FFI data ownership policies, broader constructor cardinality analysis, and automatic task cancellation/context inheritance. Source-declared type sets and exported standard or external Go interface constraints, including `cmp.Ordered` and module-defined type sets, are supported through `T extends Constraint`. Stable class-member nullable flow is implemented with conservative invalidation across aliases, writes, addresses, closures, and unknown calls. Boolean/integer/string constant expressions and local, `for`-initializer, same-file global, or explicitly imported `const` chains can prove guaranteed constructor-loop entry; provably nonempty array/string/fixed-array/`append`/`makeSlice` ranges, side-effect-free boolean combinations and nested branches of direct length guards, terminating empty guard clauses, and safe `switch (len(collection))` branches participate in the same check. A JSON API using direct `net/http` and `encoding/json` interop already compiles and runs.
+Type inference must determine a single static type; supply annotations when it
+cannot. Nullable flow and constructor initialization are checked conservatively,
+and structured tasks require explicit consumption. A JSON API using direct
+`net/http` and `encoding/json` interop already compiles and runs.
+
+v0.4.6 additionally supports typed borrowed/retained FFI arrays,
+multiple handle arguments, multiple call-scoped callbacks, callback array inputs
+and a checked main-thread policy. This patch also intentionally changes string
+contracts; review [v0.4.5 migration](website/project/releases.md#migrating-from-v045)
+before upgrading applications or external source libraries.
 
 ## Editor integration
 
@@ -118,7 +132,7 @@ function normalize(value: string): string {
 }
 ```
 
-Development builds also support named imports, for example
+Go packages also support named imports, for example
 `import go { ToUpper, TrimSpace } from "strings"`, followed by
 `ToUpper(TrimSpace(value))`. Both forms retain the original Go export identities.
 
@@ -129,8 +143,8 @@ The compiler uses the current standard library, a discoverable existing `go.mod`
 ```ts
 import go uuid from "github.com/google/uuid";
 
-function newID(): string {
-  return uuid.NewString();
+function newID(): Result<string> {
+  return string(uuid.NewString());
 }
 ```
 
@@ -145,6 +159,14 @@ for (const [key, value] of table) { consumeEntry(key, value); }
 ```
 
 String range yields an `int` UTF-8 byte offset and an `int32` Unicode code point. Map iteration order is unspecified. Range sources are evaluated once, and range values are copies; mutate original elements explicitly through an index or key.
+
+`string` is verified UTF-8 text; `bstring` is immutable arbitrary bytes and the
+runtime Go string boundary. Both lower to Go `string`. Use `b"\xff"` for raw
+literals and checked `string(raw)` / `string(bytes)` decoding, which returns
+`Result<string>`. Verified text slices check UTF-8 boundaries; explicitly slice
+`bstring(text)` when byte boundaries may split a code point. See the
+[string rules](website/book/types-and-values.md#strings-and-unicode) and
+[Go boundary guide](website/guide/go-interop.md#text-at-the-go-boundary).
 
 Integer bitwise and shift operators lower directly to Go and preserve Go operator groups and named-type identity. Unary address `&value` and binary `&` are distinct syntax contexts. Nested generic closers and `>>` are resolved by parser context. Negative constant shifts, excessive constant shifts, fixed-width constant overflow, and constant integer division by zero are diagnosed at the Kinmokusei source location. Dynamic negative shifts and zero divisors retain Go runtime panic behavior.
 
@@ -226,8 +248,11 @@ CLI binary distributions also include Go runtime/standard-library attribution
 materials. See [third-party notices](THIRD_PARTY_NOTICES.md); retain the bundled
 `licenses/` directory when redistributing a release.
 
-Starting with v0.4.5, `keika build -o app` also writes `app.licenses/` with
+`keika build -o app` also writes `app-licenses/` with
 original Go and dependency notices and a target-specific inventory. Keep the
 entire directory with redistributed applications. Missing dependency license
 text stops the build; this collection does not replace reviewing license terms
 or notices for separately linked native/system libraries.
+
+Application attribution was introduced in v0.4.5 as `app.licenses/`; v0.4.6
+uses `app-licenses/` and leaves existing legacy directories untouched.

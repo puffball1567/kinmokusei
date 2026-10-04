@@ -88,7 +88,7 @@ func TestGoInteropTypeConversionMatrix(t *testing.T) {
 		failed bool
 	}{
 		{"boolean", gotypes.Typ[gotypes.Bool], Boolean, false},
-		{"string", stringType, String, false},
+		{"string", stringType, BString, false},
 		{"int", intType, Int, false},
 		{"int8", gotypes.Typ[gotypes.Int8], Int8, false},
 		{"int16", gotypes.Typ[gotypes.Int16], Int16, false},

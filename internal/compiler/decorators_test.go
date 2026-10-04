@@ -571,7 +571,7 @@ export function Run():Result<string>{
  const base:Base=new Child();
  const messageValue=Call(4,decoratorValue(base),[])?;
  const message=decoratorValueAs<string>(messageValue)?;
- return ok(greeting+";"+strconv.Itoa(total)+";"+trace+ping.typeIdentity+";"+finished.typeIdentity+";"+message);
+ return string(greeting+";"+strconv.Itoa(total)+";"+trace+ping.typeIdentity+";"+finished.typeIdentity+";"+message);
 }
 export function WrongReceiver():Result<DecoratorValue>{return Call(0,decoratorValue("wrong"),[decoratorValue("name")]);}
 export function WrongArity():Result<DecoratorValue>{return Call(0,decoratorValue(new Controller("x")),[]);}
@@ -674,7 +674,7 @@ export function Run():Result<string>{
  const total=decoratorValueAs<int>(totalValue)?;
  const ping=Call(2,[])?;
  const finish=Call(3,[])?;
- return ok(greeting+":"+strconv.Itoa(total)+":"+ping.typeIdentity+":"+finish.typeIdentity);
+ return string(greeting+":"+strconv.Itoa(total)+":"+ping.typeIdentity+":"+finish.typeIdentity);
 }
 export function WrongArity():Result<DecoratorValue>{return Call(0,[]);}
 export function WrongArgument():Result<DecoratorValue>{return Call(0,[decoratorValue(1)]);}

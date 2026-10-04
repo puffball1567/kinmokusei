@@ -4,10 +4,68 @@ All notable user-facing changes are recorded here. During pre-1.0 development,
 Kinmokusei uses milestone-based minor versions. The v0.4.x series includes
 compatible feature additions and fixes in patch releases; v0.5 marks completion
 of the audited Go compatibility work. This differs from strict SemVer feature
-numbering. Intentional source or public API breaks require a minor release and
-migration notes; corrections rejecting invalid programs are documented fixes.
+numbering. Intentional source or public API breaks normally require a minor
+release and migration notes; corrections rejecting invalid programs are
+documented fixes. v0.4.6 is an explicit exception: its verified-text contract
+changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
+
+## [0.4.6] - 2026-10-04
+
+- Preserve verified-text storage checks through source structural interfaces
+  and instantiated/inherited generic interfaces. Reject Go reflection/opaque
+  interface escapes that conceal mutable `string` fields, while retaining raw
+  `bstring` implementations and excluding incompatible generic method sets.
+
+- Rename application attribution directories from `<output>.licenses/` to
+  `<output>-licenses/`. Preserve existing legacy directories without modifying
+  or deleting them; distribute the newly generated directory with the executable.
+
+- Breaking text-contract change (intentional v0.4.6 compatibility exception): make `string`
+  verified UTF-8 and add immutable arbitrary-byte `bstring` with `b"..."`
+  literals. Runtime Go strings map to `bstring`; checked raw/byte-slice
+  decoding returns `Result<string>` without silently replacing invalid bytes.
+  Preserve text contracts through named types, generics and shared storage;
+  check UTF-8 boundaries when slicing verified text.
+- Migration: use `bstring` for raw Go data, shared Go string collections,
+  callbacks and error messages (`Exception.message` / `.error()`). Handle
+  `string(raw)` using `?`, an explicit result split, or direct result forwarding.
+  `Response.text()` now returns `Result<string>`; use `rawText()` for the
+  previous raw-body behavior. Update runnable documentation and Go examples.
+
+- Add incoming FFI `borrowedArray` and registration-owned `retainedArray`
+  inputs for scalar, enum and POD elements, with checked allocation sizes and
+  transactional cleanup. Validate both C and Go layouts for owned-array results.
+- Support multiple opaque handle arguments with stable, deduplicated lock
+  ordering and registration leases. Reject copied handle/registration values
+  without closing their original resources.
+- Add `mainThread` FFI policy for normal Go executables, with startup thread
+  pinning and checked wrong-thread errors.
+- Support multiple call-scoped callbacks, subscription-only manifests and
+  copied/mutable typed callback arrays. Preserve independent callback errors,
+  original argument names and panic containment, including legacy `panic(nil)`.
+- Isolate generated FFI parameter names from imports, locals and declarations;
+  preserve manifest argument identities in callback diagnostics.
+- Verify offline distribution/build of C-backed source packages through a
+  separately versioned cgo Go module dependency.
+- Refresh the user manual, syntax/type/built-in references and FFI documentation
+  against implemented behavior, with executable property, decorator and
+  multiple-result examples and explicit release availability.
+- Correct existing installation, dependency, Go interop and error-handling
+  documentation. Verify selected-archive checksum commands against missing
+  assets/tampering and JSON check output against success, input and usage errors.
+- Document construction-phase dispatch, per-instance defaults and initialization
+  cycles with executable/rejected examples. Add generic property and finally/Task
+  examples; clarify native JSON mutation versus constructor/validation contracts
+  and raw DTO versus verified-text decoder boundaries.
+- Document local import aliases with shared-storage examples, distinguish source
+  symbol exports from public package submodules, and correct stale manifest/import
+  examples. Verify the complete offline source-library workflow, generated output
+  and dependency restoration without manifest/lock mutation.
+- Document verified text versus raw immutable bytes and UTF-8 source encoding, with
+  checked conversion/validation examples, invalid-byte/NUL behavior, slicing
+  restrictions and precise escape/code-point documentation.
 
 ## [0.4.5] - 2026-10-02
 
@@ -803,7 +861,12 @@ migration notes; corrections rejecting invalid programs are documented fixes.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...HEAD
+[0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6
+[0.4.5]: https://github.com/puffball1567/kinmokusei/compare/v0.4.4...v0.4.5
+[0.4.4]: https://github.com/puffball1567/kinmokusei/compare/v0.4.3...v0.4.4
+[0.4.3]: https://github.com/puffball1567/kinmokusei/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/puffball1567/kinmokusei/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/puffball1567/kinmokusei/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/puffball1567/kinmokusei/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/puffball1567/kinmokusei/compare/v0.2.0...v0.3.0

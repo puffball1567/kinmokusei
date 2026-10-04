@@ -76,7 +76,7 @@ Keywords cannot be used as ordinary identifiers. The major families are:
 | Family | Keywords |
 | --- | --- |
 | Declarations | `const`, `let`, `function`, `class`, `struct`, `interface`, `constructor` |
-| Relationships | `extends`, `implements`, `virtual`, `override`, `final` |
+| Relationships | `extends`, `implements`, `virtual`, `override`, `final`, `abstract` |
 | Visibility/member kind | `public`, `private`, `protected`, `static` |
 | Control flow | `if`, `else`, `while`, `for`, `of`, `switch`, `case`, `default` |
 | Branching | `return`, `break`, `continue`, `goto`, `fallthrough` |
@@ -85,7 +85,10 @@ Keywords cannot be used as ordinary identifiers. The major families are:
 | Values and operators | `true`, `false`, `nil`, `null`, `new`, `this`, `super`, `as` |
 | Boundaries | `import`, `from`, `export`, `defer` |
 
-`type`, `alias`, `distinct`, `enum`, and struct-method `pointer` are currently recognized contextually. Treat them as reserved in those grammar positions even though their lexer representation differs from the fixed keyword set.
+`type`, `alias`, `distinct`, `enum`, `constraint`, accessor `get` / `set`, and
+struct-method `pointer` are recognized contextually. Treat them as reserved in
+those grammar positions even though their lexer representation differs from
+the fixed keyword set.
 
 ## Numeric literals
 
@@ -127,11 +130,30 @@ Strings use double quotes and remain on one source line:
 const plain = "hello";
 const escaped = "first\nsecond";
 const unicode = "温泉たまご";
+const raw: bstring = b"\xff\x00";
 ```
 
-Escapes follow Go-compatible quoted string escapes because the compiler decodes them with the same contract. A raw newline, missing closing quote, or invalid escape is a lexical diagnostic. Raw-string/backtick and template/interpolation syntax are not implemented.
+Escapes follow Go-compatible quoted string escapes. Supported control escapes
+are `\a`, `\b`, `\f`, `\n`, `\r`, `\t` and `\v`; `\\` and `\"` escape
+a backslash and a double quote. `\xNN` and three-digit octal escapes encode one
+byte, while `\uNNNN` and `\UNNNNNNNN` encode a valid Unicode code point as
+UTF-8. Digit counts are exact; octal values must fit one byte. For example,
+`"\x00"` or `"\000"` stores NUL, but `"\0"` is not a valid Go-style escape.
 
-Strings contain UTF-8 bytes. Indexing returns a byte; range iteration returns a byte offset and Unicode code point.
+A raw newline, missing closing quote, invalid escape, surrogate code point or
+code point above U+10FFFF is a lexical diagnostic. Single-quoted character
+literals, raw-string/backtick and template/interpolation syntax are not
+implemented. Use an `int32` code-point value and `string(codePoint)` when needed.
+
+Source text must be UTF-8. An ordinary literal also checks its decoded value:
+`"\xff"` is rejected, while `"\xc3\xa9"` is valid UTF-8. Prefix a quoted
+literal with an immediately adjacent `b` to create a `bstring` containing
+arbitrary bytes: `b"\xff"` is valid. Both forms use the same escape grammar;
+the prefix does not enable raw/backtick literals. Indexing returns a byte;
+range iteration yields code points
+and, in its two-binding form, byte offsets. See
+[strings and Unicode](./types-and-values#strings-and-unicode) for conversions,
+validation and slicing rules.
 
 ## Boolean and absence literals
 

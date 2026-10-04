@@ -18,13 +18,13 @@ import go fmt from "fmt";
 import go path from "path";
 import go runtime from "runtime";
 const circleConstant: float = math.Pi;
-function normalize(value: string): string { return strings.ToUpper(strings.TrimSpace(value)); }
-function secondWord(value: string): string { return strings.Fields(value)[1]; }
-function digits(value: int): string { return strconv.Itoa(value); }
+function normalize(value: bstring): bstring { return strings.ToUpper(strings.TrimSpace(value)); }
+function secondWord(value: bstring): bstring { return strings.Fields(value)[1]; }
+function digits(value: int): bstring { return strconv.Itoa(value); }
 function circleRatio(): float { return circleConstant; }
-function joinNone(): string { return path.Join(); }
-function joinMany(): string { return path.Join("a", "b", "c"); }
-function formatItem(): string { return fmt.Sprintf("%s:%d", "item", 2); }
+function joinNone(): bstring { return path.Join(); }
+function joinMany(): bstring { return path.Join("a", "b", "c"); }
+function formatItem(): bstring { return fmt.Sprintf("%s:%d", "item", 2); }
 function collect(): void { runtime.GC(); }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
@@ -96,10 +96,10 @@ function sortedDigits(): int {
   sort.Slice(items, (left: int, right: int): boolean => items[left] < items[right]);
   return items[0] * 100 + items[1] * 10 + items[2];
 }
-function mapped(): string { return strings.Map((value: int32): int32 => value + 1, "ab"); }
-function namedMapped(): string { return strings.Map(identityRune, "ab"); }
-function packageFunctionValue(): string { const upper = strings.ToUpper; return upper("ab"); }
-function boundMethodValue(): string { const replace = strings.NewReplacer("a", "b").Replace; return replace("a-cat"); }
+function mapped(): bstring { return strings.Map((value: int32): int32 => value + 1, "ab"); }
+function namedMapped(): bstring { return strings.Map(identityRune, "ab"); }
+function packageFunctionValue(): bstring { const upper = strings.ToUpper; return upper("ab"); }
+function boundMethodValue(): bstring { const replace = strings.NewReplacer("a", "b").Replace; return replace("a-cat"); }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -216,11 +216,11 @@ import go slices from "slices";
 function contains(items: int[]): boolean { return slices.Contains(items, 2); }
 function cloned(items: int[]): int[] { return slices.Clone(items); }
 function indexed(items: int[]): int { return slices.IndexFunc(items, (item: int): boolean => item > 2); }
-function clonedMap(items: Map<string, int>): Map<string, int> { return maps.Clone(items); }
+function clonedMap(items: Map<bstring, int>): Map<bstring, int> { return maps.Clone(items); }
 function concatenated(items: int[][]): int[] { return slices.Concat(items...); }
 function explicitClone(items: int[]): int[] { return slices.Clone[int[]](items); }
 function explicitEmptyConcat(): int[] { return slices.Concat[int[]](); }
-function explicitMap(items: Map<string, int>): Map<string, int> { return maps.Clone[Map<string, int>, string, int](items); }
+function explicitMap(items: Map<bstring, int>): Map<bstring, int> { return maps.Clone[Map<bstring, int>, bstring, int](items); }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -286,19 +286,19 @@ func TestGoGenericNamedTypesAndMethodsCompileAndRun(t *testing.T) {
 import go atomic from "sync/atomic";
 import go time from "time";
 import go unique from "unique";
-function roundTrip(value: string): string {
-  let pointer: atomic.Pointer<string> = atomic.Pointer<string>{};
+function roundTrip(value: bstring): bstring {
+  let pointer: atomic.Pointer<bstring> = atomic.Pointer<bstring>{};
   pointer.Store(&value);
   return *pointer.Load();
 }
-function previous(first: string, second: string): string {
-  let pointer: atomic.Pointer<string> = atomic.Pointer<string>{};
+function previous(first: bstring, second: bstring): bstring {
+  let pointer: atomic.Pointer<bstring> = atomic.Pointer<bstring>{};
   pointer.Store(&first);
   return *pointer.Swap(&second);
 }
-function canonical(value: string): string { const handle = unique.Make(value); return handle.Value(); }
-function explicitCanonical(value: string): string { const handle: unique.Handle<string> = unique.Make(value); return handle.Value(); }
-function handles(value: string): unique.Handle<string>[] { return [unique.Make(value)]; }
+function canonical(value: bstring): bstring { const handle = unique.Make(value); return handle.Value(); }
+function explicitCanonical(value: bstring): bstring { const handle: unique.Handle<bstring> = unique.Make(value); return handle.Value(); }
+function handles(value: bstring): unique.Handle<bstring>[] { return [unique.Make(value)]; }
 function durationPointer(): atomic.Pointer<time.Duration> { return atomic.Pointer<time.Duration>{}; }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {
@@ -427,10 +427,10 @@ function timeout(): time.Duration {
 }
 function nilClient(): boolean { let client: *http.Client = nil; return client == nil; }
 function currentUnix(): int64 { return time.Now().Unix(); }
-function outputName(): string { return os.Stdout.Name(); }
+function outputName(): bstring { return os.Stdout.Name(); }
 function replaceOutput(output: *os.File): void { os.Stdout = output; }
 function readerLength(): int { return strings.NewReader("abc").Len(); }
-function resetBuffer(): string { let buffer: bytes.Buffer = bytes.Buffer{}; buffer.Reset(); return buffer.String(); }
+function resetBuffer(): bstring { let buffer: bytes.Buffer = bytes.Buffer{}; buffer.Reset(); return buffer.String(); }
 function duration(value: int64): time.Duration { return time.Duration(value); }
 function inferredCallback(): time.Duration { const readTimeout = () => http.DefaultClient.Timeout; return readTimeout(); }
 `
@@ -510,27 +510,27 @@ func TestGoMultipleResultsAndErrorCompileAndRun(t *testing.T) {
 	input := `
 import go errors from "errors";
 import go strconv from "strconv";
-function parse(value: string): int {
+function parse(value: bstring): int {
   const [parsed, err] = strconv.Atoi(value);
   if (err != nil) { return -1; }
   return parsed;
 }
 
-function reparse(value: string): int {
+function reparse(value: bstring): int {
   let parsed: int = 0;
   let err: error = nil;
   [parsed, err] = strconv.Atoi(value);
   if (err != nil) { return -1; }
   return parsed;
 }
-function message(value: string): string {
+function message(value: bstring): bstring {
   const [_, err] = strconv.Atoi(value);
   if (err == nil) { return ""; }
   return err.Error();
 }
-function discard(value: string): void { const [_, _] = strconv.Atoi(value); }
+function discard(value: bstring): void { const [_, _] = strconv.Atoi(value); }
 function makeError(): error { return errors.New("boom"); }
-function loopParse(value: string): int {
+function loopParse(value: bstring): int {
   for (const [parsed, err] = strconv.Atoi(value); err == nil; ) { return parsed; }
   return -1;
 }
@@ -634,13 +634,13 @@ func hidden() int { return 1 }
 	kinmokuseiSource := `
 import go library from "example.com/library";
 import go time from "time";
-function render(text: string): string {
+function render(text: bstring): bstring {
   const [identifier, err] = library.Parse(text);
   if (err != nil) { return err.Error(); }
   const config: library.Config = library.Config{ Prefix: "id:" };
   return config.Render(identifier);
 }
-function dependencyVersion(): string { return library.Version; }
+function dependencyVersion(): bstring { return library.Version; }
 function dependencyDelay(): time.Duration { return library.Delay(); }
 function dependencySum(): int { return library.Sum(10, 1, 2, 3); }
 function dependencySpread(values: int[]): int { return library.Sum(10, values...); }
@@ -847,13 +847,13 @@ func TestGoInteropFailureMatrix(t *testing.T) {
 		{"blank alias", `import go _ from "strings"; function value(): int { return 1; }`, "cannot be used as a namespace"},
 		{"unsafe package", `import go unsafe from "unsafe"; function value(): int { return 1; }`, "requires [go.interop]"},
 		{"internal package", `import go abi from "internal/abi"; function value(): int { return 1; }`, "not available in current Go interop"},
-		{"unknown member", `import go strings from "strings"; function value(): string { return strings.Missing("x"); }`, "has no exported member"},
-		{"multiple returns", `import go os from "os"; function value(): string { return os.Getwd(); }`, "require destructuring"},
+		{"unknown member", `import go strings from "strings"; function value(): bstring { return strings.Missing("x"); }`, "has no exported member"},
+		{"multiple returns", `import go os from "os"; function value(): bstring { return os.Getwd(); }`, "require destructuring"},
 		{"variadic too few fixed arguments", `import go fmt from "fmt"; function value(): void { fmt.Fprintf(); }`, "expects at least 2 arguments, got 0"},
 		{"type symbol", `import go strings from "strings"; function value(): int { const reader = strings.Reader; return 1; }`, "cannot be used as a value"},
 		{"package as value", `import go strings from "strings"; function value(): int { const packageValue = strings; return 1; }`, "cannot be used as a value"},
-		{"wrong argument type", `import go strings from "strings"; function value(): string { return strings.ToUpper(1); }`, "cannot use integer literal as string"},
-		{"wrong argument count", `import go strings from "strings"; function value(): string { return strings.ToUpper(); }`, "expects 1 arguments, got 0"},
+		{"wrong argument type", `import go strings from "strings"; function value(): bstring { return strings.ToUpper(1); }`, "cannot use integer literal as bstring"},
+		{"wrong argument count", `import go strings from "strings"; function value(): bstring { return strings.ToUpper(); }`, "expects 1 arguments, got 0"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -880,10 +880,10 @@ func TestGoInteropFailureMatrix(t *testing.T) {
 func TestGoImportAliasesAreLinkedAcrossModules(t *testing.T) {
 	temp := t.TempDir()
 	files := map[string]string{
-		"upper.km":  `import go text from "strings"; function upper(value: string): string { return text.ToUpper(value); }`,
-		"trim.km":   `import go words from "strings"; function trim(value: string): string { return words.TrimSpace(value); }`,
-		"digits.km": `import go text from "strconv"; function digits(value: int): string { return text.Itoa(value); }`,
-		"entry.km":  `import { upper } from "./upper"; import { trim } from "./trim"; import { digits } from "./digits"; function value(): string { return upper(trim(" x ")) + digits(1); }`,
+		"upper.km":  `import go text from "strings"; function upper(value: bstring): bstring { return text.ToUpper(value); }`,
+		"trim.km":   `import go words from "strings"; function trim(value: bstring): bstring { return words.TrimSpace(value); }`,
+		"digits.km": `import go text from "strconv"; function digits(value: int): bstring { return text.Itoa(value); }`,
+		"entry.km":  `import { upper } from "./upper"; import { trim } from "./trim"; import { digits } from "./digits"; function value(): bstring { return upper(trim(" x ")) + digits(1); }`,
 	}
 	for name, source := range files {
 		if err := os.WriteFile(filepath.Join(temp, name), []byte(source), 0o644); err != nil {
@@ -923,8 +923,8 @@ func TestAliases(t *testing.T) {
 func TestGoMultipleAssignmentLinksGlobalAcrossModules(t *testing.T) {
 	temp := t.TempDir()
 	files := map[string]string{
-		"state.km": `import go os from "os"; let directory: string = ""; function refresh(): boolean { let err: error = nil; [directory, err] = os.Getwd(); return err == nil; }`,
-		"entry.km": `import { directory, refresh } from "./state"; function current(): string { refresh(); return directory; }`,
+		"state.km": `import go os from "os"; let directory: bstring = ""; function refresh(): boolean { let err: error = nil; [directory, err] = os.Getwd(); return err == nil; }`,
+		"entry.km": `import { directory, refresh } from "./state"; function current(): bstring { refresh(); return directory; }`,
 	}
 	for name, source := range files {
 		if err := os.WriteFile(filepath.Join(temp, name), []byte(source), 0o644); err != nil {

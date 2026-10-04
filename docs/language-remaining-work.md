@@ -26,7 +26,8 @@ decomposition.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor
 versions and documented diagnostics. Intentional source/public API breaks
-require a minor release and migration notes.
+normally require a minor release and migration notes. v0.4.6 is an explicit
+exception for the verified-text source/API migration.
 
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent

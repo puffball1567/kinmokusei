@@ -12,11 +12,12 @@ Kinmokusei aims to preserve Go behavior where the two languages share a construc
 | Go | Kinmokusei |
 | --- | --- |
 | `bool` | `boolean` |
+| Runtime Go `string` | Raw `bstring`; checked `string(raw)` gives `Result<string>` (since v0.4.6) |
 | `[]T`, `[N]T`, `map[K]V` | `T[]`, `[N]T`, `Map<K, V>` |
 | Named value type | `struct` or `type Name = distinct T` |
 | Pointer-backed object pattern | `class` |
 | `(T, error)` | direct Go multiple result or `Result<T>` return effect |
-| Package import | namespaced `import go alias from "path"` |
+| Package import | `import go alias from "path"` or `import go { Name as LocalName } from "path"` |
 | Goroutine statement | `go call();` |
 | Managed result goroutine | `const task = go call()` plus `await` or `detach` |
 | `go:generate`-style artifact | explicit `keika emit-go` |
@@ -44,6 +45,18 @@ let client: http.Client = http.Client { Timeout: timeout };
 
 The compiler loads export data from the selected toolchain and preserves named types, aliases, fields, tags, pointers, interfaces, methods, multiple results, variadics, generics, channels, and constraints. It does not translate Go source into Kinmokusei syntax or wrap calls in reflection proxies.
 
+Named imports with `as` supply file-local symbol names without copying Go
+package variables or changing type identity. Manifest `[imports]` aliases only
+shorten Kinmokusei source-package paths; they never rewrite `import go` paths.
+See [local import aliases](../book/modules-and-imports#local-import-aliases).
+
+Since v0.4.6, Kinmokusei intentionally distinguishes verified UTF-8 `string`
+from Go-compatible arbitrary-byte `bstring`. Shared Go string collections and
+callbacks use the raw type; explicit decoding validates text without replacing
+invalid bytes. Both types keep Go storage, but text slicing checks UTF-8
+boundaries. See [text at the Go boundary](../guide/go-interop#text-at-the-go-boundary)
+and [migration notes](../project/releases#migrating-from-v045).
+
 ## Errors have explicit bridges
 
 Raw Go multiple results remain available:
@@ -63,7 +76,13 @@ No implicit conversion turns an arbitrary `(T, error)` into a wrapper. Typed exc
 
 ## Classes add explicit reference OOP
 
-Classes provide constructors, visibility, interfaces, static methods, and optional single inheritance with `virtual`, `override`, `final`, and `super`. Generated APIs use Go structs, methods, interfaces, and conversion helpers. Native `struct` remains available when Go value behavior is the desired contract.
+Classes provide constructors, visibility, interfaces, abstract members,
+getter/setter properties, static methods/fields/constants, and optional single
+inheritance with `virtual`, `override`, `final`, and `super`. Typed decorators
+provide checked registration and construction/invocation adapters for external
+libraries. Generated APIs use Go structs, methods, interfaces and package-level
+helpers. Native `struct` remains available when Go value behavior is the desired
+contract; see [classes and interfaces](../book/structs-classes-interfaces).
 
 ## Generated Go is part of the product
 

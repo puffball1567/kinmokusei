@@ -1,0 +1,28 @@
+import go { Println } from "fmt"
+
+alias Factory = (arguments: DecoratorValue[]) => Result<DecoratorValue>
+let factories: Factory[] = []
+
+function Register(context: ClassDecoratorContext): void {
+  if (context.constructible) {
+    factories = append(factories, context.construct)
+  }
+}
+
+@Register
+class Greeter {
+  constructor(public prefix: string) {}
+  public function greet(name: string): string { return this.prefix + name }
+}
+
+function greeting(): Result<string> {
+  const boxed = factories[0]([decoratorValue("Hello, ")])?
+  const greeter = decoratorValueAs<Greeter>(boxed)?
+  return ok(greeter.greet("Kinmokusei"))
+}
+
+const main = () => {
+  const [text, err] = greeting()
+  if (err !== nil) { Println(err); return }
+  Println(text)
+}

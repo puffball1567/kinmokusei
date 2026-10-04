@@ -20,6 +20,7 @@ type localArrowInference struct {
 	capturedWrites            map[source.Span]source.Span
 	memberWrite               source.Span
 	usesTasks, usesExceptions bool
+	usesUTF8                  bool
 }
 
 func resolveLocalArrowType(symbol valueSymbol) valueSymbol {
@@ -59,6 +60,7 @@ func (inference *localArrowInference) check() {
 	inference.symbol = dependency.scopes[len(dependency.scopes)-1][inference.declaration.Name]
 	inference.diagnostics = dependency.diagnostics
 	inference.usesTasks, inference.usesExceptions = dependency.usesTasks, dependency.usesExceptions
+	inference.usesUTF8 = dependency.usesUTF8
 	inference.checking, inference.checked = false, true
 }
 
@@ -70,6 +72,7 @@ func (c *Checker) finishLocalArrowBinding(inference *localArrowInference) {
 	c.diagnostics = append(c.diagnostics, inference.diagnostics...)
 	c.usesTasks = c.usesTasks || inference.usesTasks
 	c.usesExceptions = c.usesExceptions || inference.usesExceptions
+	c.usesUTF8 = c.usesUTF8 || inference.usesUTF8
 	decl := inference.declaration
 	scope := c.scopes[len(c.scopes)-1]
 	symbol := scope[decl.Name]

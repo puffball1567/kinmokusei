@@ -359,6 +359,9 @@ func (p *Parser) parsePrimary() ast.Expression {
 	case token.String:
 		p.advance()
 		return &ast.LiteralExpr{Kind: ast.StringLiteral, Text: tok.Lexeme, Span: tok.Span}
+	case token.ByteString:
+		p.advance()
+		return &ast.LiteralExpr{Kind: ast.ByteStringLiteral, Text: tok.Lexeme[1:], Span: tok.Span}
 	case token.True, token.False:
 		p.advance()
 		return &ast.LiteralExpr{Kind: ast.BooleanLiteral, Text: tok.Lexeme, Span: tok.Span}

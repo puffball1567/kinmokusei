@@ -38,7 +38,7 @@ import go fmt from "fmt";
 interface Named extends fmt.Stringer{}
 interface W<T> extends c.Wrapper<T>{}
 function wrapped<T>(v:W<T>):T{const r=v.Get();return r.Read();}
-class Label implements Named{constructor(private n:int){}public function string():string{return fmt.Sprint(this.n);}}
+class Label implements Named{constructor(private n:int){}public function string():bstring{return fmt.Sprint(this.n);}}
 function label(n:int):Named{return new Label(n);}
 function empty(n:int):boolean{const v=c.Any(n);return v!==nil;}
 `,
@@ -46,12 +46,12 @@ function empty(n:int):boolean{const v=c.Any(n);return v!==nil;}
 import go api from "anonymous-go-interface.test/contracts";
 import go f from "fmt";
 function Read(n:int):int{const v=api.New(n);const read=v.Read;return int(read());}
-function Pair(n:int):string{const v=api.New(n);const pair=v.Pair;const [a,b]=pair();return f.Sprint(a)+":"+b;}
+function Pair(n:int):bstring{const v=api.New(n);const pair=v.Pair;const [a,b]=pair();return f.Sprint(a)+":"+b;}
 function All(n:int):int{const v=api.New(n);const all=v.All;return len(all(api.Token(1),api.Token(2)));}
 function Pass(n:int):int{const v=api.Identity(api.New(n));return api.Use(v);}
 function Collection(n:int):int{const xs=api.Values(n);const obj=api.Object(n);return int(xs[0].Read())+int(obj.Value.Read());}
 function Callback(n:int):int{return api.Apply(n,(v:api.Reader):int=>int(v.Read())+1);}
-function Named(n:int):string{const v=api.Named(n);const named:f.Stringer=v;return named.String();}
+function Named(n:int):bstring{const v=api.Named(n);const named:f.Stringer=v;return named.String();}
 function Empty(n:int):boolean{const v=api.Any(label(n));return v!==nil&&empty(n);}
 class Leaf{constructor(public value:int){}}
 function Wrapped(v:W<int>):int{return wrapped(v);}

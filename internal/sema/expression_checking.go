@@ -399,7 +399,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 		if object.Element != nil {
 			return c.checkedIndexResult(expr, *object.Element, checked, true)
 		}
-	case String:
+	case String, BString:
 		c.checkSequenceIndex(expr.Index, index, c.constantStringLength(expr.Object), "string")
 		return c.checkedIndexResult(expr, builtins["byte"], checked, false)
 	}
@@ -506,11 +506,15 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		c.checkSliceConstantBounds(expr, -1, "fixed array")
 		return resultType
 	}
-	if object.Kind == String {
+	if object.Kind == String || object.Kind == BString {
 		if expr.Full {
 			c.report(expr.Span, "3-index slice cannot be used with string")
 		}
 		c.checkSliceConstantBounds(expr, c.constantStringLength(expr.Object), "string")
+		if object.Kind == String {
+			expr.UTF8 = true
+			c.usesUTF8 = true
+		}
 		// Slicing an untyped string produces a typed, nonconstant string value.
 		return defaultLiteralType(resultType)
 	}

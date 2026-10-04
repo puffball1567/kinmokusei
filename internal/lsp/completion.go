@@ -172,6 +172,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, definition := range ast.DecoratorContextDefinitions() {
 		builtinTypes = append(builtinTypes, definition.Name)
 	}
+	builtinTypes = append(builtinTypes, "bstring")
 	for _, name := range builtinTypes {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}

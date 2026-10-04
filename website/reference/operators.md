@@ -89,7 +89,11 @@ Supported update statements:
 +=  -=  *=  /=  %=  &=  |=  ^=  &^=  <<=  >>=  ++  --
 ```
 
-Targets can be identifiers, writable fields, assignable indexes, or pointer dereferences. Generated compound assignment evaluates a selector/index/pointer target once. `++` and `--` never produce a value.
+Targets can be identifiers, writable fields/properties, assignable indexes, or
+pointer dereferences. Property updates require an accessible getter and setter
+and perform ordered read/modify/write calls, not atomic mutation. Generated
+compound assignment evaluates a selector/index/pointer target once.
+`++` and `--` never produce a value.
 
 Strings support only `+=`. Remainder and bitwise updates require integers. Map indexes are writable; string indexes, methods, constants, and non-addressable temporary fields/array indexes are not.
 

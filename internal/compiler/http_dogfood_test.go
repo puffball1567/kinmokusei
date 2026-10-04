@@ -36,7 +36,11 @@ function greet(writer: http.ResponseWriter, request: *http.Request): void {
     respond(writer, http.StatusMethodNotAllowed, { message: "method not allowed" });
     return;
   }
-  const name: string = request.URL.Query().Get("name");
+  const [name, textError] = string(request.URL.Query().Get("name"));
+  if (textError != nil) {
+    respond(writer, http.StatusBadRequest, { message: "name must be valid UTF-8" });
+    return;
+  }
   if (name == "") {
     respond(writer, http.StatusBadRequest, { message: "name is required" });
     return;

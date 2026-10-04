@@ -37,7 +37,8 @@ struct Box<T>{public value:T;}
 class Item{constructor(public value:int){}}
 class Limits{public static const word:int=Word;}
 function measure<T>(x:T):int{const size=u.Sizeof(x);const p=&size;return int(*p);}
-function genericStruct<T>(x:m.Generic<T>):int{const offset=u.Offsetof(x.Value);const p=&offset;return int(*p);}
+constraint RawLayout = ~int64 | ~bstring;
+function genericStruct<T extends RawLayout>(x:m.Generic<T>):int{const offset=u.Offsetof(x.Value);const p=&offset;return int(*p);}
 function genericArray<T>(x:[2]T):int{const size=u.Sizeof(x);const p=&size;return int(*p);}
 function genericSlice<T>(x:T[]):int{const size=u.Sizeof(x);return int(size);}
 export function Layout():int[]{return [Word,Header,Promoted,Alignment,int(u.Sizeof(packet)),Limits.word];}

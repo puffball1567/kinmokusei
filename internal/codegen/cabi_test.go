@@ -43,7 +43,7 @@ export c("kinmokusei_not") function logicalNot(value: boolean): boolean { return
 	for _, want := range []string{
 		"//export kinmokusei_ping", "func kinmokusei_ping() (__kinmokuseiStatus C.int32_t)",
 		"//export kinmokusei_scalar", "arg0 C.uint8_t", "arg1 C.int32_t", "arg2 C.int64_t", "arg3 C.float", "arg4 C.double", "arg5 C.uint16_t", "arg6 C.uint32_t", "arg7 C.uint64_t",
-		"outResult *C.uint64_t", "if outResult == nil", "if recover() != nil", "__kinmokuseiStatus = C.int32_t(1)",
+		"outResult *C.uint64_t", "if outResult == nil", "value := recover()", "value != nil || !__kinmokuseiCompleted", "__kinmokuseiCompleted = true", "__kinmokuseiStatus = C.int32_t(1)",
 		"__kinmokuseiResult := scalar(byte(arg0), int32(arg1), int64(arg2), float32(arg3), float64(arg4), uint16(arg5), uint32(arg6), uint64(arg7))",
 		"//export kinmokusei_not", "func kinmokusei_not(arg0 C.uint8_t, outResult *C.uint8_t)", "__kinmokuseiResult := logicalNot(arg0 != 0)",
 		"*outResult = C.uint8_t(0)", "if __kinmokuseiResult", "*outResult = C.uint8_t(1)",

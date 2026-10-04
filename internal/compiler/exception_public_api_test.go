@@ -14,14 +14,14 @@ func TestExceptionPublicGoAPIMatchesIndependentPackage(t *testing.T) {
 import go errors from "errors";
 
 class RemoteException extends Exception {
-  constructor(message: string) { super(message); }
+  constructor(message: bstring) { super(message); }
 }
 
-function ThrowRemote(message: string): void {
+function ThrowRemote(message: bstring): void {
   throw new RemoteException(message);
 }
 
-function RethrowRemote(message: string): void {
+function RethrowRemote(message: bstring): void {
   try {
     ThrowRemote(message);
   } catch (_: RemoteException) {
@@ -29,7 +29,7 @@ function RethrowRemote(message: string): void {
   }
 }
 
-function ThrowGeneric(message: string): void {
+function ThrowGeneric(message: bstring): void {
   throw errors.New(message);
 }
 

@@ -29,6 +29,8 @@ func goName(name string) string {
 
 func goTypeName(name string) string {
 	switch name {
+	case "bstring":
+		return "string"
 	case "boolean":
 		return "bool"
 	case "float", "number", "float64":

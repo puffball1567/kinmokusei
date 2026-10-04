@@ -415,7 +415,7 @@ func isLenCollection(value Type) bool {
 	if value.Kind == Nullable && value.Element != nil {
 		return isLenCollection(*value.Element)
 	}
-	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.Kind == String || value.Kind == GoChannel {
+	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.IsString() || value.Kind == GoChannel {
 		return true
 	}
 	return goCollectionAcceptsLenOrCap(value, true)

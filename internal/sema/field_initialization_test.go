@@ -37,11 +37,11 @@ func TestChecksDefiniteNonNullFieldInitialization(t *testing.T) {
 const globalConstructorEnabled = 2 * 3 === 6;
 const globalConstructorPrefix = "温";
 const globalConstructorText = globalConstructorPrefix + "泉";
-class User { constructor(public name: string) {} }
+class User { constructor(public name: bstring) {} }
 class Direct {
   private user: User;
   constructor(user: User) { this.user = user; }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
 class Branched {
   private user: User;

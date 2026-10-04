@@ -20,7 +20,7 @@ func (c *Checker) checkMixedSequenceIndex(expr *ast.IndexExpr, object, index Typ
 		var next Type
 		array := shape
 		switch shape.Kind {
-		case String:
+		case String, BString:
 			next, writable = builtins["byte"], false
 		case Array:
 			if shape.Element == nil {
@@ -73,14 +73,23 @@ func (c *Checker) checkMixedTextSlice(expr *ast.SliceExpr, object Type) bool {
 		return false
 	}
 	terms := c.collectionTerms(parameter)
+	verified, other := false, false
 	for _, term := range terms {
 		shape := c.constraintArgumentShape(term)
-		if shape.Kind != String && (shape.Kind != Array || shape.Element == nil || !isBuiltinByte(*shape.Element)) {
+		verified = verified || shape.Kind == String
+		other = other || shape.Kind != String
+		if shape.Kind != String && shape.Kind != BString && (shape.Kind != Array || shape.Element == nil || !isBuiltinByte(*shape.Element)) {
 			return false
 		}
 	}
 	if len(terms) == 0 {
 		return false
+	}
+	if verified && other {
+		c.report(expr.Span, "cannot slice a mixed string/raw-byte constraint; convert to bstring first or use a text-only constraint")
+	} else if verified {
+		expr.UTF8 = true
+		c.usesUTF8 = true
 	}
 	if expr.Full {
 		c.report(expr.Span, "3-index slice cannot be used with string")

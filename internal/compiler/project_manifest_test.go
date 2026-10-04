@@ -312,7 +312,7 @@ import go unsafe from "unsafe";
 function pointerIsNil(): boolean { return api.Pointer() == nil; }
 function fieldIsNil(box: api.Box): boolean { return box.Value == nil; }
 function methodIsNil(box: api.Box): boolean { return box.Method() == nil; }
-function nestedSignature(): void { api.Apply((values: unsafe.Pointer[]): Map<string, unsafe.Pointer> => { return makeMap[string, unsafe.Pointer](); }); }
+function nestedSignature(): void { api.Apply((values: unsafe.Pointer[]): Map<bstring, unsafe.Pointer> => { return makeMap[bstring, unsafe.Pointer](); }); }
 function safe(): int { return api.Safe(); }`
 	if err := os.WriteFile(source, []byte(deniedSource), 0o644); err != nil {
 		t.Fatal(err)
@@ -419,9 +419,9 @@ function bytes(pointer: *byte, length: int): byte[] { return danger.Slice(pointe
 function namedBytes(pointer: layout.BytePointer, length: int): byte[] { return danger.Slice(pointer, length); }
 function first(values: byte[]): *byte { return danger.SliceData(values); }
 function namedFirst(values: layout.Bytes): *byte { return danger.SliceData(values); }
-function text(pointer: *byte, length: int): string { return danger.String(pointer, length); }
-function namedText(pointer: layout.BytePointer, length: int): string { return danger.String(pointer, length); }
-function textData(value: string): *byte { return danger.StringData(value); }
+function text(pointer: *byte, length: int): bstring { return danger.String(pointer, length); }
+function namedText(pointer: layout.BytePointer, length: int): bstring { return danger.String(pointer, length); }
+function textData(value: bstring): *byte { return danger.StringData(value); }
 `
 	if err := os.WriteFile(source, []byte(kinmokuseiSource), 0o644); err != nil {
 		t.Fatal(err)

@@ -8,13 +8,13 @@ struct Visit {
   public guest: string;
   public temperature: int;
 
-  public function label(): string {
+  public function label(): bstring {
     return fmt.Sprintf("%s · %d°C", this.guest, this.temperature);
   }
 }
 
 function prepareVisit(name: string, temperature: int): Result<Visit> {
-  const guest = strings.TrimSpace(name);
+  const guest = string(strings.TrimSpace(name))?;
   if (guest === "") {
     return fail(errors.New("guest name is required"));
   }

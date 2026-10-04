@@ -32,7 +32,7 @@ func TestResultFunctionValuesPipeline(t *testing.T) {
 		`function apply<T>(f:()=>Result<T>):Result<T>{return f();}function run():Result<int>{return apply(():Result<int>=>{return ok(42);});}`,
 		`alias Load=()=>Result<int>;function run():Result<int>{const values:Load[]=[()=>{return ok(42);}];return values[0]();}`,
 		`alias Load=()=>Result<int>;function run():Result<int>{const values:[1]Load=[()=>{return ok(42);}];return values[0]();}`,
-		`alias Load=()=>Result<int>;function run():Result<int>{const values=makeMap<string,Load>();values["x"]=()=>{return ok(42);};return values["x"]();}`,
+		`alias Load=()=>Result<int>;function run():Result<int>{const values=makeMap<bstring,Load>();values["x"]=()=>{return ok(42);};return values["x"]();}`,
 		`struct S{load:()=>Result<int>;}function run():Result<int>{const s=S{load:()=>{return ok(42);}};return s.load();}`,
 		`function run():Result<int>{const s:{load:()=>Result<int>}={load:()=>{return ok(42);}};return s.load();}`,
 		`class C{public load:()=>Result<int>=()=>{return ok(42);};}function run():Result<int>{return new C().load();}`,
@@ -46,9 +46,9 @@ func TestResultFunctionValuesPipeline(t *testing.T) {
 		`alias Load=()=>Result<int>;function run(f:Load|null):Result<int>{if(f!==null){return f();}return ok(0);}`,
 		`function run():Result<int>{const f=():Result<int>=>{return ok(42);};const task=go f();const value=await task?;return ok(value);}`,
 		`function run():Result<int>{const f=():Result<int>=>{try{return ok(42);}finally{}};return f();}`,
-		`import go strconv from "strconv";function run():Result<int>{const f:(s:string)=>Result<int>=strconv.Atoi;return f("42");}`,
+		`import go strconv from "strconv";function run():Result<int>{const f:(s:bstring)=>Result<int>=strconv.Atoi;return f("42");}`,
 		`import go { OnceValue } from "sync";function run():Result<int>{const f=OnceValue(()=>{return ():Result<int>=>{return ok(42);};});const load:()=>Result<int>=f();return load();}`,
-		`import go fs from "io/fs";function use(f:fs.WalkDirFunc):void{}function run():void{const f=(path:string,entry:fs.DirEntry,err:error):Result<void>=>{return ok();};use(f);}`,
+		`import go fs from "io/fs";function use(f:fs.WalkDirFunc):void{}function run():void{const f=(path:bstring,entry:fs.DirEntry,err:error):Result<void>=>{return ok();};use(f);}`,
 	} {
 		t.Run(fmt.Sprintf("case_%d", index), func(t *testing.T) {
 			t.Log(input)

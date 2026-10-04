@@ -43,18 +43,18 @@ import go strconv from "strconv";
 constraint Public=Printed&~int;
 constraint Stream=io.Reader&io.Closer;
 type Score=distinct int;
-public function string(this:Score):string{return strconv.Itoa(int(this));}
-function show<T extends Public>(value:T):string{return (value+value).String();}
+public function string(this:Score):bstring{return strconv.Itoa(int(this));}
+function show<T extends Public>(value:T):bstring{return (value+value).String();}
 function access<E,T extends Access<E>>(cell:T,value:E):E{const set=cell.Set;set(value);const get=cell.Get;return get();}
 function read<T extends Getter<E>,E>(cell:T):E{return cell.Get();}
 function collect<E,S extends NamedSlice<E>>(values:S):E[]{let result:E[]=[];for(const value of values){result=append(result,value);}return result;}
 class Holder<E,T extends Access<E>>{constructor(private cell:T){}public function update(value:E):E{return access(this.cell,value);}}
-function Format(value:int):string{return show(Score(value));}
+function Format(value:int):bstring{return show(Score(value));}
 function Update(value:int):int{let storage=c.Cell<int>{};const cell=&storage;return new Holder<int,*c.Cell<int>>(cell).update(value)+read(cell);}
-function Text(value:string):string{let storage=c.Cell<string>{};const cell=&storage;return access(cell,value);}
+function Text(value:bstring):bstring{let storage=c.Cell<bstring>{};const cell=&storage;return access(cell,value);}
 function Collected(values:int[]):int[]{return collect(c.Numbers(values));}
-function readStream<T extends Stream>(stream:T):Result<string>{const bytes=io.ReadAll(stream)?;const problem=stream.Close();if(problem!==nil){return fail(problem);}return ok(string(bytes));}
-function Read(text:string):Result<string>{return readStream(io.NopCloser(strings.NewReader(text)));}
+function readStream<T extends Stream>(stream:T):Result<bstring>{let bytes:byte[]=[];const buffer=makeSlice[byte](64);for(;;){const [count,problem]=stream.Read(buffer);bytes=append(bytes,buffer[:count]...);if(problem===io.EOF){break;}if(problem!==nil){return fail(problem);}}const problem=stream.Close();if(problem!==nil){return fail(problem);}return ok(bstring(bytes));}
+function Read(text:bstring):Result<bstring>{return readStream(io.NopCloser(strings.NewReader(text)));}
 function ReadOnce<T extends Stream>(stream:T,bytes:byte[]):Result<int>{const [count,problem]=stream.Read(bytes);if(problem!==nil){return fail(problem);}return ok(count);}
 `,
 	}

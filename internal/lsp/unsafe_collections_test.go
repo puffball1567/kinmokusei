@@ -30,7 +30,7 @@ func TestUnsafeCollectionEditor(t *testing.T) {
 	}
 	multiple := "import go u from \"unsafe\";\nfunction pair(p:*byte):(*byte,int){return p,1;}\nfunction f(p:*byte):void{\nconst values=u.Slice(pair(p));\nconst text=u.String(pair(p));\n\n}\n"
 	items = completionLabels(completionItemsAt(t, path, multiple, 5, 0))
-	for name, want := range map[string]string{"values": "byte[]", "text": "string"} {
+	for name, want := range map[string]string{"values": "byte[]", "text": "bstring"} {
 		if items[name] == nil || !strings.Contains(items[name]["detail"].(string), name+": "+want) {
 			t.Errorf("completion %s=%v want=%s", name, items[name], want)
 		}

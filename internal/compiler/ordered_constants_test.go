@@ -19,7 +19,7 @@ export {Byte,Huge,Word,Saved,Circle};`,
 		"bridge.km": `export {Byte as Limit,Huge,Word,Saved,Circle} from "./values";`,
 		"entry.km": `import {Limit,Huge,Word,Saved,Circle} from "./bridge";
 import go cmp from "cmp";
-type Text=distinct string;type Score=distinct int8;
+type Text=distinct bstring;type Score=distinct int8;
 function keep<T>(value:T):T{return value;}
 function lower<T extends cmp.Ordered>(a:T,b:T):T{return min(a,b);}
 class Clamp<T extends cmp.Ordered>{constructor(public low:T,public high:T){}public function apply(value:T):T{return max(this.low,min(value,this.high));}}
@@ -28,10 +28,10 @@ export function Precision():float{const huge=Huge;const ratio=min(huge/1e400,3);
 export function Rounding():float32{const value=Saved;return max(value,16777216.)-16777216.;}
 export function Imported():float32{return Circle;}
 export function Named(value:int8):int8{const score=Score(value);return int8(max(Score(-10),min(score,10)));}
-export function Texts(value:string):string{const word:Text=Word;const named=Text(value);const chosen=min("m",named);const result=max(word,chosen);return string(lower(result,named));}
+export function Texts(value:bstring):bstring{const word:Text=Text(Word);const named=Text(value);const chosen=min("m",named);const result=max(word,chosen);return bstring(lower(result,named));}
 export function Bounds():int[]{const a:[3]int=[10,20,30];const index=min(1.,2.);const count=max(index,3.);const xs=makeSlice<int>(index,count);const end=min(len(a),4.);const empty:int[]=[];const ignored=len(copyArray[[3]int](empty[min(1,2):]));return [a[index],len(xs),cap(xs),end,ignored,len(max("温","泉")),cmp.Compare<byte>(Limit,255)];}
 export function Generic(value:int):int{return new Clamp<int>(-3,5).apply(value);}
-export function GenericText(value:string):string{return new Clamp<string>("b","m").apply(value);}
+export function GenericText(value:bstring):bstring{return new Clamp<bstring>("b","m").apply(value);}
 export function Runtime():int{let order=0;const mark=(digit:int,value:int):int=>{order=order*10+digit;return value;};const first=min(mark(1,7),mark(2,3),mark(3,5));const second=max(mark(4,2),mark(5,9));const address=&first;return order*100+*address*10+second;}
 export function Storage():int{let value=5;const chosen=min(value,10);const alias=chosen;const pointer=&alias;value=20;return *pointer+value;}
 export function Shift(n:int,value:byte):byte{return min(1<<n,value);}

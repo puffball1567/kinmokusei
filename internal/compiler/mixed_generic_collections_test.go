@@ -48,9 +48,9 @@ export function Values():int[]{const values=Numbers([1,2]);const a=setFirst<int,
 export function ObjectsCase():int[]{const values:Base[]=[new Child(3)];const access=new Access<Base>();const store=new Store<Base,Base[]>(values);const before=access.read<Base[]>(values).read();replace(values);const after=store.read().read();const items:Reader[]=[new Child(5)];const maybe:Maybe[]=[null];const optional=new Access<Maybe>().read<Maybe[]>(maybe);if(optional!==null){return [optional.read()];}return [before,after,first<Reader,Reader[]>(items).read()];}
 export function Evaluation():int[]{let order=0;const values=[1,2];const get=():int[]=>{order=order*10+1;return values;};const index=():int=>{order=order*10+2;return 0;};const rhs=():int=>{order=order*10+3;return 8;};const value=evaluate(get,index,rhs);return [order,value,values[0]];}
 export function Aliasing():int[]{const raw:byte[]=[1,2,3];const values=contracts.Bytes(raw);const rest:contracts.Bytes=tail(values,1,3);rest[0]=8;return [int(byteAt(values,1)),len(rest),cap(rest)];}
-export function Text(value:string,lo:int,hi:int):string{const result:contracts.Label=tail(contracts.Label(value),lo,hi);return string(result);}
+export function Text(value:bstring,lo:int,hi:int):bstring{const result:contracts.Label=tail(contracts.Label(value),lo,hi);return bstring(result);}
 export function Bytes(value:byte[],lo:int,hi:int):byte[]{return tail(value,lo,hi);}
-export function Byte(value:string,i:int):byte{return byteAt(value,i);}
+export function Byte(value:bstring,i:int):byte{return byteAt(value,i);}
 export function ByteSlice(value:byte[],i:int):byte{return byteAt(value,i);}
 function arrayIndex<T extends Lengths>(value:T,i:int):int{return value[i];}
 export function ArrayIndex(value:[2]int,i:int):int{return arrayIndex(value,i);}

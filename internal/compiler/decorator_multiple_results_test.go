@@ -49,21 +49,21 @@ export function Run():Result<string>{
  const generic=decoratorValueAs<Box<int>>(slots[4])?;
  const fraction=decoratorValueAs<float32>(slots[5])?;
  if(leaf!==null){return fail(errors.New("nullable slot did not retain null"));}
- return ok(strconv.Itoa(int(narrow))+";"+text+";"+reader.read()+";"+strconv.Itoa(generic.value)+";"+strconv.FormatFloat(float(fraction),102,2,32)+";"+strconv.Itoa(calls)+";"+boxed.typeIdentity);
+ return string(strconv.Itoa(int(narrow))+";"+text+";"+reader.read()+";"+strconv.Itoa(generic.value)+";"+strconv.FormatFloat(float(fraction),102,2,32)+";"+strconv.Itoa(calls)+";"+boxed.typeIdentity);
 }
 export function Parse(failed:boolean):Result<string>{
  const boxed=CallStatic(1,[decoratorValue(failed)])?;
  const slots=Slots(boxed)?;
  const value=decoratorValueAs<int>(slots[0])?;
  const err=decoratorValueAs<error>(slots[1])?;
- if(err!==nil){return ok(err.Error());}
- return ok(strconv.Itoa(value));
+ if(err!==nil){return string(err.Error());}
+ return string(strconv.Itoa(value));
 }
 export function Checked():Result<DecoratorValue>{return CallStatic(2,[decoratorValue(true)]);}
 export function Summary():Result<int>{const boxed=CallStatic(3,[decoratorValue(2),decoratorValue(5)])?;const slots=Slots(boxed)?;const count=decoratorValueAs<int>(slots[0])?;const sum=decoratorValueAs<int>(slots[1])?;return ok(count*10+sum);}
 export function EmptySummary():Result<int>{const boxed=CallStatic(3,[])?;const slots=Slots(boxed)?;const count=decoratorValueAs<int>(slots[0])?;const sum=decoratorValueAs<int>(slots[1])?;return ok(count*10+sum);}
-export function Virtual():Result<string>{const child=new Child();const base=Call(4,decoratorValue<Base>(child),[])?;const derived=Call(5,decoratorValue(child),[])?;const a=Slots(base)?;const b=Slots(derived)?;const text=decoratorValueAs<string>(a[0])?;const code=decoratorValueAs<int8>(b[1])?;return ok(text+strconv.Itoa(int(code)));}
-export function Direct():string{const [value,err]=Service.parse(false);if(err!==nil){return err.Error();}return strconv.Itoa(value);}
+export function Virtual():Result<string>{const child=new Child();const base=Call(4,decoratorValue<Base>(child),[])?;const derived=Call(5,decoratorValue(child),[])?;const a=Slots(base)?;const b=Slots(derived)?;const text=decoratorValueAs<string>(a[0])?;const code=decoratorValueAs<int8>(b[1])?;return string(text+strconv.Itoa(int(code)));}
+export function Direct():bstring{const [value,err]=Service.parse(false);if(err!==nil){return err.Error();}return strconv.Itoa(value);}
 export function BadNullable():Result<Leaf>{const boxed=Call(0,decoratorValue(new Service()),[decoratorValue<int8>(1)])?;const slots=Slots(boxed)?;return decoratorValueAs<Leaf>(slots[2]);}
 export function BadWidth():Result<int>{const boxed=Call(0,decoratorValue(new Service()),[decoratorValue<int8>(1)])?;const slots=Slots(boxed)?;return decoratorValueAs<int>(slots[0]);}
 export function WrongArgument():Result<DecoratorValue>{return Call(0,decoratorValue(new Service()),[decoratorValue(1)]);}

@@ -60,6 +60,10 @@ func (c *Checker) declareTypeParametersWithComparable(parameters []ast.TypeParam
 			c.report(parameter.Span, context+" type parameter name cannot be 'any' because native parameters use the Go any constraint")
 			continue
 		}
+		if isBuiltinValueName(parameter.Name) {
+			c.report(parameter.Span, context+" type parameter name conflicts with a compiler built-in value")
+			continue
+		}
 		if isBuiltinTypeName(parameter.Name) || parameter.Name == "Map" || parameter.Name == "GoChannel" || parameter.Name == "GoSendChannel" || parameter.Name == "GoReceiveChannel" {
 			c.report(parameter.Span, fmt.Sprintf("%s type parameter %q conflicts with a built-in type", context, parameter.Name))
 			continue

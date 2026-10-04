@@ -267,7 +267,7 @@ function Count(initial: int64, delta: int64): Result<int64> {
   counter.Close()?;
   return ok(value);
 }
-function TitleSize(title: string): Result<int32> {
+function TitleSize(title: bstring): Result<int32> {
   const size = ffi.TitleLength(title)?;
   return ok(size);
 }
@@ -283,7 +283,7 @@ function LoadBytes(seed: byte, count: uint32): Result<byte[]> {
   const data = ffi.MakeBytes(seed, count)?;
   return ok(data);
 }
-function LoadName(mode: byte): Result<string> {
+function LoadName(mode: byte): Result<bstring> {
   const name = ffi.MakeName(mode)?;
   return ok(name);
 }
@@ -718,7 +718,7 @@ function ReadPayload(kind: ffi.PayloadKind): Result<int32> {
   return ok(value);
 }
 function ReadCopiedCallback(mode: byte): Result<int32> {
-  const value = ffi.EmitTextBuffer(mode, (title: string, optional: *string, data: byte[]): int32 => int32(len(title) + len(data)))?;
+  const value = ffi.EmitTextBuffer(mode, (title: bstring, optional: *bstring, data: byte[]): int32 => int32(len(title) + len(data)))?;
   return ok(value);
 }
 function MutateBytes(): Result<int32> {
@@ -731,8 +731,8 @@ function OwnedByte(value: byte): Result<int32> {
   watch.Close()?;
   return ok(checksum);
 }
-function OwnedText(value: string): Result<int32> {
-  const watch = ffi.RegisterOwnedTextWatch((path: string): string => path)?;
+function OwnedText(value: bstring): Result<int32> {
+  const watch = ffi.RegisterOwnedTextWatch((path: bstring): bstring => path)?;
   const length = ffi.FireOwnedText(value)?;
   watch.Close()?;
   return ok(length);
@@ -936,7 +936,7 @@ func TestIncomingCFFIRegisteredCallbacks(t *testing.T) {
 		t.Fatal(err)
 	}
 	generated := string(artifacts.Source)
-	for _, want := range []string{"type EventCallback func(value int32) bool", "type Watch struct", "func RegisterWatch(callback EventCallback) (*Watch, error)", "func RegisterTopicWatch(topic Topic, callback EventCallback) (*TopicWatch, error)", "func RegisterFilteredWatch(topic Topic, filter Filter, callback EventCallback) (*FilteredWatch, error)", "func RegisterResourceWatch(resource *Resource, topic Topic, callback EventCallback) (*ResourceWatch, error)", "func RegisterRetainedWatch(label string, data []byte, callback EventCallback) (*RetainedWatch, error)", "parameter0 Topic", "parameter1 Filter", "parameter0 *Resource", "*C.char", "unsafe.Pointer", "C.CString(label)", "C.CBytes(data)", "C.kinmokusei_cffi_free_string(registration.parameter0)", "C.kinmokusei_cffi_free_bytes(registration.parameter1)", "resource.registrations++", "registration.parameter0.registrations--", "ErrHandleHasActiveRegistrations", "func (registration *Watch) Close() error", "func (registration *Watch) CallbackError() error", "ErrClosedCallbackRegistration", "state.inFlight.Add(1)", "registration.state.stop()", "registration.state.wait()", "registration.state.resume()", "registration.context.Delete()", "kinmokusei_cffi_register_Watch", "kinmokusei_cffi_unregister_Watch"} {
+	for _, want := range []string{"type EventCallback func(value int32) bool", "type Watch struct", "func RegisterWatch(callback EventCallback) (*Watch, error)", "func RegisterTopicWatch(topic Topic, callback EventCallback) (*TopicWatch, error)", "func RegisterFilteredWatch(topic Topic, filter Filter, callback EventCallback) (*FilteredWatch, error)", "func RegisterResourceWatch(resource *Resource, topic Topic, callback EventCallback) (*ResourceWatch, error)", "func RegisterRetainedWatch(label string, data []byte, callback EventCallback) (*RetainedWatch, error)", "parameter0 Topic", "parameter1 Filter", "parameter0 *kinmokusei_cffi_handle_state_Resource", "*C.char", "unsafe.Pointer", "C.CString(label)", "C.CBytes(data)", "C.kinmokusei_cffi_free_string(kinmokuseiRegistrationState.parameter0)", "C.kinmokusei_cffi_free_bytes(kinmokuseiRegistrationState.parameter1)", "(*kinmokuseiHandleRegistrations)++", "(*kinmokuseiHandleRegistrations)--", "ErrHandleHasActiveRegistrations", "func (registration *Watch) Close() error", "func (registration *Watch) CallbackError() error", "ErrClosedCallbackRegistration", "state.inFlight.Add(1)", "kinmokuseiRegistrationState.state.stop()", "kinmokuseiRegistrationState.state.wait()", "kinmokuseiRegistrationState.state.resume()", "kinmokuseiRegistrationState.context.Delete()", "kinmokusei_cffi_register_Watch", "kinmokusei_cffi_unregister_Watch"} {
 		if !strings.Contains(generated, want) {
 			t.Errorf("generated registered callback FFI does not contain %q:\n%s", want, generated)
 		}
@@ -1079,7 +1079,7 @@ function CountResource(value: int32): Result<int32> {
   resource.Close()?;
   return ok(observed + accepted);
 }
-function CountRetained(label: string, data: byte[]): Result<int32> {
+function CountRetained(label: bstring, data: byte[]): Result<int32> {
   let observed: int32 = 0;
   const watch = ffi.RegisterRetainedWatch(label, data, (current: int32): boolean => { observed = current; return true; })?;
   const accepted = ffi.FireRetained();
@@ -1456,11 +1456,11 @@ bool fixture_affine_owned_array_thread_mismatch(void) { return affine_owned_arra
 `,
 		"app/binding.km": `import go ffi from "affineffi.test";
 function Token(): uint64 { return ffi.ThreadToken(); }
-function TitleSize(title: string): Result<int32> {
+function TitleSize(title: bstring): Result<int32> {
   const size = ffi.TitleLength(title)?;
   return ok(size);
 }
-function ThreadName(): Result<string> {
+function ThreadName(): Result<bstring> {
   const name = ffi.MakeThreadName()?;
   return ok(name);
 }
@@ -1681,8 +1681,8 @@ int32_t fake_raylib_release_held_file(void) {
 int32_t fake_raylib_unload_count(void) { return unload_count; }
 `,
 		"app/binding.km": `import go ffi from "raylibshimffi.test";
-function LoadAsset(path: string): Result<int32> {
-  const hooks = ffi.RegisterFileDataHooks((requested: string): byte[] => [1, 2, 3, 4])?;
+function LoadAsset(path: bstring): Result<int32> {
+  const hooks = ffi.RegisterFileDataHooks((requested: bstring): byte[] => [1, 2, 3, 4])?;
   const checksum = ffi.RaylibLoadChecksum(path)?;
   hooks.Close()?;
   return ok(checksum);
@@ -1744,9 +1744,11 @@ func TestIncomingCFFIRejectsInvalidManifestMatrix(t *testing.T) {
 		want string
 	}{
 		{"unknown field", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe",` + validFunction + `,"unknown":true}`, "unknown field"},
+		{"internal parameter metadata", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[{"name":"value","type":"int32","manifestName":"spoofed"}],"result":"int32","convention":"direct"}]}`, "unknown field"},
 		{"schema", `{"schemaVersion":2,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe",` + validFunction + `}`, "schema version"},
 		{"package", `{"schemaVersion":1,"package":"bad-name","header":"fixture.h","threadPolicy":"threadSafe",` + validFunction + `}`, "package name"},
 		{"keyword package", `{"schemaVersion":1,"package":"type","header":"fixture.h","threadPolicy":"threadSafe",` + validFunction + `}`, "package name"},
+		{"blank package", `{"schemaVersion":1,"package":"_","header":"fixture.h","threadPolicy":"threadSafe",` + validFunction + `}`, "package name"},
 		{"header injection", `{"schemaVersion":1,"package":"binding","header":"fixture.h\n#error injected","threadPolicy":"threadSafe",` + validFunction + `}`, "single-line"},
 		{"policy", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"unknown",` + validFunction + `}`, "threadPolicy"},
 		{"unknown target", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","targets":[{"goos":"templeos","ldFlags":["-llib"]}],` + validFunction + `}`, "unsupported C FFI target"},
@@ -1757,7 +1759,7 @@ func TestIncomingCFFIRejectsInvalidManifestMatrix(t *testing.T) {
 		{"duplicate", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"one","parameters":[],"result":"int32","convention":"direct"},{"name":"Value","symbol":"two","parameters":[],"result":"int32","convention":"direct"}]}`, "duplicate"},
 		{"unexported function", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"value","symbol":"value","parameters":[],"result":"int32","convention":"direct"}]}`, "must be identifiers"},
 		{"reserved function", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"StatusError","symbol":"value","parameters":[],"result":"int32","convention":"direct"}]}`, "must be identifiers"},
-		{"reserved parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[{"name":"output","type":"int32"}],"result":"int32","convention":"statusOut"}]}`, "invalid or duplicate"},
+		{"keyword parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[{"name":"var","type":"int32"}],"result":"int32","convention":"statusOut"}]}`, "invalid or duplicate"},
 		{"machine int", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[{"name":"input","type":"int"}],"result":"int32","convention":"direct"}]}`, "unsupported type"},
 		{"borrowed bytes result", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[],"result":"borrowedBytes","convention":"direct"}]}`, "unsupported result type"},
 		{"retained string function parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[{"name":"label","type":"retainedCString"}],"result":"void","convention":"direct"}]}`, "unsupported type"},
@@ -1780,7 +1782,6 @@ func TestIncomingCFFIRejectsInvalidManifestMatrix(t *testing.T) {
 		{"non-void status", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","functions":[{"name":"Value","symbol":"value","parameters":[],"result":"int32","convention":"status"}]}`, "void result"},
 		{"invalid handle", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","handles":[{"name":"Handle","cType":"bad*","release":"free_handle"}],` + validFunction + `}`, "handle name"},
 		{"direct handle", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","handles":[{"name":"Handle","cType":"handle","release":"free_handle"}],"functions":[{"name":"Use","symbol":"use","parameters":[{"name":"handle","type":"Handle"}],"result":"int32","convention":"direct"}]}`, "must use statusOut"},
-		{"two handles", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","handles":[{"name":"Handle","cType":"handle","release":"free_handle"}],"functions":[{"name":"Use","symbol":"use","parameters":[{"name":"left","type":"Handle"},{"name":"right","type":"Handle"}],"result":"int32","convention":"statusOut"}]}`, "at most one"},
 		{"flag comment injection", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","cFlags":["-DVALUE=*/package injected/*"],` + validFunction + `}`, "single-line"},
 		{"enum float underlying", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","enums":[{"name":"Mode","cType":"mode","underlying":"float32"}],` + validFunction + `}`, "integer underlying"},
 		{"enum duplicate value", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","enums":[{"name":"Mode","cType":"mode","underlying":"cInt32","values":[{"name":"ModeOne","symbol":"MODE_ONE"},{"name":"ModeOne","symbol":"MODE_TWO"}]}],` + validFunction + `}`, "invalid or duplicate value"},
@@ -1822,7 +1823,6 @@ func TestIncomingCFFIRejectsInvalidManifestMatrix(t *testing.T) {
 		{"callback void parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[{"name":"value","type":"void"}],"result":"void"}],` + validFunction + `}`, "unsupported scalar, enum, POD, or tagged-union type"},
 		{"callback duplicate parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[{"name":"value","type":"int32"},{"name":"value","type":"int64"}],"result":"void"}],` + validFunction + `}`, "invalid or duplicate parameter"},
 		{"callback used as result", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[],"result":"void"}],"functions":[{"name":"Value","symbol":"value","parameters":[],"result":"Visit","convention":"direct"}]}`, "unsupported result type"},
-		{"two callback parameters", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[],"result":"void"}],"functions":[{"name":"Value","symbol":"value","parameters":[{"name":"first","type":"Visit"},{"name":"second","type":"Visit"}],"result":"void","convention":"direct"}]}`, "at most one callScoped callback"},
 		{"callback with string result", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[],"result":"void"}],"functions":[{"name":"Value","symbol":"value","parameters":[{"name":"visit","type":"Visit"}],"result":"cstring","convention":"direct"}]}`, "may not combine"},
 		{"callback with owned result", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[],"result":"void"}],"functions":[{"name":"Value","symbol":"value","parameters":[{"name":"visit","type":"Visit"}],"result":"ownedBytes","resultRelease":"free_value","convention":"statusOut"}]}`, "may not combine"},
 		{"callback with owned cstring result", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"callScoped","parameters":[],"result":"void"}],"functions":[{"name":"Value","symbol":"value","parameters":[{"name":"visit","type":"Visit"}],"result":"ownedCString","resultRelease":"free_value","convention":"statusOut"}]}`, "may not combine"},
@@ -1833,13 +1833,12 @@ func TestIncomingCFFIRejectsInvalidManifestMatrix(t *testing.T) {
 		{"registration invalid name", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"watch","callback":"Visit","register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unique exported identifier"},
 		{"registration invalid symbol", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","register":"watch-add","unregister":"watch_remove"}],` + validFunction + `}`, "symbols must be identifiers"},
 		{"registration duplicate parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"topic","type":"int32"},{"name":"topic","type":"int64"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "invalid or duplicate parameter"},
-		{"registration callback parameter name", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"callback","type":"int32"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "invalid or duplicate parameter"},
+		{"registration keyword parameter name", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"var","type":"int32"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "invalid or duplicate parameter"},
 		{"registration string parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"label","type":"cstring"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
 		{"registration bytes parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"data","type":"borrowedBytes"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
 		{"registration copied string parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"label","type":"copiedCString"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
 		{"registration copied bytes parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"data","type":"copiedBytes"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
 		{"registration inout bytes parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"data","type":"inoutBytes"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
-		{"registration two handle parameters", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"handles":[{"name":"Handle","cType":"handle","release":"handle_free"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"left","type":"Handle"},{"name":"right","type":"Handle"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "at most one handle parameter"},
 		{"registration callback typed parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"nested","type":"Visit"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
 		{"registration unknown parameter", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","parameters":[{"name":"value","type":"Missing"}],"register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unsupported value type"},
 		{"duplicate registration", `{"schemaVersion":1,"package":"binding","header":"fixture.h","threadPolicy":"threadSafe","callbacks":[{"name":"Visit","lifetime":"registered","parameters":[],"result":"void"}],"callbackRegistrations":[{"name":"Watch","callback":"Visit","register":"watch_add","unregister":"watch_remove"},{"name":"Watch","callback":"Visit","register":"watch_add","unregister":"watch_remove"}],` + validFunction + `}`, "unique exported identifier"},

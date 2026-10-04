@@ -17,7 +17,12 @@ const code: uint16 = 200;
 const ratio: float64 = 0.5;
 ```
 
-`boolean` has no truthy conversion. `string` contains UTF-8 bytes. Integers retain signedness and width; `int`/`uint` use the target machine width. `byte` and `uint8` are identical. `float`, `number`, and `float64` are identical; `float32` is distinct.
+`boolean` has no truthy conversion. `string` is immutable, valid UTF-8 text;
+`bstring` is an immutable arbitrary-byte sequence. Both lower to Go `string`,
+but the compiler preserves their different source contracts.
+Integers retain signedness and width; `int`/`uint` use the target machine width.
+`byte` and `uint8` are identical. `float`, `number`, and `float64` are identical;
+`float32` is distinct.
 
 Runtime numeric values do not widen implicitly. Convert intentionally:
 
@@ -86,6 +91,87 @@ Calls containing runtime values remain nonconstant and evaluate every argument
 once in source order. `min` and `max` are not short-circuiting. Use a `let` copy
 when a compile-time result needs addressable storage.
 
+## Strings and Unicode
+
+The verified `string` / raw `bstring` split is available in v0.4.6. Older compilers
+retain the previous Go byte-string behavior; see
+[migration notes](../project/releases#migrating-from-v045).
+
+Strings are immutable values, not JavaScript UTF-16 strings or arrays of
+characters. A `let` string may be replaced with another string, and `+=` may
+concatenate and reassign it, but an indexed byte cannot be changed:
+
+<<< ../snippets-invalid/string-index-assignment.km{ts}
+
+| Operation | Meaning |
+| --- | --- |
+| `len(text)` | Byte count, not character count |
+| `text[index]` | One `byte` (`uint8`), not a one-character string |
+| `text[low:high]` | Selected bytes; a `string` slice checks UTF-8 boundaries, high is exclusive |
+| `for (const codePoint of text)` | Decoded `int32` code points |
+| `for (const [offset, codePoint] of text)` | `int` byte offset and decoded `int32` code point |
+| `string(integer)` | UTF-8 encoding of one Unicode code point, not decimal formatting |
+
+Index/slice bounds follow Go: constant invalid bounds are rejected when known;
+runtime out-of-range bounds panic. String slices may omit low or high, but
+cannot use a three-index capacity bound:
+
+<<< ../snippets-invalid/string-full-slice.km{ts}
+
+`string` slicing panics when either boundary splits a UTF-8 code point.
+For example, `"湯a"[:3]` is valid but `"湯a"[:1]` panics. To work with raw
+byte offsets, explicitly use `bstring(text)[:1]`; the result is `bstring`.
+Indexing either type still returns a byte and need not return a complete code point.
+
+Ordinary literals must decode to valid UTF-8: `"\xff"` is a compile error,
+whereas `b"\xff"` is a `bstring` literal. Embedded NUL is valid in both types;
+raw NUL in source text is not. Range over `bstring` decodes each invalid byte
+as U+FFFD and advances one byte, without validating or repairing its storage.
+
+<<< ../snippets-invalid/string-invalid-utf8.km{ts}
+
+A raw value stays raw even when its bytes happen to be valid:
+
+<<< ../snippets-invalid/raw-string-assignment.km{ts}
+
+| Conversion | Result |
+| --- | --- |
+| `bstring(text)` or passing `string` to a `bstring` parameter | Raw immutable bytes; no validation required |
+| `string(raw)` where `raw` is `bstring` or `byte[]` | `Result<string>`; validates UTF-8, rejects invalid bytes without replacement |
+| `string(text)` where `text` is already `string` | `string`; no revalidation |
+| `string(codePoints)` where the element type is `int32` | UTF-8 encoding; invalid code points encode as U+FFFD |
+
+Consume a checked decode with `const text = string(raw)?` inside a `Result`
+function, explicitly split `const [text, err] = string(raw)`, or return the
+result directly. `string[]` and `bstring[]` are not interchangeable shared
+storage; convert elements into a separate collection.
+
+Runtime strings received from Go have the raw contract (`bstring`), including
+nested fields and callbacks. A known-valid Go string constant may be verified
+at compile time. See [Go interoperability](../guide/go-interop#text-at-the-go-boundary).
+
+Use transparent aliases to name the slice types for conversions:
+
+<<< ../snippets/string-values.km{ts}
+
+Its output is shown in the [string recipe](../examples/unicode-strings#conversion-and-validation).
+`Bytes(text)` copies the encoded bytes into a mutable `byte[]`;
+`CodePoints(text)` decodes into `int32[]`. `bstring(bytes)` copies raw bytes;
+`string(bytes)` validates a copied snapshot, while `string(codePoints)` encodes
+the code points.
+Mutating the input/output slice afterwards does not modify an already converted
+string. Invalid code points, including negative values or values above U+10FFFF,
+encode as U+FFFD; decoding invalid UTF-8 into code points likewise loses the
+original invalid bytes. Empty or nil byte/code-point slices convert to `""`.
+
+Equality compares exact bytes, and ordering is byte-wise lexicographic, not
+locale-aware. No implicit Unicode normalization occurs: `"\u00e9"` and
+`"e\u0301"` are unequal. Code points are not grapheme clusters; combining marks
+and emoji sequences may contain several code points. Go packages such as
+`strings`, `strconv`, `fmt` and `unicode/utf8` provide text operations and
+formatting explicitly; methods such as JavaScript's `.length`/`.slice()` and
+template interpolation are not implicit string APIs.
+
 ## Slice and fixed array
 
 ```ts
@@ -120,8 +206,11 @@ zero. Calls returning array pointers and channel receives remain evaluated.
 
 Generic type sets can use `len` or `cap` when every member supports that operation.
 These calls remain runtime values, even for a constraint such as `~[3]int`.
-A concrete array shape `[3]T`, in contrast, has a constant length. Some
-constant intrinsics, such as target-dependent layout operations, remain further work.
+A concrete array shape `[3]T`, in contrast, has a constant length. Supported
+`unsafe.Sizeof`, `unsafe.Alignof` and `unsafe.Offsetof` use the selected target's
+layout and retain Go constant rules; variable-sized generic layouts remain
+nonconstant. These operations require explicit
+[unsafe permission](../guide/go-interop#unsafe-policy).
 
 ```ts
 let copiedPair = pair;
@@ -281,7 +370,11 @@ if (user === null) { return; }
 console(user.name);
 ```
 
-Only nil-backed types—classes, pointers, slices, maps, channels, and suitable interfaces—can use `| null`. No wrapper is allocated. Scalars, arrays, structs, structural objects, `void`, and `Result` cannot be nullable directly.
+Only nil-backed types—classes, pointers, slices, maps, functions, channels and
+suitable interfaces—can use `| null`. No wrapper is allocated. Scalars, fixed
+arrays, structs, structural objects, `void` and `Result` cannot be nullable
+directly. A nullable function must be narrowed before calling it; see the
+[nullable function example](../guide/errors-and-nullability#nullable-references).
 
 The declared type stays nullable; control flow tracks separate definitely-null/non-null/maybe-null facts. Mutation and aliases may invalidate a proof.
 

@@ -66,6 +66,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	if target.Kind == Invalid || value.Kind == Invalid {
 		return true
 	}
+	if target.Kind == BString && c.constraintArgumentShape(value).Kind == String {
+		return assignable(target, value)
+	}
 	if !compatibleResultFunctionTypes(c.callableType(target), c.callableType(value)) {
 		return false
 	}
@@ -83,6 +86,15 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	}
 	if value.Kind == Nullable || value.Kind == Null || target.Kind == Null {
 		return value.Kind == Null && target.Kind == Null
+	}
+	if target.Kind != TypeParameter && !exactType(target, value) && !c.classSatisfiesSourceAnonymousInterface(target) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
+		return false
+	}
+	if value.Kind == GoPointer && target.Kind != TypeParameter {
+		if contract := underlyingGoInterface(target.GoType); contract != nil && contract.NumMethods() == 0 {
+			_, ok := c.goTypeForNativeStorage(value)
+			return ok
+		}
 	}
 	if target.Kind == Interface && value.Kind == Class {
 		class := c.classes[value.Name]

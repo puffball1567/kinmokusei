@@ -196,7 +196,8 @@ func declarationNameSpan(name string, span source.Span) source.Span {
 }
 
 func isBuiltinValueName(name string) bool {
-	return name == "goChannel" || name == "closeGoChannel" || strings.HasPrefix(name, "__kinmokusei_")
+	return name == "goChannel" || name == "closeGoChannel" || strings.HasPrefix(name, "__kinmokusei_") ||
+		name == "__kinmokuseiUTF8" || name == "__kinmokuseiUTF8Error" || name == "__kinmokuseiDecodeUTF8" || name == "__kinmokuseiSliceUTF8"
 }
 
 func isBuiltinTypeName(name string) bool {

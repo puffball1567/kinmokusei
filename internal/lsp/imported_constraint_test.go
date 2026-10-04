@@ -19,7 +19,7 @@ func TestImportedConstraintEditor(t *testing.T) {
 	input := `import {Integer} from "./bounds";
 import go fmt from "fmt";
 constraint Named=Integer&fmt.Stringer;
-function show<T extends Named>(value:T):string{return value.String();}
+function show<T extends Named>(value:T):bstring{return value.String();}
 `
 	messages := serveMessages(t, openDocument(uri, input),
 		requestAt("textDocument/definition", 2, uri, positionOf(input, "Integer&", 0), ""),

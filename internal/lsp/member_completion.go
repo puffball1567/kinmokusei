@@ -485,8 +485,8 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	}
 	if ref.Name == "Exception" {
 		if !static {
-			add(completionItem{Label: "message", Kind: 5, Detail: "public message: string", SortText: "0_message"})
-			add(completionItem{Label: "error", Kind: 2, Detail: "public function error(): string", SortText: "0_error"})
+			add(completionItem{Label: "message", Kind: 5, Detail: "public message: bstring", SortText: "0_message"})
+			add(completionItem{Label: "error", Kind: 2, Detail: "public function error(): bstring", SortText: "0_error"})
 		}
 		return
 	}
@@ -508,7 +508,7 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	}
 	if ref.Name == "error" {
 		if !static {
-			add(completionItem{Label: "Error", Kind: 2, Detail: "function Error(): string", SortText: "0_Error"})
+			add(completionItem{Label: "Error", Kind: 2, Detail: "function Error(): bstring", SortText: "0_Error"})
 		}
 		return
 	}

@@ -23,7 +23,11 @@ import go fmt from "fmt";
 import go strings from "strings";
 ```
 
-Each `import go` declaration creates a namespace backed by the selected Go toolchain's real package export data. Go symbols are never injected into the local scope, and unsupported reachable shapes fail at their Kinmokusei use site.
+A namespace `import go` keeps exports under its explicit alias and uses the
+selected Go toolchain's real package export data. Named imports such as
+`import go { Println } from "fmt"` instead bind only the selected exports
+locally. Neither form imports symbols implicitly; unsupported reachable shapes
+fail at their Kinmokusei use site.
 
 Relative Kinmokusei modules use selective imports:
 

@@ -18,9 +18,17 @@ const enabled = true;
 const count = 1000;
 const ratio = 1.25;
 const label = "hello\nたまご";
+const raw = b"\xff";
 ```
 
-String escapes and decimal integer/float literals are validated lexically. Numeric separators and base prefixes are not implemented. A malformed escape, unterminated comment/string, invalid UTF-8 byte, or overflowing constant is reported against the original source span.
+String escapes and Go-shaped numeric literals are validated lexically. Integers
+accept decimal, binary (`0b`), octal (`0o` or a leading zero), hexadecimal (`0x`),
+and valid underscore separators. Floating-point literals accept decimal and
+hexadecimal exponents, and an `i` suffix produces an imaginary constant.
+A malformed escape, separator, literal, unterminated comment/string, invalid
+UTF-8 byte, or overflowing constant is reported against the original source span.
+Ordinary decoded literals must be valid UTF-8. Immediately prefixed `b"..."`
+literals instead have type `bstring` and permit arbitrary decoded bytes.
 
 Semicolons terminate imports, bindings, fields, type declarations, interface signatures, returns, expression statements, assignments, updates, branches, `throw`, `defer`, and grouped C exports. They may be omitted after a complete statement when the next token is on a later line, is `}`, or is end of file. Three-clause `for` separators remain explicit. Braced declaration/control-flow bodies do not take a trailing semicolon.
 
@@ -32,16 +40,19 @@ Calls, indexing, selectors, operators, and unfinished expressions/types can cont
 | --- | --- |
 | Relative import | `import { A, functionName } from "./module";` |
 | Go import | `import go alias from "package/path";` |
-| Named Go import (development) | `import go { Name, Other } from "package/path"` |
-| Source export (development) | `export function name(): T { ... }`, `export const name = value`, `export { name as publicName }`, `export { name } from "./module"` |
+| Named Go import | `import go { Name, Other } from "package/path"` |
+| Local import alias | `import { Name as LocalName } from "./module"`, `import go { Println as print } from "fmt"` |
+| Source export | `export function name(): T { ... }`, `export const name = value`, `export { name as publicName }`, `export { name } from "./module"` |
 | Binding | `const name: T = value;`, `let name = value;` |
 | Function | `function name<T>(value: T): T { ... }` |
 | Class | `class Name extends Base implements Contract { ... }` |
+| Decorated class/member | `@Register class Name { ... }`, `@Route("/users") public function list(): T { ... }` |
 | Struct | `struct Name { public field: T; ... }` |
 | Interface | `interface Name { function method(): T; }` |
 | Enum | `enum Name: int32 { First, Second = 4 }` |
 | Transparent alias | `alias Name = T;` |
 | Defined type | `type Name = distinct T;` |
+| Type-set constraint | `constraint Number = ~int \| ~float64;` |
 | External receiver method | `public function method(this: *T): void { ... }` |
 | C export | `export c("symbol") function name(): int32 { ... }` |
 
@@ -49,12 +60,23 @@ Declarations may refer to later types in supported finite shapes. Duplicate sour
 
 Relative source imports are explicit and do not infer visibility from capitalization. In emitted Go, top-level identifiers preserve their written case: an initial uppercase Unicode letter makes the declaration exported under Go rules. Class and struct members instead use the documented `public`/`protected`/`private` contract before their Go names are generated.
 
-In development builds, any source export opts its file into explicit visibility:
+Any source export opts its file into explicit visibility:
 only selected local declarations or explicitly re-exported source bindings can be imported, and `export {}`
 exports none. Without a source export, all top-level declarations retain legacy
 selective importability. Export lists can precede declarations, cannot repeat
 names, and support trailing commas and omitted semicolons. C ABI `export c(...)`
 does not opt into this mode. See [modules and imports](../book/modules-and-imports).
+
+## Decorator applications
+
+`@Name` selects a decorator callback; `@Factory(arguments)` calls a factory
+that returns one. Namespace-qualified and imported/re-exported names are
+supported. Place applications before a class or class member, or before a
+constructor/method parameter. Callbacks have a single compiler-provided
+decorator context parameter and return `void`. They execute during package
+initialization, not on each construction or method call. See
+[typed decorators](../book/structs-classes-interfaces#typed-decorators) for
+supported targets, registration order and checked adapters.
 
 ## Files and imports
 
@@ -62,11 +84,25 @@ does not opt into this mode. See [modules and imports](../book/modules-and-impor
 import { Name, functionName } from "./relative-module";
 import go alias from "go/package/path";
 import go { Name, Other } from "go/package/path";
+import { Name as LocalName } from "./relative-module";
+import go { Println as print } from "fmt";
 ```
 
 Files use `.km`, have independent scopes, and expose no transitive imports. `kinmokusei/http` is the implemented compiler-managed standard module.
 
-Relative imports are selective. Paths resolve relative to the importing file, with optional `.km`; missing declarations, cycles, duplicate imports, and conflicts with local declarations are errors. Bare package imports are not supported—Go packages always use `import go`, while compiler-managed modules use the named relative-import form.
+Source imports are selective. Relative paths resolve from the importing file,
+with optional `.km`. Standard modules and locked external Kinmokusei packages
+use the same `import { Name } from "path"` form; manifest import aliases may
+shorten an external path without changing its module or type identity.
+Missing declarations, cycles, duplicate imports, and conflicts with local
+declarations are errors. Go packages always use `import go`; a bare side-effect
+import without named bindings is not supported.
+
+`as` introduces only the selected local name and retains declaration identity,
+signatures and mutable storage. Selecting an export twice is permitted when the
+local names differ. This differs from `[imports]`, which renames package-path
+prefixes rather than individual symbols. See
+[local import aliases](../book/modules-and-imports#local-import-aliases).
 
 ## Bindings and functions
 
@@ -81,8 +117,8 @@ function variadic(prefix: int, ...values: int[]): int { return prefix; }
 
 `const`/`let` apply to bindings. Functions, arrows, function types, methods, interfaces, and constructors support final rest parameters. Generic calls accept inference, `<T>`, or `[T]` type arguments.
 
-Development builds emit module-level const arrows with inferred/unnamed function
-types as callable declarations, including `const main = () => { ... }`. Explicit
+Module-level const arrows with inferred/unnamed function
+types emit callable declarations, including `const main = () => { ... }`. Explicit
 signatures enable recursion and forward calls. Callable declarations are not
 addressable or reassignable; `let` retains mutable function storage. Expected
 function types can supply omitted arrow parameter/result annotations. Without a
@@ -98,7 +134,12 @@ let [next, open] = receive();
 [next, open] = receive();
 ```
 
-Multiple results are not tuple values and cannot be stored as one value. Every result must have a binding; use `_` to discard a position explicitly.
+Multiple results are not tuple values and cannot be stored as one value. Source
+functions, methods, arrows, interfaces, and function types may declare a result
+list such as `(int, boolean)`. Use `return value, present;` or forward a matching
+multiple-result call. A sole call argument may expand into matching parameters;
+it cannot be mixed with additional arguments. Bind every returned position or
+use `_` explicitly. See [multiple results](../book/functions-and-generics#multiple-results).
 
 ## Named type declarations
 
@@ -112,7 +153,13 @@ interface Reader<T> { function read(): T; }
 class Box<T> implements Reader<T> { /* ... */ }
 ```
 
-Generic aliases, native constraint type sets beyond `comparable`, and distinct definitions over native classes/structs/interfaces are unsupported.
+Generic aliases such as `alias Values<T> = T[]` are transparent and expand in
+generated Go. Native constraints support exact/underlying terms, unions,
+intersections, and compatible method interfaces, for example
+`constraint NumberOrText = ~int | ~string`. A `distinct` definition may use a
+native struct, including a concrete generic struct; it does not inherit that
+struct's methods. Distinct definitions over native classes and interfaces remain
+unsupported. Generic named types require explicit complete instantiation.
 
 Enum initializers are integer constant expressions. Implicit members start at zero or increment the previous value; range is checked against the declared integer underlying type.
 
@@ -120,6 +167,7 @@ Enum initializers are integer constant expressions. Implicit members start at ze
 
 ```ts
 struct Counter {
+  public value: int;
   public function snapshot(): int { return this.value; }
   public pointer function increment(): void { this.value++; }
 }
@@ -139,7 +187,11 @@ final class Derived extends Base implements Contract {
 }
 ```
 
-Only `virtual` base methods dispatch dynamically. Generic classes currently reject inheritance and virtual/static members.
+Only `virtual` base methods dispatch dynamically. Generic classes support
+single inheritance, substituted base arguments, virtual overrides, and static
+methods. Static fields and properties are shared across instantiations and
+cannot use class type parameters; static methods may use those parameters
+through their generated generic function API.
 
 `implements` is explicit even when a method set happens to match. `super(...)` is available in a derived constructor, and `super.method()` statically selects the immediate base implementation. `override` must match a virtual base member; `final` closes a class or override.
 
@@ -149,12 +201,23 @@ Only `virtual` base methods dispatch dynamically. Generic classes currently reje
 | --- | --- | --- |
 | Top-level receiver method | `[public \| private] function name(this: T, ...): R` | Visibility precedes `function`; `this` must be first |
 | Class field | `[public \| protected \| private] name: T;` | Defaults to private |
+| Static field/constant | `[visibility] static [const] name: T = value;` | Explicit type and initializer; shared class storage or constant |
 | Class constructor | `constructor([visibility] name: T, ...) { ... }` | At most one; a parameter visibility declares a field |
-| Class method | `[visibility] [static \| virtual \| override \| final]* function ...` | Member-kind modifiers may be ordered freely but not repeated |
+| Class method | `[visibility] [static \| virtual \| override \| final \| abstract]* function ...` | Checked compatible modifier combinations; no duplicates |
+| Instance accessor | `[visibility] [virtual \| override \| final \| abstract]* get name(): T`, `set name(value: T)` | Separate read/write visibility; abstract forms have no body |
+| Static accessor | `[visibility] static get name(): T`, `static set name(value: T)` | Class-qualified calls without virtual dispatch |
+| Interface accessor | `get name(): T;`, `set name(value: T);` | Public contract, no body |
 | Struct field | `[public \| private] name: T;` | Defaults to private |
 | Struct method | `[public \| private] [pointer] function ...` | `pointer` selects a pointer receiver; default is a value receiver |
 
-Class fields cannot be `static`, `virtual`, `override`, or `final`. Constructors have no independent visibility contract and reject those four member-kind modifiers. `protected` is class-only; struct members and top-level receiver methods use public/private visibility.
+Class fields may have per-instance initializers or be `static`, but are not
+virtual, overriding, or final members. Instance initializers may read earlier
+initialized fields and accessible inherited state through `this.field`; later
+field reads and receiver capture are rejected. Constructors reject method-kind
+modifiers. `protected` is class-only; struct members and top-level receiver
+methods use public/private visibility. Abstract classes cannot be constructed;
+concrete descendants must supply all abstract method/accessor implementations.
+See [classes and structs](../guide/classes-and-structs).
 
 ## Expressions
 

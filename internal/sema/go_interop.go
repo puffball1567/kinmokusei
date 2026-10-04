@@ -2,8 +2,10 @@ package sema
 
 import (
 	"fmt"
+	"go/constant"
 	gotypes "go/types"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -99,6 +101,10 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 	switch object := object.(type) {
 	case *gotypes.Const:
 		result, err = kinmokuseiTypeFromGo(object.Type())
+		if result.Kind == BString && object.Val().Kind() == constant.String && utf8.ValidString(constant.StringVal(object.Val())) {
+			// Constants can be validated completely at compile time.
+			result = builtins["string"]
+		}
 		result = preserveUntypedScalar(result, object.Type())
 		expression.Constant = true
 		if basic, ok := object.Type().(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 && basic.Info()&(gotypes.IsFloat|gotypes.IsComplex) != 0 {

@@ -75,18 +75,26 @@ No. Explicitly emitted Go is formatted, standalone source without a Kinmokusei r
 
 ## How are dependencies installed?
 
-Current project dependency commands manage exact Go module versions. They write a canonical lock and compiler-managed module state transactionally. Normal check, build, run, emit, and editor operations never fetch or update dependencies implicitly.
+`keika deps add <module>@<version>` installs tagged Kinmokusei source packages
+or Go modules. Source packages support locked transitive dependencies, public
+submodules, local replacements and automatic short import aliases. Go packages
+still use `import go`; source packages use ordinary named imports.
 
-Source-only Kinmokusei package distribution is planned rather than implemented. See [Modules and projects](../guide/projects-and-cli) for the current workflow.
+Dependency commands update the manifest, canonical lock and local module state
+transactionally. Normal check, build, run, emit and editor operations never fetch
+or update dependencies implicitly. After cloning, `keika deps fetch` restores
+the locked state; use `--offline` when all dependencies are already cached. See
+[external source packages](../guide/external-packages) for the complete workflow.
 
 ## What compatibility does v0.4 promise?
 
 v0.4 is a documented pre-1.0 release, not a promise of 1.0-level stability.
 The v0.4.x series adds compatible features and fixes in patch releases. Intentional
-source or public API breaks require a minor release and migration notes; fixes
+source or public API breaks normally require a minor release and migration notes; fixes
 may diagnose previously accepted invalid programs. v0.5 is the audited Go
 compatibility completion milestone. See [release policy](../project/releases#version-policy)
-and use documentation matching your installed compiler.
+and use documentation matching your installed compiler. v0.4.6 is an explicit
+exception that changes text contracts; see [migration notes](../project/releases#migrating-from-v045).
 
 Use [Releases and compatibility](../project/releases) to match documentation, compiler, editor extension, and published artifacts.
 

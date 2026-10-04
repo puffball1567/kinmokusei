@@ -4,11 +4,11 @@ import go strconv from "strconv"
 constraint Printable = ~int & fmt.Stringer
 type Score = distinct int
 
-public function string(this: Score): string {
+public function string(this: Score): bstring {
   return strconv.Itoa(int(this))
 }
 
-function show<T extends Printable>(value: T): string {
+function show<T extends Printable>(value: T): bstring {
   return (value + value).String()
 }
 

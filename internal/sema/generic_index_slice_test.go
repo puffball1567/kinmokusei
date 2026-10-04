@@ -35,7 +35,7 @@ func TestGenericIndexAndSlice(t *testing.T) {
 		{"array temporary write", `constraint A=~[2]int;function f<T extends A>(v:()=>T):void{v()[0]=1;}`, "not assignable"},
 		{"unconstrained", `function f<T>(v:T):int{return v[0];}`, "cannot be indexed"},
 		{"mixed index shapes", `constraint S=~int[]|~[2]int;function f<T extends S>(v:T):int{return v[0];}`, ""},
-		{"mixed slice shapes", `constraint S=~byte[]|~string;function f<T extends S>(v:T):T{return v[:];}`, ""},
+		{"mixed slice shapes", `constraint S=~byte[]|~bstring;function f<T extends S>(v:T):T{return v[:];}`, ""},
 		{"wrong element", `constraint S=~int[];function f<T extends S>(v:T):void{v[0]="x";}`, "cannot use string as int"},
 		{"wrong key", `constraint S=~Map<string,int>;function f<T extends S>(v:T):int{return v[0];}`, "cannot use"},
 		{"nullable root index", `constraint S=~int[];function f<T extends S>(v:T|null):int{return v[0];}`, "nullable"},

@@ -36,6 +36,23 @@ function parse(text: string): Result<int> {
 
 `Result<T>` is not a runtime wrapper. It cannot be stored in a variable, parameter, field, collection element, or nested result.
 
+Function values returning `Result<T>` can be stored in those positions; the
+restriction applies to the effect itself, not the callable. Calling one still
+requires propagation, explicit splitting or matching return forwarding.
+An unused named source-Result error binding is a compile error. Use `_` only
+when discarding failure is intentional:
+
+```ts
+const [value, err] = load() // Inspect, pass on or return err.
+const [fallback, _] = load() // Explicitly discard failure.
+const _ = load()? // Discard success but propagate failure.
+```
+
+Whole-call `_ = load()` explicitly discards all results. These discard forms
+do not consume a Task; tasks still require `await` or `detach`. See
+[handling and deliberate discard](../book/errors-results-exceptions#handling-and-deliberate-discard)
+for the binding-use check and its limits.
+
 ## Raw Go errors stay available
 
 Direct Go calls expose their actual multiple results:
@@ -61,6 +78,8 @@ try {
 ```
 
 `Exception` is an extensible built-in class implementing Go's `error` contract. `throw` accepts an `error` value. Catch clauses are tested in source order; the checker rejects a specific type already covered by an earlier base, `Exception`, or `error` catch.
+Its `message` field and `.error()` text result are `bstring`, preserving raw Go
+error messages. Use checked `string(err.message)` when verified text is needed.
 
 Bare `throw;` rethrows the currently handled exception. `finally` runs after normal completion, caught or rethrown Kinmokusei exceptions, return from `try`/`catch`, and ordinary Go/runtime panic. A return in `finally` replaces the earlier completion.
 
@@ -76,9 +95,24 @@ if (user === null) { return "missing"; }
 return user.name;
 ```
 
-Only nil-capable types can be nullable: classes, pointers, slices, maps, channels, and suitable interfaces. Scalars, fixed arrays, structs, structural object values, `void`, and `Result` itself cannot.
+Only nil-capable types can be nullable: classes, pointers, slices, maps,
+functions, channels and suitable interfaces. Scalars, fixed arrays, structs,
+structural object values, `void` and `Result` itself cannot.
+
+A nullable function requires the same local narrowing as other references:
+
+<<< ../snippets/nullable-function.km{ts}
+
+This prints `42`; calling the function before checking it against `null` would
+be rejected.
 
 Member access, calls, indexing, slicing, pointer operations, and channel operations require a non-null proof. Operations that are explicitly safe on nil Go slices/maps—such as `len`, `append`, `delete`, `clear`, and range where applicable—retain that behavior.
+
+`?` propagation from inside `try` still exits the enclosing Result function and
+runs `finally`; it is not a typed exception handled by `catch`. Handler flow
+checks include interrupted states, not just the normally completed try body.
+Bind getter results to locals before narrowing, because each property read can
+run different code and return a different value.
 
 ## Flow facts and invalidation
 

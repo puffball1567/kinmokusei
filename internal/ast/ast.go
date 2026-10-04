@@ -21,6 +21,7 @@ type Program struct {
 	UsesTasks            bool
 	UsesExceptions       bool
 	UsesDecoratorContext bool
+	UsesUTF8             bool
 }
 
 type ImportDecl struct {
@@ -734,6 +735,7 @@ const (
 	FloatLiteral
 	ImaginaryLiteral
 	StringLiteral
+	ByteStringLiteral
 	BooleanLiteral
 	NilLiteral
 	NullLiteral
@@ -891,6 +893,7 @@ const (
 	ResultFailCall
 	DecoratorValueCall
 	DecoratorValueAsCall
+	DecodeUTF8Call
 )
 
 type ArrowExpr struct {
@@ -991,6 +994,7 @@ func (*IndexExpr) expression()            {}
 func (e *IndexExpr) GetSpan() source.Span { return e.Span }
 
 type SliceExpr struct {
+	UTF8   bool // Preserve text validity by checking UTF-8 byte boundaries.
 	Object Expression
 	Low    Expression
 	High   Expression

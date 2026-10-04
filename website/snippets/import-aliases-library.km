@@ -1,0 +1,10 @@
+export let count: int = 0
+
+export class Box<T> {
+  constructor(public value: T) {}
+}
+
+export function bump(): int {
+  count++
+  return count
+}

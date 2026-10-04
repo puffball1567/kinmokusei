@@ -3,7 +3,7 @@ import go fmt from "fmt";
 import go io from "io";
 import go strings from "strings";
 
-function classify(value: io.Reader): string {
+function classify(value: io.Reader): bstring {
   switch (value) {
     case const reader as *strings.Reader {
       return "string:" + fmt.Sprint(reader.Len());

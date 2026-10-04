@@ -33,7 +33,7 @@ func TestAbstractClasses(t *testing.T) {
 		{"direct constructor call", `abstract class Base{constructor(){this.read();}public abstract function read():int;}`, "abstract method on this during construction"},
 		{"orphan override", `abstract class Base{public abstract override function read():int;}`, "no inherited method"},
 		{"duplicate parameter", `abstract class Base{public abstract function read(value:int,value:int):int;}`, "duplicate"},
-		{"Go interface", `abstract class Base implements error{public abstract function error():string;}class Leaf extends Base{public override function error():string{return "failure";}}function use(v:Base):error{return v;}`, ""},
+		{"Go interface", `abstract class Base implements error{public abstract function error():bstring;}class Leaf extends Base{public override function error():bstring{return "failure";}}function use(v:Base):error{return v;}`, ""},
 		{"visibility", `abstract class Base{protected abstract function read():int;}class Leaf extends Base{public override function read():int{return 2;}}`, "preserve inherited visibility"},
 		{"abstract final override", `class Base{public virtual function read():int{return 1;}}abstract class Leaf extends Base{public final abstract override function read():int;}`, "abstract methods cannot be static or final"},
 		{"reabstract final method", `class Base{public virtual function read():int{return 1;}}class Middle extends Base{public final override function read():int{return 2;}}abstract class Leaf extends Middle{public abstract override function read():int;}`, "final and cannot be overridden"},

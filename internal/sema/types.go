@@ -16,6 +16,7 @@ const (
 	Void
 	Boolean
 	String
+	BString
 	Int
 	Int8
 	Int16
@@ -93,6 +94,7 @@ var builtins = map[string]Type{
 	"void":       {Kind: Void, Name: "void"},
 	"boolean":    {Kind: Boolean, Name: "boolean"},
 	"string":     {Kind: String, Name: "string"},
+	"bstring":    {Kind: BString, Name: "bstring"},
 	"int":        {Kind: Int, Name: "int"},
 	"int8":       {Kind: Int8, Name: "int8"},
 	"int16":      {Kind: Int16, Name: "int16"},
@@ -201,7 +203,7 @@ func (t Type) isComparable(visiting map[string]bool) bool {
 		return gotypes.Comparable(t.GoType)
 	}
 	switch t.Kind {
-	case Boolean, String, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface, GoInterface:
+	case Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface, GoInterface:
 		return true
 	case Nullable:
 		return t.Element != nil && t.Element.IsComparable()
@@ -227,6 +229,9 @@ func (t Type) isComparable(visiting map[string]bool) bool {
 }
 
 func assignable(target, value Type) bool {
+	if target.Kind == String && value.Kind == BString {
+		return false
+	}
 	if target.Kind == Invalid || value.Kind == Invalid {
 		return true
 	}
@@ -416,6 +421,9 @@ func decoratorContextContractMismatch(left, right Type) bool {
 }
 
 func sameType(left, right Type) bool {
+	if textContractMismatch(left, right) {
+		return false
+	}
 	return assignable(left, right) || assignable(right, left)
 }
 
@@ -535,7 +543,7 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 		}
 	case Boolean:
 		return gotypes.Typ[gotypes.Bool], true
-	case String:
+	case String, BString:
 		return gotypes.Typ[gotypes.String], true
 	case Int:
 		return gotypes.Typ[gotypes.Int], true
@@ -685,7 +693,7 @@ func isNilable(t Type) bool {
 }
 
 func (t Type) IsString() bool {
-	if t.Kind == String {
+	if t.Kind == String || t.Kind == BString {
 		return true
 	}
 	if t.GoType == nil {
@@ -794,6 +802,11 @@ func goTypeSetMask(goType gotypes.Type, visiting map[gotypes.Type]bool) uint64 {
 }
 
 func defaultLiteralType(t Type) Type {
+	if t.Kind == String || t.Kind == BString {
+		// Go's string storage cannot recover the source UTF-8 contract.
+		t.GoType = gotypes.Typ[gotypes.String]
+		return t
+	}
 	if basic, ok := t.GoType.(*gotypes.Basic); ok && basic.Info()&gotypes.IsUntyped != 0 {
 		if converted, err := kinmokuseiTypeFromGo(gotypes.Default(basic)); err == nil {
 			return converted

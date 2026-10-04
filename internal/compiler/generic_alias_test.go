@@ -20,7 +20,8 @@ alias Pair<T> = [2]T;
 alias Rows<T> = Values<T>[];
 alias Ref<T> = *T;
 alias Transform<T, U> = (value: T) => U;
-alias AtomicRef<T> = atomic.Pointer<T>;
+constraint Raw = ~int | ~bstring;
+alias AtomicRef<T extends Raw> = atomic.Pointer<T>;
 type Tagged<T> = distinct T[];
 alias TaggedAlias<T> = Tagged<T>;
 interface Reader<T> { function read(): T; }

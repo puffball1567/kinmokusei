@@ -26,13 +26,70 @@ A migration requirement exists when the release notes identify a source, lock, C
 
 The pre-1.0 v0.4.x series delivers compatible feature additions and fixes in
 patch releases. This project policy differs from strict SemVer feature numbering.
-Intentional source or public API breaks require a minor release and migration
-notes; compiler fixes may newly reject invalid programs and are documented.
+Intentional source or public API breaks normally require a minor release and
+migration notes; compiler fixes may newly reject invalid programs and are
+documented. v0.4.6 is an explicit exception: verified text changes source/public
+APIs in this patch release. Review the migration notes below before upgrading.
 
 v0.5 is the milestone for completing the audited Go language compatibility work,
 with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
+
+## Unreleased: development branch
+
+No additional unreleased changes are listed here. The text-contract and FFI
+changes formerly documented as development-only are included in v0.4.6.
+
+## v0.4.6 highlights
+
+Use matching v0.4.6 compiler and editor artifacts. This release includes an
+intentional source/API compatibility change despite its patch version number.
+
+- Application attribution directory naming changes from `<output>.licenses/`
+  to `<output>-licenses/`, without modifying or deleting legacy directories.
+- Incoming FFI typed `borrowedArray` inputs and registration-owned
+  `retainedArray` inputs for scalar, enum and POD elements.
+- Verified UTF-8 `string` and raw immutable `bstring`, checked decoding and
+  text slicing. Go strings and error messages are raw;
+  `Response.text()` returns `Result<string>` and `rawText()` preserves bytes.
+- Multiple opaque handle arguments with ordered, deduplicated locking and
+  registration lifetime leases; value-copy protection for resource objects.
+- `mainThread` policy for normal Go executables, including startup
+  `runtime.LockOSThread` and wrong-thread errors instead of implicit dispatch.
+- Multiple call-scoped callbacks, copied/mutable typed callback arrays,
+  subscription-only manifests and checked array allocation bounds.
+- Stronger FFI cleanup, callback failure attribution, generated parameter-name
+  isolation and `panic(nil)` containment.
+- Verified-text storage checks across structural interfaces and instantiated
+  generic/interface inheritance, preventing hidden-field reflection escapes.
+- Updated user manual, syntax/type/built-in references and executable examples,
+  including offline source-library and C-backed package workflows.
+
+The [FFI guide](../guide/c-ffi) and [manifest reference](../reference/c-ffi-manifest)
+describe the expanded surface. The matching
+[v0.4.6 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.6)
+include migration examples; use tagged documentation for older compilers.
+
+### Migrating from v0.4.5
+
+Use `bstring` for arbitrary Go strings, shared Go string collections and callback
+parameters. Ordinary `string` literals and scalar text can widen to `bstring`,
+but raw data cannot become verified text by assignment or interface assertion.
+Decode it using `string(raw)` and handle the `Result<string>` with `?`, an
+explicit split or direct result forwarding. Byte-slice decoding copies a
+snapshot; invalid bytes are rejected without replacement.
+
+`Response.text()` now returns `Result<string>`. Use `rawText()` when the previous
+arbitrary-byte behavior is intended. `Exception.message` and `.error()` return
+raw text. Verified string slicing checks UTF-8 boundaries; slice `bstring(text)`
+for arbitrary byte offsets. Go-generated public APIs still use Go `string`, so
+external callers must honor verified-text contracts or use a raw-data facade.
+
+Libraries relying on this behavior should declare `min-kinmokusei = "0.4.6"`
+and release updated versions. Already published dependencies may need their own
+source migration. See [text at the Go boundary](../guide/go-interop#text-at-the-go-boundary)
+and [strings and Unicode](../book/types-and-values#strings-and-unicode).
 
 ## v0.4.5 highlights
 

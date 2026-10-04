@@ -1,0 +1,2 @@
+const raw = b"hello"
+const text: string = raw

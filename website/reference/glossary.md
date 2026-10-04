@@ -37,6 +37,13 @@ An anonymous record type such as `{ message: string, count: int }`. Its field-na
 
 ## Values and storage
 
+### Verified text and raw bytes
+
+Since v0.4.6, `string` is immutable valid UTF-8 text,
+`bstring` is an immutable arbitrary-byte sequence, and `byte[]` is mutable byte
+storage. Go runtime strings are raw; checked decoding returns `Result<string>`.
+See [strings and Unicode](../book/types-and-values#strings-and-unicode).
+
 ### Addressable
 
 Describes an expression backed by storage whose address may be taken. Named bindings, suitable fields/indexes, and pointer dereferences are addressable; call results and map or string indexes are not. See [Pointers](../book/types-and-values#pointers).

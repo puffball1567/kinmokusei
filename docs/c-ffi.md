@@ -1,5 +1,11 @@
 # C ABI and FFI
 
+For usage and exact keys, see the [public FFI guide](../website/guide/c-ffi.md)
+and [manifest reference](../website/reference/c-ffi-manifest.md). The typed
+borrowed/retained arrays, multiple handles/call-scoped callbacks, typed callback
+arrays and `mainThread` policy in this document are available in v0.4.6. See
+[release availability](../website/project/releases.md#v046-highlights).
+
 ## Purpose
 
 The C ABI is a deliberate stable boundary for two directions:
@@ -14,6 +20,14 @@ library binding a primary preview/demo target rather than treating FFI only as
 compiler plumbing.
 
 The internal program remains ordinary Go. C-compatible gateways are generated only for explicit declarations.
+
+Generated Go `string` values imported from incoming bindings have type
+`bstring` in Kinmokusei, including C string outputs and callback text. They
+carry no UTF-8 guarantee: use checked `string(raw)` decoding and handle its
+`Result<string>` when verified text is needed. Mutable buffers remain `byte[]`;
+nullable string pointers are pointers to raw `bstring`, not verified text.
+This text-contract split is available in v0.4.6; older releases use the previous
+`string` boundary. The generated Go wrapper's ABI and manifest type names are unchanged.
 
 ## Implemented outgoing boundary
 
@@ -66,7 +80,10 @@ Generated C functions return an `int32_t` status. Non-void values are written th
 - `1`: contained panic in Kinmokusei/Go code.
 - `2`: invalid boundary argument such as a null out pointer.
 
-Panics never cross the C boundary. An out value is unspecified on failure.
+Panics never cross the C boundary. This also covers `panic(nil)` when
+`GODEBUG=panicnil=1` makes Go's recovered value nil: the gateway still returns
+status `1`, not success. Null out pointers remain invalid arguments (status
+`2`) and do not enter user code. An out value is unspecified on failure.
 
 ## Stable initial types
 
@@ -145,6 +162,15 @@ an idiomatic Kinmokusei module. Schema 1 supports:
   `[]byte` parameter and one C `const uint8_t *` plus `size_t` pair. The wrapper
   copies into C-owned memory for the call, passes a null pointer for an empty
   slice, and always frees the temporary copy afterward.
+- Borrowed typed-array inputs. A `borrowedArray` parameter with an `element`
+  naming a scalar, enum, or POD struct becomes `[]T` in Go and a typed C
+  pointer plus `size_t` pair. The wrapper checks the allocation size, makes a
+  zero-initialized C-owned copy, converts each element, and frees the copy
+  after the call. Empty arrays pass a null pointer and zero length. C may
+  change its temporary copy, but those changes do not propagate to the Go
+  slice. Direct-call wrappers return `(T, error)` (or `error` for `void`) so
+  allocation failures are explicit. This parameter type is currently for
+  ordinary function inputs, not callback or registration parameters.
 - Library-allocated byte results. An `ownedBytes` status/out result requires a
   `resultRelease` C symbol and consumes `uint8_t **` plus `size_t *` outputs.
   The wrapper copies into an independent Go `[]byte` and calls the declared
@@ -153,9 +179,14 @@ an idiomatic Kinmokusei module. Schema 1 supports:
   function returned a non-null allocation.
 - Library-allocated typed arrays. An `ownedArray` result requires a scalar,
   enum, or POD `resultElement` plus `resultRelease`. The generated wrapper
-  validates the element-count/address-space product, copies and converts every
-  element into an independent Go slice, and applies the same all-path release
-  rules as `ownedBytes`.
+  validates the byte products for both the C and Go element layouts against
+  the target Go `int` before creating a slice or allocating Go storage. These
+  layouts may differ for narrow C enums and enclosing PODs; an oversized
+  product returns `ErrOwnedArrayTooLarge`, not an allocation panic. The wrapper
+  copies and converts every element into an independent Go slice, and applies
+  the same all-path release rules as `ownedBytes`. A non-null result is released
+  once even if size validation fails; a native failure status takes precedence
+  over output validation.
 - Named C enums with generated Go named types and constants.
 - POD structs passed and returned by value, including acyclic nested POD
   structs and enum fields. Conversion is field-by-field through the declared C
@@ -203,6 +234,25 @@ an idiomatic Kinmokusei module. Schema 1 supports:
   `inoutBytes` parameters copy back in declaration order; overlapping ranges
   therefore use deterministic later-parameter-wins behavior and should usually
   be avoided.
+- Typed callback arrays. `copiedArray` and `inoutArray` require an `element`
+  naming a scalar, enum, or acyclic POD struct, and expose a Go `[]Element`.
+  Each C argument expands to an element pointer followed by a `size_t` count.
+  `copiedArray` takes a const pointer and never writes to it; `inoutArray` takes
+  a writable pointer and copies back only after normal callback completion,
+  including false, zero, and void results. Both lifetimes (`callScoped` and
+  `registered`) are supported. Null is valid only with zero count; null and
+  non-null empty inputs both produce a non-nil empty slice. Element counts and
+  byte products are checked against the target Go `int` for both C and Go
+  layouts before allocation or reading native memory. POD values are converted
+  field-by-field instead of reinterpreting their layouts. The Go copy may be
+  retained after the callback or registration ends. Panic or input-contract
+  failure performs no copy-back. Multiple writable arguments are copied
+  independently and written back in declaration order, so later arguments win
+  when ranges overlap. The C library must keep the entire claimed input range
+  readable (and writable for `inoutArray`) until the gateway returns. The count
+  is fixed: appending or reslicing a callback's local slice does not resize the
+  C buffer. These types are callback-input-only, not registration parameters,
+  ordinary function parameters, or results.
 - Registered callbacks declared with `"lifetime": "registered"` and an
   explicit `callbackRegistrations` entry naming status-returning register and
   unregister C symbols. The generated `Register<Name>` function returns a
@@ -222,6 +272,23 @@ an idiomatic Kinmokusei module. Schema 1 supports:
   `retainedCString` is rejected; an empty `retainedBytes` value is represented
   by a null pointer and zero length. Register failure frees every temporary
   allocation, while unregister failure preserves them for retry.
+- Registration-owned typed arrays. A `retainedArray` registration parameter
+  requires a scalar, enum, or acyclic POD `element` and accepts `[]Element`.
+  Register and unregister receive the same C element pointer and `size_t`
+  count. The wrapper creates an independent C copy, converts POD fields rather
+  than reinterpreting layouts, and retains the allocation until successful
+  unregister and callback draining. Nil and empty inputs both use null/zero.
+  C mutations never modify the caller's Go slice, and later Go mutations never
+  modify the C copy; the retained count is fixed. C may access this storage
+  while registered, but must neither free nor resize it and must stop all
+  access before successful unregister returns. Concurrent native access is
+  the library's synchronization responsibility. Size products are checked
+  before allocation; `ErrRetainedArrayTooLarge` or
+  `ErrRetainedArrayAllocation` is returned before native registration. A failure
+  while preparing any retained input rolls back all earlier allocations;
+  native register failure drains admitted callbacks before rollback.
+  Unregister failure preserves every allocation for retry. This type is
+  registration-input-only, not an ordinary call input or callback argument.
 - C-owned byte results from registered callbacks. A callback result of
   `ownedBytes` exposes an ordinary Go `[]byte` callback and generates the C ABI
   `uint8_t *callback(..., size_t *output_length, void *context)`. Each non-empty
@@ -251,14 +318,23 @@ an idiomatic Kinmokusei module. Schema 1 supports:
 - Direct scalar, enum, POD-struct, tagged-union, string, and void calls.
 - C `int32_t` status-only conversion to `error`, and status plus final
   out-parameter conversion to `(T, error)`.
-- `threadSafe`, process-local `serialized`, and `threadAffine` call policies.
+- `threadSafe`, process-local `serialized`, `threadAffine`, and `mainThread`
+  call policies.
   `threadAffine` lazily starts one dedicated goroutine, locks it to one OS
   thread, and synchronously routes every generated call and handle release
   through it.
+- `mainThread` pins the Go startup goroutine during package initialization
+  and rejects calls from other OS threads with `ErrWrongThread`, without
+  dispatching them to another goroutine.
 - Global and GOOS/GOARCH-specific cgo compiler and linker flags.
 - Opaque pointer handles with an explicit C release symbol.
 - Per-handle locking, nil/closed checks, single successful `Close`, and
-  rejection of use after release.
+  rejection of use after release. Ordinary functions may accept multiple
+  handles: generated wrappers lock them in stable creation-ID order and lock
+  the same object only once if it appears in multiple arguments.
+- Native handles and callback registrations reject Go struct value copies
+  with `ErrCopiedHandle` and `ErrCopiedCallbackRegistration`. Pointer aliases
+  still share the original object, its lock, and its single close operation.
 
 ```json
 {
@@ -288,13 +364,65 @@ an idiomatic Kinmokusei module. Schema 1 supports:
 Unknown fields, ambiguous machine-width types, unexported or malformed public
 names, duplicate functions/parameters/types/fields/constants/handles, unsafe
 header or flag text, recursive by-value structs, empty or ambiguous tagged
-unions, unsupported union tags or variants, invalid callback lifetimes or
-signatures, unsupported conventions, direct handle calls, and multiple handle
-or pointer/string/buffer callback parameters are rejected before cgo
-generation. A generated compile-time assertion rejects targets where a declared
-`cInt32` or `cUint32` does not match a 32-bit C type. The one-handle restriction
-gives schema 1 an unambiguous lock order; a later schema may add declared
-multi-handle ordering.
+unions, unsupported union tags or variants, unsupported borrowed-array element
+types, invalid callback lifetimes or
+signatures, unsupported callback-array elements, unsupported conventions,
+direct handle calls, and raw pointer/string/buffer callback parameters are
+rejected before cgo generation. A generated
+compile-time assertion rejects targets where a declared `cInt32` or `cUint32`
+does not match a 32-bit C type. Ordinary functions and callback registrations
+may accept multiple handles without a manifest lock-order declaration: the
+wrapper assigns every created handle a unique ID and acquires multiple locks
+in that order, locking repeated arguments only once.
+
+Parameter names remain ordinary unique Go identifiers, not Go keywords.
+Names such as `context`, `state`, `result`, `output`, `runtime`, and `int32`
+are accepted: where they would shadow generated locals, imports, builtins, or
+package declarations, the generated Go signature uses a deterministic internal
+name instead. The generator also avoids collisions with user names resembling
+its own helpers. Argument order and types do not change, and callback input
+errors still report the parameter's original manifest name. Public type and
+function names remain subject to the reserved-name checks above.
+
+Keep opaque handles and callback registrations as pointers. Their constructors
+record the original object's identity, and every use checks that identity
+before locking or touching C state. A Go value copy such as `copy := *image`
+is not another owner: `copy.Close()` and calls receiving `&copy` fail with
+`ErrCopiedHandle`. Copied registrations likewise reject `Close` and
+`CallbackError` with `ErrCopiedCallbackRegistration`, without unregistering or
+deleting the original callback context. This protects against accidental
+double release and copied mutexes; it does not make copying an object during
+concurrent mutation safe or protect against arbitrary unsafe Go/C writes.
+Mutable ownership and locks live in separate shared state, so even restoring
+an earlier value snapshot to the original Go address cannot resurrect a closed
+native handle or callback context.
+
+### Libraries requiring the main thread
+
+Use `"threadPolicy": "mainThread"` for libraries whose window or event APIs
+must run on the executable's main OS thread. The generated package calls
+`runtime.LockOSThread()` in `init`; Go guarantees that a normal executable's
+`main` then runs on that startup thread. See the
+[Go `LockOSThread` documentation](https://pkg.go.dev/runtime#LockOSThread).
+Unlike `threadAffine`, this policy does not create a dedicated worker thread.
+
+Each generated library call pins its goroutine before checking a C thread-local
+marker and remains pinned until the native call and cleanup complete. A call
+on another thread returns `ErrWrongThread` before allocating arguments,
+registering callbacks, or touching native handles. Direct `void` functions
+therefore return `error`, and direct value functions return `(T, error)`;
+`status` and `statusOut` keep their existing error-returning signatures.
+Handle and callback-registration `Close` use the same check, so a rejected
+close leaves the resource available for subsequent use on the main thread.
+
+Call these APIs from `main` or initialization, not a worker goroutine. The
+generated code does not provide a main-thread event queue or dispatch callback
+code to the main thread. Do not remove the initialization thread lock with
+`runtime.UnlockOSThread`. Tests for main-thread APIs should run a separate
+executable, because ordinary Go test functions execute in worker goroutines.
+The C compiler must support C11 thread-local storage (or MSVC's thread-local
+extension). Go shared-library/archive embedding is not covered by this policy:
+its Go startup thread need not be the host application's main thread.
 
 A `callScoped` callback is valid only until the C function returns. C must not
 retain the function/context pair and must join every C thread using it before
@@ -303,9 +431,27 @@ that interval, so concurrently invoked user callbacks must synchronize their
 own captured mutable state. A Go panic is recovered in the generated gateway,
 becomes the callback result type's zero value for C, prevents later callback entries from
 calling user code, and is returned as `CallbackPanicError` after C unwinds. If
-the C status also fails, the callback panic takes precedence. Schema 1 permits
-at most one callback parameter and does not combine it with owned, string, or
-handle results; those lifetime combinations require a later explicit contract.
+the C status also fails, callback failures take precedence. Schema 1 permits
+multiple call-scoped callback parameters, including repeated callback types
+and mixed signatures. Each argument has an independent context, failure state,
+and runtime handle, even when the same Go function is passed in multiple slots.
+All callback arguments are checked for nil before any runtime handles are
+created, and every handle is deleted when the outer call returns. Each callback
+parameter expands to its own adjacent C function-pointer/context pair, in
+parameter declaration order; a different native ABI needs an adapting C shim.
+Call-scoped callbacks are still not combined with owned, string, or handle
+results; those lifetime combinations require a later explicit contract.
+
+With one callback argument, the established direct `CallbackPanicError` or
+`CallbackInputError` return is unchanged. With multiple arguments, each failed
+slot contributes a `CallbackArgumentError` exposing `Function`, `Parameter`
+(the original manifest argument name), and `Err`. It unwraps to that slot's
+first panic/input error. The outer call returns `errors.Join` of those errors
+in parameter declaration order, not C invocation order, so `errors.As` can
+inspect both argument context and the underlying error. Failure in one slot
+suppresses only that slot's later invocations; other callbacks keep running.
+After any callback failure, the Go result is its zero value. A later outer call
+starts with fresh callback state.
 
 A registered callback remains valid until its registration object's successful
 `Close`. Closing first rejects new user-code entries, calls the declared C
@@ -318,6 +464,14 @@ before it returns. `CallbackError` preserves the first recovered panic and
 later entries return the callback result's zero value without invoking user
 code. Registrations require explicit `Close`; no finalizer guesses a safe C
 thread or shutdown order.
+
+Subscription-only manifests may omit `functions` or use `"functions": []`;
+at least one function or callback registration is required. C may invoke a
+callback while registering it, including an initial notification before the
+registration is returned. The returned registration preserves any callback
+failure through `CallbackError`. If C registration fails, C must not retain
+the input pointers or callback context and must prevent future callbacks;
+the wrapper drains admitted callbacks before freeing its temporary storage.
 
 A registered `ownedBytes`, `ownedCString`, or `ownedArray` result has its own allocation
 lifetime. Successful `Close` ends future callback entries but does not
@@ -337,12 +491,28 @@ return zero without invoking user code. `CallbackInputError` identifies the
 outer function or registration, manifest parameter name, and rejected input
 condition.
 
-A registration may take at most one opaque handle parameter. The generated
-registration holds a lifetime lease on that handle: `Handle.Close` reports
+This includes `panic(nil)`, even when Go runs with `GODEBUG=panicnil=1` and
+`recover` returns nil. Callback completion is tracked separately from the
+recovered value: the wrapper still records `CallbackPanicError`, disables later
+user-code entries, returns a zero C result, and does not copy back mutable
+inputs. Owned byte/array results also have zero lengths on failure. Ordinary
+input/result validation remains `CallbackInputError`, and a panic recovered
+inside user code does not turn a successful callback into an error. The
+`threadAffine` executor likewise preserves nil-valued panics rather than
+mistaking them for normal completion.
+
+A registration may take multiple opaque handle parameters, including handles
+of different types. It holds one lifetime lease per distinct resource:
+`Handle.Close` reports
 `ErrHandleHasActiveRegistrations` until unregister succeeds and every admitted
-callback has completed. An unregister failure preserves both the live callback
-and the lease for retry. The registration does not own the handle, so callers
-still close the handle explicitly after closing all coupled registrations.
+callback has completed. Repeating the same handle argument does not add a
+second lease. Failed registration leaves no leases; failed unregister preserves
+the live callback and all leases for retry. Resource locks are released before
+waiting for admitted Go callbacks to finish. The registration retains private
+ownership state rather than mutable public wrappers, so replacing a wrapper
+value does not change its retained C arguments. The registration does not own
+the handles: callers still close each handle explicitly after closing all
+coupled registrations.
 
 `retainedCString` and `retainedBytes` are registration-parameter-only lifetime
 types. They are not accepted as ordinary function parameters, callback
@@ -355,6 +525,66 @@ whether an ordinary borrowed string or slice might escape a call.
 The generated package is the low-level private boundary. Public binding APIs
 remain ordinary Kinmokusei code, so application code does not see `C.*`, raw
 pointers, or release symbols.
+
+## Distributing a C-backed Kinmokusei package
+
+Use two versioned Go modules: a Kinmokusei source package and a private native
+Go module. The native module contains the C headers and source files alongside
+`generated_ffi.go` in the same Go package directory. The source package
+declares the native module as a Go dependency and exposes only `.km` wrappers.
+For example, a repository may have this layout:
+
+```text
+kinmokusei-raylib/
+  go.mod                 # module example.com/kinmokusei-raylib
+  kinmokusei.toml
+  index.km
+  native/
+    go.mod               # module example.com/kinmokusei-raylib/native
+    ffi/
+      binding.json
+      generated_ffi.go
+      raylib_shim.h
+      raylib_shim.c
+```
+
+The source package declares the native module and its cgo requirement:
+
+```toml
+[target]
+cgo = "enabled"
+
+[go.dependencies]
+"example.com/kinmokusei-raylib/native" = "v0.1.0"
+```
+
+Its `.km` implementation can use `import go` privately and re-export a
+Kinmokusei API. The consumer enables cgo for its target and adds only the
+source package:
+
+```toml
+[target]
+cgo = "enabled"
+```
+
+```sh
+keika deps add example.com/kinmokusei-raylib@v0.1.0
+keika check
+keika run
+```
+
+Both modules must be available at their declared versions. The source package
+dependency causes `keika deps add` to lock the native Go module; users do not
+copy C sources, edit generated Go, or list the private Go module themselves.
+After dependency resolution, check/build/run use the lock and cached sources
+without updating dependencies. The target also needs a working C toolchain.
+
+`keika ffi generate` is a package-author step: run it when preparing the native
+module and distribute its output with the C files. Normal consumer builds do
+not regenerate FFI code. For local development, ordinary `[go.replacements]`
+are limited to directories inside the consuming project root; a sibling native
+module cannot be referenced through `../` as a Go replacement. A separately
+versioned Go module avoids that restriction for consumers.
 
 ## Proposed source declarations
 
@@ -410,10 +640,10 @@ Incoming status codes and out parameters should convert into explicit result val
 
 Generated call-scoped and registered gateways implement the applicable rules
 with integer handles, typed scalar/enum/POD/tagged-union value calls, nil
-rejection, copied string/byte inputs with checked null/length contracts,
-transactional mutable byte buffers, panic containment, C-thread concurrency,
+rejection, copied string/byte/typed-array inputs with checked null/length
+contracts, transactional mutable byte/typed-array buffers, panic containment, C-thread concurrency,
 checked unregister, in-flight draining, and copied value parameters. Registered callbacks may
-additionally couple their lifetime to one checked opaque handle and own copied
+additionally couple their lifetime to multiple checked opaque handles and own copied
 `retainedCString`/`retainedBytes`
 parameters until successful unregister. Registered callbacks may also transfer
 independent `ownedBytes` and `ownedCString` results to C through the paired
@@ -428,18 +658,22 @@ Thread policies:
 - `threadAffine`: the implemented dedicated executor locks one goroutine to one
   OS thread and serializes calls and handle release there. It remains alive for
   the generated package lifetime.
+- `mainThread`: calls and releases must originate on the startup/main thread;
+  calls from any other thread fail with `ErrWrongThread` rather than being queued.
 
 The schema 1 serialized and affine executors are deliberately non-reentrant. A
 call-scoped callback can execute while either outer call is active, but it must
 not synchronously call the same binding because that would wait on the already
-held mutex or occupied executor and deadlock. Under `threadSafe`, callback code
-must still not reenter an operation using the same already-locked opaque handle.
+held mutex or occupied executor and deadlock. Under `threadSafe` or `mainThread`,
+callback code must still not reenter an operation using the same already-locked
+opaque handle.
 Additional reentrancy modes require a separate explicit contract.
 
 A callback must not call `Close` on its own registration: a conforming C
 unregister operation may wait for that callback to return, so self-close would
-deadlock. Close from another goroutine is supported and waits for the callback
-to finish.
+deadlock. With policies other than `mainThread`, close from another goroutine is
+supported and waits for the callback to finish. Under `mainThread`, arrange to
+close on the main thread after callback processing returns.
 
 Blocking/cancellation semantics must also be declared; cancellation cannot be inferred for an arbitrary C function.
 
@@ -475,7 +709,7 @@ Blocking/cancellation semantics must also be declared; cancellation cannot be in
 Borrowed strings and byte buffers, library-allocated owned strings, bytes, and
 typed-array results, target-specific linking, enum/POD/tagged-union values,
 status-only calls, safe opaque handle wrappers, and registration-owned retained
-string/byte inputs are implemented. General retained/static views and the full
+string/byte/typed-array inputs are implemented. General retained/static views and the full
 ownership vocabulary remain in this stage.
 
 ### FFI 2: callbacks and concurrency

@@ -13,6 +13,7 @@ const (
 	Float      Kind = "float"
 	Imaginary  Kind = "imaginary"
 	String     Kind = "string"
+	ByteString Kind = "byte string"
 
 	Function    Kind = "function"
 	Const       Kind = "const"

@@ -21,7 +21,7 @@ Use the Manual to understand how concepts fit together, the Guide to complete a 
 
 6. [Types and values](./types-and-values): scalar and composite shapes, copy versus alias, nominal identity, pointers, interfaces, and nullability.
 7. [Functions and generics](./functions-and-generics): signatures, arrows, callbacks, variadics, type parameters, constraints, methods, and result effects.
-8. [Structs, classes, and interfaces](./structs-classes-interfaces): value/reference design, constructors, visibility, methods, contracts, and inheritance.
+8. [Structs, classes, and interfaces](./structs-classes-interfaces): value/reference design, constructors, visibility, properties, shared static state, inheritance, and typed decorators.
 9. [Failures, results, and exceptions](./errors-results-exceptions): raw Go errors, `Result`, propagation, typed exceptions, panic, cleanup, and absence.
 10. [Concurrency and tasks](./concurrency-and-tasks): raw goroutines, structured tasks, channels, select, cancellation, and shared state.
 

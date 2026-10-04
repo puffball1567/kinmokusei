@@ -27,6 +27,14 @@ class User {
 
 Classes support public, protected, and private members; static methods and fields; interfaces; single `extends`; `virtual`; explicit `override`; `final`; `super`; and abstract classes/methods. Typed instance fields may have initializers evaluated separately for each construction.
 
+Base construction precedes derived defaults. Within each class, defaults run
+in declaration order before constructor-field parameter assignments and the
+body. An initializer may read earlier initialized fields and accessible base
+fields, but not constructor locals, later fields, accessors or a captured
+receiver. Constructor virtual calls are phase-local, not calls into uninitialized
+descendants. See [initialization order](../book/structs-classes-interfaces#initialization-order-and-construction-dispatch)
+for the trace and rejected example.
+
 Static fields require an explicit type and initializer:
 
 ```ts
@@ -86,11 +94,28 @@ function encode(box: Box<string>): Result<byte[]> {
 }
 ```
 
-Decode into a class instance created by its constructor. Because JSON only
-updates public fields, its private invariants, internal identity, and virtual
-dispatch remain intact. Automatic allocation by `encoding/json` does not run a
-class constructor; define `unmarshalJSON(data: byte[]): error` when a class
-needs custom allocation-time initialization or a different wire format.
+Decoding into an existing raw-data (`bstring`) constructor-created instance preserves its existing
+private state and dispatch setup, but **does not validate domain invariants**.
+`encoding/json` updates public Go fields directly, without setters or constructor
+checks; missing fields, nulls and partial updates on an error retain ordinary
+Go behavior. Newly allocated nested class values do not run Kinmokusei
+constructors. A getter alone does not create a serialized field.
+
+For application input, decode into a value DTO, validate it and then construct
+the domain class:
+
+<<< ../snippets/json-class-validation.km{ts}
+
+This prints `Aki 2` and `true`. The wrapper validates the name, copies tags into
+independent non-nil storage and calls the ordinary constructor only on success.
+The DTO uses raw `bstring` fields: Go reflection cannot write into shared
+verified `string` storage. Each name/tag is decoded explicitly before the domain
+object is constructed. Native structs with raw fields and imported Go DTOs
+are also valid decoder targets when their shape fits the intended API.
+It retains Go's default unknown-field policy; stricter schemas need explicit
+validation or a configured decoder. A custom JSON hook must be a public method
+whose generated Go signature matches `UnmarshalJSON([]byte) error`; a private
+lowercase method is not picked up automatically. See [JSON recipes](../examples/json).
 
 ## Struct receivers
 

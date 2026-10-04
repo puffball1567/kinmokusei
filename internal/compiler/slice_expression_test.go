@@ -43,7 +43,7 @@ function allForms(values: int[]): int {
 }
 function stringBytes(value: string): string { return value[1:4]; }
 function ipTail(value: net.IP): byte[] { return value[12:]; }
-function headerFirst(value: http.Header): string { return value["X-Test"][0]; }
+function headerFirst(value: http.Header): bstring { return value["X-Test"][0]; }
 function htmlMiddle(value: template.HTML): template.HTML { return value[1:4]; }
 function namedArrayAlias(): int {
   let value: collections.Triple = collections.NewTriple();

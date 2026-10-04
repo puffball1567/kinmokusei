@@ -29,32 +29,51 @@ Download the archive and `SHA256SUMS` from the [latest GitHub release](https://g
 | macOS Apple Silicon | `keika_<version>_darwin_arm64.tar.gz` |
 | Windows x86-64 | `keika_<version>_windows_amd64.zip` |
 
-Verify the checksum before moving the binary onto `PATH`:
+Verify only the downloaded archive: `SHA256SUMS` also lists other platforms and
+the editor extension, which need not be present locally. The commands below
+use v0.4.6; set `release_version` to the tag's numeric version if installing a
+different release. Choose the archive matching your OS and architecture.
 
 ::: code-group
 
 ```sh [Linux]
-sha256sum -c SHA256SUMS
-tar -xzf keika_<version>_linux_amd64.tar.gz
+release_version=0.4.6
+release_archive="keika_${release_version}_linux_amd64.tar.gz"
+awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | sha256sum -c - || exit 1
+tar -xzf "$release_archive"
 mkdir -p ~/.local/bin
-install -m 0755 keika_<version>_linux_amd64/keika ~/.local/bin/keika
+install -m 0755 "keika_${release_version}_linux_amd64/keika" ~/.local/bin/keika
 ```
 
 ```sh [macOS]
-shasum -a 256 -c SHA256SUMS
-tar -xzf keika_<version>_darwin_arm64.tar.gz
+release_version=0.4.6
+release_archive="keika_${release_version}_darwin_arm64.tar.gz"
+awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | shasum -a 256 -c - || exit 1
+tar -xzf "$release_archive"
 mkdir -p ~/.local/bin
-install -m 0755 keika_<version>_darwin_arm64/keika ~/.local/bin/keika
+install -m 0755 "keika_${release_version}_darwin_arm64/keika" ~/.local/bin/keika
 ```
 
 ```powershell [Windows PowerShell]
-Get-FileHash .\keika_<version>_windows_amd64.zip -Algorithm SHA256
-Expand-Archive .\keika_<version>_windows_amd64.zip
+$release_version = "0.4.6"
+$release_archive = "keika_${release_version}_windows_amd64.zip"
+$checksum_lines = @(Get-Content .\SHA256SUMS | Where-Object { ($_ -split '\s+', 2)[1] -eq $release_archive })
+if ($checksum_lines.Count -ne 1) { throw "Expected one checksum for $release_archive" }
+$expected_hash = ($checksum_lines[0] -split '\s+', 2)[0]
+$actual_hash = (Get-FileHash -LiteralPath $release_archive -Algorithm SHA256).Hash
+if ($actual_hash -ne $expected_hash) { throw "Archive checksum mismatch" }
+Expand-Archive -LiteralPath $release_archive
 ```
 
 :::
 
 On Windows, move `keika.exe` into a dedicated tools directory and add that directory to the user `Path` setting.
+
+The Go compiler itself is not bundled. The `keika` binary includes Go runtime
+and standard-library code; release archives carry `LICENSE`,
+`THIRD_PARTY_NOTICES.md` and `licenses/go/`. Retain these materials when
+redistributing the compiler. See the repository's
+[third-party notices](https://github.com/puffball1567/kinmokusei/blob/main/THIRD_PARTY_NOTICES.md).
 
 ## Install with Go
 

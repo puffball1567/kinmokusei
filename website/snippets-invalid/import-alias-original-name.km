@@ -1,0 +1,5 @@
+import go { Println as print } from "fmt"
+
+const main = () => {
+  Println("Only print was imported")
+}

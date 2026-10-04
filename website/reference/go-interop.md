@@ -7,6 +7,10 @@ description: Detailed support matrix for Go declarations, types, calls, generics
 
 The compiler loads real export/type information for the selected Go version, module graph, target, tags, and CGO state. Support is determined lazily for referenced declarations and reachable shapes.
 
+Namespace and named `import go` forms select the same original exports. Named
+imports can supply local aliases without changing Go type identity; manifest
+source import aliases never rewrite Go package paths.
+
 ## Declarations and values
 
 | Go surface | Status | Kinmokusei boundary |
@@ -25,11 +29,12 @@ The compiler loads real export/type information for the selected Go version, mod
 | Shape | Status | Notes |
 | --- | --- | --- |
 | All Go basic types | Implemented | Identity/width preserved; explicit conversions |
+| Go runtime `string` | Implemented as `bstring` | Arbitrary bytes; checked `string(raw)` returns `Result<string>` |
 | Arrays, slices, maps | Implemented | Named collections and copy/alias behavior preserved |
 | Anonymous structs | Implemented | Exported reachable fields/tags preserved |
 | Interfaces | Implemented | Method sets, assignment, assertions, and type switches |
 | Channels and directions | Implemented | Send/receive/close/range/select behavior preserved |
-| Multiple results | Implemented | Local destructuring/reassignment; never first-class |
+| Multiple results | Implemented | Destructuring/reassignment, matching return forwarding and sole-call argument expansion; never tuple values |
 | Raw `error` | Implemented | Explicit split or postfix `?` bridge |
 | Generic named types | Implemented | Explicit instantiation and identity |
 | Generic functions/methods | Implemented | Inferred, partial, or full explicit arguments |
@@ -57,6 +62,29 @@ and overflowing constants are rejected. These checks do not make pointer arithme
 lifetimes, aliasing, or `unsafe.String` backing storage safe automatically.
 
 No implicit bridge turns `(T, error)` into a hidden wrapper, erases pointer identity for nullability, or converts a Go interface into a Kinmokusei class hierarchy.
+
+Pointers to nominal native structs keep their source identity in matching source
+signatures and pointer receiver methods. Passing shared verified-text storage
+through Go `any`/interfaces is rejected: reflection could write unchecked
+bytes or invoke a callback with raw input. This includes `string[]`, pointers to
+text-bearing records, classes and hidden implementation fields; generic storage
+must prove the same property for its complete bound. Go containers/callbacks use
+`bstring`, not a no-copy view of verified text. Scalar text and scalar-only
+by-value DTOs can be copied safely. Named generic interfaces are checked with
+their instantiated owner arguments, including inherited interface contracts.
+Source structural interfaces also inspect compatible class implementations;
+method signatures alone do not prove the absence of hidden verified-text fields.
+
+For `encoding/json` decoder targets, use a raw DTO with `bstring` fields, then
+validate text before constructing the domain model. Native struct pointers with
+raw fields are supported too; see the
+[checked class-input example](../guide/classes-and-structs#json).
+
+Go assertions/type switches cannot establish UTF-8 validity. Use raw `bstring`
+at that boundary, then a checked conversion. Valid Go string constants may be
+verified at compile time. External Go code calling or mutating generated APIs
+must respect their source contracts: Go `string` itself carries no UTF-8 proof.
+See [text at the Go boundary](../guide/go-interop#text-at-the-go-boundary).
 
 ## Package and target behavior
 

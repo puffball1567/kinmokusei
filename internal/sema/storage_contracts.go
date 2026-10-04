@@ -63,6 +63,9 @@ func (c *Checker) sourceStorageContractsMatchSeen(target, value Type, visiting [
 		}
 	}
 	target, value = c.constraintArgumentShape(target), c.constraintArgumentShape(value)
+	if textContractMismatch(target, value) {
+		return false
+	}
 	records := (target.Kind == Object || target.Kind == Struct) && (value.Kind == Object || value.Kind == Struct)
 	if target.Kind != value.Kind && !records {
 		return true // The caller checks non-qualifier shape differences.

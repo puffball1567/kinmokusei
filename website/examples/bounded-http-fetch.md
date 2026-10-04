@@ -34,7 +34,10 @@ true
 
 `response.ok()` means the status is from 200 through 299. Other HTTP statuses still produce a successful `Response`; transport, request construction, body reading, cancellation, and configured-limit failures use the `Result<Response>` error path.
 
-`response.bytes()` returns a new slice. Changing the first byte of `bodyCopy` produces `Xello`, while a later `response.text()` still returns `hello`; callers cannot mutate the stored body through the returned slice.
+`response.text()` returns `Result<string>` after UTF-8 validation. The example
+handles its error explicitly. `response.bytes()` returns a new slice; changing
+its first byte produces `Xello`, while `response.rawText()` still returns
+`hello`. Callers cannot mutate the stored body through the returned slice.
 
 ## Oversize path
 

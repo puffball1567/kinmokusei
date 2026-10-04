@@ -1,6 +1,6 @@
 ---
 title: Modules and projects
-description: Organize Kinmokusei modules, lock Go dependencies and targets, and use the project-aware CLI.
+description: Organize Kinmokusei modules, lock source and Go dependencies and targets, and use the project-aware CLI.
 ---
 
 # Modules and projects
@@ -87,6 +87,12 @@ keika deps licenses
 Add, update, remove, and lock operations are transactional. If resolution fails, the previous manifest, lock, and locked module state remain unchanged.
 
 Normal `check`, `build`, `run`, `emit-go`, and LSP paths do not acquire packages or rewrite the graph. They validate and use the locked state read-only and offline.
+
+For Kinmokusei libraries, use `keika deps add <module>@<version>` followed by an
+ordinary source import. The command also registers a short module-path alias.
+`[dependencies]` and `[replace]` are distinct from `[go.dependencies]` and
+`[go.replacements]`; neither an ordinary import nor a path alias creates a
+dependency. See the [complete offline two-project example](./external-packages#complete-offline-local-example).
 
 ## Targets
 
