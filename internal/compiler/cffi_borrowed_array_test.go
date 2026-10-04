@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -127,6 +128,9 @@ func main() {
 		}
 	}
 	runner := filepath.Join(root, "borrowed-array-runner")
+	if runtime.GOOS == "windows" {
+		runner += ".exe"
+	}
 	command := exec.Command("go", "build", "-buildvcs=false", "-o", runner, "./cmd")
 	command.Dir = root
 	command.Env = append(os.Environ(), "GOCACHE="+filepath.Join(root, "go-cache"), "CGO_ENABLED=1")

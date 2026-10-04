@@ -148,7 +148,11 @@ cgo = "enabled"
 		t.Fatalf("native helper missing from checked lock: %#v", lock.Modules)
 	}
 	t.Setenv("GOPROXY", "off")
-	for _, args := range [][]string{{"check"}, {"deps", "check"}, {"emit-go"}, {"build", "-o", "app.out"}, {"run"}} {
+	binaryName := "app.out"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+	for _, args := range [][]string{{"check"}, {"deps", "check"}, {"emit-go"}, {"build", "-o", binaryName}, {"run"}} {
 		status, out, stderr := captureRun(t, args...)
 		if status != 0 || stderr != "" {
 			t.Fatalf("%v: status=%d out=%s err=%s", args, status, out, stderr)
@@ -157,10 +161,7 @@ cgo = "enabled"
 			t.Fatalf("run output=%q", out)
 		}
 	}
-	binary := filepath.Join(app, "app.out")
-	if runtime.GOOS == "windows" {
-		binary += ".exe"
-	}
+	binary := filepath.Join(app, binaryName)
 	output, err := exec.Command(binary).CombinedOutput()
 	if err != nil || strings.TrimSpace(string(output)) != "42" {
 		t.Fatalf("built binary: output=%s err=%v", output, err)
