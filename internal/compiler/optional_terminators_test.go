@@ -21,8 +21,8 @@ class Box implements Reader {
   constructor(seed: int) { this.value = seed }
   public function read(): int { return this.value }
 }
-let trace = ""
-function mark(value: string): void { trace += value }
+let trace: bstring = ""
+function mark(value: bstring): void { trace += value }
 function work(seed: int): int {
   defer mark("defer")
   const next = (value: int): int => {
@@ -51,7 +51,7 @@ function work(seed: int): int {
   } catch (_: error) { mark("catch") } finally { mark("finally") }
   return sum
 }
-function Run(seed: int): string {
+function Run(seed: int): bstring {
   trace = ""
   const result = work(seed)
   return strings.Repeat("x", result) + trace

@@ -41,12 +41,12 @@ export {Integer as Number,Named,Items,Pair,Lookup,Key};`,
 import go c from "imported-constraints.test/contracts";
 import go strconv from "strconv";
 constraint Overlap=c.Overlap;
-constraint Choice=Small|~string;
+constraint Choice=Small|~bstring;
 constraint Filtered=c.Filtered;
 type Score=distinct int;
-public function string(this:Score):string{return strconv.Itoa(int(this));}
+public function string(this:Score):bstring{return strconv.Itoa(int(this));}
 function double<T extends Small>(x:T):T{return x*2;}
-function format<T extends Named>(x:T):string{const show=(x+x).String;return show();}
+function format<T extends Named>(x:T):bstring{const show=(x+x).String;return show();}
 function keep<T extends Choice>(x:T):T{return x;}
 function overlap<T extends Overlap>(x:T):T{return x*3;}
 function filtered<T extends Filtered>(x:T):T{return x*4;}
@@ -58,15 +58,15 @@ class Holder<E>{public function copy<S extends Items<E>>(xs:S):E[]{return copied
 class Leaf{constructor(public value:int){}}
 alias Maybe=Leaf|null;
 function Twice(x:int):int{return double(x);}
-function Format(x:int):string{return format(Score(x));}
-function Text(x:string):string{return keep(x);}
+function Format(x:int):bstring{return format(Score(x));}
+function Text(x:bstring):bstring{return keep(x);}
 function Overlapped(x:int):int{return overlap(x);}
 function Filter(x:int):int{return filtered(x);}
 function Copy(xs:int[]):int[]{return new Holder<int>().copy(xs);}
-function Equal(a:string,b:string):boolean{return equal(a,b);}
+function Equal(a:bstring,b:bstring):boolean{return equal(a,b);}
 function Dynamic(a:c.Any,b:c.Any):boolean{return equal<c.Any>(a,b);}
 function Pairs(a:[2]int,b:[2]int):boolean{return pairEqual(a,b);}
-function Total(xs:Map<string,int>):int{return total(xs);}
+function Total(xs:Map<bstring,int>):int{return total(xs);}
 function Nullable(x:int):int{const xs:Maybe[]=[new Leaf(x),null];const result=copied(xs);let value=0;for(const leaf of result){if(leaf!==null){value+=leaf.value;}else{value+=1;}}return value;}
 `,
 	}
@@ -123,7 +123,7 @@ func TestDynamicEqualityPanic(t *testing.T){if !panics(func(){g.Dynamic([]int{1}
 
 func TestImportedConstraintLinkedDiagnostics(t *testing.T) {
 	for _, test := range []struct{ name, source, want string }{
-		{"excluded type", `function keep<T extends Number>(x:T):T{return x;} function bad(x:string):string{return keep(x);}`, "does not satisfy"},
+		{"excluded type", `function keep<T extends Number>(x:T):T{return x;} function bad(x:bstring):bstring{return keep(x);}`, "does not satisfy"},
 		{"empty", `constraint Bad=Number&~boolean;`, "no common types"},
 		{"union comparable", `constraint Bad=Key|~int;`, "without method or comparable requirements"},
 		{"union overlap", `constraint Bad=Number|~int;`, "overlaps an earlier term"},

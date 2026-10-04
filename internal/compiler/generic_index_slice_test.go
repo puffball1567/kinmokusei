@@ -30,12 +30,12 @@ import go contracts from "generic-index-slice.test/contracts";
 type Numbers=distinct int[];
 type Other=distinct int[];
 type Pair=distinct [2]int;
-type Scores=distinct Map<string,int>;
+type Scores=distinct Map<bstring,int>;
 constraint Named=Numbers|Other;
 constraint Array<E>=~[2]E;
 constraint Pointer<E>=~*[2]E;
-constraint Mapping<E>=~Map<string,E>;
-constraint Text=~string;
+constraint Mapping<E>=~Map<bstring,E>;
+constraint Text=~bstring;
 function named<S extends Named>(values:S):S{values[0]+=2;return values[:];}
 function arraySlice<E,A extends Array<E>>(values:A):E[]{values[0]=values[1];return values[:];}
 function pointerSlice<E,A extends Pointer<E>>(values:A):E[]{const p=&values[0];*p=values[1];return values[:];}
@@ -53,8 +53,8 @@ constraint Objects=~Base[];
 function replace<S extends Objects>(values:S):void{values[0]=new Child(7);}
 export function Slices():int[]{const values=Numbers([1,2,3]);const rest:Numbers=tail(values);rest[0]=8;const bounded:Numbers=limit(values);const grown=append(bounded,9);grown[0]=7;const p=&values[0];*p=4;const a:Numbers=named(values);const b:Other=named(Other([5]));const external=contracts.Numbers([6,7]);const externalTail:contracts.Numbers=tail(external);return [first(values),rest[0],len(rest),cap(rest),cap(bounded),grown[0],a[0],b[0],externalTail[0]];}
 export function Arrays():int[]{let values:[2]int=[1,2];const copied=arraySlice(Pair(values));const pointer=&values;const view=pointerSlice<int>(pointer);view[0]=9;return [values[0],values[1],copied[0],copied[1],cap(view)];}
-export function Maps():int[]{const values=Scores(makeMap<string,int>());const a=readMap(values,7);const b=readMap(values,9);return [a,b,values["key"]];}
-export function Texts():string{const value=contracts.Text("A温");const rest:contracts.Text=textSlice(value);return string(rest);}
+export function Maps():int[]{const values=Scores(makeMap<bstring,int>());const a=readMap(values,7);const b=readMap(values,9);return [a,b,values["key"]];}
+export function Texts():bstring{const value=contracts.Text("A温");const rest:contracts.Text=textSlice(value);return bstring(rest);}
 export function Byte():byte{return textByte(contracts.Text("温"));}
 export function ObjectsCase():int[]{const values:Base[]=[new Child(3),new Base(4)];const access=new Access<Base>();const store=new Store<Base,Base[]>(values);const view=access.view(values);view[0].value=5;const before=access.read(values).read();replace(view);const rest=store.tail();rest[0].value=8;return [before,store.read().read(),values[1].value];}
 export function Nullable():int{const values:Maybe[]=[null,new Child(3)];const access=new Access<Maybe>();const item=access.read(access.view(values));if(item!==null){return item.read();}return 0;}

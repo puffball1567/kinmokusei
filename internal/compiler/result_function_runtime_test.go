@@ -30,7 +30,7 @@ export function Factory(base:int):Load{
   let calls=0;
   return (n)=>{calls++;if(n<0){return fail(errors.New("negative"));}return ok(base+n+calls);};
 }
-export function Parse(text:string):Result<int>{const f:(text:string)=>Result<int>=strconv.Atoi;return f(text);}
+export function Parse(text:bstring):Result<int>{const f:(text:bstring)=>Result<int>=strconv.Atoi;return f(text);}
 export function Recursive(n:int):Result<int>{
   const f=(n:int):Result<int>=>{if(n<0){return fail(errors.New("negative"));}if(n<=1){return ok(1);}const value=f(n-1)?;return ok(n*value);};
   return f(n);
@@ -42,7 +42,7 @@ export function Reassign():Result<int>{
 export function NamedCall(n:int):Result<int>{const f:Named<int>=(value)=>{return ok(value+1);};return f(n);}
 export function Callbacks(n:int):Result<int>{
   const fs:Load[]=[Factory(10),Factory(20)];
-  const values=makeMap<string,Load>();values["first"]=fs[0];
+  const values=makeMap<bstring,Load>();values["first"]=fs[0];
   const a=values["first"](n)?;const b=fs[1](n)?;return ok(a+b);
 }
 export function GoBoundary(n:int):Result<int>{
@@ -83,7 +83,7 @@ export function EvaluateOnce():int{
 		"entry.km": `import {Factory,Parse,Recursive,Reassign,NamedCall,Callbacks,GoBoundary,VoidBoundary,MethodValue,Objects,Async,Finally,ReturnedFunction,EvaluateOnce} from "./library";
 export function Scalar(n:int):Result<int>{const a=Recursive(n)?;const b=NamedCall(n)?;const c=Callbacks(n)?;const d=GoBoundary(n)?;const e=MethodValue(n)?;const f=Objects(n)?;const g=Async(n)?;return ok(a+b+c+d+e+f+g);}
 export function Captures():Result<int>{const f=Factory(10);const a=f(1)?;const b=f(2)?;const c=Reassign()?;const g=ReturnedFunction()?;const d=g()?;return ok(a+b+c+d);}
-export function Parsing(text:string):Result<int>{return Parse(text);}
+export function Parsing(text:bstring):Result<int>{return Parse(text);}
 export function Notify(reject:boolean):Result<void>{return VoidBoundary(reject);}
 export function Control(reject:boolean):int{return Finally(reject)+EvaluateOnce();}
 `,

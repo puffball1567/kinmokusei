@@ -1,0 +1,4 @@
+class WrongOrder {
+  public first: int = this.later
+  public later: int = 3
+}

@@ -9,7 +9,8 @@ description: Precise Kinmokusei type representations, identity, assignability, g
 
 | Family | Syntax | Representation |
 | --- | --- | --- |
-| Scalar | `int`, `string`, `boolean` | Corresponding Go scalar |
+| Scalar | `int`, `string`, `bstring`, `boolean` | Corresponding Go scalar; text contracts remain distinct |
+| Multiple results | `(T, U)` in a callable result position | Separate Go results, not a tuple value |
 | Slice | `T[]` | `[]T` |
 | Fixed array | `[N]T` | `[N]T` |
 | Map | `Map<K, V>` | `map[K]V` |
@@ -24,20 +25,25 @@ description: Precise Kinmokusei type representations, identity, assignability, g
 | Result | `Result<T>` | Function return `(T, error)` effect |
 | Task | `Task<T>` | Compiler-tracked local task state |
 
-Parentheses and generic brackets disambiguate nested shapes. Fixed array length must be a non-negative representable constant. `Result` and `Task` have restricted positions described below.
+Parentheses and generic brackets disambiguate nested shapes. A fixed array type
+currently requires a non-negative representable integer literal for its length,
+not a constant name or expression. `Result` and `Task` have restricted positions
+described below.
 
 ## Built-in correspondence
 
 | Kinmokusei | Go | Notes |
 | --- | --- | --- |
 | `boolean` | `bool` | No truthiness |
-| `string` | `string` | UTF-8 bytes |
+| `string` | `string` | Immutable verified UTF-8 text |
+| `bstring` | `string` | Immutable arbitrary bytes; runtime Go string boundary |
 | `int`, `uint` | `int`, `uint` | Target machine width |
 | `int8`…`int64` | same Go type | Fixed signed width |
 | `byte`, `uint8` | `byte`, `uint8` | Identical aliases |
 | `uint16`…`uint64` | same Go type | Fixed unsigned width |
 | `float32` | `float32` | Fixed width |
 | `float`, `number`, `float64` | `float64` | Identical types |
+| `complex64`, `complex128` | same Go type | `complex`, `real`, `imag`, and imaginary constants |
 | `T[]` | `[]T` | Slice |
 | `[N]T` | `[N]T` | Fixed array |
 | `Map<K, V>` | `map[K]V` | Comparable key |
@@ -61,6 +67,9 @@ Empty collections, `nil`, and `null` need an expected or explicit type when no e
 ## Assignability
 
 - Identical types are assignable.
+- Scalar `string` may widen to `bstring`; the reverse requires checked decoding.
+- Shared storage and function signatures preserve text contracts: `string[]`
+  cannot become `bstring[]` by assignment or a no-copy conversion.
 - A representable untyped constant may adopt a compatible expected numeric type.
 - Numeric widths and signedness do not change implicitly.
 - Go named types preserve package identity and Go assignability.
@@ -88,13 +97,29 @@ const rawAgain = string(id);
 
 - Numeric conversions follow Go width, signedness, truncation, and constant representability.
 - `string(integer)` creates the UTF-8 encoding of one Unicode code point; use `fmt` or `strconv` for decimal formatting.
+- `string(bstringValue)` and `string(byteSlice)` return `Result<string>` and
+  reject invalid UTF-8. Conversion to a native defined `string` type likewise
+  returns `Result<ThatType>` when the input needs validation.
+- `bstring(bytes)` preserves arbitrary bytes; `string(int32Slice)` encodes
+  code points, including compatible named slice types. Converting either
+  string type to a byte/code-point slice uses a corresponding
+  type or transparent alias, for example `alias Bytes = byte[]; Bytes(text)`.
+  Byte conversions preserve raw bytes; decoding raw bytes into code points
+  replaces invalid encodings with U+FFFD, and encoding invalid code points
+  likewise uses U+FFFD. Checked byte-to-`string` decoding never does that. See
+  [strings and Unicode](../book/types-and-values#strings-and-unicode).
 - Named defined types convert to/from compatible underlying types explicitly.
 - Enum conversion is explicit in both directions.
 - Slice and fixed array do not convert implicitly; use `copyArray` or `viewArray` for the checked supported boundary.
 - Class upcasts are implicit only along the declared inheritance chain; downcasts use `as?` or `as!`.
 - Go interface assertions use `as?`/`as!` and retain Go assertion failure behavior.
+  An assertion cannot establish a UTF-8 contract: assert `bstring`, then decode
+  explicitly rather than asserting `string` or a verified-text-containing type.
 
-No conversion changes reference ownership, deep-copies a collection, or turns `null` into raw Go `nil` implicitly.
+Conversions do not implicitly change reference ownership, recursively copy
+reference-bearing collection elements, or turn `null` into raw Go `nil`.
+String/byte/code-point conversions copy or encode/decode their scalar content;
+later slice mutations do not change an already converted string.
 
 A defined type does not accept its underlying runtime type without that explicit conversion:
 
@@ -142,7 +167,7 @@ Slices support two-index and full three-index slicing. The result aliases the or
 - `interface Name` creates an explicitly implemented interface contract.
 - `enum Name` creates a nominal integer type and typed constants.
 - `type Name = distinct T` creates a Go-compatible defined type.
-- `alias Name = T` creates a transparent non-generic alias.
+- `alias Name = T` or `alias Name<T> = U` creates a transparent alias; generic aliases are expanded in generated Go.
 
 Finite recursive struct/defined shapes require slice, map, pointer, function, or channel indirection. Direct and fixed-array-only cycles are rejected.
 
@@ -154,17 +179,35 @@ Function identity includes parameter order/types, variadic status, and result. A
 
 Interfaces are reference-bearing contracts. Kinmokusei classes name contracts explicitly with `implements`; imported Go interface connectivity is checked against the generated public method set. Value versus pointer receiver methods affect native struct method sets just as in Go. A pointer method requires addressable storage when automatic addressing is used.
 
-Direct Go multiple results are statement-local compiler shapes, not tuple types. They can initialize or assign a matching binding list but cannot be returned or stored as one value.
+Source and imported Go callables may have multiple results. A matching result
+list can be destructured, forwarded by `return call();`, or expanded as the sole
+argument to a matching call. An explicit `return first, second;` is also valid.
+Result lists cannot be stored as tuple values or mixed with additional call
+arguments. `Result<T>` remains a separate checked error effect.
 
 ## Generics
 
-Functions, classes, structs, interfaces, and distinct defined types accept parameters. `extends comparable` is implemented; broader native constraint type sets are not. Generic named types require explicit full instantiation. Function calls can infer arguments or accept a partial/full explicit prefix.
+Functions, class/struct methods, classes, structs, interfaces, aliases, and
+distinct defined types accept generic parameters. Bounds support `comparable`,
+native `constraint` declarations, dependent parameters, and imported Go type
+sets/method interfaces. Exact terms, underlying `~T` terms, unions, and
+intersections are checked rather than approximated.
 
-Generic aliases and method-local generic parameters are unsupported. Generic class inheritance, virtual/static generic class members, and distinct types over native class/struct/interface declarations are unsupported.
+Generic named types require explicit full instantiation. Function and generic
+method calls can infer arguments or accept a partial/full explicit prefix.
+Generic classes support inherited state, virtual dispatch, abstract contracts,
+and static methods. Static fields/accessors remain shared across instantiations
+and cannot refer to class type parameters. Generic aliases expand transparently;
+distinct native-struct definitions preserve nominal identity without inheriting
+the underlying struct's methods. Native class/interface underlyings remain
+unsupported for `distinct`.
 
 ## Nullability
 
-`T | null` requires a nil-capable representation. The union does not allocate a wrapper. Scalars, arrays, native structs, structural objects, `void`, and `Result` cannot be nullable directly.
+`T | null` requires a nil-capable representation, including functions as well as
+classes, pointers, slices, maps, channels and interfaces. The union does not
+allocate a wrapper. Scalars, fixed arrays, native structs, structural objects,
+`void` and `Result` cannot be nullable directly.
 
 The compiler tracks maybe-null, definitely-null, and non-null facts separately from declared types. Facts join by guarantees across reachable flow and are invalidated by writes or effect boundaries that may change storage.
 
@@ -179,6 +222,40 @@ Narrowing applies to stable bindings and member paths only while the proof remai
 `Result<T>` is valid only as a function/method return effect. It cannot be stored or nested. `Task<T>` is a local non-escaping single-consumption capability; it cannot appear in public signatures or storage positions.
 
 `Result<void>` lowers to one `error`; `Result<T>` lowers to `(T, error)`. `Task<Result<T>>` retains both layers: `await` joins the worker, and the following `?` propagates the operation error. Neither form is an ordinary heap wrapper visible to Go callers.
+
+## Decorator contexts and values
+
+Decorator context types are compiler-provided nominal contracts, not
+interchangeable structural object literals. `DecoratorContext` accepts any
+supported target; target-specific contexts restrict application to a class,
+field, constructor, method, getter, setter or parameter. See the
+[target table](../book/structs-classes-interfaces#typed-decorators).
+
+All context types expose this surface:
+
+| Fields | Type and meaning |
+| --- | --- |
+| `kind` | `string`: target kind |
+| `identity`, `classIdentity`, `baseIdentity` | `string`: target, declaring class and base identities |
+| `overrideChain` | `string[]`: inherited slot identities |
+| `className`, `memberName`, `parameterName` | `string`: source names |
+| `parameterIndex` | `int`: zero-based parameter position, otherwise `-1` |
+| `static`, `visibility` | `boolean`, `string`: member access contract |
+| `valueType`, `valueIdentity` | `string`: source type description and nominal identity when applicable |
+| `constructible`, `constructUnavailableReason` | `boolean`, `string`: construction availability |
+| `construct` | `(arguments: DecoratorValue[]) => Result<DecoratorValue>` |
+| `invocable`, `invokeUnavailableReason` | `boolean`, `string`: instance invocation availability |
+| `invoke` | `(receiver: DecoratorValue, arguments: DecoratorValue[]) => Result<DecoratorValue>` |
+| `staticInvocable`, `staticInvokeUnavailableReason` | `boolean`, `string`: static invocation availability |
+| `invokeStatic` | `(arguments: DecoratorValue[]) => Result<DecoratorValue>` |
+
+`DecoratorValue` is opaque apart from its readable `typeIdentity: string`.
+Boxing and extraction preserve concrete source contracts, including nullable
+qualifiers, numeric widths, nominal identities and nested type structure.
+Extraction does not implicitly convert a concrete implementation to an
+interface: box using that interface contract explicitly. Open type parameters
+cannot be transported. The [decorator built-ins](./built-ins#decorator-values)
+perform checked boxing and extraction.
 
 ## Type-related runtime failure
 

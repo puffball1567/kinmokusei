@@ -1,0 +1,1 @@
+cannot use interface{Label() string} as any

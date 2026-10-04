@@ -5,15 +5,85 @@ description: Import standard-library and external Go packages while preserving t
 
 # Go interoperability
 
-`import go` connects a namespace to an ordinary package selected from the active or locked Go module graph. It is the primary ecosystem boundary, not a reflection shim.
+`import go` connects explicit source bindings to an ordinary package selected
+from the active or locked Go module graph. It is the primary ecosystem boundary,
+not a reflection shim.
 
 ```ts
 import go strings from "strings";
 
-function normalize(value: string): string {
+function normalize(value: string): Result<string> {
+  return string(strings.ToUpper(strings.TrimSpace(value)));
+}
+```
+
+Namespace imports keep the export names qualified. Named imports select exports
+without that qualifier, with optional local aliases:
+
+```ts
+import go { ToUpper as upper, TrimSpace } from "strings"
+
+function normalize(text: string): Result<string> {
+  return string(upper(TrimSpace(text)))
+}
+```
+
+Both forms preserve the original Go package/type identity. Manifest source
+import aliases do not expand `import go` paths.
+
+## Text at the Go boundary
+
+Runtime Go `string` values are `bstring` in Kinmokusei. This also applies to
+collection elements, struct fields and callback parameters/results. A scalar
+`string` argument can be passed to Go without conversion; a returned raw value
+must be validated with `string(raw)` before becoming verified text. That
+conversion returns `Result<string>` and reports invalid UTF-8 without replacing
+bytes. Known-valid Go string constants can be verified at compile time.
+
+For an intentionally raw API, use `bstring` throughout:
+
+```ts
+function normalizeBytes(value: bstring): bstring {
   return strings.ToUpper(strings.TrimSpace(value));
 }
 ```
+
+Shared containers are invariant: Go `[]string` requires `bstring[]`, not
+`string[]`. Likewise, a Go callback receiving a string must accept `bstring`,
+even when the particular package usually supplies text. Build a separate raw
+collection or validate callback inputs explicitly; do not reinterpret shared
+storage or assume an imported API proves UTF-8 validity.
+Imported generic types and inherited Go method contracts must likewise use
+raw text arguments. A Go generic call returning ordinary strings returns
+`bstring`; native verified-text types cannot be passed through a generic Go
+signature that would erase their proof. Native Kinmokusei generics keep their
+text contracts normally.
+
+Go `any`/interface values can expose references to reflection. The compiler
+rejects escaping verified-text storage, including pointers/containers/classes,
+hidden implementing or subclass fields, and unconstrained generic storage
+whose safety cannot be proved. Scalar text and by-value records containing only
+scalar text are safe to copy. For JSON input, decode into a DTO with `bstring`
+fields, then validate and construct the domain object; see the
+[checked class-input example](./classes-and-structs#json).
+
+This check also follows source structural interfaces and instantiated generic
+interfaces: a method set returning only `bstring` does not prove that its
+implementation contains no mutable `string` fields. For example, this is
+rejected at the call to `reflect.ValueOf`:
+
+<<< ../snippets-invalid/interface-text-erasure.km{ts}
+
+Use a separate raw-data implementation with `bstring` fields for that boundary.
+Unrelated classes with incompatible method sets or generic bounds do not make
+an otherwise raw structural interface unsafe.
+
+An interface assertion is a Go type check, not a UTF-8 check. Assert raw
+`bstring`, then decode; asserting `string` or a text-bearing mutable type is
+rejected. Generated Go represents both contracts with plain `string`, so
+external Go callers must honor the declared Kinmokusei contract. Hand-written
+Go mutation and explicitly unsafe memory operations are outside the checked
+source guarantee.
 
 ## What the boundary preserves
 
@@ -58,6 +128,22 @@ function parse(text: string): Result<int> {
 
 No implicit conversion erases Go pointer identity, turns Go interfaces into class hierarchies, or wraps `(T, error)` as a hidden object.
 
+Matching ordinary multiple-result calls can also be forwarded with
+`return operation();` or expanded as the sole argument to another call. This
+does not implicitly turn an ordinary result list into a `Result` effect; keep
+the effect explicit when error handling must be checked.
+
+## Runtime cost
+
+An ordinary imported Go function lowers to a direct Go call. Imports do not add
+a reflection, serialization or foreign-language ABI layer. `Result` checks
+become ordinary error branches. Source classes, virtual dispatch, decorators,
+Task starts and C FFI may emit their documented helpers, allocations or copies;
+these costs come from the chosen feature, not merely from importing a Go module.
+Checked raw-to-text decoding additionally scans bytes for UTF-8 validity;
+byte-slice conversions copy a snapshot. Verified-text slicing adds boundary
+checks, not a full UTF-8 rescan. Raw `bstring` operations retain Go behavior.
+
 ## Variadics, generics, and interfaces
 
 Variadic calls accept individual values or one final explicit slice expansion with `values...`. Generic functions infer type arguments where possible and accept partial/full `<T>` or `[T]` lists. Constraints are checked using Go type information.
@@ -74,7 +160,10 @@ keika deps check
 keika deps licenses
 ```
 
-Local project-relative replacements are supported for declared dependencies. Normal compilation remains offline and read-only with respect to dependency resolution.
+Go replacements are supported for declared dependencies at project-relative
+paths inside the project root. Source-package sibling replacements use the
+separate `[replace]` section. Normal compilation remains offline and read-only
+with respect to dependency resolution.
 
 ## Audit connectivity
 

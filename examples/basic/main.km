@@ -11,7 +11,7 @@ function current(counter: CounterValue): int {
   return counter.current();
 }
 
-function normalize(value: string): string {
+function normalize(value: string): bstring {
   return strings.ToUpper(strings.TrimSpace(value));
 }
 

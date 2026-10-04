@@ -27,8 +27,8 @@ interface Right extends Named {}
 interface Combined extends Left,Right {function count():int;}
 interface Reader<T> extends api.Reader<T>,api.Batch<T> {}
 interface Bytes extends io.Reader {}
-class Label implements Combined {constructor(protected value:int){}public virtual function string():string{return fmt.Sprint(this.value);}public function count():int{return this.value;}}
-class Double extends Label {constructor(value:int){super(value);}public override function string():string{return fmt.Sprint(this.value*2);}}
+class Label implements Combined {constructor(protected value:int){}public virtual function string():bstring{return fmt.Sprint(this.value);}public function count():int{return this.value;}}
+class Double extends Label {constructor(value:int){super(value);}public override function string():bstring{return fmt.Sprint(this.value*2);}}
 class Cell<T> implements Reader<T>{constructor(private value:T){}public function read():T{return this.value;}public function all(...values:T[]):T[]{return values;}}
 class ByteReader implements Bytes {constructor(private count:int){}public function read(buffer:byte[]):Result<int>{return ok(this.count+len(buffer));}}
 class Leaf{constructor(public value:int){}}
@@ -42,7 +42,7 @@ import go c from "go-interface-inheritance.test/contracts";
 function Make(value:int):Combined{return new Double(value);}
 function Upcast(value:Combined):f.Stringer{return value;}
 function Direct(value:int):f.Stringer{return new Double(value);}
-function Use(value:int):string{const named=Make(value);const bound=named.String;return bound()+":"+f.Sprint(named.count());}
+function Use(value:int):bstring{const named=Make(value);const bound=named.String;return bound()+":"+f.Sprint(named.count());}
 function Nullable(value:Combined|null):f.Stringer|null{return value;}
 function Generic(value:int):int{const reader:Reader<int>=new Cell<int>(value);const bound=reader.Read;return bound()+len(reader.All(1,2,3));}
 function GenericUpcast(value:int):c.Reader<int>{return new Cell<int>(value);}

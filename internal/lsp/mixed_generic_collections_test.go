@@ -10,7 +10,7 @@ func TestMixedGenericCollectionsEditor(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "mixed.km")
 	uri := fileURI(path)
-	input := `constraint Text=~string|~byte[];
+	input := `constraint Text=~bstring|~byte[];
 function tail<T extends Text>(value:T):T{const rest=value[1:];return rest;}
 class Item{public value:int=1;}
 constraint Items=~Item[]|~[2]Item;

@@ -13,7 +13,7 @@ function writeAndRead(text: string): Result<string> {
   }
 
   const contents = os.ReadFile(path)?;
-  return ok(string(contents));
+  return string(contents);
 }
 
 function main(): void {

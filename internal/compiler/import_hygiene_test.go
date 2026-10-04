@@ -22,7 +22,7 @@ export function Generic<Box>(value:Box):Box{const item:Container<Box>=new Contai
 export function Nested():int{let result=0;for(const pair of [1,2]){result+=load(pair);}for(let count=0;count<2;count++){result+=total+count;}const wrap=(pair:int):int=>load(pair);return result+wrap(3);}
 export function Shadow():int{const load=(n:int):int=>n+1000;return load(1);}
 export class Reader<Box>{constructor(public value:Box){}public function read(pair:int):int{const wrapped:Container<Box>=new Container<Box>(this.value);return load(pair);}}
-export function OOP():int{return new Reader<string>("ok").read(2);}
+export function OOP():int{return new Reader<bstring>("ok").read(2);}
 export function Selected():int{const channel=goChannel<int>(1);channel<-2;select{case const pair=<-channel{return load(pair);}default{return -1;}}}
 export function Destructured():int{const produce=():(int,int)=>{return 2,3;};const [pair,count]=produce();return load(pair)+total+count;}
 `,
@@ -66,8 +66,8 @@ func TestImportLinkNamesAvoidGeneratedNameCollisions(t *testing.T) {
 		files := map[string]string{
 			"lib.km": `export function value(n:int):int{return n+1;}`,
 			"entry.km": fmt.Sprintf(`import {value as load} from "./lib";import go fmt from "fmt";
-export function Run(value:int,%s:int,%s_2:int,fmt:int,%s:int):string{return fmtValue(load(value),%s,%s_2,fmt,%s);}
-function fmtValue(a:int,b:int,c:int,d:int,e:int):string{return fmt.Sprint(a,b,c,d,e);}`, candidate, candidate, goCandidate, candidate, candidate, goCandidate),
+export function Run(value:int,%s:int,%s_2:int,fmt:int,%s:int):bstring{return fmtValue(load(value),%s,%s_2,fmt,%s);}
+function fmtValue(a:int,b:int,c:int,d:int,e:int):bstring{return fmt.Sprint(a,b,c,d,e);}`, candidate, candidate, goCandidate, candidate, candidate, goCandidate),
 		}
 		for name, input := range files {
 			if err := os.WriteFile(filepath.Join(root, name), []byte(input), 0o644); err != nil {
@@ -118,9 +118,9 @@ func TestGoAliasesAvoidLocalCapture(t *testing.T) {
 	root := t.TempDir()
 	// The alphabetically first module establishes a different canonical alias.
 	files := map[string]string{
-		"a.km": `import go fmt from "fmt";export function first():string{return fmt.Sprint("a");}`,
+		"a.km": `import go fmt from "fmt";export function first():bstring{return fmt.Sprint("a");}`,
 		"entry.km": `import {first} from "./a";import go text from "fmt";
-export function Run(fmt:int):string{return first()+text.Sprint(fmt);}`,
+export function Run(fmt:int):bstring{return first()+text.Sprint(fmt);}`,
 	}
 	for name, input := range files {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(input), 0o644); err != nil {

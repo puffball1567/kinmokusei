@@ -47,7 +47,7 @@ func scalarLiteralTree(expr ast.Expression) goast.Expr {
 			kind = gotoken.FLOAT
 		} else if e.Kind == ast.ImaginaryLiteral {
 			kind = gotoken.IMAG
-		} else if e.Kind == ast.StringLiteral {
+		} else if e.Kind == ast.StringLiteral || e.Kind == ast.ByteStringLiteral {
 			kind = gotoken.STRING
 		} else if e.Kind != ast.IntegerLiteral {
 			return nil
@@ -166,7 +166,7 @@ func initializerEmitsConstant(expr ast.Expression) bool {
 	case *ast.IdentifierExpr:
 		return e.GoConstant || e.GoMember != nil && e.GoMember.Constant
 	case *ast.LiteralExpr:
-		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral || e.Kind == ast.StringLiteral || e.Kind == ast.BooleanLiteral
+		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral || e.Kind == ast.StringLiteral || e.Kind == ast.ByteStringLiteral || e.Kind == ast.BooleanLiteral
 	case *ast.UnaryExpr:
 		return initializerEmitsConstant(e.Operand)
 	case *ast.BinaryExpr:
@@ -332,7 +332,15 @@ func (c *Checker) checkGoBinary(expr *ast.BinaryExpr, left, right Type) Type {
 		c.report(expr.Span, "operator "+expr.Operator+" requires compatible numeric operands")
 		return Type{Kind: Invalid}
 	}
-	return c.finishNumeric(expr, pkg, &goast.BinaryExpr{X: x, Op: numericOperator(expr.Operator), Y: y})
+	result := c.finishNumeric(expr, pkg, &goast.BinaryExpr{X: x, Op: numericOperator(expr.Operator), Y: y})
+	if result.Kind != BString && c.constraintArgumentShape(result).Kind == String && (c.constraintArgumentShape(left).Kind == BString || c.constraintArgumentShape(right).Kind == BString) {
+		c.report(expr.Span, "cannot concatenate raw bstring into verified named text; validate the raw input or convert both operands to bstring")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if result.Kind == BString && c.constraintArgumentShape(left).Kind == String && c.constraintArgumentShape(right).Kind == String {
+		result.Kind, result.Name = String, "string"
+	}
+	return result
 }
 
 func (c *Checker) checkGoUnary(expr *ast.UnaryExpr, operand Type) Type {

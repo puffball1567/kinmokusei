@@ -107,6 +107,9 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 				return target
 			}
 			value := c.checkExpression(expr.Arguments[0])
+			if result, text := c.checkTextConversion(expr, target, value); text {
+				return result
+			}
 			if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 				return c.checkComplexConversion(expr, target, value)
 			}

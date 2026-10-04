@@ -72,7 +72,7 @@ func (c *Checker) declareClasses(program *ast.Program) {
 }
 
 func (c *Checker) installExceptionBuiltin() {
-	stringType := builtins["string"]
+	stringType := builtins["bstring"]
 	errorType := builtins["error"]
 	methodResult := stringType
 	c.classes["Exception"] = &classSymbol{

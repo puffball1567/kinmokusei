@@ -4,7 +4,7 @@ import go sync from "sync";
 class TodoStore {
   private mutex: sync.RWMutex;
   private nextID: int;
-  private todos: { id: int, title: string, completed: boolean }[];
+  private todos: { id: int, title: bstring, completed: boolean }[];
 
   constructor() {
     this.mutex = sync.RWMutex{};
@@ -15,23 +15,23 @@ class TodoStore {
     ];
   }
 
-  public function list(): { id: int, title: string, completed: boolean }[] {
+  public function list(): { id: int, title: bstring, completed: boolean }[] {
     this.mutex.RLock();
     defer this.mutex.RUnlock();
-    let snapshot: { id: int, title: string, completed: boolean }[] = [];
+    let snapshot: { id: int, title: bstring, completed: boolean }[] = [];
     return append(snapshot, this.todos...);
   }
 
-  public function create(title: string): { id: int, title: string, completed: boolean } {
+  public function create(title: string): { id: int, title: bstring, completed: boolean } {
     this.mutex.Lock();
     defer this.mutex.Unlock();
-    const todo = { id: this.nextID, title: title, completed: false };
+    const todo = { id: this.nextID, title: bstring(title), completed: false };
     this.nextID++;
     this.todos = append(this.todos, todo);
     return todo;
   }
 
-  public function toggle(id: int): { value: { id: int, title: string, completed: boolean }, found: boolean } {
+  public function toggle(id: int): { value: { id: int, title: bstring, completed: boolean }, found: boolean } {
     this.mutex.Lock();
     defer this.mutex.Unlock();
     for (let index = 0; index < len(this.todos); index++) {
@@ -51,7 +51,7 @@ class TodoStore {
   public function remove(id: int): boolean {
     this.mutex.Lock();
     defer this.mutex.Unlock();
-    let remaining: { id: int, title: string, completed: boolean }[] = [];
+    let remaining: { id: int, title: bstring, completed: boolean }[] = [];
     let removed = false;
     for (const todo of this.todos) {
       if (todo.id == id) {
@@ -65,6 +65,6 @@ class TodoStore {
   }
 }
 
-function normalizedTitle(title: string): string {
-  return strings.TrimSpace(title);
+function normalizedTitle(title: bstring): Result<string> {
+  return string(strings.TrimSpace(title));
 }

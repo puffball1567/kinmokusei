@@ -79,6 +79,10 @@ func (c *Checker) checkConstantOperation(expr ast.Expression, result Type) Type 
 		return result
 	}
 	if checked := c.finishNumeric(expr, pkg, node); checked.Kind == Invalid || checked.IsString() || checked.IsBoolean() {
+		if checked.IsString() {
+			result.GoType = checked.GoType
+			return result
+		}
 		return checked
 	}
 	return result

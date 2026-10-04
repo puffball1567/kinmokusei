@@ -14,7 +14,7 @@ func TestGoTypeSetConstraintsMatchIndependentGo(t *testing.T) {
 import go cmp from "cmp";
 
 type Score = distinct int;
-type OrderedLookup<T extends cmp.Ordered> = distinct Map<T, string>;
+type OrderedLookup<T extends cmp.Ordered> = distinct Map<T, bstring>;
 alias Pair<T extends cmp.Ordered> = [2]T;
 
 function Add<T extends cmp.Ordered>(left: T, right: T): T { return left + right; }
@@ -49,7 +49,7 @@ class Box<T extends cmp.Ordered> {
 }
 
 function AddInt(left: int, right: int): int { return Add(left, right); }
-function AddString(left: string, right: string): string { return Add(left, right); }
+function AddString(left: bstring, right: bstring): bstring { return Add(left, right); }
 function ClampScore(value: int, low: int, high: int): int {
   return int(Clamp(Score(value), Score(low), Score(high)));
 }
@@ -61,14 +61,14 @@ function ChooseInt(left: int, right: int): int {
   const chooser: Chooser<int> = new IntChooser();
   return chooser.choose(left, right);
 }
-function BoxMaximum(value: string, other: string): string {
-  return new Box<string>(value).maximum(other);
+function BoxMaximum(value: bstring, other: bstring): bstring {
+  return new Box<bstring>(value).maximum(other);
 }
-function LookupSize(values: Map<string, string>): int {
-  return len(OrderedLookup<string>(values));
+function LookupSize(values: Map<bstring, bstring>): int {
+  return len(OrderedLookup<bstring>(values));
 }
-function PairFirst(left: string, right: string): string {
-  const pair: Pair<string> = [left, right];
+function PairFirst(left: bstring, right: bstring): bstring {
+  const pair: Pair<bstring> = [left, right];
   return pair[0];
 }
 `), 0o644); err != nil {

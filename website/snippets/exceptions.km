@@ -9,7 +9,7 @@ class GoneException extends NotFoundException {
   constructor(message: string) { super(message); }
 }
 
-function lookup(kind: int): string {
+function lookup(kind: int): bstring {
   try {
     if (kind == 0) { return "hello"; }
     if (kind == 1) { throw new NotFoundException("missing"); }

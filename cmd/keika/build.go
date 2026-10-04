@@ -118,7 +118,7 @@ func bindBuildAttribution(bundle *attribution.Bundle, executable string) error {
 type buildRecoveryError struct{ error }
 
 func publishBuild(stage, stagedOutput, stagedNotices, output string) error {
-	notices := output + ".licenses"
+	notices := output + "-licenses"
 	if info, err := os.Lstat(output); err == nil {
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("refusing to replace non-regular build output")

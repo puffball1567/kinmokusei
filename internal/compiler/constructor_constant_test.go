@@ -177,7 +177,7 @@ function madeSliceRangeName(): string { return new MadeSliceRangeHolder().name()
 function madeSliceRangeCount(): int { return new MadeSliceRangeHolder().count(); }
 function guardedRangeName(values: int[]): string { return new GuardedRangeHolder(values).name(); }
 function guardedRangeCount(values: int[]): int { return new GuardedRangeHolder(values).count(); }
-function requiredRangeName(values: int[]): string {
+function requiredRangeName(values: int[]): bstring {
   try { return new RequiredRangeHolder(values).name(); }
   catch (err: Exception) { return "error:" + err.message; }
 }
@@ -187,7 +187,7 @@ function requiredRangeCount(values: int[]): int {
 }
 function compoundRangeName(values: int[], enabled: boolean): string { return new CompoundRangeHolder(values, enabled).name(); }
 function compoundRangeCount(values: int[], enabled: boolean): int { return new CompoundRangeHolder(values, enabled).count(); }
-function availableRangeName(values: int[], blocked: boolean): string {
+function availableRangeName(values: int[], blocked: boolean): bstring {
   try { return new AvailableRangeHolder(values, blocked).name(); }
   catch (err: Exception) { return "error:" + err.message; }
 }

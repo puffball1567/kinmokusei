@@ -59,11 +59,14 @@ const point = Point { x: 1, y: 2 };
 const cookie = http.Cookie{Name: "session", Value: "abc"};
 ```
 
-Class instances always use `new Class(arguments...)` and a declared constructor.
+Class instances use `new Class(arguments...)`. An explicit constructor can be
+omitted when field initialization and base construction permit the implicit
+zero-argument constructor. Abstract classes cannot be constructed directly.
 
 ## Member selection
 
-The dot operator selects fields, methods, enum members, static class methods, and Go package declarations according to the receiver:
+The dot operator selects fields, accessor properties, methods, enum members,
+static class members and Go package declarations according to the receiver:
 
 ```ts
 user.name
@@ -75,6 +78,11 @@ fmt.Println("ready")
 
 Visibility and method-set checks happen at the `.km` source. A nullable receiver must first have a valid non-null proof.
 
+A property read invokes its getter and an assignment invokes its setter.
+Updates require both, evaluate the receiver once, and are not atomic. Static
+fields/properties/constants use the class name, not an instance or a generic
+instantiation. See [properties](./structs-classes-interfaces#properties-and-shared-class-storage).
+
 ## Indexing and slicing
 
 ```ts
@@ -85,7 +93,13 @@ const capacityBound = values[1:3:4];
 
 The low, high, and maximum bounds are optional where Go permits them; a full three-index slice requires both high and max. Slice expressions share backing storage. Static invalid bounds are diagnostics, while data-dependent invalid bounds retain Go panic behavior.
 
-String indexing returns one byte. Range over a string when you need decoded Unicode code points.
+String indexing returns one byte, and string slicing uses byte offsets rather
+than code-point positions. A `string` slice checks both boundaries and panics
+if either splits an encoded character. `bstring` permits raw byte slicing;
+use `bstring(text)` explicitly when that is intended. Both types are immutable
+and do not support three-index
+slices. Range over a string for decoded Unicode code points; see
+[strings and Unicode](./types-and-values#strings-and-unicode).
 
 A map index has two useful forms:
 
@@ -154,7 +168,17 @@ const id = UserID(raw);
 const rawAgain = string(id);
 ```
 
-Conversions follow representability and Go convertibility rules. They do not deep-copy referenced storage. `string(integer)` creates a Unicode code point string, not decimal formatting.
+Conversions follow representability and Go convertibility rules. Converting
+compatible reference-bearing collections generally preserves shared storage;
+it is not a deep-copy operation. String/byte/code-point conversions instead
+copy or encode/decode content as described in
+[strings and Unicode](./types-and-values#strings-and-unicode).
+`string(integer)` creates a Unicode code point string, not decimal formatting.
+
+Go storage compatibility alone does not permit a conversion that erases a
+source nullable contract. Nested collection elements, callable parameters/
+results and generic arguments remain checked. A conversion cannot replace a
+required non-null proof; see [explicit conversions](../reference/types#explicit-conversions).
 
 ## Checked and forced assertions
 
@@ -192,7 +216,12 @@ const checked = (value: int): int => {
 };
 ```
 
-Arrow parameter types are explicit. The result annotation may be omitted when the body and expected context establish it, but writing it is recommended at stored/public boundaries. Captures obey normal lexical scope; mutable capture can invalidate nullable-flow proofs.
+Arrow parameter types may be omitted when a matching expected function type
+supplies them, including callbacks and stored function signatures. Without that
+context they need annotations. Result types can be inferred from the body or
+context; annotate recursive or otherwise ambiguous results. Captures obey
+normal lexical scope and mutable capture can invalidate nullable-flow proofs.
+See [contextual types](./functions-and-generics#contextual-types-and-block-results).
 
 ## Task expressions
 

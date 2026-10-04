@@ -35,7 +35,7 @@ func testExternalPackageCLIWorkflow(t *testing.T, alias string) {
 		"app/helper/helper.go":             "package helper\nfunc Message()string{return \"external command works\"}\n",
 		"app/main.km":                      `import {Command} from "pkg.test/command";import go {Println} from "fmt";function main():void{Println(new Command().run());}`,
 		"command/kinmokusei.toml":          "[project]\nname = \"command\"\nversion = \"0.1.0\"\ngo-module = \"pkg.test/command\"\ngo-version = \"1.23\"\n[package]\nentry = \"index.km\"\nmin-kinmokusei = \"0.4.0\"\nbackend = \"go\"\nlicense = \"MIT\"\n[go.dependencies]\n\"go.test/helper\" = \"v0.0.0\"\n",
-		"command/index.km":                 `import go helper from "go.test/helper";export class Command{public function run():string{return helper.Message();}}`,
+		"command/index.km":                 `import go helper from "go.test/helper";export class Command{public function run():bstring{return helper.Message();}}`,
 		"command/examples/unconfigured.km": `import go sample from "missing.test/sample";`,
 	}
 	if alias != "" {

@@ -12,9 +12,9 @@ import go strconv from "strconv";
 import go math from "math";
 import go runtime from "runtime";
 const ratio: float = math.Pi;
-function normalize(value: string): string { return strings.ToUpper(strings.TrimSpace(value)); }
-function words(value: string): string[] { return strings.Fields(value); }
-function digits(value: int): string { return strconv.Itoa(value); }
+function normalize(value: bstring): bstring { return strings.ToUpper(strings.TrimSpace(value)); }
+function words(value: bstring): bstring[] { return strings.Fields(value); }
+function digits(value: int): bstring { return strconv.Itoa(value); }
 function collect(): void { runtime.GC(); }
 `)
 	if len(diagnostics) != 0 {
@@ -43,11 +43,11 @@ function nilClient(): boolean {
   return client == nil;
 }
 function currentUnix(): int64 { return time.Now().Unix(); }
-function outputName(): string { return os.Stdout.Name(); }
+function outputName(): bstring { return os.Stdout.Name(); }
 function replaceOutput(output: *os.File): void { os.Stdout = output; }
 function preserveAlias(value: os.FileInfo): os.FileInfo { return value; }
 function readerLength(): int { return strings.NewReader("abc").Len(); }
-function resetBuffer(): string {
+function resetBuffer(): bstring {
   let buffer: bytes.Buffer = bytes.Buffer{};
   buffer.Reset();
   return buffer.String();
@@ -67,24 +67,24 @@ func TestChecksGoMultipleResultsBlankBindingsReassignmentAndError(t *testing.T) 
 	diagnostics := checkSource(t, `
 import go errors from "errors";
 import go strconv from "strconv";
-function parse(value: string): int {
+function parse(value: bstring): int {
   const [parsed, err] = strconv.Atoi(value);
   if (err != nil) { return -1; }
   return parsed;
 }
-function reparse(value: string): int {
+function reparse(value: bstring): int {
   let parsed: int = 0;
   let err: error = nil;
   [parsed, err] = strconv.Atoi(value);
   if (err != nil) { return -1; }
   return parsed;
 }
-function message(value: string): string {
+function message(value: bstring): bstring {
   const [_, err] = strconv.Atoi(value);
   if (err == nil) { return ""; }
   return err.Error();
 }
-function discard(value: string): void { const [_, _] = strconv.Atoi(value); }
+function discard(value: bstring): void { const [_, _] = strconv.Atoi(value); }
 function makeError(): error { return errors.New("boom"); }
 `)
 	if len(diagnostics) != 0 {
@@ -141,8 +141,8 @@ func TestGoInteropSemanticFailureMatrix(t *testing.T) {
 	}{
 		{"missing external package", `import go external from "example.com/external"; function value(): int { return 1; }`, "cannot load Go package"},
 		{"unsafe", `import go unsafe from "unsafe"; function value(): int { return 1; }`, "requires [go.interop]"},
-		{"unknown member", `import go strings from "strings"; function value(): string { return strings.Unknown("x"); }`, "has no exported member"},
-		{"multiple return", `import go os from "os"; function value(): string { return os.Getwd(); }`, "require destructuring"},
+		{"unknown member", `import go strings from "strings"; function value(): bstring { return strings.Unknown("x"); }`, "has no exported member"},
+		{"multiple return", `import go os from "os"; function value(): bstring { return os.Getwd(); }`, "require destructuring"},
 		{"variadic too few fixed arguments", `import go fmt from "fmt"; function value(): void { fmt.Fprintf(); }`, "expects at least 2 arguments, got 0"},
 		{"type member", `import go strings from "strings"; function value(): int { const reader = strings.Reader; return 1; }`, "cannot be used as a value"},
 		{"namespace value", `import go strings from "strings"; function value(): int { const packageValue = strings; return 1; }`, "cannot be used as a value"},
@@ -177,8 +177,8 @@ function offset(value: reflect.StringHeader): int { return int(danger.Offsetof(v
 function add(pointer: danger.Pointer, offset: int): danger.Pointer { return danger.Add(pointer, offset); }
 function bytes(pointer: *byte, length: int): byte[] { return danger.Slice(pointer, length); }
 function first(values: byte[]): *byte { return danger.SliceData(values); }
-function text(pointer: *byte, length: int): string { return danger.String(pointer, length); }
-function textData(value: string): *byte { return danger.StringData(value); }
+function text(pointer: *byte, length: int): bstring { return danger.String(pointer, length); }
+function textData(value: bstring): *byte { return danger.StringData(value); }
 `
 	if diagnostics := checkSourceWithPolicy(t, source, GoInteropPolicy{AllowUnsafe: true}); len(diagnostics) != 0 {
 		t.Fatalf("diagnostics=%v", diagnostics)
@@ -209,10 +209,10 @@ func TestUnsafeGoBuiltinFailureMatrix(t *testing.T) {
 		{"slice negative length", `function value(pointer: *byte): byte[] { return danger.Slice(pointer, -1); }`, "length cannot be negative"},
 		{"slice data fixed array", `function value(items: [2]byte): *byte { return danger.SliceData(items); }`, "argument must be a slice"},
 		{"slice data string", `function value(): *byte { return danger.SliceData("x"); }`, "argument must be a slice"},
-		{"string wrong pointer", `function value(pointer: *int): string { return danger.String(pointer, 1); }`, "pointer must be *byte"},
-		{"string noninteger length", `function value(pointer: *byte): string { return danger.String(pointer, false); }`, "length must be an integer"},
-		{"string negative length", `function value(pointer: *byte): string { return danger.String(pointer, -1); }`, "length cannot be negative"},
-		{"string length out of range", `function value(pointer: *byte): string { return danger.String(pointer, 999999999999999999999999999999); }`, "length is out of range"},
+		{"string wrong pointer", `function value(pointer: *int): bstring { return danger.String(pointer, 1); }`, "pointer must be *byte"},
+		{"string noninteger length", `function value(pointer: *byte): bstring { return danger.String(pointer, false); }`, "length must be an integer"},
+		{"string negative length", `function value(pointer: *byte): bstring { return danger.String(pointer, -1); }`, "length cannot be negative"},
+		{"string length out of range", `function value(pointer: *byte): bstring { return danger.String(pointer, 999999999999999999999999999999); }`, "length is out of range"},
 		{"string data nonstring", `function value(): *byte { return danger.StringData(1); }`, "argument must be a string"},
 		{"builtin is not first class", `function value(): int { const operation = danger.Sizeof; return 1; }`, "is not supported"},
 	}
@@ -227,7 +227,7 @@ func TestUnsafeGoBuiltinFailureMatrix(t *testing.T) {
 	}
 	validNil := `import go danger from "unsafe";
 function addNil(): danger.Pointer { return danger.Add(nil, 0); }
-function emptyText(): string { return danger.String(nil, 0); }`
+function emptyText(): bstring { return danger.String(nil, 0); }`
 	if diagnostics := checkSourceWithPolicy(t, validNil, GoInteropPolicy{AllowUnsafe: true}); len(diagnostics) != 0 {
 		t.Fatalf("valid nil diagnostics=%v", diagnostics)
 	}
@@ -239,17 +239,17 @@ func TestGoVariadicIndividualArgumentsMatrix(t *testing.T) {
 		source string
 		want   string
 	}{
-		{"zero", `import go path from "path"; function value(): string { return path.Join(); }`, ""},
-		{"one", `import go path from "path"; function value(): string { return path.Join("a"); }`, ""},
-		{"many", `import go path from "path"; function value(): string { return path.Join("a", "b", "c"); }`, ""},
-		{"any elements", `import go fmt from "fmt"; function value(): string { return fmt.Sprintf("%s:%d", "item", 2); }`, ""},
-		{"wrong element type", `import go path from "path"; function value(): string { return path.Join("a", 1); }`, "cannot use integer literal as string"},
-		{"spread slice", `import go path from "path"; function value(parts: string[]): string { return path.Join(parts...); }`, ""},
-		{"spread literal", `import go path from "path"; function value(): string { return path.Join(["a", "b"]...); }`, ""},
-		{"spread non-variadic", `import go strings from "strings"; function value(parts: string[]): string { return strings.ToUpper(parts...); }`, "is not variadic"},
-		{"spread requires slice", `import go path from "path"; function value(): string { return path.Join("a"...); }`, "cannot use string as string[]"},
-		{"spread element mismatch", `import go path from "path"; function value(parts: int[]): string { return path.Join(parts...); }`, "cannot use int[] as string[]"},
-		{"spread cannot mix individuals", `import go path from "path"; function value(parts: string[]): string { return path.Join("a", parts...); }`, "expects 1 arguments (0 fixed and one slice), got 2"},
+		{"zero", `import go path from "path"; function value(): bstring { return path.Join(); }`, ""},
+		{"one", `import go path from "path"; function value(): bstring { return path.Join("a"); }`, ""},
+		{"many", `import go path from "path"; function value(): bstring { return path.Join("a", "b", "c"); }`, ""},
+		{"any elements", `import go fmt from "fmt"; function value(): bstring { return fmt.Sprintf("%s:%d", "item", 2); }`, ""},
+		{"wrong element type", `import go path from "path"; function value(): bstring { return path.Join("a", 1); }`, "cannot use integer literal as bstring"},
+		{"spread slice", `import go path from "path"; function value(parts: bstring[]): bstring { return path.Join(parts...); }`, ""},
+		{"spread literal", `import go path from "path"; function value(): bstring { return path.Join(["a", "b"]...); }`, ""},
+		{"spread non-variadic", `import go strings from "strings"; function value(parts: bstring[]): bstring { return strings.ToUpper(parts...); }`, "is not variadic"},
+		{"spread requires slice", `import go path from "path"; function value(): bstring { return path.Join("a"...); }`, "cannot use string as bstring[]"},
+		{"spread element mismatch", `import go path from "path"; function value(parts: int[]): bstring { return path.Join(parts...); }`, "cannot use int[] as bstring[]"},
+		{"spread cannot mix individuals", `import go path from "path"; function value(parts: bstring[]): bstring { return path.Join("a", parts...); }`, "expects 1 arguments (0 fixed and one slice), got 2"},
 		{"spread builtin conversion", `function value(parts: int[]): int { return int(parts...); }`, "spread arguments cannot be used in type conversions"},
 	}
 	for _, test := range tests {
@@ -272,15 +272,15 @@ func TestGoCallbackAndFunctionValueMatrix(t *testing.T) {
 		source string
 		want   string
 	}{
-		{"arrow callback", `import go strings from "strings"; function value(): string { return strings.Map((item: int32): int32 => item + 1, "ab"); }`, ""},
+		{"arrow callback", `import go strings from "strings"; function value(): bstring { return strings.Map((item: int32): int32 => item + 1, "ab"); }`, ""},
 		{"capturing callback", `import go sort from "sort"; function value(): int { const items = [3, 1, 2]; sort.Slice(items, (left: int, right: int): boolean => items[left] < items[right]); return items[0]; }`, ""},
-		{"named function callback", `import go strings from "strings"; function identity(item: int32): int32 { return item; } function value(): string { return strings.Map(identity, "ab"); }`, ""},
-		{"package function value", `import go strings from "strings"; function value(): string { const upper = strings.ToUpper; return upper("ab"); }`, ""},
-		{"bound method value", `import go strings from "strings"; function value(): string { const replace = strings.NewReplacer("a", "b").Replace; return replace("a"); }`, ""},
+		{"named function callback", `import go strings from "strings"; function identity(item: int32): int32 { return item; } function value(): bstring { return strings.Map(identity, "ab"); }`, ""},
+		{"package function value", `import go strings from "strings"; function value(): bstring { const upper = strings.ToUpper; return upper("ab"); }`, ""},
+		{"bound method value", `import go strings from "strings"; function value(): bstring { const replace = strings.NewReplacer("a", "b").Replace; return replace("a"); }`, ""},
 		{"nil callback", `import go time from "time"; function value(): *time.Timer { return time.AfterFunc(time.Second, nil); }`, ""},
-		{"callback parameter count", `import go strings from "strings"; function value(): string { return strings.Map((item: int32, extra: int32): int32 => item, "ab"); }`, "cannot use (int32, int32) => int32 as (int32) => int32"},
-		{"callback parameter type", `import go strings from "strings"; function value(): string { return strings.Map((item: int): int32 => int32(item), "ab"); }`, "cannot use (int) => int32 as (int32) => int32"},
-		{"callback result type", `import go strings from "strings"; function value(): string { return strings.Map((item: int32): string => "x", "ab"); }`, "cannot use (int32) => string as (int32) => int32"},
+		{"callback parameter count", `import go strings from "strings"; function value(): bstring { return strings.Map((item: int32, extra: int32): int32 => item, "ab"); }`, "cannot use (int32, int32) => int32 as (int32) => int32"},
+		{"callback parameter type", `import go strings from "strings"; function value(): bstring { return strings.Map((item: int): int32 => int32(item), "ab"); }`, "cannot use (int) => int32 as (int32) => int32"},
+		{"callback result type", `import go strings from "strings"; function value(): bstring { return strings.Map((item: int32): bstring => "x", "ab"); }`, "cannot use (int32) => bstring as (int32) => int32"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -305,7 +305,7 @@ func TestGoInterfaceValueAndExplicitClassImplementationMatrix(t *testing.T) {
 		{"interface result and method", `import go io from "io"; import go strings from "strings"; function value(): error { const reader = io.NopCloser(strings.NewReader("abc")); return reader.Close(); }`},
 		{"typed nil interface", `import go io from "io"; function value(): boolean { let reader: io.Reader = nil; return reader == nil; }`},
 		{"class to empty interface", `import go json from "encoding/json"; class Value {} function encode(): Result<byte[]> { const data = json.Marshal(new Value())?; return ok(data); }`},
-		{"generic class to empty interface", `import go json from "encoding/json"; class Value<T> { constructor(public item: T) {} } function encode(value: string): Result<byte[]> { const data = json.Marshal(new Value<string>(value))?; return ok(data); }`},
+		{"generic class to empty interface", `import go json from "encoding/json"; class Value<T> { constructor(public item: T) {} } function encode(value: bstring): Result<byte[]> { const data = json.Marshal(new Value<bstring>(value))?; return ok(data); }`},
 		{"explicit class implementation", `import go sort from "sort"; class Numbers implements sort.Interface { constructor(private values: int[]) {} public function len(): int { return this.values[0] * 0 + 3; } public function less(left: int, right: int): boolean { return this.values[left] < this.values[right]; } public function swap(left: int, right: int): void { const saved = this.values[left]; this.values[left] = this.values[right]; this.values[right] = saved; } } function value(values: int[]): void { sort.Sort(new Numbers(values)); }`},
 	}
 	for _, test := range success {
@@ -323,7 +323,7 @@ func TestGoInterfaceValueAndExplicitClassImplementationMatrix(t *testing.T) {
 	}{
 		{"non-interface target", `import go time from "time"; class Value implements time.Duration {}`, "is not an interface"},
 		{"missing methods", `import go sort from "sort"; class Value implements sort.Interface {}`, "missing exported method"},
-		{"wrong method signature", `import go sort from "sort"; class Value implements sort.Interface { public function len(): string { return ""; } public function less(left: int, right: int): boolean { return false; } public function swap(left: int, right: int): void {} }`, "method Len has () => string"},
+		{"wrong method signature", `import go sort from "sort"; class Value implements sort.Interface { public function len(): bstring { return ""; } public function less(left: int, right: int): boolean { return false; } public function swap(left: int, right: int): void {} }`, "method Len has () => bstring"},
 		{"static method", `import go sort from "sort"; class Value implements sort.Interface { public static function len(): int { return 0; } public function less(left: int, right: int): boolean { return false; } public function swap(left: int, right: int): void {} }`, "method Len cannot be static"},
 		{"duplicate interface", `import go sort from "sort"; class Value implements sort.Interface, sort.Interface { public function len(): int { return 0; } public function less(left: int, right: int): boolean { return false; } public function swap(left: int, right: int): void {} }`, "duplicate implemented Go interface"},
 		{"implicit implementation rejected", `import go sort from "sort"; class Value { public function len(): int { return 0; } public function less(left: int, right: int): boolean { return false; } public function swap(left: int, right: int): void {} } function use(): void { sort.Sort(new Value()); }`, "cannot use Value as sort.Interface"},
@@ -346,11 +346,11 @@ func TestGoGenericInferenceMatrix(t *testing.T) {
 		{"contains inferred element", `import go slices from "slices"; function value(items: int[]): boolean { return slices.Contains(items, 2); }`},
 		{"clone preserves slice", `import go slices from "slices"; function value(items: int[]): int[] { return slices.Clone(items); }`},
 		{"callback participates in inference", `import go slices from "slices"; function value(items: int[]): int { return slices.IndexFunc(items, (item: int): boolean => item > 2); }`},
-		{"map key and value inference", `import go maps from "maps"; function value(items: Map<string, int>): Map<string, int> { return maps.Clone(items); }`},
+		{"map key and value inference", `import go maps from "maps"; function value(items: Map<bstring, int>): Map<bstring, int> { return maps.Clone(items); }`},
 		{"generic variadic spread", `import go slices from "slices"; function value(items: int[][]): int[] { return slices.Concat(items...); }`},
 		{"explicit slice type", `import go slices from "slices"; function value(items: int[]): int[] { return slices.Clone[int[]](items); }`},
 		{"partial explicit arguments infer remainder", `import go slices from "slices"; function value(): int[] { return slices.Concat[int[]](); }`},
-		{"multiple explicit arguments", `import go maps from "maps"; function value(items: Map<string, int>): Map<string, int> { return maps.Clone[Map<string, int>, string, int](items); }`},
+		{"multiple explicit arguments", `import go maps from "maps"; function value(items: Map<bstring, int>): Map<bstring, int> { return maps.Clone[Map<bstring, int>, bstring, int](items); }`},
 	}
 	for _, test := range success {
 		t.Run(test.name, func(t *testing.T) {
@@ -366,13 +366,13 @@ func TestGoGenericInferenceMatrix(t *testing.T) {
 		want   string
 	}{
 		{"inconsistent element", `import go slices from "slices"; function value(items: int[]): boolean { return slices.Contains(items, "x"); }`, "cannot infer Go type arguments"},
-		{"comparable constraint", `import go slices from "slices"; function value(items: Map<string, int>[], candidate: Map<string, int>): boolean { return slices.Contains(items, candidate); }`, "does not satisfy comparable"},
+		{"comparable constraint", `import go slices from "slices"; function value(items: Map<bstring, int>[], candidate: Map<bstring, int>): boolean { return slices.Contains(items, candidate); }`, "does not satisfy comparable"},
 		{"no inference evidence", `import go slices from "slices"; function value(): int[] { return slices.Concat(); }`, "cannot infer"},
-		{"callback mismatch", `import go slices from "slices"; function value(items: int[]): int { return slices.IndexFunc(items, (item: string): boolean => true); }`, "cannot infer Go type arguments"},
-		{"too many explicit arguments", `import go slices from "slices"; function value(items: int[]): int[] { return slices.Clone[int[], int, string](items); }`, "has 2 Go type parameters, got 3 explicit type arguments"},
-		{"explicit constraint mismatch", `import go slices from "slices"; function value(items: Map<string, int>[]): boolean { return slices.Contains[Map<string, int>[], Map<string, int>](items, items[0]); }`, "does not satisfy comparable"},
-		{"explicit argument value mismatch", `import go slices from "slices"; function value(items: string[]): int[] { return slices.Clone[int[], int](items); }`, "cannot apply explicit Go type arguments"},
-		{"type arguments on non-generic function", `import go strings from "strings"; function value(): string { return strings.ToUpper[string]("x"); }`, "is not a generic Go function"},
+		{"callback mismatch", `import go slices from "slices"; function value(items: int[]): int { return slices.IndexFunc(items, (item: bstring): boolean => true); }`, "cannot infer Go type arguments"},
+		{"too many explicit arguments", `import go slices from "slices"; function value(items: int[]): int[] { return slices.Clone[int[], int, bstring](items); }`, "has 2 Go type parameters, got 3 explicit type arguments"},
+		{"explicit constraint mismatch", `import go slices from "slices"; function value(items: Map<bstring, int>[]): boolean { return slices.Contains[Map<bstring, int>[], Map<bstring, int>](items, items[0]); }`, "does not satisfy comparable"},
+		{"explicit argument value mismatch", `import go slices from "slices"; function value(items: bstring[]): int[] { return slices.Clone[int[], int](items); }`, "cannot apply explicit Go type arguments"},
+		{"type arguments on non-generic function", `import go strings from "strings"; function value(): bstring { return strings.ToUpper[bstring]("x"); }`, "is not a generic Go function"},
 	}
 	for _, test := range failures {
 		t.Run(test.name, func(t *testing.T) {
@@ -389,10 +389,10 @@ func TestGoGenericNamedTypeAndMethodMatrix(t *testing.T) {
 		name   string
 		source string
 	}{
-		{"atomic pointer annotation and methods", `import go atomic from "sync/atomic"; function value(input: string): string { let pointer: atomic.Pointer<string> = atomic.Pointer<string>{}; pointer.Store(&input); return *pointer.Load(); }`},
-		{"generic result inferred", `import go unique from "unique"; function value(input: string): string { const handle = unique.Make(input); return handle.Value(); }`},
-		{"generic result explicit", `import go unique from "unique"; function value(input: string): string { const handle: unique.Handle<string> = unique.Make(input); return handle.Value(); }`},
-		{"generic named type in collection", `import go unique from "unique"; function value(input: string): unique.Handle<string>[] { return [unique.Make(input)]; }`},
+		{"atomic pointer annotation and methods", `import go atomic from "sync/atomic"; function value(input: bstring): bstring { let pointer: atomic.Pointer<bstring> = atomic.Pointer<bstring>{}; pointer.Store(&input); return *pointer.Load(); }`},
+		{"generic result inferred", `import go unique from "unique"; function value(input: bstring): bstring { const handle = unique.Make(input); return handle.Value(); }`},
+		{"generic result explicit", `import go unique from "unique"; function value(input: bstring): bstring { const handle: unique.Handle<bstring> = unique.Make(input); return handle.Value(); }`},
+		{"generic named type in collection", `import go unique from "unique"; function value(input: bstring): unique.Handle<bstring>[] { return [unique.Make(input)]; }`},
 		{"cross package type argument", `import go atomic from "sync/atomic"; import go time from "time"; function value(): atomic.Pointer<time.Duration> { return atomic.Pointer<time.Duration>{}; }`},
 	}
 	for _, test := range success {
@@ -409,9 +409,9 @@ func TestGoGenericNamedTypeAndMethodMatrix(t *testing.T) {
 		want   string
 	}{
 		{"missing type argument", `import go atomic from "sync/atomic"; function value(): atomic.Pointer { return atomic.Pointer{}; }`, "requires 1 type arguments"},
-		{"too many type arguments", `import go atomic from "sync/atomic"; function value(): atomic.Pointer<string, int> { return atomic.Pointer<string, int>{}; }`, "expects 1 type arguments, got 2"},
-		{"constraint mismatch", `import go unique from "unique"; function value(): unique.Handle<Map<string, int>> { return unique.Handle<Map<string, int>>{}; }`, "does not satisfy comparable"},
-		{"non generic type arguments", `import go time from "time"; function value(): time.Duration<string> { return 0; }`, "Go type time.Duration is not generic"},
+		{"too many type arguments", `import go atomic from "sync/atomic"; function value(): atomic.Pointer<bstring, int> { return atomic.Pointer<bstring, int>{}; }`, "expects 1 type arguments, got 2"},
+		{"constraint mismatch", `import go unique from "unique"; function value(): unique.Handle<Map<bstring, int>> { return unique.Handle<Map<bstring, int>>{}; }`, "does not satisfy comparable"},
+		{"non generic type arguments", `import go time from "time"; function value(): time.Duration<bstring> { return 0; }`, "Go type time.Duration is not generic"},
 		{"unknown type argument", `import go atomic from "sync/atomic"; function value(): atomic.Pointer<Missing> { return atomic.Pointer<Missing>{}; }`, "unknown type"},
 	}
 	for _, test := range failures {
@@ -449,7 +449,7 @@ func TestGoTypeAssertionMatrix(t *testing.T) {
 		source string
 		want   string
 	}{
-		{"non interface source", `function value(input: int): string { return input as! string; }`, "requires a Go interface value"},
+		{"non interface source", `function value(input: int): bstring { return input as! bstring; }`, "requires a Go interface value"},
 		{"impossible concrete assertion", `import go io from "io"; function value(input: io.Reader): int { return input as! int; }`, "cannot contain asserted type int"},
 		{"checked assertion requires destructuring", `import go io from "io"; import go strings from "strings"; function value(input: io.Reader): *strings.Reader { return input as? *strings.Reader; }`, "require destructuring"},
 		{"unchecked assertion is not multi value", `import go io from "io"; import go strings from "strings"; function value(input: io.Reader): boolean { const [typed, ok] = input as! *strings.Reader; return ok; }`, "requires a multiple-return value"},
@@ -483,8 +483,8 @@ func TestGoMultipleResultFailureMatrix(t *testing.T) {
 		{"duplicate binding", `import go strconv from "strconv"; function value(): int { const [parsed, parsed] = strconv.Atoi("1"); return parsed; }`, "duplicate local name"},
 		{"assign const", `import go strconv from "strconv"; function value(): int { const parsed = 0; let err: error = nil; [parsed, err] = strconv.Atoi("1"); return parsed; }`, "cannot assign to const"},
 		{"assign undefined", `import go strconv from "strconv"; function value(): int { let err: error = nil; [missing, err] = strconv.Atoi("1"); return 1; }`, "undefined name"},
-		{"assignment type mismatch", `import go strconv from "strconv"; function value(): int { let parsed: string = ""; let err: error = nil; [parsed, err] = strconv.Atoi("1"); return 1; }`, "cannot use int as string"},
-		{"error target mismatch", `import go strconv from "strconv"; function value(): int { let parsed = 0; let err: string = ""; [parsed, err] = strconv.Atoi("1"); return parsed; }`, "cannot use error as string"},
+		{"assignment type mismatch", `import go strconv from "strconv"; function value(): int { let parsed: bstring = ""; let err: error = nil; [parsed, err] = strconv.Atoi("1"); return 1; }`, "cannot use int as bstring"},
+		{"error target mismatch", `import go strconv from "strconv"; function value(): int { let parsed = 0; let err: bstring = ""; [parsed, err] = strconv.Atoi("1"); return parsed; }`, "cannot use error as bstring"},
 		{"assignment count mismatch", `import go strconv from "strconv"; function value(): int { let parsed = 0; let err: error = nil; let extra = 0; [parsed, err, extra] = strconv.Atoi("1"); return parsed; }`, "got 3 bindings for 2 results"},
 	}
 	for _, test := range tests {

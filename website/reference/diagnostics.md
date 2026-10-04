@@ -21,7 +21,8 @@ Valid input is silent. Source diagnostics and project/input errors are written t
 keika check --json src/main.km
 ```
 
-The command always writes one object to standard output:
+After valid command-line parsing and source selection, the command writes one
+object to standard output, including source and project/load failures:
 
 ```json
 {
@@ -73,5 +74,10 @@ Diagnostics are compatibility-sensitive and have regression coverage. Important 
 | `2` | Invalid command usage |
 
 Editor clients use the same checker through `keika lsp --stdio` and convert positions to LSP UTF-16 coordinates.
+
+Usage errors are not JSON diagnostic reports: an unknown option, or no source
+arguments outside a project, returns status `2`, writes a usage message to
+stderr and leaves stdout empty even if `--json` was supplied. A successful
+check writes `{"valid": true, "diagnostics": []}` and returns status `0`.
 
 The documentation suite executes a known-invalid nullable example in both plain and JSON modes. It asserts the diagnostic fragment and the JSON path, line, and column so the examples and documented envelope cannot drift independently.

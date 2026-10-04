@@ -115,6 +115,9 @@ func (c *Checker) checkTypeSwitch(stmt *ast.TypeSwitchStmt) {
 			nilSeen = true
 		default:
 			caseType := c.resolveType(clause.Type)
+			if c.containsVerifiedText(caseType, nil) {
+				c.report(clause.Type.Span, "Go type switch cannot establish a UTF-8 string contract; match bstring/raw storage and validate it explicitly")
+			}
 			goCaseType, ok := goTypeOf(caseType)
 			if !ok {
 				c.report(clause.Type.Span, fmt.Sprintf("type switch case type %s cannot be represented as a Go type", caseType.String()))

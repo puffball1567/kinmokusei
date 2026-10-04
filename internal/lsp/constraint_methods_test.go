@@ -18,7 +18,7 @@ func TestConstraintMethodEditor(t *testing.T) {
 	uri := fileURI(path)
 	input := `import {Printable} from "./bounds";
 constraint Number=Printable&~int;
-function show<T extends Number>(value:T):string{return value.String();}
+function show<T extends Number>(value:T):bstring{return value.String();}
 `
 	messages := serveMessages(t, openDocument(uri, input),
 		requestAt("textDocument/definition", 2, uri, positionOf(input, "Printable&", 0), ""),
@@ -51,12 +51,12 @@ function show<T extends Number>(value:T):string{return value.String();}
 func TestConstraintMethodCompletionScopes(t *testing.T) {
 	t.Parallel()
 	for _, body := range []string{
-		`function show<T extends Printed>(value:T):string{const other=value;return other.String();}`,
-		`function show<T extends fmt.Stringer>(value:T):string{return value.String();}`,
-		`class Box<T extends Printed>{public function show(value:T):string{return value.String();}}`,
-		`class Box<E>{public function show<T extends Printed>(value:T):string{return value.String();}}`,
-		`struct Box<T extends Printed>{public function show(value:T):string{return value.String();}}`,
-		`struct Box<E>{public function show<T extends Printed>(value:T):string{return value.String();}}`,
+		`function show<T extends Printed>(value:T):bstring{const other=value;return other.String();}`,
+		`function show<T extends fmt.Stringer>(value:T):bstring{return value.String();}`,
+		`class Box<T extends Printed>{public function show(value:T):bstring{return value.String();}}`,
+		`class Box<E>{public function show<T extends Printed>(value:T):bstring{return value.String();}}`,
+		`struct Box<T extends Printed>{public function show(value:T):bstring{return value.String();}}`,
+		`struct Box<E>{public function show<T extends Printed>(value:T):bstring{return value.String();}}`,
 	} {
 		input := `import go fmt from "fmt"; constraint Printed=~int&fmt.Stringer;` + body
 		path := filepath.Join(t.TempDir(), "entry.km")

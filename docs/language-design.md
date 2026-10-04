@@ -71,16 +71,17 @@ restricted-newline rule also applies to code that uses explicit semicolons.
 ## Types
 
 Source files must contain valid UTF-8, including string literals and comments.
-Malformed bytes are diagnosed at their source location. String values may
-still contain arbitrary bytes through escapes such as `"\xFF"`; this does not
-make the source encoding invalid.
+Malformed bytes are diagnosed at their source location. Ordinary `string`
+literals must also decode to valid UTF-8. Arbitrary bytes use `bstring` and
+prefixed literals such as `b"\xFF"`; both forms use Go-compatible escapes.
 
 ### Built-in types
 
 | Kinmokusei | Go | Notes |
 |---|---|---|
 | `boolean` | `bool` | No truthy conversion |
-| `string` | `string` | UTF-8 bytes |
+| `string` | `string` | Verified UTF-8 text |
+| `bstring` | `string` | Immutable arbitrary bytes, including runtime Go strings |
 | `int` | `int` | Independent integer type |
 | `int8` | `int8` | Explicit signed width |
 | `int16` | `int16` | Explicit signed width |
@@ -154,9 +155,11 @@ scalar compile-time constants cannot have their address taken. Use a `let`
 copy when addressable storage is needed.
 
 Explicit conversions use Go convertibility rules for representable source and
-target types. In particular, `string(bytes)`, `string(runes)`, and conversions
-from named Go slices whose underlying type is `[]byte` or `[]rune` preserve Go
-behavior. Integer-to-string conversion produces one Unicode code point as Go
+target types. `string(bytes)` and `string(rawBstring)` validate UTF-8 and return
+`Result<string>`; invalid input is rejected without replacement. `bstring(bytes)`
+preserves raw bytes. `string(runes)` encodes code points, replacing invalid
+code points with U+FFFD. Compatible named slices have the same rules.
+Integer-to-string conversion produces one Unicode code point as Go
 does; it is not decimal formatting. Fixed arrays do not convert directly to
 strings.
 
@@ -165,7 +168,13 @@ compatibility does not permit dropping or adding nullable qualifiers inside
 function signatures, collections or struct fields. This check follows named
 types and generic constraint terms. Writable collection element contracts are
 invariant; a conversion must not create a view that can store `null` in a
-collection whose element type excludes it. Narrow a nullable value before
+collection whose element type excludes it. The same invariance protects
+verified text: shared `string[]` and raw `bstring[]` cannot be reinterpreted.
+Runtime Go strings are raw `bstring`. Go generic types and inherited Go methods
+must not acquire verified text contracts through source type arguments;
+validate raw output explicitly. Opaque Go interface boundaries cannot expose
+verified text through shared storage or erase unknown generic storage.
+Narrow a nullable value before
 converting it, including to an imported Go type.
 
 ```ts
@@ -841,11 +850,13 @@ indices must fit every array alternative. Map and non-map terms cannot mix.
 ```ts
 constraint Sequence<E> = ~E[] | ~[2]E | ~*[3]E;
 function head<E, S extends Sequence<E>>(values: S): E { return values[0]; }
-constraint Text = ~string | ~byte[];
+constraint Text = ~bstring | ~byte[];
 function suffix<T extends Text>(value: T): T { return value[1:]; }
 ```
 
-Two-index slicing specially supports string/byte-slice unions and retains `T`.
+Two-index slicing supports raw `bstring`/byte-slice unions and retains `T`.
+Verified-text-only constraints check UTF-8 boundaries; mixed `string`/byte-slice
+slicing is rejected because its result contract cannot be preserved uniformly.
 Three-index slicing is forbidden whenever the constraint includes strings.
 Other mixed shapes (such as array/slice unions) are not sliceable under the
 Go 1.23 baseline. All alternatives and supplied type arguments must preserve
@@ -1035,7 +1046,7 @@ for (const [key, value] of lookup) { consumeEntry(key, value); }
 for (const index of 5) { consume(index); } // 0 through 4
 ```
 
-The single-binding form always binds the value, deliberately differing from the first Go range variable. Slice/array indexes are `int`; map keys keep their type; string indexes are UTF-8 byte offsets and values are `int32` code points. Invalid UTF-8 follows Go `RuneError` behavior. Map order is unspecified. Sources execute once, and range values are copies.
+The single-binding form always binds the value, deliberately differing from the first Go range variable. Slice/array indexes are `int`; map keys keep their type; string indexes are UTF-8 byte offsets and values are `int32` code points. Invalid UTF-8 in raw `bstring` follows Go `RuneError` behavior; verified `string` contains no invalid encodings. Map order is unspecified. Sources execute once, and range values are copies.
 
 Integer ranges require one binding (or `_`) and lower to Go integer range.
 They yield zero through the bound minus one; zero and negative bounds do not
@@ -1447,7 +1458,7 @@ return outcome;
 ```
 
 `Exception` is the built-in structured exception root. It has a public
-`message: string`, implements Go's `error` contract, and can be extended by
+`message: bstring`, implements Go's `error` contract, and can be extended by
 application exception classes. A class may also opt into typed throwing and
 catching directly with `implements error`. `throw` accepts any `error` value;
 the root `Exception` catch also handles such values by preserving their error

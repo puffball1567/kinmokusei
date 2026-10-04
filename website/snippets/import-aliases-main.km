@@ -1,0 +1,10 @@
+import { count as first, count as second, Box as Container, bump as increment } from "./import-aliases-library"
+import go { Println as print, Sprint as render } from "fmt"
+import go { Duration as Span, Second as unit } from "time"
+
+const main = () => {
+  first = 40
+  const next = increment()
+  const box: Container<int> = new Container<int>(next)
+  print(second, &first == &second, box.value, render(Span(2) * unit))
+}

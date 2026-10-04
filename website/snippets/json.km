@@ -7,7 +7,7 @@ function encodeVisit(): Result<string> {
     temperature: 42,
   };
   const encoded = json.Marshal(payload)?;
-  return ok(string(encoded));
+  return string(encoded);
 }
 
 function main(): void {

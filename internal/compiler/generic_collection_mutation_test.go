@@ -22,34 +22,34 @@ type Narrow interface{Both;~[]int}
 type Empty interface{~[]int;~map[string]int}
 `,
 		"bounds.km": `
-export constraint Resettable=~int[]|~string[]|~Map<string,int>|~Map<float,int>;
-export constraint Lookup=~Map<string,int>|~Map<string,string>;
+export constraint Resettable=~int[]|~bstring[]|~Map<bstring,int>|~Map<float,int>;
+export constraint Lookup=~Map<bstring,int>|~Map<bstring,bstring>;
 export function reset<T extends Resettable>(value:T):void{clear(value);}
-export function remove<T extends Lookup>(value:T,key:string):void{delete(value,key);}
+export function remove<T extends Lookup>(value:T,key:bstring):void{delete(value,key);}
 `,
 		"entry.km": `
 import {Resettable,Lookup,reset,remove} from "./bounds";
 import go math from "math";
 import go contracts from "generic-collection-mutation.test/contracts";
 type Numbers=distinct int[];
-type Table=distinct Map<string,int>;
+type Table=distinct Map<bstring,int>;
 constraint KeyMaps<K extends comparable>=contracts.Maps<K>;
 function removeKey<K extends comparable,M extends KeyMaps<K>>(value:M,key:K):void{delete(value,key);}
 function imported<T extends contracts.Narrow>(value:T):void{clear(value);}
 class Cleaner<T extends Resettable>{constructor(private value:T){}public function reset():void{clear(this.value);}}
 class Remover{public function remove<T extends Lookup>(value:T):void{delete(value,"drop");}}
 class Key{constructor(public id:int){}}
-constraint NullableKeys=~Map<Key|null,int>|~Map<Key|null,string>;
+constraint NullableKeys=~Map<Key|null,int>|~Map<Key|null,bstring>;
 function removeNull<T extends NullableKeys>(value:T):void{delete(value,null);}
 export function Slice():int[]{const values=Numbers([1,2,3,4]);const alias=values;const part=values[1:3];reset(part);new Cleaner<Numbers>(values[:1]).reset();const nilSlice:Numbers=nil;imported(nilSlice);return [alias[0],alias[1],alias[2],alias[3],len(part),cap(part),len(nilSlice)];}
-export function Maps():int[]{const values=Table(makeMap<string,int>());values["drop"]=1;values["keep"]=2;const alias=values;remove(values,"absent");new Remover().remove(values);const kept=len(alias);const text=makeMap<string,string>();text["drop"]="x";removeKey(text,"drop");reset(values);const nilMap:Table=nil;remove(nilMap,"x");reset(nilMap);const nan=makeMap<float,int>();nan[math.NaN()]=1;nan[math.NaN()]=2;const before=len(nan);reset(nan);return [kept,len(alias),len(text),before,len(nan),len(nilMap)];}
+export function Maps():int[]{const values=Table(makeMap<bstring,int>());values["drop"]=1;values["keep"]=2;const alias=values;remove(values,"absent");new Remover().remove(values);const kept=len(alias);const text=makeMap<bstring,bstring>();text["drop"]="x";removeKey(text,b"drop");reset(values);const nilMap:Table=nil;remove(nilMap,"x");reset(nilMap);const nan=makeMap<float,int>();nan[math.NaN()]=1;nan[math.NaN()]=2;const before=len(nan);reset(nan);return [kept,len(alias),len(text),before,len(nan),len(nilMap)];}
 export function Keys():int[]{const values=makeMap<Key|null,int>();const key=new Key(7);values[key]=1;values[null]=2;removeNull(values);return [len(values),values[key]];}
-function inside<T extends Lookup>(value:T,trace:*int):void{const first=():T=>{*trace=*trace*10+4;return value;};const second=():string=>{*trace=*trace*10+5;return "x";};delete(first(),second());clear(first());}
-export function Order():int[]{let trace=0;const values=makeMap<string,int>();values["x"]=1;const map=():Map<string,int>=>{trace=trace*10+1;return values;};const key=():string=>{trace=trace*10+2;return "x";};remove(map(),key());const resettable=():Map<string,int>=>{trace=trace*10+3;return values;};reset(resettable());inside(values,&trace);return [trace,len(values)];}
+function inside<T extends Lookup>(value:T,trace:*int):void{const first=():T=>{*trace=*trace*10+4;return value;};const second=():bstring=>{*trace=*trace*10+5;return "x";};delete(first(),second());clear(first());}
+export function Order():int[]{let trace=0;const values=makeMap<bstring,int>();values["x"]=1;const map=():Map<bstring,int>=>{trace=trace*10+1;return values;};const key=():bstring=>{trace=trace*10+2;return "x";};remove(map(),key());const resettable=():Map<bstring,int>=>{trace=trace*10+3;return values;};reset(resettable());inside(values,&trace);return [trace,len(values)];}
 function removeByte<M extends KeyMaps<byte>>(value:M,n:int):void{const key=min(255,256);delete(value,key);delete(value,2.0);delete(value,1<<n);}
 export function Constants(n:int):int{const values=makeMap<byte,int>();values[2]=1;values[4]=2;values[255]=3;removeByte(values,n);return len(values);}
-export function Strings():string[]{const values:string[]=["a","b"];reset(values);return values;}
-export function Panic():void{const values=makeMap<string,int>();const key=():string=>{const missing:string[]=[];return missing[0];};remove(values,key());}
+export function Strings():bstring[]{const values:bstring[]=["a","b"];reset(values);return values;}
+export function Panic():void{const values=makeMap<bstring,int>();const key=():bstring=>{const missing:bstring[]=[];return missing[0];};remove(values,key());}
 export function Shadow():int{let calls=0;const clear=(value:int):void=>{calls+=value;};const delete=(value:int,key:int):void=>{calls+=value+key;};clear(2);delete(3,4);return calls;}
 `,
 	}

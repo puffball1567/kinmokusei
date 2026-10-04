@@ -32,6 +32,11 @@ offline initial lock. Set `--module` to your real repository path before
 publishing. `--license` only records metadata; provide the appropriate license
 text yourself. Without that option the generated library uses `UNLICENSED`.
 
+Here, exported means available to Kinmokusei source imports. The generated
+lowercase `greet` is not a public Go identifier; choose an uppercase API name
+when publishing a generated Go package for Go callers. See
+[source imports versus Go exports](../book/modules-and-imports#source-imports-versus-go-exports).
+
 A library has a `kinmokusei.toml` at its root:
 
 ```toml
@@ -212,6 +217,47 @@ mapping requires `deps lock` or an explicit update. Local replacements are
 development inputs, not immutable content snapshots; reproducing their source
 contents requires the same checkouts.
 
+### Complete offline local example
+
+Run these commands from a directory that does not already contain `greeting`
+or `demo`. No published tag or dependency download is needed:
+
+```sh
+keika new library --module example.com/greeting --license MIT greeting
+keika new app demo
+cd demo
+keika deps add --offline --replace ../greeting example.com/greeting@v0.1.0
+```
+
+While in `demo`, replace `main.km` with:
+
+<<< ../snippets/external-packages/main.km.txt{ts}
+
+Then run:
+
+```sh
+keika deps check
+keika check
+keika run
+keika build
+keika emit-go -package main -o generated.go
+```
+
+Expected output from `keika run`:
+
+<<< ../snippets/external-packages/main.stdout.txt{text}
+
+Both paths select the same library declaration. `hello` and `canonicalHello`
+are file-local symbol aliases, while `greeting` is the automatically registered
+module-path alias. Checking, running, building and emitting do not change the
+manifest or lock. `generated.go` contains the linked source declarations as one
+Go artifact, not an additional Kinmokusei module. Non-standard Go dependencies
+are not vendored into it; see [generated Go](./generated-go).
+
+The documentation tests create these projects in a temporary directory, execute
+the commands, compare the built/emitted program outputs, and restore disposable
+dependency state with `keika deps fetch --offline` without changing the lock.
+
 The compiler and LSP use the same resolver. Diagnostics, completion and
 definition navigation retain external source locations, while generated symbol
 identities use module-relative names rather than machine-specific cache paths.
@@ -265,6 +311,15 @@ Changed cache content is an error, not a reason to silently update the lock.
 Library minimum Kinmokusei/Go versions and declared OS, architecture, CGO and
 build-tag requirements are checked against the consumer's target. Unversioned
 development binaries currently use the compatibility floor `0.4.4`.
+
+In a library manifest, nonempty `goos` and `goarch` specify one required OS or
+architecture, not a list of supported targets. `cgo = "enabled"` requires an
+enabled consumer target, and each declared build tag must already be active.
+These checks do not automatically enable tags/CGO or raise the consumer's Go
+version. Omit an OS/architecture requirement when the library is portable;
+platform selection inside a Go implementation module uses ordinary Go files
+and build constraints. See the
+[project-file reference](../reference/project-files#package-and-exports).
 
 The initial source graph selects one exact version per module. Conflicting
 direct/transitive source requirements are diagnosed with both versions instead

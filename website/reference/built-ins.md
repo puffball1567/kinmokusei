@@ -1,11 +1,43 @@
 ---
 title: Built-ins reference
-description: Signatures and runtime contracts for Kinmokusei collection, result, channel, array-conversion, and task built-ins.
+description: Signatures and runtime contracts for numeric, collection, result, channel, decorator-value, and task built-ins.
 ---
 
 # Built-ins reference
 
 Compiler built-ins have dedicated type rules and lower directly to predictable Go constructs. Most collection names can be shadowed by visible user declarations; `goChannel` and `closeGoChannel` are reserved.
+
+## Text conversions (since v0.4.6)
+
+| Form | Result |
+| --- | --- |
+| `string(rawBstring)` / `string(bytes)` | `Result<string>`; reject invalid UTF-8 without replacement |
+| `bstring(text)` / `bstring(bytes)` | Raw immutable bytes; byte slices are copied |
+| `string(text)` | Already verified text, without revalidation |
+| `string(codePoint)` / `string(int32Slice)` | UTF-8 encoding; invalid code points encode as U+FFFD |
+
+These conversions are ordinary type-call syntax with compiler-checked contracts.
+Use `?` in a Result initializer, split `[text, err]`, or forward a checked result
+directly. They are distinct from decimal formatting. See
+[strings and Unicode](../book/types-and-values#strings-and-unicode).
+
+## Complex numbers
+
+| Form | Inputs | Result |
+| --- | --- | --- |
+| `complex(realPart, imaginaryPart)` | Compatible floating-point operands | `complex64` for `float32`, `complex128` for `float64` |
+| `real(value)` | Complex operand | Corresponding floating-point real component |
+| `imag(value)` | Complex operand | Corresponding floating-point imaginary component |
+
+Untyped numeric constants retain constant precision until a concrete type is
+required. Runtime widths do not mix implicitly. Complex values support
+arithmetic and equality, not ordering or remainder.
+
+<<< ../snippets/complex-numbers.km{ts}
+
+This prints `3 4 -7 24 (1+2i)`. Imaginary literals, explicit complex-width
+conversions, named types and compatible type-set constraints use the same
+checked numeric rules.
 
 ## Collection inspection
 
@@ -55,7 +87,7 @@ Named Go ordered types, compatible untyped constants, NaN, signed zero, and left
 
 ## Allocation
 
-In the next patch, `make[T](...)` allocates a complete collection type, preserving
+Since v0.4.4, `make[T](...)` allocates a complete collection type, preserving
 named types and generic type parameters:
 
 | Form | Target | Result |
@@ -140,6 +172,22 @@ members are rejected. No common element type is required for closing.
 | `operation()?` | Propagate Kinmokusei result, Go `(T, error)`, or single Go `error` |
 
 These forms implement a return effect; they do not construct a storable result object.
+
+## Decorator values
+
+| Form | Result | Contract |
+| --- | --- | --- |
+| `decoratorValue(value)` | `DecoratorValue` | Box using the inferred concrete source type |
+| `decoratorValue<T>(value)` | `DecoratorValue` | Check assignability and box using explicit contract `T` |
+| `decoratorValueAs<T>(value)` | `Result<T>` | Extract only when the stored source contract matches `T` |
+
+These operations support checked decorator construction/invocation and
+external registries without exposing an unchecked `any`. A mismatched
+extraction is a Result failure, not a numeric or interface conversion. For DI,
+box an implementation as `decoratorValue<Service>(implementation)` when the
+consumer expects `Service`. Open type parameters and Result/Task effects are
+not payload types. See [typed decorators](../book/structs-classes-interfaces#typed-decorators)
+for a runnable construction example.
 
 ## Tasks
 

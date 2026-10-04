@@ -324,16 +324,16 @@ func TestDefiniteNonNullFieldInitializationCompilesAndRuns(t *testing.T) {
 	source := filepath.Join(temp, "field_initialization.km")
 	input := `
 import go errors from "errors";
-class User { constructor(public name: string) {} }
+class User { constructor(public name: bstring) {} }
 class Holder {
   private user: User;
   constructor(primary: boolean) {
     if (primary) { this.user = new User("onsen"); }
     else { this.user = new User("tamago"); }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function heldName(primary: boolean): string { return new Holder(primary).name(); }
+function heldName(primary: boolean): bstring { return new Holder(primary).name(); }
 class SwitchHolder {
   private user: User;
   private items: int[];
@@ -347,10 +347,10 @@ class SwitchHolder {
       }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
   public function count(): int { return len(this.items); }
 }
-function switchHeldName(mode: int): string { return new SwitchHolder(mode).name(); }
+function switchHeldName(mode: int): bstring { return new SwitchHolder(mode).name(); }
 function switchHeldCount(mode: int): int { return new SwitchHolder(mode).count(); }
 class NestedSwitchHolder {
   private user: User;
@@ -365,9 +365,9 @@ class NestedSwitchHolder {
       default { this.user = new User("outer-default"); }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function nestedHeldName(outer: boolean, inner: int): string { return new NestedSwitchHolder(outer, inner).name(); }
+function nestedHeldName(outer: boolean, inner: int): bstring { return new NestedSwitchHolder(outer, inner).name(); }
 class TypeSwitchHolder {
   private user: User;
   constructor(value: error) {
@@ -377,9 +377,9 @@ class TypeSwitchHolder {
       default { this.user = new User("default"); }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function typeHeldName(failed: boolean): string {
+function typeHeldName(failed: boolean): bstring {
   if (failed) { return new TypeSwitchHolder(errors.New("boom")).name(); }
   return new TypeSwitchHolder(nil).name();
 }
@@ -391,9 +391,9 @@ class ReceiveSelectHolder {
       default { this.user = new User("default"); }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function receiveHeldName(ready: boolean): string {
+function receiveHeldName(ready: boolean): bstring {
   const channel = goChannel[int](1);
   if (ready) { channel <- 1; }
   return new ReceiveSelectHolder(channel).name();
@@ -406,9 +406,9 @@ class SendSelectHolder {
       default { this.user = new User("default"); }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function sendHeldName(ready: boolean): string {
+function sendHeldName(ready: boolean): bstring {
   const channel = goChannel[int](1);
   if (!ready) { channel <- 0; }
   return new SendSelectHolder(channel).name();
@@ -422,23 +422,23 @@ class WhileLoopHolder {
       break;
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function whileLoopHeldName(left: boolean): string { return new WhileLoopHolder(left).name(); }
+function whileLoopHeldName(left: boolean): bstring { return new WhileLoopHolder(left).name(); }
 class ForeverForHolder {
   private user: User;
   constructor() { for (;;) { this.user = new User("for-ever"); break; } }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function foreverForHeldName(): string { return new ForeverForHolder().name(); }
+function foreverForHeldName(): bstring { return new ForeverForHolder().name(); }
 class InitializerHolder {
   private user: User;
   constructor(run: boolean) {
     for (this.user = new User("initializer"); run; ) { break; }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function initializerHeldName(run: boolean): string { return new InitializerHolder(run).name(); }
+function initializerHeldName(run: boolean): bstring { return new InitializerHolder(run).name(); }
 class RangeHolder {
   private user: User;
   private items: int[];
@@ -449,10 +449,10 @@ class RangeHolder {
       if (stop) { break; }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
   public function count(): int { return len(this.items); }
 }
-function rangeHeldName(stop: boolean): string { return new RangeHolder(stop).name(); }
+function rangeHeldName(stop: boolean): bstring { return new RangeHolder(stop).name(); }
 function rangeHeldCount(stop: boolean): int { return new RangeHolder(stop).count(); }
 class StringRangeHolder {
   private user: User;
@@ -462,9 +462,9 @@ class StringRangeHolder {
       if (skip) { continue; }
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
 }
-function stringRangeHeldName(skip: boolean): string { return new StringRangeHolder(skip).name(); }
+function stringRangeHeldName(skip: boolean): bstring { return new StringRangeHolder(skip).name(); }
 class FixedArrayRangeHolder {
   private user: User;
   private items: int[];
@@ -474,10 +474,10 @@ class FixedArrayRangeHolder {
       this.items = [value];
     }
   }
-  public function name(): string { return this.user.name; }
+  public function name(): bstring { return this.user.name; }
   public function count(): int { return len(this.items); }
 }
-function fixedArrayRangeHeldName(values: [2]int): string { return new FixedArrayRangeHolder(values).name(); }
+function fixedArrayRangeHeldName(values: [2]int): bstring { return new FixedArrayRangeHolder(values).name(); }
 function fixedArrayRangeHeldCount(values: [2]int): int { return new FixedArrayRangeHolder(values).count(); }
 `
 	if err := os.WriteFile(source, []byte(input), 0o644); err != nil {

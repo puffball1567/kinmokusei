@@ -1,0 +1,40 @@
+import go { Println } from "fmt"
+import go { ValidString, RuneCountInString } from "unicode/utf8"
+import go { Itoa } from "strconv"
+
+alias Bytes = byte[]
+alias CodePoints = int32[]
+
+function show(): Result<void> {
+  const text = "湯a"
+  const encoded = Bytes(text)
+  const decoded = CodePoints(text)
+  Println(len(text), len(encoded), len(decoded), string(decoded))
+
+  const snapshot = string(encoded)?
+  encoded[3] = 98
+  const changed = string(encoded)?
+  Println(text, snapshot, changed)
+
+  const prefix = bstring(text)[:1]
+  Println(len(prefix), ValidString(prefix), ValidString(text[:3]))
+
+  const raw = b"\xff\x00"
+  Println(len(raw), ValidString(raw), raw[1])
+  for (const [offset, codePoint] of raw) {
+    Println(offset, codePoint)
+  }
+  const [_, invalid] = string(raw)
+  Println(invalid !== nil)
+
+  Println(string(int32(65)), Itoa(65), string(int32(-1)) === "\ufffd")
+  const composed = "\u00e9"
+  const decomposed = "e\u0301"
+  Println(composed === decomposed, RuneCountInString(composed), RuneCountInString(decomposed))
+  return ok()
+}
+
+const main = () => {
+  const [err] = show()
+  if (err !== nil) { Println(err) }
+}

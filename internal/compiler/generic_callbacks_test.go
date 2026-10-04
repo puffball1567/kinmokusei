@@ -25,7 +25,7 @@ func TestGenericCallbackInferencePipeline(t *testing.T) {
 		`import go slices from "slices"; const run=():int=>slices.IndexFunc([1,2,3],(x)=>x==2);`,
 		`import go { IndexFunc } from "slices"; const run=():int=>IndexFunc<int[]>([1,2,3],(x)=>x==2);`,
 		`import go slices from "slices"; function run():int{let values:int[]=[2,1];slices.SortFunc(values,(a,b)=>a-b);return values[0];}`,
-		`import go slices from "slices"; const run=():int=>slices.CompareFunc([1,2],["a","bb"],(n,s)=>n-len(s));`,
+		`import go slices from "slices"; const run=():int=>slices.CompareFunc([1,2],[b"a",b"bb"],(n,s)=>n-len(s));`,
 		`import go slices from "slices"; type Numbers=distinct int[]; const run=():int=>slices.IndexFunc(Numbers([1,2]),(x)=>x==2);`,
 		`function apply<T>(v:T,f:(x:T)=>T):T{return f(v);} class User{public value:int=1;} function run(input:User|null):int{const user=input;if(user===null){return 0;}return apply(1,(x)=>user.value+x);}`,
 		`function pick<T>(v:T,f:()=>T):T{return f();} const run=():float=>pick(1,()=>1.5);`,
@@ -85,7 +85,7 @@ func Map[S ~[]E,E,R any](values S, f Callback[E,R])R{return f(values[0])}
 func Before[T,U any](f func(T)U,value T)U{return f(value)}
 func Pair[T any](value T,f func(T,T)T)T{return f(value,value)}`,
 		"main.km": `import go api from "generic-callback-return.test/api";
-export function Run():int{return api.Map(["yes"],(s)=>len(s))+api.Before((n)=>n*2,3);}
+export function Run():int{return api.Map([b"yes"],(s)=>len(s))+api.Before((n)=>n*2,3);}
 export function Narrow():byte{return api.Pair(2,(a,b:byte)=>a+b);}`,
 	} {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(input), 0o644); err != nil {

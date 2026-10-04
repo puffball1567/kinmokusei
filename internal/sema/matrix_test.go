@@ -12,7 +12,7 @@ func TestSemanticSuccessMatrix(t *testing.T) {
 	}{
 		{"primitive values", `function values(flag: boolean, text: string, a: int, b: int32, c: int64, d: float32, e: float64, octet: byte): boolean { const n: number = e; const f: float = n; return flag && text == "ok" && a < 2 && b <= 3 && c >= 4 && d > float32(0.5) && f !== 0.0 && octet == 1; }`},
 		{"numeric conversions", `function convert(value: int): float { const wide: int64 = int64(value); const small: int32 = int32(wide); const ratio: float32 = float32(small); return float(ratio); }`},
-		{"Go-compatible string conversions", `import go net from "net"; function bytes(value: byte[]): string { return string(value); } function runes(value: int32[]): string { return string(value); } function rune(value: int32): string { return string(value); } function named(value: net.IP): string { return string(value); }`},
+		{"checked byte and code-point conversions", `import go net from "net"; function bytes(value: byte[]): Result<string> { return string(value); } function runes(value: int32[]): string { return string(value); } function rune(value: int32): string { return string(value); } function named(value: net.IP): Result<string> { return string(value); }`},
 		{"numeric and boolean operators", `function math(a: int, b: int): boolean { const value = -a + +b * 2 / 1 % 3; return value == 0 || value != 1 || value === 2 || value !== 3; }`},
 		{"string operators and index", `function text(value: string): byte { const combined = value + "x"; const ordered = combined >= value; return combined[0]; }`},
 		{"scope and shadowing", `function scope(value: int): int { let result = value; if (true) { const result = 2; const check = result == 2; } else { let result = 3; } return result; }`},

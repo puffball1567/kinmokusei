@@ -20,10 +20,10 @@ keika <command> [options] [arguments]
 | Command | Purpose |
 | --- | --- |
 | `keika version` | Print command name and embedded version |
-| `keika check [--json] <sources...>` | Lex, parse, resolve, and type-check without generation |
-| `keika run <sources...>` | Generate a main module and run it with the selected Go toolchain |
-| `keika build [-o path] <sources...>` | Generate and build a native executable; default output is `keika.out` |
-| `keika emit-go [-o file] [-package name] <sources...>` | Emit deterministic formatted Go; defaults to stdout and package `main` |
+| `keika check [--json] [sources...]` | Lex, parse, resolve, and type-check without generation |
+| `keika run [sources...]` | Generate a main module and run it with the selected Go toolchain |
+| `keika build [-o path] [sources...]` | Generate and build a native executable; default output is `keika.out` |
+| `keika emit-go [-o file] [-package name] [sources...]` | Emit deterministic formatted Go; defaults to stdout and package `main` |
 
 `run` rejects a locked non-host target before execution. Its positional arguments are all source inputs; it does not forward program arguments. Use `build`, then invoke the resulting executable directly, for programs that read `os.Args`. `build` uses the locked target and supports cross-building. Core compilation commands never resolve or update dependencies implicitly.
 
@@ -33,16 +33,25 @@ keika <command> [options] [arguments]
 | --- | --- | --- |
 | `check` | Silent on success; diagnostics use stderr; `--json` uses stdout | None |
 | `run` | Connects the generated program to the current stdin, stdout, and stderr | Compiler-managed `.kinmokusei/gen/` state |
-| `build` | Go build/attribution diagnostics use stdout/stderr | Compiler-managed `.kinmokusei/gen/` state, executable at `-o` (default `keika.out`), and `<output>.licenses/` |
+| `build` | Go build/attribution diagnostics use stdout/stderr | Compiler-managed `.kinmokusei/gen/` state, executable at `-o` (default `keika.out`), and `<output>-licenses/` |
 | `emit-go` | Formatted Go uses stdout unless `-o` is present | The exact `-o` file when selected |
 
 All source arguments form one generated package. Relative imports may load additional `.km` files, so callers normally pass entry files rather than every file in a project. Project-aware invocations validate the existing manifest, lock, and generated dependency state before compilation.
 
+With no source arguments, the four core commands find the enclosing project and
+select its `main.km`, or its declared library entry. Outside a project, omitting
+sources is a usage error. Passing a directory is not shorthand for selecting
+that project's sources. C ABI emission and ABI checks still require explicit
+source arguments.
+
 ## Application redistribution notices
 
-Since v0.4.5, `keika build -o app` produces `app` and `app.licenses/` (or
-`app.exe.licenses/` when `-o app.exe` is selected). Ship the entire notice
-directory alongside the executable. It contains:
+`keika build -o app` produces `app` and `app-licenses/` (or
+`app.exe-licenses/` when `-o app.exe` is selected). Ship the entire notice
+directory alongside the executable. The published v0.4.5 compiler uses
+`<output>.licenses/`; v0.4.6 uses `<output>-licenses/` and leaves old
+directories untouched. After rebuilding, distribute the newly generated
+directory, not the legacy one. It contains:
 
 - Go's original license and patent grant from the actual build toolchain;
 - nested licenses/notices and complete additional-attribution source supplements
@@ -149,7 +158,11 @@ No other transport or positional source argument is accepted. The server reads/w
 
 ## Check output
 
-Plain `check` is silent on success. Source diagnostics and project/input errors go to standard error. `--json` always writes one JSON object to standard output. See [Diagnostics](./diagnostics).
+Plain `check` is silent on success. Source diagnostics and project/input errors
+go to standard error. With valid command usage, `--json` writes one JSON object
+to standard output, including source/project/load failures. Invalid options or
+missing sources outside a project return usage status `2` on stderr instead;
+they do not produce a diagnostic JSON object. See [Diagnostics](./diagnostics).
 
 ## Exit status
 

@@ -15,26 +15,26 @@ import go errors from "errors";
 import go cmp from "cmp";
 import go slices from "slices";
 import {Split,Tail} from "./types";
-function Cut(s:string):(string,string,boolean){return strings.Cut(s,":");}
-function apply(f:(s:string)=>(string,string,boolean),s:string):(string,string,boolean){return f(s);}
-function Callback(s:string):(string,string,boolean){return apply((text)=>strings.Cut(text,":"),s);}
-const Arrow=(s:string):(string,string,boolean)=>strings.Cut(s,":");
+function Cut(s:bstring):(bstring,bstring,boolean){return strings.Cut(s,":");}
+function apply(f:(s:bstring)=>(bstring,bstring,boolean),s:bstring):(bstring,bstring,boolean){return f(s);}
+function Callback(s:bstring):(bstring,bstring,boolean){return apply((text)=>strings.Cut(text,":"),s);}
+const Arrow=(s:bstring):(bstring,bstring,boolean)=>strings.Cut(s,":");
 function generic<T>(f:(s:T)=>(T,T,boolean),s:T):(T,T,boolean){return f(s);}
-function Generic(s:string):(string,string,boolean){return generic(Cut,s);}
-function Alias(s:string):(string,string,boolean){const split:Split<string>=(text)=>strings.Cut(text,":");return split(s);}
-function Block(s:string):(string,string,boolean){const split:Split<string>=(text)=>{return strings.Cut(text,":");};return split(s);}
+function Generic(s:bstring):(bstring,bstring,boolean){return generic(Cut,s);}
+function Alias(s:bstring):(bstring,bstring,boolean){const split:Split<bstring>=(text)=>strings.Cut(text,":");return split(s);}
+function Block(s:bstring):(bstring,bstring,boolean){const split:Split<bstring>=(text)=>{return strings.Cut(text,":");};return split(s);}
 interface Cutter<T>{function cut(s:T):(T,T,boolean);}
-class Splitter implements Cutter<string> {public function cut(s:string):(string,string,boolean){return Cut(s);}}
-function Method(s:string):(string,string,boolean){const splitter=new Splitter();return splitter.cut(s);}
-function Interface(s:string):(string,string,boolean){const splitter:Cutter<string>=new Splitter();return splitter.cut(s);}
-function Anonymous(s:string):(string,string,boolean){const splitter:interface{cut(s:string):(string,string,boolean);}=new Splitter();return splitter.cut(s);}
-function Destructure(s:string):string{const [left,right,found]=Cut(s);if(found){return right+left;}return left;}
+class Splitter implements Cutter<bstring> {public function cut(s:bstring):(bstring,bstring,boolean){return Cut(s);}}
+function Method(s:bstring):(bstring,bstring,boolean){const splitter=new Splitter();return splitter.cut(s);}
+function Interface(s:bstring):(bstring,bstring,boolean){const splitter:Cutter<bstring>=new Splitter();return splitter.cut(s);}
+function Anonymous(s:bstring):(bstring,bstring,boolean){const splitter:interface{cut(s:bstring):(bstring,bstring,boolean);}=new Splitter();return splitter.cut(s);}
+function Destructure(s:bstring):bstring{const [left,right,found]=Cut(s);if(found){return right+left;}return left;}
 class Echo<T>{public function echo(value:T):T{return value;}}
-function EchoValue(s:string):string{const value:interface{echo(value:string):string;}=new Echo<string>();return value.echo(s);}
-function Parse(s:string):(int,error){return strconv.Atoi(s);}
-function Twice(s:string):Result<int>{const value=Parse(s)?;return ok(value*2);}
-function Manual(s:string):(string,string,boolean){return s,Tail(),true;}
-function ManualArrow(s:string):(string,string,boolean){const f:Split<string>=(text)=>{return text,Tail(),true;};return f(s);}
+function EchoValue(s:bstring):bstring{const value:interface{echo(value:bstring):bstring;}=new Echo<bstring>();return value.echo(s);}
+function Parse(s:bstring):(int,error){return strconv.Atoi(s);}
+function Twice(s:bstring):Result<int>{const value=Parse(s)?;return ok(value*2);}
+function Manual(s:bstring):(bstring,bstring,boolean){return s,Tail(),true;}
+function ManualArrow(s:bstring):(bstring,bstring,boolean){const f:Split<bstring>=(text)=>{return text,Tail(),true;};return f(s);}
 let trace:int=0;
 function bump(n:int):int{trace=trace*10+n;return trace;}
 function Ordered():(int,int,int){trace=0;return bump(1),bump(2),trace;}
@@ -43,29 +43,29 @@ class Derived extends Base {}
 function construct():(Base,int){return new Derived(),9;}
 function Upcast():int{const [obj,value]=construct();return obj.value()+value;}
 function Narrow():(byte,float32){return 255,16777217;}
-function TryForward(s:string):(string,string,boolean){try{return Cut(s);}finally{trace++;}}
+function TryForward(s:bstring):(bstring,bstring,boolean){try{return Cut(s);}finally{trace++;}}
 function TryTyped():(byte,error){try{return 255,nil;}finally{trace++;}}
-function TryCatch(fail:boolean):(int,string){try{if(fail){throw errors.New("bad");}return 1,"ok";}catch(e:error){return 2,e.Error();}finally{trace++;}}
+function TryCatch(fail:boolean):(int,bstring){try{if(fail){throw errors.New("bad");}return 1,"ok";}catch(e:error){return 2,e.Error();}finally{trace++;}}
 function Nested():(int,int){trace=0;try{try{return bump(1),bump(2);}finally{trace=trace*10+3;}}finally{trace=trace*10+4;}}
 function Override():(int,int){try{return 1,2;}finally{return 3,4;}}
 function Trace():int{return trace;}
 function genericTry<T>(value:T):(T,T){try{return value,value;}finally{trace++;}}
-function GenericTry(s:string):(string,string){return genericTry(s);}
-function FinallyThrow():(int,string){try{try{return 1,"ignored";}finally{throw errors.New("override");}}catch(e:error){return 2,e.Error();}}
+function GenericTry(s:bstring):(bstring,bstring){return genericTry(s);}
+function FinallyThrow():(int,bstring){try{try{return 1,"ignored";}finally{throw errors.New("override");}}catch(e:error){return 2,e.Error();}}
 function RuntimePanic():(int,int){try{let xs:int[]=[];return xs[0],2;}catch(e:error){return 9,9;}finally{trace++;}}
-const InferredForward=(s:string)=>Cut(s);
-const InferredValues=(s:string)=>{return s,Tail(),true;};
-const InferredDependency=(s:string)=>Later(s);
-const Later=(s:string)=>{return s,Tail(),true;};
-function InferredLocal(s:string):(string,string,boolean){const make=()=>{return s,Tail(),true;};return make();}
-const InferredTry=(s:string)=>{try{return s,s;}finally{trace++;}};
-const InferredForwardTry=(s:string)=>{try{return Cut(s);}finally{trace++;}};
-function input(s:string):(string,int){trace++;return s,2;}
-function consume(s:string,n:int):string{return strings.Repeat(s,n);}
-class Repeater{public function repeat(s:string,n:int):string{return consume(s,n);}}
-function NestedCall(s:string):string{trace=0;const value=consume(input(s));return value+strconv.Itoa(trace);}
-function GoNestedCall(s:string):string{trace=0;const value=strings.Repeat(input(s));return value+strconv.Itoa(trace);}
-function MethodNestedCall(s:string):string{trace=0;const r=new Repeater();const value=r.repeat(input(s));return value+strconv.Itoa(trace);}
+const InferredForward=(s:bstring)=>Cut(s);
+const InferredValues=(s:bstring)=>{return s,Tail(),true;};
+const InferredDependency=(s:bstring)=>Later(s);
+const Later=(s:bstring)=>{return s,Tail(),true;};
+function InferredLocal(s:bstring):(bstring,bstring,boolean){const make=()=>{return s,Tail(),true;};return make();}
+const InferredTry=(s:bstring)=>{try{return s,s;}finally{trace++;}};
+const InferredForwardTry=(s:bstring)=>{try{return Cut(s);}finally{trace++;}};
+function input(s:bstring):(bstring,int){trace++;return s,2;}
+function consume(s:bstring,n:int):bstring{return strings.Repeat(s,n);}
+class Repeater{public function repeat(s:bstring,n:int):bstring{return consume(s,n);}}
+function NestedCall(s:bstring):bstring{trace=0;const value=consume(input(s));return value+strconv.Itoa(trace);}
+function GoNestedCall(s:bstring):bstring{trace=0;const value=strings.Repeat(input(s));return value+strconv.Itoa(trace);}
+function MethodNestedCall(s:bstring):bstring{trace=0;const r=new Repeater();const value=r.repeat(input(s));return value+strconv.Itoa(trace);}
 function numbers():(int,int,int){trace++;return 1,2,3;}
 function sum(...values:int[]):int{let total=0;for(const n of values){total+=n;}return total;}
 function VariadicCall():int{trace=0;return sum(numbers())*10+trace;}
@@ -86,14 +86,14 @@ function GenericMethodShadow():int{const __multipleReceiver=()=>orderedNumbers()
 function deferredMethod():void{defer collector().consume(orderedNumbers());trace=trace*10+4;}
 function DeferredGenericMethod():int{trace=0;deferredMethod();return trace;}
 class GenericCollector<U>{public function first<T>(a:T,b:T):T{return a;}}
-function GenericReceiverMethod():int{const c=new GenericCollector<string>();return c.first(twoNumbers());}
+function GenericReceiverMethod():int{const c=new GenericCollector<bstring>();return c.first(twoNumbers());}
 function GoGenericArguments():int{trace=0;const a=cmp.Compare(twoNumbers());const b=cmp.Compare<int>(twoNumbers());return a*100+b*10+trace;}
 function twoSlices():(int[],int[]){return [1,2],[3];}
 function GoGenericVariadic():int[]{return slices.Concat(twoSlices());}
 function GoGenericExplicitVariadic():int[]{return slices.Concat<int[]>(twoSlices());}
 `
 	path := filepath.Join(root, "entry.km")
-	if err := os.WriteFile(filepath.Join(root, "types.km"), []byte(`alias Split<T>=(s:T)=>(T,T,boolean); function Tail():string{return "tail";}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "types.km"), []byte(`alias Split<T>=(s:T)=>(T,T,boolean); function Tail():bstring{return "tail";}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {

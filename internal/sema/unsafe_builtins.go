@@ -147,7 +147,7 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 		if length, exists := argument(1); exists {
 			c.checkUnsafeIntegerArgument(qualifiedName, "length", origin(1), length, true)
 		}
-		return result(builtins["string"])
+		return result(builtins["bstring"])
 	case "StringData":
 		if value, exists := argument(0); exists && value.Kind != Invalid && !isGoString(value) {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s argument must be a string, got %s", qualifiedName, value.String()))

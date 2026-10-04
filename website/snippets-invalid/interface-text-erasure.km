@@ -1,0 +1,13 @@
+import go reflect from "reflect"
+
+class User {
+  public name: string = "Kinmokusei"
+  public function label(): bstring { return "user" }
+}
+
+function inspect(value: interface { label(): bstring; }): void {
+  // The interface hides User.name, but reflection could still overwrite it.
+  reflect.ValueOf(value)
+}
+
+function use(): void { inspect(new User()) }

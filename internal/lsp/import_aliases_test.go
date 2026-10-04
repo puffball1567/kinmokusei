@@ -54,7 +54,7 @@ func TestImportAliasEditor(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "library.km"), []byte(`export class Box<T>{constructor(public value:T){}}export function make(n:int):int{return n;}`), 0644); err != nil {
 		t.Fatal(err)
 	}
-	input := `import {Box as Crate,make as create} from "./library";import go {Sprint as render} from "fmt";function run():string{const box=new Crate<int>(create(42));return render(box.value);}`
+	input := `import {Box as Crate,make as create} from "./library";import go {Sprint as render} from "fmt";function run():bstring{const box=new Crate<int>(create(42));return render(box.value);}`
 	uri := fileURI(entry)
 	completionAt := positionOf(input, "value", 0)
 	completionAt.Character += len("value")
@@ -142,7 +142,7 @@ func TestImportAliasBuiltinSignature(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "signature.km")
 	for _, ending := range []string{"len(42);}", "len("} {
-		input := `import go {Sprint as len} from "fmt";function run():string{return ` + ending
+		input := `import go {Sprint as len} from "fmt";function run():bstring{return ` + ending
 		at := positionOf(input, "len(", 0)
 		at.Character += len("len(")
 		label, _, _ := signatureResult(t, signatureHelpAt(t, path, input, at))

@@ -32,6 +32,7 @@ func GenerateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		Name: goast.NewIdent(packageName),
 	}
 	seenImports := map[string]bool{}
+	utf8Alias := "__kinmokuseiUTF8"
 	var imports []goast.Spec
 	for _, imported := range program.Imports {
 		if !imported.Go || !imported.Used || seenImports[imported.Path] {
@@ -42,10 +43,16 @@ func GenerateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		if imported.ResolvedAlias != "" {
 			alias = imported.ResolvedAlias
 		}
+		if imported.Path == "unicode/utf8" {
+			utf8Alias = goName(alias)
+		}
 		imports = append(imports, &goast.ImportSpec{
 			Name: goast.NewIdent(goName(alias)),
 			Path: &goast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("%q", imported.Path)},
 		})
+	}
+	if program.UsesUTF8 && !seenImports["unicode/utf8"] {
+		imports = append(imports, &goast.ImportSpec{Name: goast.NewIdent(utf8Alias), Path: &goast.BasicLit{Kind: token.STRING, Value: `"unicode/utf8"`}})
 	}
 	if len(imports) != 0 {
 		file.Decls = append(file.Decls, &goast.GenDecl{Tok: token.IMPORT, Specs: imports})
@@ -56,6 +63,13 @@ func GenerateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 			return nil, err
 		}
 		file.Decls = append(file.Decls, runtimeDeclarations...)
+	}
+	if program.UsesUTF8 {
+		declarations, err := utf8RuntimeDeclarations(utf8Alias)
+		if err != nil {
+			return nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
 	}
 	if program.UsesExceptions {
 		runtimeDeclarations, err := exceptionRuntimeDeclarations()

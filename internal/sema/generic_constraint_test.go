@@ -31,7 +31,7 @@ func TestGoTypeSetConstraintSemanticMatrix(t *testing.T) {
 		name   string
 		source string
 	}{
-		{"ordered inference and operators", `import go cmp from "cmp"; function choose<T extends cmp.Ordered>(left: T, right: T): T { if (left < right) { return left + left; } return right + right; } function use(): string { return choose("on", "sen"); }`},
+		{"ordered inference and operators", `import go cmp from "cmp"; function choose<T extends cmp.Ordered>(left: T, right: T): T { if (left < right) { return left + left; } return right + right; } function use(): bstring { return choose(b"on", b"sen"); }`},
 		{"defined underlying type", `import go cmp from "cmp"; type Score = distinct int; function maximum<T extends cmp.Ordered>(left: T, right: T): T { if (left > right) { return left; } return right; } function use(): Score { return maximum(Score(1), Score(2)); }`},
 		{"struct class and interface", `import go cmp from "cmp"; struct Range<T extends cmp.Ordered> { public low: T; public high: T; public function contains(value: T): boolean { return value >= this.low && value <= this.high; } } interface Chooser<T extends cmp.Ordered> { function choose(left: T, right: T): T; } class NumberChooser implements Chooser<int> { public function choose(left: int, right: int): int { if (left < right) { return left; } return right; } }`},
 		{"defined collection and map key", `import go cmp from "cmp"; type OrderedValues<T extends cmp.Ordered> = distinct T[]; type Lookup<T extends cmp.Ordered> = distinct Map<T, string>; function use(values: OrderedValues<int>, lookup: Lookup<string>): int { return len(values) + len(lookup); }`},

@@ -1,0 +1,26 @@
+import go { New } from "errors"
+import go { Println } from "fmt"
+
+function work(): int { return 7 }
+function load(ready: boolean): Result<int> {
+  if (!ready) { return fail(New("missing")) }
+  return ok(11)
+}
+
+function complete(ready: boolean): Result<int> {
+  const task = go work()
+  try {
+    const value = load(ready)?
+    return ok(value)
+  } finally {
+    const completed = await task
+    Println("joined", completed)
+  }
+}
+
+const main = () => {
+  const [value, err] = complete(true)
+  Println(value, err === nil)
+  const [failed, failure] = complete(false)
+  Println(failed, failure !== nil)
+}

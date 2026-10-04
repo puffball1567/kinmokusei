@@ -40,7 +40,7 @@ func TestConversionSourceContracts(t *testing.T) {
 		{"recursive struct identity", `struct A { public next: *A; } function f(v: A): A { return A(v); }`, false},
 		{"Go callback", `import go http from "net/http"; alias Maybe = *http.Request | null; function f(v: (w: http.ResponseWriter, r: Maybe) => void): http.HandlerFunc { return http.HandlerFunc(v); }`, true},
 		{"matching Go callback", `import go http from "net/http"; function f(v: (w: http.ResponseWriter, r: *http.Request) => void): http.HandlerFunc { return http.HandlerFunc(v); }`, false},
-		{"Go Result void callback", `import go fs from "io/fs"; function f(v: (path: string, entry: fs.DirEntry, err: error) => Result<void>): fs.WalkDirFunc { return fs.WalkDirFunc(v); }`, false},
+		{"Go Result void callback", `import go fs from "io/fs"; function f(v: (path: bstring, entry: fs.DirEntry, err: error) => Result<void>): fs.WalkDirFunc { return fs.WalkDirFunc(v); }`, false},
 		{"matching constraint", `alias Maybe = *int | null; constraint A = ~Maybe[]; function f<T extends A>(v: Maybe[]): T { return T(v); }`, false},
 		{"recursive identity", `type A = distinct A[]; function f(v: A): A { return A(v); }`, false},
 		{"recursive underlying", `type A = distinct A[]; alias B = A[]; function f(v: B): A { return A(v); }`, false},

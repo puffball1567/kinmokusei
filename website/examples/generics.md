@@ -39,6 +39,8 @@ hello 42
 - Different instantiations such as `Box<string>` and `Box<int>` are distinct types.
 - A generic struct remains a value: assignment copies the outer Go struct.
 
-Use `T extends comparable` when equality or map-key use requires the constraint. Native type sets beyond `comparable`, generic aliases, and method-local type parameters are not implemented.
+Use `T extends comparable` when equality or map-key use requires the constraint.
+Native type sets, imported Go constraints, generic aliases and method-local type
+parameters are also supported; see the guide for their rules and examples.
 
 See [Functions and generics](../guide/functions-and-generics).

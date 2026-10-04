@@ -1,0 +1,3 @@
+function change(text: string): void {
+  text[0] = 65
+}

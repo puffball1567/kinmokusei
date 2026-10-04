@@ -40,6 +40,10 @@ func (l *Lexer) next() token.Token {
 	}
 
 	r, size := l.peek()
+	if r == 'b' && l.peekNext('"') {
+		l.advance()
+		return l.scanString(start)
+	}
 	if isIdentifierStart(r) {
 		l.advance()
 		for !l.eof() {
@@ -255,9 +259,14 @@ func (l *Lexer) scanString(start source.Position) token.Token {
 		l.advance()
 	}
 	tok := l.makeToken(token.String, start)
+	quoted := tok.Lexeme
+	if len(quoted) > 0 && quoted[0] == 'b' {
+		tok.Kind = token.ByteString
+		quoted = quoted[1:]
+	}
 	if !terminated {
 		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "unterminated string literal", Span: tok.Span})
-	} else if _, err := strconv.Unquote(tok.Lexeme); err != nil {
+	} else if _, err := strconv.Unquote(quoted); err != nil {
 		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "invalid string literal escape", Span: tok.Span})
 	}
 	return tok

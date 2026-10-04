@@ -305,6 +305,11 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			valid := true
 			for i := range ref.GenericArguments {
 				resolved := c.resolveType(ref.GenericArguments[i])
+				if c.containsDeclaredVerifiedText(resolved) || underlyingGoInterface(goType) == nil && c.containsVerifiedText(resolved, nil) {
+					c.report(ref.GenericArguments[i].Span, "Go generic type arguments cannot establish a UTF-8 contract; use bstring/raw storage")
+					valid = false
+					continue
+				}
 				argument, ok := goTypeOf(resolved)
 				if !ok {
 					c.report(ref.GenericArguments[i].Span, fmt.Sprintf("type argument %s cannot be represented as a Go type", resolved.String()))
@@ -543,7 +548,15 @@ func (c *Checker) resolveNativeInterfaceType(ref ast.TypeRef, symbol *interfaceS
 	if !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic interface "+ref.Name) {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	return Type{Kind: Interface, Name: ref.Name, TypeArguments: arguments}
+	instance := Type{Kind: Interface, Name: ref.Name, TypeArguments: arguments}
+	bindings := nativeInterfaceBindings(symbol, instance)
+	for _, method := range symbol.methods {
+		if method.goInterfaceMethod && c.containsDeclaredVerifiedText(substituteNativeTypeParameters(method.typeInfo, bindings)) {
+			c.report(ref.Span, "inherited Go methods cannot establish a UTF-8 contract; use bstring/raw type arguments")
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+	}
+	return instance
 }
 
 func nativeInterfaceBindings(symbol *interfaceSymbol, instantiated Type) nativeTypeBindings {

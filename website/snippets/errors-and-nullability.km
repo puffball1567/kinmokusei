@@ -22,7 +22,7 @@ function describe(text: string, present: boolean): Result<string> {
   const value = parsePositive(text)?;
   const user = findUser(present);
   if (user === null) { return ok("missing"); }
-  return ok(fmt.Sprintf("%s:%d", user.name, value));
+  return string(fmt.Sprintf("%s:%d", user.name, value));
 }
 
 function main(): void {

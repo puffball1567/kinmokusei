@@ -1,14 +1,14 @@
 {
   "name": "kinmokusei-language-guide",
   "private": true,
-  "version": "0.4.5",
+  "version": "0.4.6",
   "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev .",
     "docs:build": "vitepress build .",
     "docs:preview": "vitepress preview .",
     "docs:check-links": "node --test ../scripts/markdown-inline-code.test.mjs && node ../scripts/check-doc-links.mjs",
-    "docs:check-content": "node ../scripts/check-doc-content.mjs"
+    "docs:check-content": "node --test ../scripts/installation-docs.test.mjs && node ../scripts/check-doc-content.mjs"
   },
   "devDependencies": {
     "vitepress": "1.6.4"

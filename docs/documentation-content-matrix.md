@@ -74,7 +74,7 @@ They are not missing pages required by the v0.2 documentation baseline.
 | React plus Gin/Fiber application | `website/examples/web-backend.md` | full-stack example and verifier | Complete |
 | Result parsing and validation | `website/examples/result-parsing.md` | result/Go error tests | Complete |
 | Collections and conversion | `website/examples/collections.md` | collection differential tests | Complete |
-| UTF-8 byte and code-point behavior | `website/examples/unicode-strings.md` | string/range differential tests | Complete |
+| Verified UTF-8 text, raw bytes and code points | `website/examples/unicode-strings.md`, `website/book/types-and-values.md` | UTF-8 conversion/slicing/arrow differential tests, raw Go boundary and rejection tests | Implemented in v0.4.6 |
 | Generics | `website/examples/generics.md` | native generic matrices | Complete |
 | Variadics and slice spread | `website/examples/variadics.md` | variadic semantic/compiler tests | Complete |
 | Defined domain types | `website/examples/defined-types.md` | defined-type semantic/compiler tests | Complete |

@@ -591,11 +591,15 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("instantiated Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if c.containsVerifiedText(converted, nil) {
+		c.report(expr.Span, "Go generic calls cannot preserve a verified native text contract; use bstring/raw storage")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	c.recordCallSignature(expr, converted)
 	if multiple {
 		c.checkMultipleCallArguments(expr, callableName, converted, Type{Kind: MultiValue, Results: actualTypes})
 	}
-	c.checkGenericNumericArguments(expr, converted)
+	c.checkGenericNumericArguments(expr, converted, actualTypes, multiple)
 	return *converted.Result
 }
 
@@ -620,17 +624,27 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("inferred Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if c.containsVerifiedText(converted, nil) {
+		c.report(expr.Span, "Go generic calls cannot preserve a verified native text contract; use bstring/raw storage")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	c.recordCallSignature(expr, converted)
 	if multiple {
 		c.checkMultipleCallArguments(expr, callableName, converted, Type{Kind: MultiValue, Results: actualTypes})
 	}
-	c.checkGenericNumericArguments(expr, converted)
+	c.checkGenericNumericArguments(expr, converted, actualTypes, multiple)
 	return *converted.Result
 }
 
-func (c *Checker) checkGenericNumericArguments(expr *ast.CallExpr, callable Type) {
+func (c *Checker) checkGenericNumericArguments(expr *ast.CallExpr, callable Type, actualTypes []Type, multiple bool) {
 	for index, argument := range expr.Arguments {
-		c.checkNumericMaterialization(argument, genericArgumentParameter(callable, expr, index))
+		expected := genericArgumentParameter(callable, expr, index)
+		// Go inference validates storage types, but cannot validate source text
+		// contracts erased to Go string (notably writable []string callbacks).
+		if !multiple && index < len(actualTypes) {
+			c.requireAssignable(expected, actualTypes[index], argument.GetSpan())
+		}
+		c.checkNumericMaterialization(argument, expected)
 	}
 }
 
