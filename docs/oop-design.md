@@ -257,11 +257,11 @@ binding holding an immutable runtime value, `static const` always requires a
 compile-time constant.
 
 `Limits.size` emits `const LimitsSize int = 32`, usable as a constant by Go
-consumers, including Go array lengths. Kinmokusei array **type** lengths still
-require integer literals; this declaration syntax does not extend them to
-expressions. Enum-member values are not yet evaluated by this scalar-constant
-initializer checker. Constants occupy no per-instance storage and are excluded
-from JSON.
+consumers, including Go array lengths. Development builds also accept accessible
+integer constants in Kinmokusei array **type** lengths, such as `[Limits.size]int`;
+the v0.4.6 compiler still requires integer literals there. Known enum-member values
+participate in scalar constant checking. Constants occupy no per-instance storage
+and are excluded from JSON.
 
 ## Deliberate differences from TypeScript/JavaScript
 
@@ -600,7 +600,7 @@ unimplemented abstract slots fail explicitly rather than returning zero values.
 
 ### Later candidates
 
-- Additional constant-expression contexts, including nonliteral array type lengths.
+- Further contextual-expression combinations beyond the implemented constant contexts.
 - Discriminated-union integration.
 
 ### Out of scope

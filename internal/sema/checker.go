@@ -71,11 +71,14 @@ type Checker struct {
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
 	constantValues             map[ast.Expression]gotypes.TypeAndValue
+	arrayLengthChecks          map[ast.Expression]bool
+	inArrayLength              bool
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
 	classConstantChecks        map[*ast.FieldDecl]globalBindingCheckState
 	classConstantValues        map[*ast.FieldDecl]gotypes.TypeAndValue
+	enumChecks                 map[*ast.EnumDecl]globalBindingCheckState
 	checkingLocalArrow         *localArrowInference
 	resultErrorUses            map[*bool]resultErrorUse
 }
@@ -120,14 +123,18 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
 		classConstantChecks:    map[*ast.FieldDecl]globalBindingCheckState{},
 		classConstantValues:    map[*ast.FieldDecl]gotypes.TypeAndValue{},
+		enumChecks:             map[*ast.EnumDecl]globalBindingCheckState{},
 		globalDependencies:     map[string]map[string]bool{},
 		constantValues:         map[ast.Expression]gotypes.TypeAndValue{},
+		arrayLengthChecks:      map[ast.Expression]bool{},
 		resultErrorUses:        map[*bool]resultErrorUse{},
 	}
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
+	c.predeclareArrayLengthBindings(program)
 	c.predeclareInterfaceNames(program)
 	c.predeclareNamedTypes(program)
+	c.predeclareStaticFields(program)
 	c.declareNativeConstraints(program)
 	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareNativeTypes(program)
@@ -145,7 +152,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	}
 	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.EnumDecl); ok {
-			c.checkEnum(decl)
+			c.ensureEnumChecked(decl)
 		}
 	}
 	for _, decl := range program.Declarations {

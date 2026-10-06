@@ -132,7 +132,7 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 		c.report(expression.Span, fmt.Sprintf(`Go member %s.%s uses unsafe.Pointer; set [go.interop] unsafe = "allow" to use it`, expression.Object.(*ast.IdentifierExpr).Name, expression.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	imported.declaration.Used = true
+	c.markGoImportUsed(imported.declaration)
 	alias := imported.declaration.Alias
 	if imported.declaration.ResolvedAlias != "" {
 		alias = imported.declaration.ResolvedAlias
@@ -291,7 +291,7 @@ func (c *Checker) prepareGoTypeForEmission(t *Type, span source.Span) {
 					continue
 				}
 				applyGoQualifier(t, packagePath, resolvedGoPackageAlias(imported))
-				imported.declaration.Used = true
+				c.markGoImportUsed(imported.declaration)
 				break
 			}
 			if t.GoQualifier == "" {

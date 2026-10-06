@@ -181,6 +181,15 @@ const pair: [2]int = [10, 20];
 
 `T[]` is a Go slice: assignment copies its header and shares backing storage. `[N]T` is a fixed value: length is part of its type and assignment copies all elements.
 
+On the development branch, the length may be a compile-time integer expression.
+For example, `const Width = 3` allows `[Width + 1]int`. Source/Go constants,
+enum members and accessible static constants work in these expressions, as do
+constant `len`, `cap`, `min` and `max`. This is not yet in v0.4.6, whose array
+type lengths require integer literals. The result must be non-negative and fit
+the target's `int`; runtime values and declaration cycles are compilation errors.
+See the [array-length reference](../reference/types#fixed-array-lengths) for
+runnable and rejected examples.
+
 Since v0.4.0, `len` and `cap` of a fixed array or array pointer can
 be typed `int` constants even when the array is mutable. When the argument has
 no runtime calls or channel receives, it is not evaluated. In particular, a nil

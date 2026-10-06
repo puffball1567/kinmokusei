@@ -9,6 +9,23 @@ const (
 	globalBindingChecked
 )
 
+func (c *Checker) resolveAnnotatedBindingType(symbol valueSymbol) valueSymbol {
+	if symbol.declaration == nil || !symbol.declaration.Type.IsSpecified() {
+		return symbol
+	}
+	// A non-scalar annotation establishes the type without its initializer.
+	// In particular, constant len/cap must not demand runtime initialization.
+	// Scalar bindings still need ordinary checking to establish constant values.
+	dependency := c.initializerChecker()
+	typeInfo := dependency.resolveType(symbol.declaration.Type)
+	c.finishInitializerCheck(dependency)
+	if typeInfo.Kind != Invalid && !isScalarConstantType(typeInfo) {
+		symbol.typeInfo, symbol.declaredType = typeInfo, typeInfo
+		c.globals[symbol.declaration.Name] = symbol
+	}
+	return symbol
+}
+
 // Resolve dependencies on demand through ordinary lexical name lookup. Each
 // initializer/body is checked once; this changes neither declaration order nor
 // runtime initialization. A visiting binding retains its predeclared signature,
@@ -47,10 +64,12 @@ func (c *Checker) initializerChecker() *Checker {
 		methodTypeParameters:     c.methodTypeParameters,
 		validFallthrough:         c.validFallthrough,
 		constantValues:           c.constantValues,
+		arrayLengthChecks:        c.arrayLengthChecks,
 		globalDependencies:       c.globalDependencies,
 		globalBindingChecks:      c.globalBindingChecks,
 		classConstantChecks:      c.classConstantChecks,
 		classConstantValues:      c.classConstantValues,
+		enumChecks:               c.enumChecks,
 		resultErrorUses:          c.resultErrorUses,
 		memberFlow:               map[memberFlowKey]memberFlowState{},
 		memberTypes:              map[memberFlowKey]Type{},

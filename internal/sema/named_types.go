@@ -301,6 +301,21 @@ func enumMemberGoName(enumName, memberName string) string {
 	return enumName + memberGoName(memberName, ast.Public)
 }
 
+func (c *Checker) ensureEnumChecked(decl *ast.EnumDecl) {
+	switch c.enumChecks[decl] {
+	case globalBindingChecking:
+		c.report(decl.NameSpan, "enum has an initialization cycle")
+		return
+	case globalBindingChecked:
+		return
+	}
+	c.enumChecks[decl] = globalBindingChecking
+	dependency := c.initializerChecker()
+	dependency.checkEnum(decl)
+	c.finishInitializerCheck(dependency)
+	c.enumChecks[decl] = globalBindingChecked
+}
+
 func (c *Checker) checkEnum(declaration *ast.EnumDecl) {
 	symbol := c.nativeTypes[declaration.Name]
 	typeInfo := c.resolveNativeType(symbol)

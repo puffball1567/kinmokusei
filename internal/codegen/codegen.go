@@ -53,6 +53,19 @@ func GenerateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	}
 	if program.UsesUTF8 && !seenImports["unicode/utf8"] {
 		imports = append(imports, &goast.ImportSpec{Name: goast.NewIdent(utf8Alias), Path: &goast.BasicLit{Kind: token.STRING, Value: `"unicode/utf8"`}})
+		seenImports["unicode/utf8"] = true
+	}
+	// Constant length expressions no longer occur in the generated types.
+	// Retain their packages' initialization without an unused namespace alias.
+	for _, imported := range program.Imports {
+		if !imported.Go || !imported.UsedByArrayLength || seenImports[imported.Path] {
+			continue
+		}
+		seenImports[imported.Path] = true
+		imports = append(imports, &goast.ImportSpec{
+			Name: goast.NewIdent("_"),
+			Path: &goast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("%q", imported.Path)},
+		})
 	}
 	if len(imports) != 0 {
 		file.Decls = append(file.Decls, &goast.GenDecl{Tok: token.IMPORT, Specs: imports})

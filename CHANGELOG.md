@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Accept compile-time integer expressions in fixed-array type lengths, including
+  source/imported constants, enum members, class static constants and constant
+  `len`/`cap`/`min`/`max`. Fold lengths into ordinary Go array types while preserving
+  source definition/reference/rename navigation. Reject runtime lengths, negative
+  or fractional values, target-width overflow and declaration cycles.
+
 ## [0.4.6] - 2026-10-04
 
 - Preserve verified-text storage checks through source structural interfaces

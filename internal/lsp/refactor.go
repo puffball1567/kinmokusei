@@ -420,6 +420,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		}
 		add(ref.QualifierSpan, ref.QualifierDeclaration)
 		add(ref.NameSpan, ref.ResolvedDeclaration)
+		walkExpression(ref.FixedLengthExpression)
 		for index := range ref.GenericArguments {
 			walkType(&ref.GenericArguments[index])
 		}

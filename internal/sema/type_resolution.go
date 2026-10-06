@@ -95,6 +95,9 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if ref.IsFixedArray() {
+			if !c.resolveArrayLength(ref) {
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 			if !c.integerConstantFitsFixedType(big.NewInt(*ref.FixedLength), builtins["int"]) {
 				c.report(ref.Span, "array length is out of range for int")
 				return Type{Kind: Invalid, Name: "<invalid>"}
@@ -340,7 +343,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, fmt.Sprintf(`Go type %s.%s uses unsafe.Pointer; set [go.interop] unsafe = "allow" to use it`, ref.Qualifier, ref.Name))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		imported.declaration.Used = true
+		c.markGoImportUsed(imported.declaration)
 		alias := imported.declaration.Alias
 		if imported.declaration.ResolvedAlias != "" {
 			alias = imported.declaration.ResolvedAlias

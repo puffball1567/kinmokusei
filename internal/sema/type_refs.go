@@ -11,10 +11,12 @@ import (
 func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 	var activeTypeParameters map[string]source.Span
 	var visitType func(*ast.TypeRef)
+	var visitExpression func(ast.Expression)
 	visitType = func(ref *ast.TypeRef) {
 		if ref == nil {
 			return
 		}
+		visitExpression(ref.FixedLengthExpression)
 		if ref.Qualifier == "" {
 			if declaration, ok := activeTypeParameters[ref.Name]; ok {
 				ref.TypeParameter = true
@@ -76,7 +78,6 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitType(parameters[index].Constraint)
 		}
 	}
-	var visitExpression func(ast.Expression)
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
