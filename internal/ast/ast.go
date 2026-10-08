@@ -34,10 +34,13 @@ type ImportDecl struct {
 	AliasSpan      source.Span
 	ResolvedAlias  string
 	Used           bool
-	Path           string
-	ResolvedPath   string
-	PathSpan       source.Span
-	Span           source.Span
+	// UsedByArrayLength preserves package initialization when source length
+	// expressions are folded and no qualified reference survives in Go output.
+	UsedByArrayLength bool
+	Path              string
+	ResolvedPath      string
+	PathSpan          source.Span
+	Span              source.Span
 }
 
 func (d ImportDecl) GetSpan() source.Span { return d.Span }
@@ -65,12 +68,15 @@ type TypeRef struct {
 	GenericArguments     []TypeRef
 	Element              *TypeRef
 	FixedLength          *int64
-	Pointee              *TypeRef
-	Parameters           []TypeRef
-	Return               *TypeRef
-	ObjectFields         []ObjectTypeField
-	Object               bool
-	GoStruct             bool
+	// FixedLengthExpression retains source references for linking and tooling.
+	// Semantic checking writes the evaluated length through FixedLength.
+	FixedLengthExpression Expression
+	Pointee               *TypeRef
+	Parameters            []TypeRef
+	Return                *TypeRef
+	ObjectFields          []ObjectTypeField
+	Object                bool
+	GoStruct              bool
 	// GoInterface describes an anonymous interface type. GoResults is also used
 	// for source tuple result types; Go marks results reconstructed from Go
 	// signatures, while source declarations leave it unset.

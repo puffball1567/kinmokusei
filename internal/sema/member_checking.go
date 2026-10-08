@@ -64,6 +64,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 			identifier.ResolvedDeclaration = enumeration.declaration.NameSpan
+			c.ensureEnumChecked(enumeration.declaration)
 			expr.ResolvedDeclaration = member.NameSpan
 			expr.ResolvedName = enumMemberGoName(identifier.Name, member.Name)
 			expr.Static = true
@@ -72,6 +73,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		}
 		if class := c.classes[identifier.Name]; !shadowed && class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			if field, exists := class.fields[expr.Name]; exists && field.static {
+				field = c.resolveStaticFieldType(field)
 				expr.Static, expr.Addressable = true, true
 				expr.ResolvedName, expr.ResolvedDeclaration = field.goName, field.declarationSpan
 				identifier.ResolvedDeclaration = class.declarationSpan
@@ -83,6 +85,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				if field.declaration != nil && field.declaration.Constant {
 					expr.Constant, expr.Addressable = true, false
 					c.ensureClassConstantChecked(field.declaringClass, field.declaration)
+					field.typeInfo = c.classes[field.declaringClass].fields[expr.Name].typeInfo
 					if value, known := c.classConstantValues[field.declaration]; known {
 						c.constantValues[expr] = value
 					}

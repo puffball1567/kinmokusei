@@ -25,10 +25,41 @@ description: Precise Kinmokusei type representations, identity, assignability, g
 | Result | `Result<T>` | Function return `(T, error)` effect |
 | Task | `Task<T>` | Compiler-tracked local task state |
 
-Parentheses and generic brackets disambiguate nested shapes. A fixed array type
-currently requires a non-negative representable integer literal for its length,
-not a constant name or expression. `Result` and `Task` have restricted positions
-described below.
+Parentheses and generic brackets disambiguate nested shapes. `Result` and `Task`
+have restricted positions described below.
+
+### Fixed-array lengths
+
+On the development branch (not yet in v0.4.6), `[N]T` accepts a compile-time
+integer expression for `N`, not just an integer literal. The value must be
+non-negative and fit the selected Go target's `int`. Integer-valued untyped
+floating/complex constants are allowed; typed floating values are not. Length
+is part of type identity: `[1 + 2]int` and `[3]int` are the same type.
+
+<<< ../snippets/array-type-lengths.km{ts}
+
+The expression can use source or imported Go constants, enum members and
+accessible static class constants, including forward-declared constants.
+Ordinary constant arithmetic/conversions and constant `len`, `cap`, `min` and
+`max` use the same rules as value expressions. `len("湯")` is three UTF-8 bytes,
+not one code point. Compile-time lengths produce ordinary numeric Go array
+types; there is no runtime allocation or expression evaluation for the length.
+
+A `const` initialized by a runtime call is not a compile-time constant. Function
+parameters and `let` scalar bindings likewise cannot supply runtime lengths:
+
+<<< ../snippets-invalid/array-type-runtime-length.km{ts}
+
+`len`/`cap` of a concrete array or array pointer can be constant even when the
+array is mutable or the pointer is nil. An explicitly annotated global array's
+initializer is not needed to obtain its length. Calls or channel receives inside
+the operand make these operations nonconstant; a generic type-set value also
+does not supply a constant length. Declaration cycles are rejected:
+
+<<< ../snippets-invalid/array-type-length-cycle.km{ts}
+
+The released v0.4.6 compiler requires a non-negative representable integer literal
+in `[N]T`. Both versions reject negative lengths and integer overflow.
 
 ## Built-in correspondence
 

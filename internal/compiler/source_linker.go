@@ -69,7 +69,7 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		}
 	case *ast.VariableDecl:
 		original := declaration.Name
-		linker.linkType(&declaration.Type, visible)
+		linker.linkType(&declaration.Type, visible, nil)
 		linker.linkExpression(declaration.Value, visible, nil)
 		declaration.Name = declarations[original]
 	case *ast.FunctionDecl:
@@ -81,9 +81,9 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		linker.linkTypeParameters(declaration.TypeParameters, functionVisible)
 		locals := linker.parameterNames(declaration.Parameters)
 		for i := range declaration.Parameters {
-			linker.linkType(&declaration.Parameters[i].Type, functionVisible)
+			linker.linkType(&declaration.Parameters[i].Type, functionVisible, nil)
 		}
-		linker.linkType(&declaration.ReturnType, functionVisible)
+		linker.linkType(&declaration.ReturnType, functionVisible, nil)
 		linker.linkBlock(declaration.Body, functionVisible, locals)
 		declaration.Name = declarations[original]
 	case *ast.MethodDecl:
@@ -94,11 +94,11 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		linker.linkTypeParameters(declaration.TypeParameters, methodVisible)
 		locals := linker.parameterNames(declaration.Parameters)
 		linker.bindLocal(locals, declaration.ReceiverName)
-		linker.linkType(&declaration.ReceiverType, methodVisible)
+		linker.linkType(&declaration.ReceiverType, methodVisible, nil)
 		for i := range declaration.Parameters {
-			linker.linkType(&declaration.Parameters[i].Type, methodVisible)
+			linker.linkType(&declaration.Parameters[i].Type, methodVisible, nil)
 		}
-		linker.linkType(&declaration.ReturnType, methodVisible)
+		linker.linkType(&declaration.ReturnType, methodVisible, nil)
 		linker.linkBlock(declaration.Body, methodVisible, locals)
 	case *ast.ClassDecl:
 		original := declaration.Name
@@ -112,24 +112,24 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		}
 		linker.linkTypeParameters(declaration.TypeParameters, classVisible)
 		if declaration.Base != nil {
-			linker.linkType(declaration.Base, classVisible)
+			linker.linkType(declaration.Base, classVisible, nil)
 		}
 		for i := range declaration.Implements {
-			linker.linkType(&declaration.Implements[i], classVisible)
+			linker.linkType(&declaration.Implements[i], classVisible, nil)
 		}
 		for i := range declaration.Fields {
 			fieldVisible := classVisible
 			if declaration.Fields[i].Static {
 				fieldVisible = visible
 			}
-			linker.linkType(&declaration.Fields[i].Type, fieldVisible)
+			linker.linkType(&declaration.Fields[i].Type, fieldVisible, nil)
 			linker.linkExpression(declaration.Fields[i].Initializer, fieldVisible, nil)
 		}
 		if declaration.Constructor != nil {
 			locals := linker.parameterNames(declaration.Constructor.Parameters)
 			linker.bindLocal(locals, "this")
 			for i := range declaration.Constructor.Parameters {
-				linker.linkType(&declaration.Constructor.Parameters[i].Type, classVisible)
+				linker.linkType(&declaration.Constructor.Parameters[i].Type, classVisible, nil)
 			}
 			linker.linkBlock(declaration.Constructor.Body, classVisible, locals)
 		}
@@ -147,9 +147,9 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 				linker.bindLocal(locals, "this")
 			}
 			for i := range method.Parameters {
-				linker.linkType(&method.Parameters[i].Type, methodVisible)
+				linker.linkType(&method.Parameters[i].Type, methodVisible, nil)
 			}
-			linker.linkType(&method.ReturnType, methodVisible)
+			linker.linkType(&method.ReturnType, methodVisible, nil)
 			linker.linkBlock(method.Body, methodVisible, locals)
 		}
 		declaration.Name = declarations[original]
@@ -161,7 +161,7 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		}
 		linker.linkTypeParameters(declaration.TypeParameters, structVisible)
 		for i := range declaration.Fields {
-			linker.linkType(&declaration.Fields[i].Type, structVisible)
+			linker.linkType(&declaration.Fields[i].Type, structVisible, nil)
 		}
 		for _, method := range declaration.Methods {
 			methodVisible := cloneModuleNames(structVisible)
@@ -172,9 +172,9 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 			locals := linker.parameterNames(method.Parameters)
 			linker.bindLocal(locals, "this")
 			for i := range method.Parameters {
-				linker.linkType(&method.Parameters[i].Type, methodVisible)
+				linker.linkType(&method.Parameters[i].Type, methodVisible, nil)
 			}
-			linker.linkType(&method.ReturnType, methodVisible)
+			linker.linkType(&method.ReturnType, methodVisible, nil)
 			linker.linkBlock(method.Body, methodVisible, locals)
 		}
 		declaration.Name = declarations[original]
@@ -185,11 +185,11 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 			bindTypeParameter(typeVisible, parameter.Name)
 		}
 		linker.linkTypeParameters(declaration.TypeParameters, typeVisible)
-		linker.linkType(&declaration.Underlying, typeVisible)
+		linker.linkType(&declaration.Underlying, typeVisible, nil)
 		declaration.Name = declarations[original]
 	case *ast.EnumDecl:
 		original := declaration.Name
-		linker.linkType(&declaration.Underlying, visible)
+		linker.linkType(&declaration.Underlying, visible, nil)
 		for index := range declaration.Members {
 			linker.linkExpression(declaration.Members[index].Value, visible, nil)
 		}
@@ -202,16 +202,16 @@ func (linker *sourceLinker) linkDeclaration(declaration ast.Declaration, declara
 		}
 		linker.linkTypeParameters(declaration.TypeParameters, interfaceVisible)
 		for index := range declaration.Bases {
-			linker.linkType(&declaration.Bases[index], interfaceVisible)
+			linker.linkType(&declaration.Bases[index], interfaceVisible, nil)
 		}
 		for index := range declaration.Terms {
-			linker.linkType(&declaration.Terms[index].Type, interfaceVisible)
+			linker.linkType(&declaration.Terms[index].Type, interfaceVisible, nil)
 		}
 		for i := range declaration.Methods {
 			for j := range declaration.Methods[i].Parameters {
-				linker.linkType(&declaration.Methods[i].Parameters[j].Type, interfaceVisible)
+				linker.linkType(&declaration.Methods[i].Parameters[j].Type, interfaceVisible, nil)
 			}
-			linker.linkType(&declaration.Methods[i].ReturnType, interfaceVisible)
+			linker.linkType(&declaration.Methods[i].ReturnType, interfaceVisible, nil)
 		}
 		declaration.Name = declarations[original]
 	}
@@ -223,7 +223,7 @@ func (linker *sourceLinker) linkTypeParameters(parameters []ast.TypeParameter, v
 			linker.lexicalNames[parameters[index].Name] = true
 		}
 		if parameters[index].Constraint != nil {
-			linker.linkType(parameters[index].Constraint, visible)
+			linker.linkType(parameters[index].Constraint, visible, nil)
 		}
 	}
 }
@@ -283,7 +283,7 @@ func (linker *sourceLinker) linkBlock(block *ast.BlockStmt, visible moduleNames,
 func (linker *sourceLinker) linkStatement(statement ast.Statement, visible moduleNames, locals localBindings) {
 	switch statement := statement.(type) {
 	case *ast.VariableDecl:
-		linker.linkType(&statement.Type, visible)
+		linker.linkType(&statement.Type, visible, locals)
 		if _, arrow := statement.Value.(*ast.ArrowExpr); arrow {
 			locals = cloneLocalBindings(locals)
 			linker.bindLocal(locals, statement.Name)
@@ -303,7 +303,7 @@ func (linker *sourceLinker) linkStatement(statement ast.Statement, visible modul
 	case *ast.TryStmt:
 		linker.linkBlock(statement.Body, visible, locals)
 		for _, clause := range statement.Catches {
-			linker.linkType(&clause.Type, visible)
+			linker.linkType(&clause.Type, visible, locals)
 			catchLocals := cloneLocalBindings(locals)
 			if clause.Name != "_" {
 				linker.bindLocal(catchLocals, clause.Name)
@@ -357,7 +357,7 @@ func (linker *sourceLinker) linkStatement(statement ast.Statement, visible modul
 		}
 	case *ast.ForRangeStmt:
 		for index := range statement.Bindings {
-			linker.linkType(&statement.Bindings[index].Type, visible)
+			linker.linkType(&statement.Bindings[index].Type, visible, locals)
 		}
 		linker.linkExpression(statement.Source, visible, locals)
 		loopLocals := cloneLocalBindings(locals)
@@ -398,7 +398,7 @@ func (linker *sourceLinker) linkStatement(statement ast.Statement, visible modul
 		linker.linkExpression(statement.Value, visible, locals)
 		for i := range statement.Cases {
 			clause := &statement.Cases[i]
-			linker.linkType(&clause.Type, visible)
+			linker.linkType(&clause.Type, visible, locals)
 			caseLocals := cloneLocalBindings(locals)
 			if !clause.Nil && !clause.Default && clause.Name != "_" {
 				linker.bindLocal(caseLocals, clause.Name)
@@ -433,7 +433,7 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 	case *ast.CallExpr:
 		linker.linkExpression(expression.Callee, visible, locals)
 		for i := range expression.TypeArguments {
-			linker.linkType(&expression.TypeArguments[i], visible)
+			linker.linkType(&expression.TypeArguments[i], visible, locals)
 		}
 		for _, argument := range expression.Arguments {
 			linker.linkExpression(argument, visible, locals)
@@ -441,10 +441,10 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 	case *ast.ArrowExpr:
 		arrowLocals := cloneLocalBindings(locals)
 		for i := range expression.Parameters {
-			linker.linkType(&expression.Parameters[i].Type, visible)
+			linker.linkType(&expression.Parameters[i].Type, visible, locals)
 			linker.bindLocal(arrowLocals, expression.Parameters[i].Name)
 		}
-		linker.linkType(expression.ReturnType, visible)
+		linker.linkType(expression.ReturnType, visible, locals)
 		linker.linkExpression(expression.ExpressionBody, visible, arrowLocals)
 		linker.linkBlock(expression.BlockBody, visible, arrowLocals)
 	case *ast.ArrayLiteralExpr:
@@ -456,7 +456,7 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 			linker.linkExpression(field.Value, visible, locals)
 		}
 	case *ast.GoCompositeLiteralExpr:
-		linker.linkType(&expression.Type, visible)
+		linker.linkType(&expression.Type, visible, locals)
 		for _, field := range expression.Fields {
 			linker.linkExpression(field.Value, visible, locals)
 		}
@@ -473,7 +473,7 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 	case *ast.NewExpr:
 		expression.ClassName = linker.name(expression.ClassName, expression.Span, visible)
 		for index := range expression.TypeArguments {
-			linker.linkType(&expression.TypeArguments[index], visible)
+			linker.linkType(&expression.TypeArguments[index], visible, locals)
 		}
 		for _, argument := range expression.Arguments {
 			linker.linkExpression(argument, visible, locals)
@@ -491,7 +491,7 @@ func cloneModuleNames(values moduleNames) moduleNames {
 	return cloned
 }
 
-func (linker *sourceLinker) linkType(ref *ast.TypeRef, visible moduleNames) {
+func (linker *sourceLinker) linkType(ref *ast.TypeRef, visible moduleNames, locals localBindings) {
 	if ref == nil {
 		return
 	}
@@ -501,19 +501,20 @@ func (linker *sourceLinker) linkType(ref *ast.TypeRef, visible moduleNames) {
 		ref.Name = linker.name(ref.Name, ref.Span, visible)
 	}
 	ref.Qualifier = linker.name(ref.Qualifier, ref.Span, visible)
+	linker.linkExpression(ref.FixedLengthExpression, visible, locals)
 	for i := range ref.GenericArguments {
-		linker.linkType(&ref.GenericArguments[i], visible)
+		linker.linkType(&ref.GenericArguments[i], visible, locals)
 	}
-	linker.linkType(ref.Element, visible)
-	linker.linkType(ref.Pointee, visible)
+	linker.linkType(ref.Element, visible, locals)
+	linker.linkType(ref.Pointee, visible, locals)
 	for i := range ref.Parameters {
-		linker.linkType(&ref.Parameters[i], visible)
+		linker.linkType(&ref.Parameters[i], visible, locals)
 	}
-	linker.linkType(ref.Return, visible)
+	linker.linkType(ref.Return, visible, locals)
 	for i := range ref.GoResults {
-		linker.linkType(&ref.GoResults[i], visible)
+		linker.linkType(&ref.GoResults[i], visible, locals)
 	}
 	for i := range ref.ObjectFields {
-		linker.linkType(&ref.ObjectFields[i].Type, visible)
+		linker.linkType(&ref.ObjectFields[i].Type, visible, locals)
 	}
 }

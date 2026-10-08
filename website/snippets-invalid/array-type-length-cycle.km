@@ -1,0 +1,2 @@
+const Width = len(values)
+const values: [Width]int = []

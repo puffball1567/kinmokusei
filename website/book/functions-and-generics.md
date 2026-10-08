@@ -383,6 +383,32 @@ diagnosed if conversion would lose source type information, including through
 later generic substitutions. Existing collection-only nullable inference is
 unchanged.
 
+### Native values with Go method contracts
+
+Development branch addition: the following example is not accepted by v0.4.6.
+
+<<< ../snippets/native-constraint-methods.km{ts}
+
+This prints `gold`. The native interface is the argument type, while the generic
+bound remains Go's `fmt.Stringer`. Native classes, structs and distinct defined
+types can satisfy the same bound through compatible public instance methods.
+Inherited methods and generic owner signatures are checked after substitution.
+Dependent arguments such as `E` in `api.Getter<E>` can be inferred from those
+method signatures; getters/setters count through their generated `GetX`/`SetX`
+names. Finite type sets and `comparable` remain additional requirements.
+
+A struct value has only its value-receiver methods; use a pointer for a
+pointer-receiver requirement. Private/protected, static and method-local generic
+methods do not satisfy a Go method contract. Parameter and result contracts are
+invariant: `string` is not interchangeable with Go's raw `bstring`, including
+inside collections and callbacks, and nullable signatures cannot be erased.
+Compatible `Result<T>`/`Result<void>` methods implement `(T, error)`/`error`
+returns, and variadic signatures must agree.
+
+This addition concerns source generic declarations, not direct imported Go
+generic calls. Native source interfaces still cannot be constraint operands
+(for example `constraint Named = LabelView`); use the Go contract as the bound.
+
 Use `&`, not a union, to combine method contracts:
 
 <<< ../snippets-invalid/constraint-method-union.km{ts}

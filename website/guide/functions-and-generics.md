@@ -98,6 +98,14 @@ Ordinary Go interfaces can add method requirements:
 integer operators and `value.String()`. `constraint Stream = io.Reader & io.Closer`
 combines method contracts without restricting the underlying type.
 
+On the development branch (not in v0.4.6), native classes, structs/pointers,
+source interface values and distinct types can satisfy these Go method contracts
+on source generic declarations. Only compatible public instance methods count;
+pointer-only struct methods require a pointer. Generic owner substitution and
+dependent method-based inference preserve text and nullability contracts. See
+the [manual](../book/functions-and-generics#native-values-with-go-method-contracts)
+for an executable example and the remaining boundaries.
+
 ## Generic named types
 
 Classes, structs, interfaces, and distinct defined types may declare parameters and must be fully instantiated in type positions:

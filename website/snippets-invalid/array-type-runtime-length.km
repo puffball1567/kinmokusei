@@ -1,0 +1,4 @@
+function dynamic(size: int): int {
+  const values: [size]int = []
+  return len(values)
+}

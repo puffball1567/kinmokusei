@@ -189,6 +189,11 @@ func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings
 	if !ok {
 		goArgument, ok = c.goTypeForNativeStorage(argument)
 	}
+	if constraint.NumMethods() != 0 {
+		if methods, nativeBindings, pointer, native := c.nativeConstraintMethods(argument); native {
+			return ok && nativeMethodsSatisfyConstraint(methods, nativeBindings, pointer, constraint) && gotypes.Satisfies(goArgument, constraintWithoutMethods(constraint))
+		}
+	}
 	if ok {
 		return gotypes.Satisfies(goArgument, constraint)
 	}

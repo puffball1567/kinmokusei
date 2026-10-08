@@ -1,0 +1,19 @@
+import go { Println } from "fmt"
+
+const Width = 3
+alias Row = [Width + 1]int
+
+class Limits {
+  public static const count: int = 4
+}
+
+function row(): [Limits.count]int {
+  return [10, 20, 30, 40]
+}
+
+function main(): void {
+  const values: Row = row()
+  const bytes: [len("湯")]byte = [1, 2, 3]
+  const smaller: [min(Width, 2)]int = [7, 8]
+  Println(len(values), values[3], len(bytes), len(smaller))
+}

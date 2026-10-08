@@ -38,8 +38,18 @@ complete language compatibility. OOP improvements continue during v0.4.x.
 
 ## Unreleased: development branch
 
-No additional unreleased changes are listed here. The text-contract and FFI
-changes formerly documented as development-only are included in v0.4.6.
+Fixed-array type lengths accept compile-time integer expressions on the development
+branch. Source and Go constants, enum members, static class constants and constant
+`len`/`cap`/`min`/`max` can supply the length; runtime values, negative lengths and
+target-width overflow are rejected. Length references participate in definition
+jump, find-references and rename. This addition is not included in v0.4.6.
+
+Source generic declarations also accept native classes, structs/pointers,
+source interface values and distinct types that satisfy Go method contracts.
+Checks include inherited/generic signatures, dependent method-based inference,
+getter/setter names, `Result`/variadic lowering, pointer method sets and all
+remaining type-set requirements. Private/static/generic methods and mismatched
+text/nullability contracts are rejected. This addition is not in v0.4.6 either.
 
 ## v0.4.6 highlights
 

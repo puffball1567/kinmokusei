@@ -55,8 +55,10 @@ Use `public static const limit: int = 32;` for a typed class constant and read i
 as `ClassName.limit`. Its initializer must be a known compile-time numeric,
 string or boolean value; runtime calls and mutable values are rejected. Constants
 are inherited with the same visibility rules and cannot be assigned or addressed.
-Public constants become Go constants, not storage or accessor calls. Kinmokusei
-array type lengths still require integer literals.
+Public constants become Go constants, not storage or accessor calls. On the
+development branch, an accessible integer constant can also supply a Kinmokusei
+array type length such as `[ClassName.limit]int`; v0.4.6 still requires integer
+literals there. See the [array-length rules](../reference/types#fixed-array-lengths).
 
 Instance properties use `public get value(): int { ... }` and
 `private set value(next: int) { ... }`. Read with `instance.value` and assign

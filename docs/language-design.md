@@ -482,7 +482,7 @@ import go fmt from "fmt";
 import go io from "io";
 constraint Printable = ~int & fmt.Stringer;
 constraint ReadClosable = io.Reader & io.Closer;
-function show<T extends Printable>(value: T): string {
+function show<T extends Printable>(value: T): bstring {
   return (value + value).String();
 }
 ```
@@ -498,6 +498,19 @@ editor completions. Concrete type arguments must satisfy both the finite type
 set, when present, and every required method; declaration alone need not prove
 that an implementor exists. A nullable value cannot satisfy a method-bearing
 bound without first being narrowed.
+
+On the development branch (not yet in v0.4.6), source generic functions also
+accept native classes, structs, source interface values and distinct types whose
+public instance methods satisfy the Go contract. Owner type arguments and
+inherited methods are substituted before checking; dependent parameters such as
+`E` in `api.Getter<E>` can be inferred from those signatures. Public accessors
+participate through their generated `GetX`/`SetX` methods. A struct value cannot
+satisfy a pointer-receiver requirement; pass its pointer instead. Static,
+private and method-local generic methods do not implement a Go method contract.
+Signatures are invariant, including nested `string`/`bstring` and nullability;
+compatible `Result<T>` methods retain their `(T, error)` lowering.
+This does not enable native source interfaces as constraint operands or remove
+the separate restrictions on direct imported Go generic calls.
 
 An operand carrying method requirements cannot appear in a `|` union, even
 through an intermediate source constraint; combine it using `&` instead.

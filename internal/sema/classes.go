@@ -94,6 +94,9 @@ func (c *Checker) installExceptionBuiltin() {
 }
 
 func (c *Checker) declareClass(decl *ast.ClassDecl) {
+	previousClass := c.currentClass
+	c.currentClass = decl.Name
+	defer func() { c.currentClass = previousClass }()
 	predeclared := c.classes[decl.Name]
 	symbol := &classSymbol{
 		fields: map[string]fieldSymbol{}, methods: map[string]methodSymbol{}, implements: map[string]bool{}, declarationSpan: decl.NameSpan, final: decl.Final,
@@ -103,6 +106,11 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		symbol.typeParameters = predeclared.typeParameters
 		symbol.typeParamScope = predeclared.typeParamScope
 		symbol.goNamed = predeclared.goNamed
+		for name, field := range predeclared.fields {
+			if field.declaringClass == decl.Name {
+				symbol.fields[name] = field
+			}
+		}
 	}
 	c.classes[decl.Name] = symbol
 	if decl.Abstract && decl.Final {
@@ -174,7 +182,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			c.report(span, fmt.Sprintf("field %q is reserved for virtual dispatch", name))
 			return
 		}
-		if _, exists := symbol.fields[name]; exists {
+		if previous, exists := symbol.fields[name]; exists && previous.declarationSpan != declarationSpan {
 			c.report(span, fmt.Sprintf("duplicate field %q", name))
 			return
 		}
