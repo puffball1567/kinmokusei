@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Allow native classes, struct values/pointers, source interface values and
+  distinct defined types to satisfy Go method constraints on source generics.
+  Substitute generic/inherited method signatures and infer dependent arguments
+  from their methods. Preserve public instance method sets, pointer-receiver
+  rules, `Result` lowering, variadics, finite type sets and `comparable`;
+  reject mismatched verified-text/nullability contracts instead of erasing them.
+
 - Accept compile-time integer expressions in fixed-array type lengths, including
   source/imported constants, enum members, class static constants and constant
   `len`/`cap`/`min`/`max`. Fold lengths into ordinary Go array types while preserving

@@ -67,3 +67,17 @@ func TestConstraintMethodCompletionScopes(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeConstraintMethodCallSignature(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "entry.km")
+	input := `import go fmt from "fmt";
+function show<T extends fmt.Stringer>(value:T):bstring{return value.String();}
+class Label{public function string():bstring{return "ok";}}
+function use(value:Label):bstring{return show(value);}
+`
+	label, _, _ := signatureResult(t, signatureHelpAt(t, path, input, positionOf(input, "value);}", 0)))
+	if label != "show(value: Label): bstring" {
+		t.Fatalf("signature=%q", label)
+	}
+}

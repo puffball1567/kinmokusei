@@ -215,6 +215,15 @@ single inheritance, virtual/override/final methods, construction-phase dispatch,
 identity-preserving class upcasts/downcasts, and public generated Go APIs.
 Abstract classes are not necessary to use these features.
 
+Development branch addition (not yet in v0.4.6): native class, struct/pointer,
+source interface and distinct-type values can satisfy Go method requirements on
+source generic declarations. Method metadata preserves inherited/generic owner
+substitution, dependent inference, getter/setter names, Result/variadic lowering,
+visibility, pointer method sets, text/nullability and type-set requirements.
+Differential coverage: `native_constraint_methods_test.go`. Native source
+interfaces as constraint operands and direct Go generic-call restrictions remain
+separate work.
+
 ## Syntax and contract additions in v0.4.0
 
 Semantic refactoring and source-encoding diagnostics accompany these additions

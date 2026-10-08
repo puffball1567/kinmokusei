@@ -210,6 +210,9 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 		}
 		for _, parameter := range parameters {
 			if value := bindings[parameter.GoType]; value.Kind != Invalid {
+				if constraint := underlyingGoInterface(parameter.GoType.(*gotypes.TypeParam).Constraint()); constraint != nil {
+					c.inferNativeConstraintMethods(constraint, value, bindings)
+				}
 				if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 					_ = c.inferNativeTypeArguments(shape, c.constraintArgumentShape(value), bindings)
 				}

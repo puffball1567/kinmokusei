@@ -44,6 +44,13 @@ branch. Source and Go constants, enum members, static class constants and consta
 target-width overflow are rejected. Length references participate in definition
 jump, find-references and rename. This addition is not included in v0.4.6.
 
+Source generic declarations also accept native classes, structs/pointers,
+source interface values and distinct types that satisfy Go method contracts.
+Checks include inherited/generic signatures, dependent method-based inference,
+getter/setter names, `Result`/variadic lowering, pointer method sets and all
+remaining type-set requirements. Private/static/generic methods and mismatched
+text/nullability contracts are rejected. This addition is not in v0.4.6 either.
+
 ## v0.4.6 highlights
 
 Use matching v0.4.6 compiler and editor artifacts. This release includes an
