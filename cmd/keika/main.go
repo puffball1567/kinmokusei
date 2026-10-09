@@ -557,8 +557,13 @@ func runEmitGo(args []string) int {
 	flags := flag.NewFlagSet("emit-go", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	output := flags.String("o", "", "write generated Go to this file instead of stdout")
+	sourceMap := flags.String("source-map", "", "write a versioned Go-to-Kinmokusei source map (requires -o)")
 	packageName := flags.String("package", "main", "generated Go package name")
 	if err := flags.Parse(args); err != nil {
+		return 2
+	}
+	if *sourceMap != "" && *output == "" {
+		fmt.Fprintln(os.Stderr, "emit-go -source-map requires -o")
 		return 2
 	}
 	sources, sourceErr := projectSources(flags.Args())
@@ -574,7 +579,16 @@ func runEmitGo(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	generated, diagnostics, err := compiler.EmitGo(sources, *packageName)
+	var generated []byte
+	var diagnostics []diagnostic.Diagnostic
+	var err error
+	var artifacts compiler.GoArtifacts
+	if *sourceMap != "" {
+		artifacts, diagnostics, err = compiler.EmitGoWithSourceMap(sources, *packageName)
+		generated = artifacts.GoSource
+	} else {
+		generated, diagnostics, err = compiler.EmitGo(sources, *packageName)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -583,7 +597,9 @@ func runEmitGo(args []string) int {
 		diagnostic.Write(os.Stderr, diagnostics)
 		return 1
 	}
-	if *output == "" {
+	if *sourceMap != "" {
+		err = artifacts.WriteFiles(*output, *sourceMap)
+	} else if *output == "" {
 		_, err = os.Stdout.Write(generated)
 	} else {
 		err = os.WriteFile(*output, generated, 0o644)

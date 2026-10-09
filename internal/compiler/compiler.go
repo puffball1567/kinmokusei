@@ -22,10 +22,11 @@ import (
 )
 
 type Result struct {
-	Program     *ast.Program
-	Diagnostics []diagnostic.Diagnostic
-	goImporter  gotypes.Importer
-	goSizes     gotypes.Sizes
+	Program      *ast.Program
+	Diagnostics  []diagnostic.Diagnostic
+	goImporter   gotypes.Importer
+	goSizes      gotypes.Sizes
+	sourceInputs map[string]sourceMapInput
 }
 
 type GoExport struct {
@@ -468,10 +469,10 @@ func CheckFilesWithOverlayInProject(paths []string, overlay map[string]string, p
 		allowed := loader.linkModules(ordered)
 		if len(loader.diagnostics) == 0 {
 			loader.diagnostics = append(loader.diagnostics, sema.CheckScopedWithGoImporterAndPolicy(loader.merged, allowed, goImporter, sema.GoInteropPolicy{AllowUnsafe: allowUnsafeGo, Sizes: sizes})...)
-			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes}, nil
+			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes, sourceInputs: loader.sourceInputs}, nil
 		}
 	}
-	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes}, nil
+	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes, sourceInputs: loader.sourceInputs}, nil
 }
 
 func goImporterForProgram(program *ast.Program, rootPaths []string, lockedRoot string, lockedTarget *project.BuildTarget) gotypes.Importer {
@@ -500,15 +501,16 @@ func goImporterForProgram(program *ast.Program, rootPaths []string, lockedRoot s
 }
 
 type moduleLoader struct {
-	exports     map[string]map[string]sourceExportBinding
-	states      map[string]int
-	programs    map[string]*ast.Program
-	paths       map[string]string
-	merged      *ast.Program
-	diagnostics []diagnostic.Diagnostic
-	linkBase    string
-	overlay     map[string]string
-	packages    *project.PackageGraph
+	exports      map[string]map[string]sourceExportBinding
+	states       map[string]int
+	programs     map[string]*ast.Program
+	paths        map[string]string
+	merged       *ast.Program
+	diagnostics  []diagnostic.Diagnostic
+	linkBase     string
+	overlay      map[string]string
+	packages     *project.PackageGraph
+	sourceInputs map[string]sourceMapInput
 }
 
 func (l *moduleLoader) load(path string, importedBy *ast.ImportDecl) error {
@@ -547,6 +549,10 @@ func (l *moduleLoader) loadSource(key, path, input string, importedBy *ast.Impor
 		return nil
 	}
 	l.states[key] = 1
+	if l.sourceInputs == nil {
+		l.sourceInputs = map[string]sourceMapInput{}
+	}
+	l.sourceInputs[path] = sourceMapInput{contents: input, embedded: embedded}
 	tokens, lexerDiagnostics := lexer.Lex(path, input)
 	program, parserDiagnostics := parser.Parse(tokens)
 	l.diagnostics = append(l.diagnostics, lexerDiagnostics...)
@@ -660,7 +666,7 @@ func WriteGeneratedModule(paths []string, packageName string) (string, []diagnos
 	if len(paths) == 0 {
 		return "", nil, fmt.Errorf("at least one source path is required")
 	}
-	generated, diagnostics, err := EmitGo(paths, packageName)
+	artifacts, diagnostics, err := EmitGoWithSourceMap(paths, packageName)
 	if err != nil || len(diagnostics) != 0 {
 		return "", diagnostics, err
 	}
@@ -672,7 +678,9 @@ func WriteGeneratedModule(paths []string, packageName string) (string, []diagnos
 	if err = os.MkdirAll(directory, 0o755); err != nil {
 		return "", nil, err
 	}
-	if err = os.WriteFile(filepath.Join(directory, "generated.go"), generated, 0o644); err != nil {
+	goPath := filepath.Join(directory, "generated.go")
+	mapPath := goPath + ".map.json"
+	if err = artifacts.WriteFiles(goPath, mapPath); err != nil {
 		return "", nil, err
 	}
 	generatedModule := filepath.Join(directory, "go.mod")

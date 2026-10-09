@@ -291,7 +291,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		})
 	}
 	if len(constructorStatements) != 0 {
-		body, err := generateBlock(&kinmokuseiAST.BlockStmt{Statements: constructorStatements})
+		body, err := generateBlock(&kinmokuseiAST.BlockStmt{Statements: constructorStatements, SourceMapping: class.Constructor != nil && class.Constructor.Body.SourceMapping})
 		if err != nil {
 			return nil, err
 		}

@@ -320,6 +320,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			} else {
 				body = &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{value}}}}
 			}
+			if expr.SourceMapping {
+				body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
+			}
 		}
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
 	case *kinmokuseiAST.ArrayLiteralExpr:

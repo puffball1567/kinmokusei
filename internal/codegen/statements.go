@@ -26,6 +26,7 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 				result.List = append(result.List, declaration)
 			}
 		}
+		statementStart := len(result.List)
 		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
 			if propagated, ok := variable.Value.(*kinmokuseiAST.PropagateExpr); ok {
 				generated, err := generatePropagationStatements(propagated, variable)
@@ -39,6 +40,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 						Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
 					})
 				}
+				if block.SourceMapping {
+					result.List = markSourceStatements(result.List, statementStart, stmt.GetSpan())
+				}
 				continue
 			}
 		}
@@ -49,6 +53,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 					return nil, err
 				}
 				result.List = append(result.List, generated...)
+				if block.SourceMapping {
+					result.List = markSourceStatements(result.List, statementStart, stmt.GetSpan())
+				}
 				continue
 			}
 		}
@@ -73,6 +80,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 					Rhs: []goast.Expr{goast.NewIdent(goName(binding.Name))},
 				})
 			}
+		}
+		if block.SourceMapping {
+			result.List = markSourceStatements(result.List, statementStart, stmt.GetSpan())
 		}
 	}
 	return result, nil

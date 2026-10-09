@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Emit versioned Go-to-`.km` source-map sidecars for compiler-managed builds
+  and optional `emit-go -source-map` output. Preserve physical Go coordinates,
+  capture checked-input hashes and stable source-origin IDs, and support
+  source-level failure lookup and cross-executable coverage consumers without
+  runtime instrumentation or `//line` directives.
+
 - Preserve explicit receiver parameters in method-expression signature help
   during incomplete calls, including parenthesized pointer types. Recover
   selector offsets across comments/whitespace and close nested delimiters
