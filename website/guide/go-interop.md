@@ -92,7 +92,7 @@ The compiler reads actual Go export/type data and preserves:
 - constants, variables, functions, and aliases;
 - basic, named, alias, anonymous struct, pointer, array, slice, map, and interface types;
 - public fields, tags, methods, addressability, and method sets;
-- multiple results, raw `error`, variadics, function and method values, and callbacks;
+- multiple results, raw `error`, variadics, function/method values, method expressions, and callbacks;
 - generic functions, named types, methods, constraints, and explicit/inferred type arguments;
 - channels and direction, `select`, `defer`, and goroutine calls.
 
@@ -108,6 +108,42 @@ let pointer: *http.Client = &client;
 ```
 
 `time.Duration` does not collapse into plain `int64`. Unsupported reachable shapes are diagnosed at the source use site; an unused advanced export does not reject an entire package.
+
+## Method values and method expressions
+
+::: info Available after v0.4.6
+Imported Go method expressions are implemented in the development version.
+Released v0.4.6 supports bound method values but not this new type-based form.
+:::
+
+A bound method value such as `buffer.Len` captures its receiver. A method
+expression such as `(*bytes.Buffer).Len` does not: its first argument is the
+explicit receiver. The resulting function can be stored or passed as a callback.
+
+<<< @/snippets/go-method-expressions.km
+
+`time.Time.IsZero` accepts a `time.Time`; `(*bytes.Buffer).Len` accepts a
+`*bytes.Buffer`. A named Go import alias can also serve as the receiver type,
+for example `import go { Time as Instant } from "time"` followed by
+`Instant.IsZero`. Interface types such as `io.Reader.Read` are supported and
+accept the interface value as the first argument.
+
+The receiver type's actual Go method set decides which methods are available.
+`bytes.Buffer.Len` is rejected because `Len` has a pointer receiver; a method
+expression never implicitly takes the address of its first argument. Promoted
+methods retain the outer receiver type. Fields are not method expressions.
+Variadics and multiple results keep their original Go signatures after the
+additional receiver parameter.
+
+Go nil behavior is unchanged: a nil-aware pointer method can accept `nil`, but
+calling a value method through a nil pointer or an interface method through a
+nil interface panics as in Go. This feature does not turn raw Go pointers into
+nullable-safe class references.
+
+Direct `<T>`/`[T]` receiver instantiation in a method expression is not yet
+supported. An exported Go alias of a concrete instantiation can be used instead;
+an uninstantiated generic type is rejected. These forms select imported Go
+methods, not Kinmokusei instance methods or class static methods.
 
 ## Multiple results and errors
 

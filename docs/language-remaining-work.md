@@ -32,6 +32,14 @@ versions and documented diagnostics. Intentional source/public API breaks
 normally require a minor release and migration notes. v0.4.6 is an explicit
 exception for the verified-text source/API migration.
 
+Imported Go method expressions now use the receiver's exact method set and
+prepend its type to the callable's parameter list. Value/pointer/interface and
+promoted methods, callbacks, variadics, multiple results, explicit nil behavior,
+editor completion and signature help have focused coverage and an independent
+Go oracle. Uninstantiated generic receivers are rejected; exported Go aliases of
+concrete instantiations work. Direct generic receiver instantiation and native
+source-type method expressions remain separate follow-up work.
+
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
 Go programs, and document deliberate source-language differences. Neither the

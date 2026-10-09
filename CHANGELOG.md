@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add imported Go method expressions (`pkg.Type.Method`, `(*pkg.Type).Method`
+  and named-import aliases) with an explicit first receiver argument. Preserve
+  value/pointer/interface and promoted method sets, variadics, multiple results,
+  callback assignment, evaluation order and Go nil/panic behavior. Check unsafe
+  policy and reject fields, ambiguous selectors and uninstantiated generic
+  receiver types. Add editor completion and explicit-receiver signature help.
+
 - Isolate closure-body nullable flow, loop exits and reachability from the
   enclosing body, with shared callable-flow boundaries for functions,
   constructors and methods. Check nullable mutation and Task return paths even

@@ -11,6 +11,9 @@ type Program struct {
 	// TypeParameterMethods is checked editor metadata keyed by parameter
 	// declaration identity. It does not participate in source syntax or emission.
 	TypeParameterMethods map[source.Span][]ObjectTypeField
+	// GoTypeExpressions records checked type-valued expressions for editor
+	// method-expression completion. It never changes runtime emission.
+	GoTypeExpressions map[source.Span]TypeRef
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool

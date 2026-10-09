@@ -139,6 +139,7 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 	}
 	applyGoQualifier(&result, imported.path, alias)
 	expression.ResolvedName = expression.Name
+	c.recordGoTypeExpression(expression, result)
 	return result
 }
 

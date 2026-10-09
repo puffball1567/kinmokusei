@@ -38,8 +38,11 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	}
 	var items []completionItem
 	if member {
-		items = goMemberCompletions(result, doc.Path, qualifier, prefix)
-		if !isGoPackageQualifier(result.Program, doc.Path, qualifier) {
+		if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, offset-len(prefix)-1); ok {
+			items = goMethodExpressionCompletions(result, doc.Path, ref, prefix)
+		} else if isGoPackageQualifier(result.Program, doc.Path, qualifier) {
+			items = goMemberCompletions(result, doc.Path, qualifier, prefix)
+		} else {
 			if receiver, ok := completionReceiverAt(result.Program, doc.Path, offset, qualifier); ok && goCompletionType(receiver.typeRef) {
 				items = goValueMemberCompletions(result, result.Program, doc.Path, receiver.typeRef, prefix)
 			} else {
