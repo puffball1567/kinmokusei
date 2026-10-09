@@ -26,12 +26,56 @@ func TestGoMethodExpressionSignatures(t *testing.T) {
 	}
 }
 
+func TestGoMethodExpressionIncompleteSignatures(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		input, receiver    string
+		parameters, active int
+	}{
+		{`import go time from "time";function f():boolean{return time.Time.IsZero(|`, "time.Time", 1, 0},
+		{`import go {Time as Instant} from "time";function f():boolean{return Instant.IsZero(|`, "time.Time", 1, 0},
+		{`import go bytes from "bytes";function f():void{let b:bytes.Buffer=bytes.Buffer{};(*bytes.Buffer).WriteString(&b, |`, "*bytes.Buffer", 2, 1},
+		{`import go io from "io";function f(v:io.Reader):void{io.Reader.Read(v, |`, "io.Reader", 2, 1},
+		{`import go time from "time";function f():boolean{return time.Time /* receiver */ . IsZero(|`, "time.Time", 1, 0},
+		{`import go bytes from "bytes";function f():void{let b:bytes.Buffer=bytes.Buffer{};((*bytes.Buffer)) /* receiver */ . WriteString(&b, |`, "*bytes.Buffer", 2, 1},
+	} {
+		t.Run(test.input, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "entry.km")
+			input := strings.Replace(test.input, "|", "", 1)
+			label, active, parameters := signatureResult(t, signatureHelpAt(t, path, input, positionOf(test.input, "|", 0)))
+			if !strings.Contains(label, "receiver: "+test.receiver) || len(parameters) != test.parameters || active != float64(test.active) {
+				t.Fatalf("label=%q active=%v parameters=%v", label, active, parameters)
+			}
+		})
+	}
+}
+
+func TestGoMethodExpressionIncompleteSignaturesRejectInvalidReceivers(t *testing.T) {
+	t.Parallel()
+	for _, input := range []string{
+		`import go bytes from "bytes";function f():void{bytes.Buffer.Len(`,
+		`import go io from "io";function f():void{(*io.Reader).Read(`,
+		`import go time from "time";function f():void{time.Time.Missing(`,
+		`import go http from "net/http";function f():void{(*http.Request).Method(`,
+		`import go {Time} from "time";function f(Time:int):void{Time.IsZero(`,
+		`import go time from "time";function f():void{const time={Time:1};time.Time.IsZero(`,
+	} {
+		t.Run(input, func(t *testing.T) {
+			message := signatureHelpAt(t, filepath.Join(t.TempDir(), "entry.km"), input, position{Character: len(input)})
+			if message["result"] != nil {
+				t.Fatalf("invalid receiver signature: %v", message)
+			}
+		})
+	}
+}
+
 func TestGoMethodExpressionCompletions(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct{ input, want, hidden string }{
 		{`import go time from "time";function f():void{const method=time.Time.Is|Zero;}`, "IsZero", ""},
 		{`import go bytes from "bytes";function f():void{const method=(*bytes.Buffer).|;}`, "Len", ""},
 		{`import go bytes from "bytes";const method=(*bytes.Buffer).Le|n;`, "Len", ""},
+		{`import go bytes from "bytes";const method=((*bytes.Buffer)) /* receiver */ . Le|n;`, "Len", ""},
 		{`import go bytes from "bytes";function f():void{const method=bytes.Buffer.|;}`, "", "Len"},
 		{`import go { Time as Instant } from "time";function f():void{const method=Instant.Is|Zero;}`, "IsZero", ""},
 		{`import go io from "io";function f():void{const method=io.Reader.Re|ad;}`, "Read", ""},

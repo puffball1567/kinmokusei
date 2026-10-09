@@ -31,6 +31,7 @@ type signatureHelpResult struct {
 type callContext struct {
 	Name            string
 	Qualifier       string
+	MemberDotOffset int
 	DisplayName     string
 	Constructor     bool
 	CalleeOffset    int
@@ -57,11 +58,11 @@ func (s *Server) signatureHelp(id json.RawMessage, raw json.RawMessage) error {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
 	signature, found := s.resolvedSignature(result, doc, context)
-	if !found && context.Qualifier != "" {
+	if !found && context.MemberDotOffset > 0 {
 		overlay := s.documentOverlay()
 		overlay[doc.Path] = qualifiedCallAnalysisText(doc.Text, offset, context)
 		if recovered, recoveryErr := s.checkDocument(doc, overlay); recoveryErr == nil && recovered.Program != nil {
-			signature, found = s.goValueMethodSignature(recovered, doc, context)
+			signature, found = s.goMemberSignature(recovered, doc, context)
 		}
 	}
 	if !found {
@@ -100,8 +101,8 @@ func (s *Server) signatureHelp(id json.RawMessage, raw json.RawMessage) error {
 }
 
 func qualifiedCallAnalysisText(value string, offset int, context callContext) string {
-	start := context.CalleeOffset - 1
-	if context.Qualifier == "" || start < 0 || offset > len(value) || value[start] != '.' {
+	start := context.MemberDotOffset
+	if start <= 0 || start >= len(value) || offset < start || offset > len(value) || value[start] != '.' {
 		return value
 	}
 	result := []byte(value)
@@ -112,19 +113,7 @@ func qualifiedCallAnalysisText(value string, offset int, context callContext) st
 	}
 	recovered := string(result)
 	if offset == len(value) {
-		depth := 0
-		tokens, _ := lexer.Lex("<signature-recovery>", value[:start])
-		for _, item := range tokens {
-			switch item.Kind {
-			case token.LeftBrace:
-				depth++
-			case token.RightBrace:
-				if depth > 0 {
-					depth--
-				}
-			}
-		}
-		recovered += ";" + strings.Repeat(" }", depth)
+		recovered = closeCompletionDelimiters(recovered)
 	}
 	return recovered
 }
@@ -191,8 +180,8 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 			}
 		}
 	}
-	if context.Qualifier != "" {
-		if signature, ok := s.goValueMethodSignature(result, doc, context); ok {
+	if context.MemberDotOffset > 0 {
+		if signature, ok := s.goMemberSignature(result, doc, context); ok {
 			return signature, true
 		}
 		for _, imported := range result.Program.Imports {
@@ -215,6 +204,22 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 		return builtinSignature(context.Name)
 	}
 	return ast.CallableSignature{}, false
+}
+
+func (s *Server) goMemberSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
+	if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
+		ref, pointer, valid := goCompletionTypeInfo(ref)
+		if !valid {
+			return ast.CallableSignature{}, false
+		}
+		path := goImportPathForQualifier(result.Program, doc.Path, ref.Qualifier)
+		signature, found, err := result.GoTypeMethodExpressionSignature(path, ref.Name, pointer, context.Name)
+		if err != nil || !found {
+			return ast.CallableSignature{}, false
+		}
+		return ast.CallableSignature{ParameterNames: signature.ParameterNames, ParameterTypes: signature.ParameterTypes, Result: signature.Result, Variadic: signature.Variadic}, true
+	}
+	return s.goValueMethodSignature(result, doc, context)
 }
 
 func (s *Server) goValueMethodSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
@@ -569,6 +574,9 @@ angleArgumentsSkipped:
 		return callContext{}, false
 	}
 	context := callContext{Name: item.Lexeme, DisplayName: item.Lexeme, CalleeOffset: item.Span.Start.Offset, OpenOffset: openOffset}
+	if index > 0 && tokens[index-1].Kind == token.Dot {
+		context.MemberDotOffset = tokens[index-1].Span.Start.Offset
+	}
 	if index >= 2 && tokens[index-1].Kind == token.Dot && (tokens[index-2].Kind == token.Identifier || tokens[index-2].Kind == token.This) {
 		context.Qualifier = tokens[index-2].Lexeme
 		context.DisplayName = context.Qualifier + "." + context.Name

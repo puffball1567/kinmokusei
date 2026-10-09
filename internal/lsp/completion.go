@@ -9,7 +9,9 @@ import (
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type completionItem struct {
@@ -24,7 +26,7 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	if !ok || insideCommentOrString(doc.Text, offset) {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: []completionItem{}})
 	}
-	qualifier, prefix, member := completionContext(doc.Text, offset)
+	qualifier, prefix, dot, member := completionContextAt(doc.Text, offset)
 	overlay := make(map[string]string, len(s.documents))
 	for _, open := range s.documents {
 		overlay[open.Path] = open.Text
@@ -38,7 +40,7 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	}
 	var items []completionItem
 	if member {
-		if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, offset-len(prefix)-1); ok {
+		if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, dot); ok {
 			items = goMethodExpressionCompletions(result, doc.Path, ref, prefix)
 		} else if isGoPackageQualifier(result.Program, doc.Path, qualifier) {
 			items = goMemberCompletions(result, doc.Path, qualifier, prefix)
@@ -497,20 +499,33 @@ func spanContains(span source.Span, path string, offset int) bool {
 }
 
 func completionContext(text string, offset int) (qualifier, prefix string, member bool) {
+	qualifier, prefix, _, member = completionContextAt(text, offset)
+	return
+}
+
+func completionContextAt(text string, offset int) (qualifier, prefix string, dot int, member bool) {
 	if offset < 0 || offset > len(text) {
-		return "", "", false
+		return "", "", -1, false
 	}
 	start := identifierStart(text, offset)
 	prefix = text[start:offset]
-	if start == 0 || text[start-1] != '.' {
-		return "", prefix, false
+	if start > 0 && text[start-1] == '.' {
+		qualifierStart := identifierStart(text, start-1)
+		if qualifierStart != start-1 {
+			return text[qualifierStart : start-1], prefix, start - 1, true
+		}
 	}
-	qualifierEnd := start - 1
-	qualifierStart := identifierStart(text, qualifierEnd)
-	if qualifierStart == qualifierEnd {
-		return "", prefix, true
+	// Token offsets handle whitespace/comments around '.' without treating a
+	// dot inside a comment or string as a selector. Preserve editor byte offsets.
+	tokens, _ := lexer.Lex("<completion-context>", text[:start])
+	index := len(tokens) - 2 // EOF is always the final token.
+	if index < 0 || tokens[index].Kind != token.Dot {
+		return "", prefix, -1, false
 	}
-	return text[qualifierStart:qualifierEnd], prefix, true
+	if index > 0 && token.IsIdentifierName(tokens[index-1].Kind) {
+		qualifier = tokens[index-1].Lexeme
+	}
+	return qualifier, prefix, tokens[index].Span.Start.Offset, true
 }
 
 func identifierStart(text string, end int) int {

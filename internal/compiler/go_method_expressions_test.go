@@ -6,6 +6,39 @@ import (
 	"testing"
 )
 
+func TestGoMethodExpressionSignatureAPI(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		path, name, method, receiver, result string
+		pointer, found                       bool
+		parameters                           int
+	}{
+		{"time", "Time", "IsZero", "time.Time", "boolean", false, true, 1},
+		{"time", "Time", "IsZero", "*time.Time", "boolean", true, true, 1},
+		{"bytes", "Buffer", "WriteString", "*bytes.Buffer", "(int, error)", true, true, 2},
+		{"bytes", "Buffer", "Len", "", "", false, false, 0},
+		{"io", "Reader", "Read", "io.Reader", "(int, error)", false, true, 2},
+		{"io", "Reader", "Read", "", "", true, false, 0},
+		{"net/http", "Request", "Method", "", "", true, false, 0},
+		{"time", "Time", "missing", "", "", false, false, 0},
+		{"time", "Missing", "IsZero", "", "", false, false, 0},
+		{"sync/atomic", "Pointer", "Load", "", "", true, false, 0},
+	} {
+		t.Run(test.path+"."+test.name+"."+test.method, func(t *testing.T) {
+			signature, found, err := (Result{}).GoTypeMethodExpressionSignature(test.path, test.name, test.pointer, test.method)
+			if err != nil || found != test.found {
+				t.Fatalf("found=%v err=%v signature=%+v", found, err, signature)
+			}
+			if found && (len(signature.ParameterTypes) != test.parameters || signature.ParameterNames[0] != "receiver" || signature.ParameterTypes[0] != test.receiver || signature.Result != test.result) {
+				t.Fatalf("signature=%+v", signature)
+			}
+		})
+	}
+	if _, found, err := (Result{goImporter: auditImporter{}}).GoTypeMethodExpressionSignature("missing/package", "Type", false, "Method"); err == nil || found {
+		t.Fatalf("missing package: found=%v err=%v", found, err)
+	}
+}
+
 func TestGoMethodExpressionsMatchIndependentGo(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

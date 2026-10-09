@@ -23,12 +23,36 @@ func goMethodExpressionReceiverAt(program *ast.Program, path, text string, dot i
 		// Parentheses are absent from the checked expression's span. Only
 		// trailing closing parentheses/whitespace may separate it from '.';
 		// an intervening operation is a different receiver expression.
-		if strings.Trim(text[span.End.Offset:dot], ") \t\r\n") != "" {
+		if !goMethodExpressionReceiverSuffix(text[span.End.Offset:dot]) {
 			continue
 		}
 		receiver, start, found = ref, span.Start.Offset, true
 	}
 	return receiver, found
+}
+
+func goMethodExpressionReceiverSuffix(suffix string) bool {
+	for {
+		suffix = strings.TrimLeft(suffix, ") \t\r\n")
+		switch {
+		case suffix == "":
+			return true
+		case strings.HasPrefix(suffix, "/*"):
+			end := strings.Index(suffix[2:], "*/")
+			if end < 0 {
+				return false
+			}
+			suffix = suffix[end+4:]
+		case strings.HasPrefix(suffix, "//"):
+			end := strings.IndexByte(suffix, '\n')
+			if end < 0 {
+				return false
+			}
+			suffix = suffix[end+1:]
+		default:
+			return false
+		}
+	}
 }
 
 func goMethodExpressionCompletions(result compiler.Result, path string, ref ast.TypeRef, prefix string) []completionItem {

@@ -135,6 +135,10 @@ methods retain the outer receiver type. Fields are not method expressions.
 Variadics and multiple results keep their original Go signatures after the
 additional receiver parameter.
 
+Editor argument hints retain that first receiver parameter during incomplete
+calls, including parenthesized pointer types. Whitespace and comments around
+the dot do not prevent method completion or argument hints.
+
 Go nil behavior is unchanged: a nil-aware pointer method can accept `nil`, but
 calling a value method through a nil pointer or an interface method through a
 nil interface panics as in Go. This feature does not turn raw Go pointers into

@@ -13,8 +13,8 @@ import (
 // token, including any suffix after the cursor, keeping original byte offsets.
 // This text is a request-local overlay; the editor document is never changed.
 func memberCompletionAnalysisText(value string, offset int, prefix string) string {
-	start := offset - len(prefix) - 1
-	if start < 0 || offset > len(value) || value[start] != '.' {
+	_, actualPrefix, start, member := completionContextAt(value, offset)
+	if !member || actualPrefix != prefix {
 		return value
 	}
 	end := offset

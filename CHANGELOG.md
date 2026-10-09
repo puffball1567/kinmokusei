@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve explicit receiver parameters in method-expression signature help
+  during incomplete calls, including parenthesized pointer types. Recover
+  selector offsets across comments/whitespace and close nested delimiters
+  without modifying editor documents or suggesting invalid method sets.
+
 - Add imported Go method expressions (`pkg.Type.Method`, `(*pkg.Type).Method`
   and named-import aliases) with an explicit first receiver argument. Preserve
   value/pointer/interface and promoted method sets, variadics, multiple results,
