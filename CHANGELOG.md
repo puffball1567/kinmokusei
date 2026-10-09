@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Isolate closure-body nullable flow, loop exits and reachability from the
+  enclosing body, with shared callable-flow boundaries for functions,
+  constructors and methods. Check nullable mutation and Task return paths even
+  when a closure is declared in unreachable outer code. Publish nested capture
+  effects only after restoring the enclosing context, so unreachable closure
+  creation does not invalidate an otherwise valid enclosing proof.
+
 - Allow native classes, struct values/pointers, source interface values and
   distinct defined types to satisfy Go method constraints on source generics.
   Substitute generic/inherited method signatures and infer dependent arguments

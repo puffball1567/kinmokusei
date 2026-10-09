@@ -129,6 +129,12 @@ if (user !== null) {
 
 Facts join conservatively across branches, switches, selects, and loop backedges. Address-taking, aliases, mutable closure capture, receiver reassignment, unknown calls, and reachable writes invalidate facts they may affect. A later check or non-null assignment can establish a new proof.
 
+Closure bodies are checked separately from their enclosing flow. A mutable
+capture needs a check inside the closure, since it can change before invocation.
+An unreachable nested closure declaration does not contribute mutation effects
+to the enclosing flow, but the nested body still gets its own nullable and Task
+checks.
+
 When storage is not stable, bind a snapshot:
 
 ```ts

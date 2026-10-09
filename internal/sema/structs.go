@@ -548,6 +548,8 @@ func (c *Checker) checkStruct(decl *ast.StructDecl) {
 }
 
 func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, structName string) {
+	previousFlow := c.enterCallableFlow()
+	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)
 	valueReceiver := Type{Kind: Struct, Name: structName}
 	if method.External {
@@ -592,6 +594,8 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 }
 
 func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, typeName string) {
+	previousFlow := c.enterCallableFlow()
+	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)
 	symbol := c.nativeTypes[typeName]
 	if symbol == nil {

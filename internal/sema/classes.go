@@ -393,8 +393,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 	}
 	if decl.Constructor != nil {
 		c.validateSuperConstructorPlacement(decl)
-		previousMemberFlow := c.memberFlow
-		c.memberFlow = map[memberFlowKey]memberFlowState{}
+		previousFlow := c.enterCallableFlow()
 		c.inConstructor = true
 		c.pushScope()
 		c.declareLocal("this", thisType, true, nil, decl.Constructor.Span)
@@ -408,7 +407,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.checkBlock(decl.Constructor.Body, false)
 		c.callableControlState = previousControl
 		c.popScope()
-		c.memberFlow = previousMemberFlow
+		c.leaveCallableFlow(previousFlow)
 	}
 	c.inConstructor = false
 	c.globalDependencyOwner = previousDependency
@@ -423,8 +422,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 			c.typeParameterScopes = nil
 		}
 		c.pushTypeParameterScope(c.methodTypeParameters[method])
-		previousMemberFlow := c.memberFlow
-		c.memberFlow = map[memberFlowKey]memberFlowState{}
+		previousFlow := c.enterCallableFlow()
 		c.pushScope()
 		if !method.Static {
 			c.declareLocal("this", thisType, true, nil, method.Span)
@@ -442,7 +440,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		}
 		c.callableControlState = previousControl
 		c.popScope()
-		c.memberFlow = previousMemberFlow
+		c.leaveCallableFlow(previousFlow)
 		c.popTypeParameterScope()
 		c.typeParameterScopes = previousTypeScopes
 		c.globalDependencyOwner = previousDependency
