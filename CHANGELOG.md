@@ -11,6 +11,39 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Fix native-struct collection fields rejecting local slices, maps and nested/
+  generic collections of the same source type (#86). Rebuild canonical Go
+  storage while retaining nominal, fixed-length, text and nullable contracts.
+- Display the source exception class and message for uncaught native exceptions
+  instead of an internal panic-wrapper pointer (#87). Preserve dynamic subclass
+  names through source linking, bare rethrow, typed catches and message access;
+  ordinary thrown Go errors retain their error message.
+
+- Emit versioned Go-to-`.km` source-map sidecars for compiler-managed builds
+  and optional `emit-go -source-map` output. Preserve physical Go coordinates,
+  capture checked-input hashes and stable source-origin IDs, and support
+  source-level failure lookup and cross-executable coverage consumers without
+  runtime instrumentation or `//line` directives.
+
+- Preserve explicit receiver parameters in method-expression signature help
+  during incomplete calls, including parenthesized pointer types. Recover
+  selector offsets across comments/whitespace and close nested delimiters
+  without modifying editor documents or suggesting invalid method sets.
+
+- Add imported Go method expressions (`pkg.Type.Method`, `(*pkg.Type).Method`
+  and named-import aliases) with an explicit first receiver argument. Preserve
+  value/pointer/interface and promoted method sets, variadics, multiple results,
+  callback assignment, evaluation order and Go nil/panic behavior. Check unsafe
+  policy and reject fields, ambiguous selectors and uninstantiated generic
+  receiver types. Add editor completion and explicit-receiver signature help.
+
+- Isolate closure-body nullable flow, loop exits and reachability from the
+  enclosing body, with shared callable-flow boundaries for functions,
+  constructors and methods. Check nullable mutation and Task return paths even
+  when a closure is declared in unreachable outer code. Publish nested capture
+  effects only after restoring the enclosing context, so unreachable closure
+  creation does not invalidate an otherwise valid enclosing proof.
+
 - Allow native classes, struct values/pointers, source interface values and
   distinct defined types to satisfy Go method constraints on source generics.
   Substitute generic/inherited method signatures and infer dependent arguments

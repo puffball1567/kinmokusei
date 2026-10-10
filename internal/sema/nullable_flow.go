@@ -470,13 +470,14 @@ func (c *Checker) updateIdentifierFlow(name string, span source.Span, value Type
 }
 
 func (c *Checker) recordCapturedWrite(scopeIndex int, declaration, cause source.Span) {
-	if c.suppressFlowEffects != 0 {
+	if c.suppressFlowEffects != 0 || len(c.callableScopeBases) == 0 {
 		return
 	}
-	for index, base := range c.callableScopeBases {
-		if scopeIndex >= base {
-			continue
-		}
+	// Each closure collects its own summary. Propagate to its enclosing closure
+	// only after restoration, so an unreachable closure creation cannot publish
+	// effects directly into every enclosing capture frame.
+	index := len(c.callableScopeBases) - 1
+	if scopeIndex < c.callableScopeBases[index] {
 		if _, exists := c.capturedWrites[index][declaration]; !exists {
 			c.capturedWrites[index][declaration] = cause
 		}

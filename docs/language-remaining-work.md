@@ -21,13 +21,24 @@ into grammar-focused files while retaining shared token state and recovery.
 Go generation likewise has responsibility-focused files, retaining identical
 lowering and runtime helpers. Channel send/receive/close checking is now grouped
 in a dedicated semantic-checking module without changing operation-specific
-diagnostics or source type rules. Lexical/capture/nullable state still needs further
-decomposition.
+diagnostics or source type rules. Callable nullable/reachability/loop-exit state
+and closure lexical entry, restoration and capture-effect publication now have
+shared boundaries. Closure bodies are checked independently of enclosing
+unreachability; unreachable nested closure creation does not publish capture
+effects to enclosing bodies. Wider checker-state decomposition remains.
 Select further additions from the audited Go and OOP gaps below. Compatible
 features and fixes ship in v0.4.x patch releases, with matching compiler/editor
 versions and documented diagnostics. Intentional source/public API breaks
 normally require a minor release and migration notes. v0.4.6 is an explicit
 exception for the verified-text source/API migration.
+
+Imported Go method expressions now use the receiver's exact method set and
+prepend its type to the callable's parameter list. Value/pointer/interface and
+promoted methods, callbacks, variadics, multiple results, explicit nil behavior,
+editor completion and signature help have focused coverage and an independent
+Go oracle. Uninstantiated generic receivers are rejected; exported Go aliases of
+concrete instantiations work. Direct generic receiver instantiation and native
+source-type method expressions remain separate follow-up work.
 
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
@@ -119,7 +130,7 @@ feature work without mixing unrelated changes into its implementation.
 | 14 | Receiver/constructor-dependent field initializers | Earlier initialized fields and accessible inherited fields may be read through `this`; constructor parameters and receiver capture remain |
 | 15 | Parser decomposition | Implemented: grammar-focused files, shared token state/checkpoints and recovery; parser behavior unchanged |
 | 16 | Go emitter decomposition | Implemented: responsibility-focused emission modules with unchanged lowering and runtime helpers |
-| 17 | Lexical, capture, and nullable-state boundaries | Queued |
+| 17 | Lexical, capture, and nullable-state boundaries | Shared callable-flow and closure lexical/capture boundaries implemented; broader checker-state decomposition remains |
 
 Local arrows can return parameterized classes using an enclosing function's
 type parameter in result lists, including inherited classes:

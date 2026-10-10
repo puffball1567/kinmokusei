@@ -122,7 +122,7 @@ func TestCompletionRecoveryText(t *testing.T) {
 }
 
 func FuzzMemberCompletionRecovery(f *testing.F) {
-	for _, seed := range []string{"box.value", "return f(box.値段", "function f(){return xs[box.va", "box.\r\n", "f(/*", "f([)"} {
+	for _, seed := range []string{"box.value", "box /* receiver */ . /* member */ value", "return f(box.値段", "function f(){return xs[box.va", "box.\r\n", "f(/*", "f([)"} {
 		f.Add(seed, uint32(len(seed)))
 	}
 	f.Fuzz(func(t *testing.T, input string, rawOffset uint32) {
@@ -130,7 +130,7 @@ func FuzzMemberCompletionRecovery(f *testing.F) {
 			t.Skip()
 		}
 		offset := int(rawOffset % uint32(len(input)+1))
-		_, prefix, member := completionContext(input, offset)
+		_, prefix, start, member := completionContextAt(input, offset)
 		if !member {
 			return
 		}
@@ -138,7 +138,6 @@ func FuzzMemberCompletionRecovery(f *testing.F) {
 		if len(got) < len(input) || len(got) > 2*len(input)+1 {
 			t.Fatal("unbounded recovery size")
 		}
-		start := offset - len(prefix) - 1
 		if got[:start] != input[:start] {
 			t.Fatal("changed receiver or earlier source")
 		}

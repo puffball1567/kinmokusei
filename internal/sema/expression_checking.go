@@ -158,7 +158,7 @@ func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 		if operand.Kind == Invalid {
 			return operand
 		}
-		if !c.isAddressableExpression(expr.Operand) {
+		if operand.Kind == GoTypeName || !c.isAddressableExpression(expr.Operand) {
 			c.report(expr.Span, "operator & requires an addressable operand")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
@@ -201,6 +201,11 @@ func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 	case "*":
 		if operand.Kind == Invalid {
 			return operand
+		}
+		if operand.Kind == GoTypeName && operand.GoType != nil {
+			result := Type{Kind: GoTypeName, Name: "*" + operand.String(), GoType: gotypes.NewPointer(operand.GoType), GoQualifier: operand.GoQualifier}
+			c.recordGoTypeExpression(expr, result)
+			return result
 		}
 		if operand.Kind == GoPointer && operand.Element != nil {
 			return *operand.Element

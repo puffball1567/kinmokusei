@@ -245,6 +245,16 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		initializerBody.List = append(initializerBody.List, baseCall)
 	}
+	if class.HierarchyRoot == "Exception" {
+		name := class.SourceName
+		if name == "" {
+			name = class.Name
+		}
+		initializerBody.List = append(initializerBody.List, &goast.AssignStmt{
+			Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent("__kinmokuseiExceptionType")}},
+			Tok: token.ASSIGN, Rhs: []goast.Expr{&goast.BasicLit{Kind: token.STRING, Value: strconv.Quote(name)}},
+		})
+	}
 	fieldBody := &goast.BlockStmt{}
 	for _, field := range class.Fields {
 		if field.Static || field.Initializer == nil {
@@ -291,7 +301,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		})
 	}
 	if len(constructorStatements) != 0 {
-		body, err := generateBlock(&kinmokuseiAST.BlockStmt{Statements: constructorStatements})
+		body, err := generateBlock(&kinmokuseiAST.BlockStmt{Statements: constructorStatements, SourceMapping: class.Constructor != nil && class.Constructor.Body.SourceMapping})
 		if err != nil {
 			return nil, err
 		}

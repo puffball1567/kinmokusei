@@ -11,6 +11,9 @@ type Program struct {
 	// TypeParameterMethods is checked editor metadata keyed by parameter
 	// declaration identity. It does not participate in source syntax or emission.
 	TypeParameterMethods map[source.Span][]ObjectTypeField
+	// GoTypeExpressions records checked type-valued expressions for editor
+	// method-expression completion. It never changes runtime emission.
+	GoTypeExpressions map[source.Span]TypeRef
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool
@@ -399,7 +402,9 @@ func (d *MultiVariableDecl) GetSpan() source.Span { return d.Span }
 
 type BlockStmt struct {
 	Statements []Statement
-	Span       source.Span
+	// SourceMapping is emission-only metadata, enabled for mapped Go artifacts.
+	SourceMapping bool
+	Span          source.Span
 }
 
 func (*BlockStmt) statement()             {}
@@ -908,6 +913,7 @@ type ArrowExpr struct {
 	ExpressionBody     Expression
 	BlockBody          *BlockStmt
 	ResolvedReturnType TypeRef
+	SourceMapping      bool // Map an expression body as an executable source origin.
 	Span               source.Span
 }
 

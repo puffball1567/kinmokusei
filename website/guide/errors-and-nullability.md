@@ -85,6 +85,13 @@ Bare `throw;` rethrows the currently handled exception. `finally` runs after nor
 
 Only values carrying the explicit Kinmokusei exception marker enter catch dispatch. Bounds failures and arbitrary Go panics keep unwinding after `finally`.
 
+An uncaught native exception terminates with a Go panic containing its original
+source class name and message, for example `panic: NotFoundException: missing`.
+The name is the constructed subclass, including after rethrow or a catch through
+a base type; generated module-link names are not used. Throwing an ordinary Go
+`error` displays its `.Error()` message. This panic display does not add a class
+prefix to `Exception.message` or `.error()`, which still return message text.
+
 ## Nullable references
 
 `T | null` marks a nil-backed reference as nullable. `null` belongs to this checked type system; imported raw Go `nil` retains its low-level Go meaning. The two do not assign implicitly.
@@ -128,6 +135,12 @@ if (user !== null) {
 ```
 
 Facts join conservatively across branches, switches, selects, and loop backedges. Address-taking, aliases, mutable closure capture, receiver reassignment, unknown calls, and reachable writes invalidate facts they may affect. A later check or non-null assignment can establish a new proof.
+
+Closure bodies are checked separately from their enclosing flow. A mutable
+capture needs a check inside the closure, since it can change before invocation.
+An unreachable nested closure declaration does not contribute mutation effects
+to the enclosing flow, but the nested body still gets its own nullable and Task
+checks.
 
 When storage is not stable, bind a snapshot:
 

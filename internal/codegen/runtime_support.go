@@ -28,15 +28,23 @@ func exceptionRuntimeDeclarations() ([]goast.Decl, error) {
 type __kinmokuseiException interface { KinmokuseiExceptionError() error }
 type __kinmokuseiThrown struct { err error }
 func (value __kinmokuseiThrown) KinmokuseiExceptionError() error { return value.err }
+func (value __kinmokuseiThrown) Error() string {
+	if value.err == nil { return "<nil>" }
+	if named, ok := value.err.(interface { __kinmokuseiExceptionName() string }); ok {
+		return named.__kinmokuseiExceptionName() + ": " + value.err.Error()
+	}
+	return value.err.Error()
+}
 type __kinmokuseiReturn struct { value any; err error }
 func __kinmokuseiReturnValue[T any](value any) T {
 	if value == nil { var zero T; return zero }
 	return value.(T)
 }
-type Exception struct { __kinmokuseiRoot any; Message string }
-func __kinmokuseiInitException(this *Exception, message string) { this.Message = message; this.__kinmokuseiRoot = this }
+type Exception struct { __kinmokuseiRoot any; __kinmokuseiExceptionType string; Message string }
+func __kinmokuseiInitException(this *Exception, message string) { this.Message = message; this.__kinmokuseiRoot = this; this.__kinmokuseiExceptionType = "Exception" }
 func NewException(message string) *Exception { this := &Exception{}; __kinmokuseiInitException(this, message); return this }
 func (this *Exception) Error() string { return this.Message }
+func (this *Exception) __kinmokuseiExceptionName() string { return this.__kinmokuseiExceptionType }
 func __kinmokuseiExceptionFromError(err error) *Exception {
 	if value, ok := err.(*Exception); ok { return value }
 	if err == nil { return NewException("") }

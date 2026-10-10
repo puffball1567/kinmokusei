@@ -39,6 +39,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr.Operator == "*" {
+			// StarExpr represents both dereferences and pointer types. In a
+			// selector the printer must retain (*pkg.Type).Method parentheses.
+			return &goast.StarExpr{X: value}, nil
+		}
 		return &goast.UnaryExpr{Op: goToken(expr.Operator), X: value}, nil
 	case *kinmokuseiAST.BinaryExpr:
 		left, err := generateExpression(expr.Left)
@@ -314,6 +319,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				body = &goast.BlockStmt{List: []goast.Stmt{&goast.ExprStmt{X: value}}}
 			} else {
 				body = &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{value}}}}
+			}
+			if expr.SourceMapping {
+				body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
 			}
 		}
 		return &goast.FuncLit{Type: fnType, Body: body}, nil

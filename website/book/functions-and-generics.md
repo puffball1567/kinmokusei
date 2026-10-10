@@ -63,6 +63,12 @@ Arrows have statically checked function types. Captured bindings use lexical
 scope; captures do not create a JavaScript runtime or dynamic closure environment
 beyond the generated Go closure.
 
+Each arrow body has its own return, loop-exit, nullable-flow and Task checks.
+An enclosing null proof for a mutable capture is not inherited: the value may
+change before the arrow is invoked. An immutable local snapshot can retain its
+proof. Even an arrow declared after an unconditional `return` is type-checked;
+unreachable outer code does not disable checks inside the arrow's body.
+
 ### Arrow definitions and main
 
 Arrow-style entry points and function definitions are supported:

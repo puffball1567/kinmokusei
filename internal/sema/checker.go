@@ -34,6 +34,7 @@ type Checker struct {
 	allowUnsafeGo              bool
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
+	goTypeExpressions          map[source.Span]ast.TypeRef
 	inConstructor              bool
 	inFieldInitializer         bool
 	fieldInitializerAvailable  map[string]bool
@@ -113,9 +114,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
-		goNamedImports:   map[string]map[string]goNamedImport{},
-		goFieldReceivers: map[*ast.MemberExpr]gotypes.Type{},
-		memberFlow:       map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
+		goNamedImports:    map[string]map[string]goNamedImport{},
+		goFieldReceivers:  map[*ast.MemberExpr]gotypes.Type{},
+		goTypeExpressions: map[source.Span]ast.TypeRef{},
+		memberFlow:        map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
@@ -192,6 +194,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
+	program.GoTypeExpressions = c.goTypeExpressions
 	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions

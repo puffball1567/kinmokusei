@@ -22,6 +22,7 @@ source import aliases never rewrite Go package paths.
 | Structs, fields, tags | Implemented | Go literal/field selector rules for exported fields |
 | Pointers and `nil` | Implemented | Raw low-level Go pointer/nil semantics |
 | Methods and method values | Implemented | Value/pointer method sets and addressability preserved |
+| Imported Go method expressions | Development version after v0.4.6 | `pkg.Type.Method` / `(*pkg.Type).Method`; explicit first receiver, interface/promoted methods and concrete imported aliases; no direct generic receiver instantiation |
 | Function values/callbacks | Implemented | Checked against the original Go signature |
 
 ## Type shapes

@@ -308,6 +308,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	if object.Kind == GoPackage {
 		return c.checkGoMember(expr, object.GoPackage)
 	}
+	if object.Kind == GoTypeName {
+		return c.checkGoMethodExpression(expr, object)
+	}
 	if object.Kind == GoInterface || object.GoType != nil && object.Kind != GoTypeName {
 		return c.checkGoValueMember(expr, object)
 	}

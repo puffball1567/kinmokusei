@@ -406,6 +406,71 @@ Generated Go is a user-inspectable artifact and must:
 
 Project builds use `.kinmokusei/gen/` for intermediate modules. Explicit `emit-go` writes a consumable artifact to a user-selected location.
 
+### Source-map interchange
+
+`WriteGeneratedModule` writes `generated.go.map.json` beside `generated.go` for
+normal builds/runs. `keika emit-go -o output.go -source-map output.go.map.json`
+opts explicit emission into the same schema. `compiler.EmitGoWithSourceMap`
+returns both artifacts; `GoArtifacts.SourceMapJSON` rebases paths for a chosen
+sidecar location and `WriteFiles` validates and publishes the pair. Each file is
+renamed from a temporary file; the pair is not a transactional filesystem unit,
+so hash verification is mandatory after interruption or concurrent builds.
+
+Version 1 has these JSON fields:
+
+| Field | Contract |
+| --- | --- |
+| `version` | Integer `1`; reject unsupported versions. |
+| `source_root` | Project root relative to the sidecar directory; `/` separators. |
+| `generated.file`, `.sha256`, `.byte_length` | Go file relative to the sidecar directory, SHA-256 hex digest, byte length. |
+| `sources[]` | `id`, project-relative `path`, `sha256`, `byte_length` for each checked source. `embedded: true` identifies standard modules with virtual `@stdlib/kinmokusei/...` paths rather than files on disk. |
+| `mappings[]` | `origin_id`, `source_id`, `source`, `generated`. Ranges contain `start`/`end` positions, each with `offset`, `line`, `column`. |
+
+All offsets and columns count bytes. Offsets are zero-based; lines and columns
+are one-based; ranges are half-open. Source-map columns intentionally differ
+from lexer diagnostic columns, which count Unicode code points. Go coordinates
+refer to the final physical file without `//line` directives. Mappings are
+ordered and non-overlapping in generated coordinates; one source origin can
+have several disjoint fragments. Original source ranges may nest or overlap.
+
+Source IDs hash the source kind (`file` or `embedded`), portable path and exact
+input digest. Origin IDs hash
+that source ID and the original range. They do not depend on generated line
+numbers, mangled link names, output paths or the absolute checkout location.
+They are stable across test entry points for identical source under the same
+project layout, not across edits/renames or a change of project root. The loader
+captures input snapshots before checking; emission never rereads source files
+to compute their hashes. Source text is not embedded in the sidecar.
+
+The emitter annotates a private clone of checked AST blocks/arrows, tracks nested
+statement markers through formatting, removes them, then verifies that the
+formatted semantic token stream is unchanged. Temporary markers never reach
+type validation, published Go or runtime execution. Innermost executable
+statement origins take priority. Function, method and constructor bodies and
+expression-bodied arrows are mapped; generated runtime helpers, global variable
+initializers and synthesized class-field initialization currently have no
+independent executable origin. Unmapped code requires a Go-location fallback.
+
+Consumers should first verify generated and source hashes, then match failure
+positions or Go coverage block ranges against generated ranges. Preserve all
+candidate origins when a line/block spans several operations: line-only data
+cannot recover a lost column. Display each statement at its `source.start`
+anchor rather than treating its entire syntactic span as executed. Deduplicate
+`origin_id` across executables and fragments. A profile block can intersect
+several origins; fragment counts are not independent source statement counts.
+Do not infer branch/MC/DC coverage or complete short-circuit evaluation from
+[Go's approximate basic-block counters](https://pkg.go.dev/cmd/cover).
+Coverage aggregation/reporting is a test-framework responsibility.
+
+Archive the physical Go file and sidecar with each executable/profile before the
+next build. Do not trust an unrelated sidecar from current compiler state or
+resolve a copied sidecar's relative paths against its new directory without
+rebasing them; retain the original sidecar location or rebase during archival.
+Do not
+interpret consumer paths from an untrusted JSON document as permission to write
+files. Relative `..` components are valid for sidecars outside the project and
+explicit local dependency replacements; consumers may restrict readable roots.
+
 ## CLI
 
 The primary commands are:
