@@ -185,7 +185,7 @@ func extractSourceMappings(input []byte) ([]byte, []SourceMapping, error) {
 	clean.Write(input[copied:])
 	// Marker statements occupy complete lines in already formatted output.
 	// Keep that formatting intact: format.Source would sort import groups that
-	// the position-free original AST intentionally leaves in source order.
+	// the position-free original AST leaves in source order.
 	generated := clean.Bytes()
 	finalTokens, err := scanMappingTokens(generated)
 	if err != nil {

@@ -117,6 +117,17 @@ func (a GoArtifacts) WriteFiles(goPath, mapPath string) error {
 		}
 	}
 	for i, output := range outputs {
+		if i > 0 {
+			// On case-insensitive filesystems, two previously absent spellings
+			// can become the same inode after publishing the first output.
+			same, err := sameArtifactPath(outputs[0], output)
+			if err != nil {
+				return err
+			}
+			if same {
+				return fmt.Errorf("source-map outputs resolve to the same file")
+			}
+		}
 		if err := os.Rename(temporary[i], output); err != nil {
 			return err
 		}
@@ -125,11 +136,11 @@ func (a GoArtifacts) WriteFiles(goPath, mapPath string) error {
 }
 
 func sameArtifactPath(left, right string) (bool, error) {
-	l, err := filepath.Abs(left)
+	l, err := canonicalArtifactPath(left)
 	if err != nil {
 		return false, err
 	}
-	r, err := filepath.Abs(right)
+	r, err := canonicalArtifactPath(right)
 	if err != nil {
 		return false, err
 	}
@@ -145,6 +156,29 @@ func sameArtifactPath(left, right string) (bool, error) {
 		return false, re
 	}
 	return le == nil && re == nil && os.SameFile(li, ri), nil
+}
+
+func canonicalArtifactPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(absolute); err == nil {
+		return resolved, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	// New outputs have no inode yet, but their existing parent may be a
+	// symlink. Resolve it before comparing planned filenames, not only after
+	// publication when the second rename could replace the first artifact.
+	parent, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+	if err == nil {
+		return filepath.Join(parent, filepath.Base(absolute)), nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+	return absolute, nil // Missing parents fail before publishing either file.
 }
 
 // SourceMapJSON rebases portable paths to the sidecar location. Source paths

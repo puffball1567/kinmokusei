@@ -35,9 +35,10 @@ func TestGoSourceMapStableAcrossEntryPoints(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			path, err = filepath.Rel(cwd, path)
-			if err != nil {
-				t.Fatal(err)
+			// Windows can place the checkout and temporary files on different
+			// volumes, where a relative input spelling does not exist.
+			if relative, err := filepath.Rel(cwd, path); err == nil {
+				path = relative
 			}
 		}
 		artifacts, diagnostics, err := EmitGoWithSourceMap([]string{path}, "sample")
@@ -252,12 +253,32 @@ func TestGoSourceMapGeneratedModuleAndSafeOutputs(t *testing.T) {
 			t.Fatal("hard-linked source overwritten")
 		}
 	}
+	directoryAlias := filepath.Join(root, "directory-alias")
+	if err := os.Symlink(root, directoryAlias); err == nil {
+		if err := artifacts.WriteFiles(output, filepath.Join(directoryAlias, "output.go")); err == nil {
+			t.Fatal("symlinked directory allowed overlapping new outputs")
+		}
+		if err := artifacts.WriteFiles(output, filepath.Join(directoryAlias, "main.km")); err == nil {
+			t.Fatal("symlinked input overwritten")
+		}
+	}
 	after, _ := os.ReadFile(path)
 	if string(after) != input {
 		t.Fatal("input changed")
 	}
 	if _, err := os.Stat(output); !os.IsNotExist(err) {
 		t.Fatal("failed validation wrote output")
+	}
+	if _, err := os.Stat(filepath.Join(root, "MAIN.KM")); err == nil {
+		// Exercise the second-publication guard on case-insensitive filesystems.
+		lower, upper := filepath.Join(root, "case-output.go"), filepath.Join(root, "CASE-OUTPUT.GO")
+		if err := artifacts.WriteFiles(lower, upper); err == nil {
+			t.Fatal("case aliases accepted as distinct outputs")
+		}
+		data, err := os.ReadFile(lower)
+		if err != nil || !bytes.Equal(data, artifacts.GoSource) {
+			t.Fatal("sidecar replaced generated Go")
+		}
 	}
 }
 

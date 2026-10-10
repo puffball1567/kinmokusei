@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -81,6 +82,9 @@ function main(): void { throw new NotFound("user 42 was not found"); }`
 		t.Fatalf("emit: %v %v", err, diagnostics)
 	}
 	binary := filepath.Join(root, "panic-app")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.Command("go", "build", "-buildvcs=false", "-p=2", "-o", binary, ".")
 	build.Dir = directory
 	if output, err := build.CombinedOutput(); err != nil {
