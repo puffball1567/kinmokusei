@@ -172,6 +172,18 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		valueStorage, valueOK := c.goTypeForNativeStorage(value)
 		return targetOK && valueOK && gotypes.AssignableTo(valueStorage, targetStorage) && c.sourceStorageContractsMatch(target, value)
 	}
+	if target.GoType == nil && (target.Kind == Array || target.Kind == FixedArray || target.Kind == Map) {
+		// Struct fields are resolved before native Go named types are finalized.
+		// Their captured element descriptors can therefore lack cached GoType,
+		// unlike a local of the exact same source type checked later. Rebuild
+		// storage from canonical symbols without changing source invariants or
+		// erasing verified-text/nullability and generic contracts.
+		targetStorage, targetOK := c.goTypeForNativeStorage(target)
+		valueStorage, valueOK := c.goTypeForNativeStorage(value)
+		if targetOK && valueOK {
+			return gotypes.AssignableTo(valueStorage, targetStorage) && c.sourceStorageContractsMatch(target, value)
+		}
+	}
 	return assignable(target, value) && c.sourceStorageContractsMatch(target, value)
 }
 

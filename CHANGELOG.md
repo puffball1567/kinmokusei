@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Fix native-struct collection fields rejecting local slices, maps and nested/
+  generic collections of the same source type (#86). Rebuild canonical Go
+  storage while retaining nominal, fixed-length, text and nullable contracts.
+- Display the source exception class and message for uncaught native exceptions
+  instead of an internal panic-wrapper pointer (#87). Preserve dynamic subclass
+  names through source linking, bare rethrow, typed catches and message access;
+  ordinary thrown Go errors retain their error message.
+
 - Emit versioned Go-to-`.km` source-map sidecars for compiler-managed builds
   and optional `emit-go -source-map` output. Preserve physical Go coordinates,
   capture checked-input hashes and stable source-origin IDs, and support
