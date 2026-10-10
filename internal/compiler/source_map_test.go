@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/puffball1567/kinmokusei/stdlib"
 )
 
 func TestGoSourceMapStableAcrossEntryPoints(t *testing.T) {
@@ -73,6 +75,59 @@ func TestGoSourceMapStableAcrossEntryPoints(t *testing.T) {
 			}
 		}
 		previous = origins
+	}
+	otherRoot := t.TempDir()
+	for name, input := range files {
+		if err := os.WriteFile(filepath.Join(otherRoot, name), []byte(input), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	relocated, diagnostics, err := EmitGoWithSourceMap([]string{filepath.Join(otherRoot, "first.test.km")}, "sample")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("relocated emit: %v %v", err, diagnostics)
+	}
+	for id := range previous {
+		found := false
+		for _, mapping := range relocated.SourceMap.Mappings {
+			if mapping.OriginID == id {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("checkout relocation changed origin %s", id)
+		}
+	}
+}
+
+func TestGoSourceMapEmbeddedInputs(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	path := filepath.Join(root, "entry.km")
+	input := `import { Response } from "kinmokusei/http"; function identity(value: Response): Response { return value; }`
+	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	artifacts, diagnostics, err := EmitGoWithSourceMap([]string{path}, "sample")
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("emit: %v %v", err, diagnostics)
+	}
+	standard, ok := stdlib.Lookup("kinmokusei/http")
+	if !ok {
+		t.Fatal("missing embedded module")
+	}
+	validateSourceMap(t, artifacts, map[string]string{"entry.km": input, standard.VirtualPath: standard.Contents})
+	found := false
+	for _, entry := range artifacts.SourceMap.Sources {
+		if entry.Path == standard.VirtualPath {
+			found = entry.Embedded
+		}
+	}
+	if !found {
+		t.Fatal("embedded source was presented as a disk file")
+	}
+	plain, _, err := EmitGo([]string{path}, "sample")
+	if err != nil || !bytes.Equal(plain, artifacts.GoSource) {
+		t.Fatalf("embedded imports changed generated output: %v", err)
 	}
 }
 

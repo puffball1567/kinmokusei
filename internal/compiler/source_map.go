@@ -223,7 +223,11 @@ func emitCheckedGoWithSourceMap(result Result, packageName, root string) (GoArti
 		}
 		portable = filepath.ToSlash(portable)
 		digest := mapHash([]byte(input))
-		identity, _ := json.Marshal([]string{portable, digest})
+		kind := "file"
+		if snapshot.embedded {
+			kind = "embedded"
+		}
+		identity, _ := json.Marshal([]string{kind, portable, digest})
 		entry := MapSource{ID: mapHash(identity), Path: portable, SHA256: digest, ByteLength: len(input), Embedded: snapshot.embedded}
 		sources[path] = entry
 		metadata.Sources = append(metadata.Sources, entry)

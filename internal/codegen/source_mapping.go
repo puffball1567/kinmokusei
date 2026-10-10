@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	goast "go/ast"
-	"go/format"
 	"go/scanner"
 	"go/token"
 	"reflect"
@@ -184,10 +183,10 @@ func extractSourceMappings(input []byte) ([]byte, []SourceMapping, error) {
 		return nil, nil, fmt.Errorf("unterminated source mapping marker")
 	}
 	clean.Write(input[copied:])
-	generated, err := format.Source(clean.Bytes())
-	if err != nil {
-		return nil, nil, err
-	}
+	// Marker statements occupy complete lines in already formatted output.
+	// Keep that formatting intact: format.Source would sort import groups that
+	// the position-free original AST intentionally leaves in source order.
+	generated := clean.Bytes()
 	finalTokens, err := scanMappingTokens(generated)
 	if err != nil {
 		return nil, nil, err
