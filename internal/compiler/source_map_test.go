@@ -314,7 +314,10 @@ func TestBehavior(t *testing.T) {
  captureCrash()
 }
 `
-	runGeneratedGoDifferentialTestConfigured(t, root, "sourcemapruntime", stringPointer("module sourcemapruntime\n\ngo 1.23\n"), artifacts.GoSource, reference, test, []string{"test", "-coverprofile=coverage.out", "./..."}, nil)
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module sourcemapruntime\n\ngo 1.23\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGeneratedGoDifferentialTestInExistingModule(t, root, "sourcemapruntime", artifacts.GoSource, reference, test, []string{"test", "-coverprofile=coverage.out", "./..."}, nil)
 	lineText, err := os.ReadFile(filepath.Join(root, "failure.line"))
 	if err != nil {
 		t.Fatal(err)
@@ -358,5 +361,3 @@ func TestBehavior(t *testing.T) {
 		t.Fatalf("unexecuted return incorrectly covered: %v\n%s", counts, profile)
 	}
 }
-
-func stringPointer(value string) *string { return &value }
