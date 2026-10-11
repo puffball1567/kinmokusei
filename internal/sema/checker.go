@@ -83,6 +83,13 @@ type Checker struct {
 	enumChecks                 map[*ast.EnumDecl]globalBindingCheckState
 	checkingLocalArrow         *localArrowInference
 	resultErrorUses            map[*bool]resultErrorUse
+
+	nativeInterfaceDeclarations     map[string]*ast.InterfaceDecl
+	nativeInterfaceAliases          map[string]ast.TypeRef
+	nativeInterfaceBounds           map[*gotypes.TypeParam]Type
+	nativeInterfacesReady           bool
+	nativeInterfaceArgumentsReady   bool
+	pendingNativeInterfaceArguments []nativeInterfaceApplication
 }
 
 type GoInteropPolicy struct {
@@ -119,7 +126,12 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		goFieldReceivers:     map[*ast.MemberExpr]gotypes.Type{},
 		goTypeExpressions:    map[source.Span]ast.TypeRef{},
 		nativeTypeMethodSets: map[source.Span]ast.NativeTypeMethodSet{},
-		memberFlow:           map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
+
+		nativeInterfaceDeclarations: map[string]*ast.InterfaceDecl{},
+		nativeInterfaceAliases:      map[string]ast.TypeRef{},
+		nativeInterfaceBounds:       map[*gotypes.TypeParam]Type{},
+
+		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
@@ -147,9 +159,13 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
 	c.declareInterfaces(program)
+	c.nativeInterfacesReady = true
+	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareClasses(program)
 	c.declareTopLevel(program)
 	c.declareReceiverMethods(program)
+	c.nativeInterfaceArgumentsReady = true
+	c.validatePendingNativeInterfaceArguments()
 	c.validateStructValueCycles(program)
 	for _, decl := range c.globalCheckOrder(program) {
 		c.ensureGlobalBindingChecked(decl)

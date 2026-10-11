@@ -2,6 +2,7 @@ package sema
 
 import (
 	gotypes "go/types"
+	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -13,6 +14,31 @@ func (c *Checker) recordTypeParameterMethods(program *ast.Program) {
 		for _, declaration := range parameters {
 			parameter, ok := scope[declaration.Name].GoType.(*gotypes.TypeParam)
 			if !ok {
+				continue
+			}
+			if bound, native := c.nativeInterfaceBounds[parameter]; native {
+				methods, bindings, _, _ := c.nativeConstraintMethods(bound)
+				properties := map[string]bool{}
+				for _, name := range sortedNativeConstraintMethodNames(methods) {
+					method := methods[name]
+					callable := substituteNativeTypeParameters(method.typeInfo, bindings)
+					if strings.HasPrefix(name, "get ") || strings.HasPrefix(name, "set ") {
+						property := name[4:]
+						if properties[property] {
+							continue
+						}
+						properties[property] = true
+						value := callable.Result
+						if strings.HasPrefix(name, "set ") && len(callable.Parameters) == 1 {
+							value = &callable.Parameters[0]
+						}
+						if value != nil {
+							program.TypeParameterMethods[declaration.NameSpan] = append(program.TypeParameterMethods[declaration.NameSpan], ast.ObjectTypeField{Name: property, Type: typeRefFromType(*value, method.declarationSpan), Span: method.declarationSpan})
+						}
+						continue
+					}
+					program.TypeParameterMethods[declaration.NameSpan] = append(program.TypeParameterMethods[declaration.NameSpan], ast.ObjectTypeField{Name: name, Type: typeRefFromType(callable, method.declarationSpan), Span: method.declarationSpan})
+				}
 				continue
 			}
 			contract := underlyingGoInterface(parameter.Constraint())

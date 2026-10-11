@@ -267,7 +267,17 @@ func (c *Checker) instantiateNativeStorageType(named *gotypes.Named, arguments [
 		}
 		goArguments[index] = resolved
 	}
-	instantiated, err := gotypes.Instantiate(nil, named, goArguments, true)
+	validate := true
+	for i := 0; i < named.TypeParams().Len(); i++ {
+		parameter := named.TypeParams().At(i)
+		if _, source := c.nativeInterfaceBounds[parameter]; source || c.deferredParameterBounds[parameter] {
+			// Source applications are checked against complete source method
+			// contracts, not against these provisional Go storage method sets.
+			validate = false
+			break
+		}
+	}
+	instantiated, err := gotypes.Instantiate(nil, named, goArguments, validate)
 	return instantiated, err == nil
 }
 

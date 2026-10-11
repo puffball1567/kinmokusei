@@ -1,0 +1,19 @@
+import go fmt from "fmt";
+
+interface Reader<E> {
+  function read(): E;
+}
+
+struct Label {
+  public text: string;
+  public function read(): string { return this.text; }
+}
+
+function read<E, T extends Reader<E>>(value: T): E {
+  return value.read();
+}
+
+function main(): void {
+  // E is inferred as verified string from Label's source method signature.
+  fmt.Println(read(Label { text: "gold" }));
+}

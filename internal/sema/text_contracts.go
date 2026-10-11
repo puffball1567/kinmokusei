@@ -208,7 +208,7 @@ func (c *Checker) textContractClassInstance(name string, class *classSymbol, bin
 		if bindings[parameter.GoType].Kind == Invalid {
 			continue
 		}
-		if !c.nativeTypeArgumentSatisfies(parameter, arguments[index], goBindings) {
+		if !c.nativeTypeArgumentSatisfies(parameter, arguments[index], goBindings, nativeBindings) {
 			return Type{}, false
 		}
 		if goParameter, ok := parameter.GoType.(*gotypes.TypeParam); ok {

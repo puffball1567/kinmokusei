@@ -424,11 +424,51 @@ returns, and variadic signatures must agree.
 
 This addition concerns source generic declarations, not direct imported Go
 generic calls. Native source interfaces still cannot be constraint operands
-(for example `constraint Named = LabelView`); use the Go contract as the bound.
+(for example `constraint Named = LabelView`); direct source interface bounds
+are described below.
 
 Use `&`, not a union, to combine method contracts:
 
 <<< ../snippets-invalid/constraint-method-union.km{ts}
+
+### Source interface bounds
+
+Development branch addition: this example is not accepted by v0.4.6.
+
+<<< ../snippets/source-interface-constraints.km{ts}
+
+This prints `gold`. `Reader<E>` remains a runtime interface and can also appear
+directly in a bound. The implementation's checked method signatures determine
+dependent arguments such as `E`; inference preserves verified text, native
+identity and nullable types. If the methods disagree or do not determine all
+arguments, supply explicit arguments; incompatible contracts are errors.
+
+For generic constraint satisfaction, compatible public instance method sets
+are structural: `Label` does not need an `implements` clause. This does not
+change ordinary class-to-interface assignment, which still requires an
+explicit declared implementation. A struct value supplies value-receiver
+methods only; its pointer also supplies pointer-receiver methods. Static,
+private/protected and method-local generic methods cannot satisfy the bound.
+A nullable receiver cannot satisfy a method-bearing bound without narrowing.
+
+Source generic bodies use source names, for example `value.read()`, not the
+generated Go `Read` spelling. Inherited and generic interfaces, source aliases,
+generic owners, method-local constraints and fully instantiated function values
+retain these contracts. Getter/setter requirements use property access and
+still distinguish read-only and write-only properties. `Result` effects,
+multiple results and variadic signatures remain checked.
+
+A Go implementer can satisfy a compatible raw method contract, for example
+an interface with `function String(): bstring`. Its Go string-returning method
+cannot establish `function String(): string`: those bytes are not proven UTF-8.
+Method parameters and results must match invariantly, including nested
+nullable, text and native type contracts; constraint checking does not insert
+implicit validation wrappers.
+
+Direct bounds (`T extends Reader<E>`) are supported. Source runtime interfaces
+are not yet operands in source type-set declarations such as
+`constraint C = Reader<int> & comparable`. Such combinations are diagnosed,
+not silently weakened.
 
 ### Reusing Go type sets
 

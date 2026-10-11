@@ -93,6 +93,9 @@ func (c *Checker) nativeTypeParameterConstraintIsDeferred(ref ast.TypeRef) bool 
 	if ref.Qualifier != "" || ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
 		return false
 	}
+	if c.sourceInterfaceBoundIsDeferred(ref) {
+		return true
+	}
 	symbol := c.interfaces[ref.Name]
 	return symbol != nil && c.isTopLevelAllowed(ref.Span, ref.Name) && symbol.constraint && symbol.goNamed != nil && symbol.goNamed.Underlying() == nil
 }
@@ -142,12 +145,12 @@ func (c *Checker) finalizeDeferredTypeParameterConstraints(program *ast.Program)
 	}
 }
 
-func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef) (gotypes.Type, bool) {
+func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef, parameter *gotypes.TypeParam) (gotypes.Type, bool) {
 	if ref.Qualifier == "" && ref.Name == "comparable" && !ref.Nullable && !ref.IsArray() && !ref.IsPointer() && !ref.IsFunction() && !ref.IsObject() && !ref.IsGoStruct() && len(ref.GenericArguments) == 0 {
 		return gotypes.Universe.Lookup("comparable").Type(), true
 	}
 	if ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
-		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
+		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint or a source interface", formatTypeRefForDiagnostic(ref)))
 		return nil, false
 	}
 	if ref.Qualifier == "" {
@@ -160,15 +163,22 @@ func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef) (gotypes
 	if resolved.Kind == Invalid {
 		return nil, false
 	}
+	if resolved.Kind == Interface {
+		bound, valid := c.nativeSourceInterfaceConstraint(resolved, ref.Span)
+		if valid {
+			c.nativeInterfaceBounds[parameter] = resolved
+		}
+		return bound, valid
+	}
 	constraint, ok := goTypeOf(resolved)
 	if !ok || resolved.Kind == TypeParameter || underlyingGoInterface(constraint) == nil {
-		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint", formatTypeRefForDiagnostic(ref)))
+		c.report(ref.Span, fmt.Sprintf("native type parameter constraint %s must be a Go interface constraint or a source interface", formatTypeRefForDiagnostic(ref)))
 		return nil, false
 	}
 	return constraint, true
 }
 
-func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings map[gotypes.Type]gotypes.Type) bool {
+func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings map[gotypes.Type]gotypes.Type, nativeBindings nativeTypeBindings) bool {
 	goParameter, ok := parameter.GoType.(*gotypes.TypeParam)
 	if !ok {
 		return true
@@ -190,6 +200,9 @@ func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings
 		goArgument, ok = c.goTypeForNativeStorage(argument)
 	}
 	if constraint.NumMethods() != 0 {
+		if sourceBound, source := c.nativeInterfaceBounds[goParameter]; source {
+			return ok && c.nativeSourceInterfaceArgumentSatisfies(substituteNativeTypeParameters(sourceBound, nativeBindings), argument) && gotypes.Satisfies(goArgument, constraintWithoutMethods(constraint))
+		}
 		if methods, nativeBindings, pointer, native := c.nativeConstraintMethods(argument); native {
 			return ok && nativeMethodsSatisfyConstraint(methods, nativeBindings, pointer, constraint) && gotypes.Satisfies(goArgument, constraintWithoutMethods(constraint))
 		}
@@ -201,6 +214,15 @@ func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings
 }
 
 func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs []ast.TypeRef, fallback source.Span, owner string) bool {
+	// Bounds and implementing method sets are completed in separate declaration
+	// phases. Recheck early applications once both are available; accepting a
+	// provisional empty interface without this recheck would erase the contract.
+	if !c.nativeInterfaceArgumentsReady && c.hasSourceInterfaceBounds(parameters) {
+		c.pendingNativeInterfaceArguments = append(c.pendingNativeInterfaceArguments, nativeInterfaceApplication{
+			parameters: parameters, arguments: arguments, refs: refs, span: fallback, owner: owner,
+		})
+		return true
+	}
 	valid := true
 	bindings := make(map[gotypes.Type]gotypes.Type, len(parameters))
 	nativeBindings := make(nativeTypeBindings, len(parameters))
@@ -232,7 +254,7 @@ func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs
 				}
 			}
 		}
-		if index >= len(arguments) || c.nativeTypeArgumentSatisfies(parameters[index], arguments[index], bindings) {
+		if index >= len(arguments) || c.nativeTypeArgumentSatisfies(parameters[index], arguments[index], bindings, nativeBindings) {
 			continue
 		}
 		span := fallback

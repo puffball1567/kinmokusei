@@ -239,6 +239,20 @@ func (s *Server) goValueMethodSignature(result compiler.Result, doc document, co
 	if !ok {
 		return ast.CallableSignature{}, false
 	}
+	if receiver.typeRef.TypeParameter {
+		for _, member := range result.Program.TypeParameterMethods[receiver.typeRef.ResolvedDeclaration] {
+			if member.Name != context.Name || !member.Type.IsFunction() {
+				continue
+			}
+			signature := signatureFromTypeRef(member.Type)
+			parameters := parametersAtDeclaration(result.Program, member.Span)
+			if len(parameters) == len(signature.ParameterTypes) {
+				signature.ParameterNames = parameterNames(parameters)
+			}
+			return signature, true
+		}
+		return ast.CallableSignature{}, false
+	}
 	ref, pointer, ok := goCompletionTypeInfo(receiver.typeRef)
 	if !ok {
 		return ast.CallableSignature{}, false

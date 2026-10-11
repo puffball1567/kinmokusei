@@ -11,6 +11,15 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Accept direct source runtime interface bounds (`T extends Reader<E>`) with
+  structural public instance method matching, inherited/generic contracts,
+  dependent inference, source aliases and generic owner/method specialization.
+  Preserve verified text, nullable signatures, properties, Result effects,
+  multiple results and variadics. Recheck early type applications after complete
+  declarations, retain source names in editor completion/navigation/signatures,
+  and compare generated behavior with independent Go. Source interface/type-set
+  composition remains diagnosed.
+
 - Support fully instantiated native and imported Go generic function values
   using `function<T>` or `function[T]`, including named imports and linked
   source aliases. Share explicit type-argument checks with generic calls;

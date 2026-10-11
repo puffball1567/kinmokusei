@@ -380,6 +380,9 @@ func (c *Checker) substituteNativeMethodOwnerTypeParameters(value Type, bindings
 		for i, parameter := range value.TypeParameters {
 			bound := parameter.GoType.(*gotypes.TypeParam).Constraint()
 			methodParameters[i].GoType.(*gotypes.TypeParam).SetConstraint(substituteConstraintType(bound, goBindings))
+			if sourceBound, source := c.nativeInterfaceBounds[parameter.GoType.(*gotypes.TypeParam)]; source {
+				c.nativeInterfaceBounds[methodParameters[i].GoType.(*gotypes.TypeParam)] = substituteNativeTypeParameters(sourceBound, native)
+			}
 			if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 				c.setParameterRangeShape(methodParameters[i].GoType.(*gotypes.TypeParam), substituteNativeTypeParameters(shape, native))
 			}

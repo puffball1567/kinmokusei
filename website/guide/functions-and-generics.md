@@ -145,6 +145,34 @@ dependent method-based inference preserve text and nullability contracts. See
 the [manual](../book/functions-and-generics#native-values-with-go-method-contracts)
 for an executable example and the remaining boundaries.
 
+### Source interface bounds
+
+::: info Development version
+Direct source interface bounds are supported after v0.4.6.
+:::
+
+A runtime interface can also constrain a generic parameter:
+
+<<< ../snippets/source-interface-constraints.km{ts}
+
+This prints `gold`. The compiler infers `E` from the implementation's method
+signature, preserving verified `string` rather than erasing it to `bstring`.
+Compatible public instance methods satisfy the bound structurally; an explicit
+`implements` declaration is not needed for this generic call. Ordinary class
+assignment to a source interface still follows its explicit `implements` rules.
+
+Inherited/generic interfaces, source aliases, generic owners and method-local
+parameters retain source signatures. Generic code uses source method names
+(`value.read()`), and accessors use property syntax. Native `Result`, multiple
+results, variadics and nullable parameter/result contracts remain checked.
+Private, static and generic methods do not count; pointer-only struct methods
+require a pointer argument. A nullable receiver must be narrowed first.
+
+Direct bounds such as `T extends Reader<E>` are supported. Combining a source
+runtime interface into `constraint C = Reader<int> & comparable` remains
+unsupported. See the [manual](../book/functions-and-generics#source-interface-bounds)
+for the Go-interoperability boundary.
+
 ## Generic named types
 
 Classes, structs, interfaces, and distinct defined types may declare parameters and must be fully instantiated in type positions:

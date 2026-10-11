@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -143,6 +144,13 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		object = *object.Element
+	}
+	if object.Kind == TypeParameter {
+		if parameter, ok := object.GoType.(*gotypes.TypeParam); ok {
+			if bound, source := c.nativeInterfaceBounds[parameter]; source {
+				return c.checkSourceConstraintMember(expr, bound, write)
+			}
+		}
 	}
 	if object.Kind == Object {
 		field, ok := object.Fields[expr.Name]
