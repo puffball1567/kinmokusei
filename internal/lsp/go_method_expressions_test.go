@@ -38,6 +38,8 @@ func TestGoMethodExpressionIncompleteSignatures(t *testing.T) {
 		{`import go io from "io";function f(v:io.Reader):void{io.Reader.Read(v, |`, "io.Reader", 2, 1},
 		{`import go time from "time";function f():boolean{return time.Time /* receiver */ . IsZero(|`, "time.Time", 1, 0},
 		{`import go bytes from "bytes";function f():void{let b:bytes.Buffer=bytes.Buffer{};((*bytes.Buffer)) /* receiver */ . WriteString(&b, |`, "*bytes.Buffer", 2, 1},
+		{`import go atomic from "sync/atomic";function f():void{(*atomic.Pointer<int>).Store(|`, "*atomic.Pointer[int]", 2, 0},
+		{`import go {Pointer as Ptr} from "sync/atomic";function f():void{(*Ptr[int]).Store(nil, |`, "*atomic.Pointer[int]", 2, 1},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "entry.km")
@@ -83,6 +85,8 @@ func TestGoMethodExpressionCompletions(t *testing.T) {
 		{`import go http from "net/http";function f():void{const method=(*http.Request).|;}`, "WithContext", "Method"},
 		{`import go time from "time";function f():void{const time={Time:{IsLocal:1}};const value=time.Time.|;}`, "", "IsZero"},
 		{`import go { Time } from "time";function f():void{const Time={IsLocal:1};const value=Time.|;}`, "IsLocal", "IsZero"},
+		{`import go atomic from "sync/atomic";const method=(*atomic.Pointer<int>).|;`, "Load", ""},
+		{`import go {Pointer as Ptr} from "sync/atomic";const method=Ptr[int].|;`, "", "Load"},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			input := strings.Replace(test.input, "|", "", 1)

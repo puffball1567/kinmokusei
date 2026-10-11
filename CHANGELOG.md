@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Support direct `<T>`/`[T]` receiver instantiation in native and imported Go
+  method expressions, including pointer receivers, named imports and linked
+  aliases. Reuse type-argument and constraint validation without erasing native
+  text/nullability/Result contracts. Preserve lexical indexing when values
+  shadow type names; specialize editor completion/signatures and support type
+  argument navigation/rename. Compare generated behavior with independent Go.
+
 - Accept direct source runtime interface bounds (`T extends Reader<E>`) with
   structural public instance method matching, inherited/generic contracts,
   dependent inference, source aliases and generic owner/method specialization.

@@ -14,6 +14,9 @@ type Program struct {
 	// GoTypeExpressions records checked type-valued expressions for editor
 	// method-expression completion. It never changes runtime emission.
 	GoTypeExpressions map[source.Span]TypeRef
+	// GoTypeExpressionMethods contains checked, specialized method-expression
+	// signatures, including selectors that are incomplete during editing.
+	GoTypeExpressionMethods map[source.Span]map[string]CallableSignature
 	// NativeTypeMethodSets indexes checked, source-aware callable method
 	// sets and enum constants for native type receivers, including incomplete
 	// editor selectors.

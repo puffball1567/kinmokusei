@@ -17,6 +17,8 @@ func TestNativeMethodExpressionSignatures(t *testing.T) {
 		{`interface I{function read(n:int):int;}function f(v:I):int{return I.read(v, |`, "I"},
 		{`struct S{public function read(n:int):int{return n;}}alias A=S;function f(v:A):int{return A.read(v, |`, "S"},
 		{`struct S{public function read(n:int):int{return n;}}function f(v:*S):int{return ((*S)) /* type */ . read(v, |`, "*S"},
+		{`struct Box<T>{public function read(n:T):T{return n;}}function f(v:Box<int>):int{return Box<int>.read(v, |`, "Box<int>"},
+		{`struct Box<T>{public function read(n:T):T{return n;}}function f(v:*Box<int>):int{return (*Box[int]).read(v, |`, "*Box<int>"},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			input := strings.Replace(test.input, "|", "", 1)
@@ -43,6 +45,9 @@ func TestNativeMethodExpressionCompletions(t *testing.T) {
 		{`interface I{function read():int;get value():int;}const read=I.|;`, "read", "get value"},
 		{`struct S{public function read():int{return 1;}public function echo<T>(v:T):T{return v;}}const read=S.|;`, "read", "echo"},
 		{`struct S{public function read():int{return 1;}}function f():void{const S={other:1};const value=S.|;}`, "Other", "read"},
+		{`struct Box<T>{public item:T;public function read():T{return this.item;}public pointer function set(v:T):void{this.item=v;}}const read=Box<int>.|;`, "read", "set"},
+		{`struct Box<T>{public item:T;public function read():T{return this.item;}public pointer function set(v:T):void{this.item=v;}}const read=(*Box[int]).|;`, "set", "item"},
+		{`struct Box<T>{public function read():int{return 1;}}function f():void{const Box=[{other:1}];const i=0;const value=Box[i].|;}`, "", "read"},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			input := strings.Replace(test.input, "|", "", 1)
@@ -76,6 +81,29 @@ func TestNativeMethodExpressionInvalidSignature(t *testing.T) {
 				t.Fatalf("invalid method expression signature: %v", message)
 			}
 		})
+	}
+}
+
+func TestInstantiatedMethodExpressionTypeArgumentRename(t *testing.T) {
+	t.Parallel()
+	for _, application := range []string{"Box<Item>", "Box[Item]", "(*Box[Item])"} {
+		input := "struct Item{}\nstruct Box<T>{public function read():int{return 1;}}\nconst read=" + application + ".read;"
+		uri := fileURI(filepath.Join(t.TempDir(), "entry.km"))
+		messages := serveMessages(t, openDocument(uri, input),
+			requestAt("textDocument/definition", 2, uri, positionOf(input, "Item", 1), ""),
+			requestAt("textDocument/rename", 3, uri, positionOf(input, "Item", 1), `"newName":"Value"`),
+			requestAt("textDocument/rename", 4, uri, positionOf(input, "Box", 1), `"newName":"Container"`),
+		)
+		definition := messages[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+		if definition["line"] != float64(0) {
+			t.Fatalf("type argument definition=%v", definition)
+		}
+		for _, id := range []float64{3, 4} {
+			changes := messages[id]["result"].(map[string]any)["changes"].(map[string]any)
+			if len(changes[uri].([]any)) != 2 {
+				t.Fatalf("rename must include declaration and application exactly once: %v", changes)
+			}
+		}
 	}
 }
 

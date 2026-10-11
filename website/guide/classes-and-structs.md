@@ -171,10 +171,26 @@ nullable parameters/results, `Result<T>`, multiple results and variadic argument
 remain part of the callable contract. The function can be stored or passed as a
 callback; private methods are available only within their declaring source file.
 
-For a concrete generic receiver, declare an alias such as
-`alias IntBox = Box<int>;` and select `IntBox.read`. Direct receiver type arguments,
-uninstantiated receivers and methods with their own type parameters are not
-supported in this form. Class instance method expressions are not yet supported;
+Generic receiver types can be instantiated directly, using either `<T>` or `[T]`:
+
+```ts
+struct Box<T> {
+  public item: T;
+  public function read(): T { return this.item; }
+}
+
+function readText(box: Box<string>): string {
+  const read = Box<string>.read; // (Box<string>) => string
+  return read(box);
+}
+```
+
+`Box[string].read` and `(*Box<string>).read` are also valid. All receiver type
+arguments must be explicit and satisfy their constraints; a type parameter from
+the enclosing generic function can be used. Concrete aliases such as
+`alias IntBox = Box<int>;` still work. Uninstantiated receivers and methods with
+their own type parameters are not supported in this form.
+Class instance method expressions are not yet supported;
 existing class static calls keep their ordinary meaning.
 
 Concrete native method references participate in global initialization

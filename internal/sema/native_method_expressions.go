@@ -12,19 +12,31 @@ import (
 // Recognize type receivers only in the source type namespace. A lexically
 // shadowing value must retain ordinary selector/dereference semantics.
 func (c *Checker) nativeMethodExpressionReceiver(expression ast.Expression) (Type, ast.TypeRef, bool) {
+	ref, found := c.nativeMethodExpressionReceiverRef(expression)
+	if !found {
+		return Type{}, ref, false
+	}
+	receiver := c.resolveType(ref)
+	c.recordNativeMethodExpressionType(expression.GetSpan(), receiver, ref)
+	return receiver, ref, true
+}
+
+// Build the complete application before resolving it: resolving Box on the
+// way to Box<int> would incorrectly diagnose missing type arguments.
+func (c *Checker) nativeMethodExpressionReceiverRef(expression ast.Expression) (ast.TypeRef, bool) {
 	var ref ast.TypeRef
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
 		if _, exists := c.lookupTypeParameter(expression.Name); exists {
-			return Type{}, ref, false
+			return ref, false
 		}
 		for _, scope := range c.scopes {
 			if _, exists := scope[expression.Name]; exists {
-				return Type{}, ref, false
+				return ref, false
 			}
 		}
 		if !c.isTopLevelAllowed(expression.Span, expression.Name) {
-			return Type{}, ref, false
+			return ref, false
 		}
 		switch {
 		case c.structs[expression.Name] != nil:
@@ -34,24 +46,34 @@ func (c *Checker) nativeMethodExpressionReceiver(expression ast.Expression) (Typ
 		case c.nativeTypes[expression.Name] != nil:
 			expression.ResolvedDeclaration = c.nativeTypes[expression.Name].declaration.NameSpan
 		default:
-			return Type{}, ref, false
+			return ref, false
 		}
 		ref = ast.TypeRef{Name: expression.Name, NameSpan: expression.Span, Span: expression.Span}
+	case *ast.IndexExpr:
+		identifier, ok := expression.Object.(*ast.IdentifierExpr)
+		if !ok || len(expression.TypeArguments) == 0 {
+			return ref, false
+		}
+		base, found := c.nativeMethodExpressionReceiverRef(identifier)
+		if !found {
+			return ref, false
+		}
+		ref = base
+		ref.GenericArguments, ref.Span = expression.TypeArguments, expression.Span
+		expression.Instantiated, expression.ResolvedType = true, ref
 	case *ast.UnaryExpr:
 		if expression.Operator != "*" {
-			return Type{}, ref, false
+			return ref, false
 		}
-		_, pointee, found := c.nativeMethodExpressionReceiver(expression.Operand)
+		pointee, found := c.nativeMethodExpressionReceiverRef(expression.Operand)
 		if !found {
-			return Type{}, ref, false
+			return ref, false
 		}
 		ref = ast.TypeRef{Pointee: &pointee, Span: expression.Span}
 	default:
-		return Type{}, ref, false
+		return ref, false
 	}
-	receiver := c.resolveType(ref)
-	c.recordNativeMethodExpressionType(expression.GetSpan(), receiver, ref)
-	return receiver, ref, true
+	return ref, true
 }
 
 // Source metadata, rather than a round trip through Go storage, preserves
