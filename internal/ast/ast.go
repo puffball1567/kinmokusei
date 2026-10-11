@@ -14,6 +14,10 @@ type Program struct {
 	// GoTypeExpressions records checked type-valued expressions for editor
 	// method-expression completion. It never changes runtime emission.
 	GoTypeExpressions map[source.Span]TypeRef
+	// NativeTypeMethodSets indexes checked, source-aware callable method
+	// sets and enum constants for native type receivers, including incomplete
+	// editor selectors.
+	NativeTypeMethodSets map[source.Span]NativeTypeMethodSet
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool
@@ -25,6 +29,13 @@ type Program struct {
 	UsesExceptions       bool
 	UsesDecoratorContext bool
 	UsesUTF8             bool
+}
+
+// NativeTypeMethodSet keeps callable expressions separate from constants in
+// the same source namespace. Pointer receivers have no enum constants.
+type NativeTypeMethodSet struct {
+	Methods   []ObjectTypeField
+	Constants []ObjectTypeField
 }
 
 type ImportDecl struct {
@@ -981,6 +992,10 @@ type MemberExpr struct {
 	SuperBase              string
 	VirtualDispatch        bool
 	VirtualOwner           string
+
+	// MethodExpressionReceiver is a checked native type, not a runtime value.
+	MethodExpressionReceiver *TypeRef
+
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
 	GenericMethod                bool
@@ -995,11 +1010,16 @@ func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
 type IndexExpr struct {
-	Object      Expression
-	Index       Expression
-	Addressable bool
-	Assignable  bool
-	Span        source.Span
+	// TypeArguments retains a possible explicit instantiation. For ambiguous
+	// f[T] syntax, Index retains the ordinary index until checking resolves f.
+	TypeArguments []TypeRef
+	Instantiated  bool
+	ResolvedType  TypeRef
+	Object        Expression
+	Index         Expression
+	Addressable   bool
+	Assignable    bool
+	Span          source.Span
 }
 
 func (*IndexExpr) expression()            {}

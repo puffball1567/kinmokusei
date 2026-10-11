@@ -133,3 +133,53 @@ struct Counter {
 ```
 
 External receiver declarations are also available when separating data layout and behavior improves readability.
+
+## Native method expressions
+
+::: info Available after v0.4.6
+Native type-based method expressions are implemented in the development version.
+:::
+
+A bound method such as `counter.snapshot` captures its receiver. A method
+expression takes that receiver explicitly as its first argument:
+
+```ts
+struct Counter {
+  public value: int;
+  public function snapshot(): int { return this.value; }
+  public pointer function increment(): void { this.value++; }
+}
+
+function example(): int {
+  let counter = Counter { value: 2 };
+  const read = Counter.snapshot;          // (Counter) => int
+  const increment = (*Counter).increment; // (*Counter) => void
+  increment(&counter);
+  return read(counter);                  // 3
+}
+```
+
+`Counter.increment` is rejected: a method expression does not implicitly take
+the address of the receiver. `(*Counter).snapshot` is valid but panics on a nil
+pointer because the value method needs a receiver value. A nil-aware pointer
+method may handle `nil` itself, as in ordinary Go pointer interop.
+
+Enums, distinct defined types and source interfaces also support `Type.method`.
+Interface expressions dispatch through the explicit interface argument and
+retain inherited methods. A nil interface panics when invoked. Text guarantees,
+nullable parameters/results, `Result<T>`, multiple results and variadic arguments
+remain part of the callable contract. The function can be stored or passed as a
+callback; private methods are available only within their declaring source file.
+
+For a concrete generic receiver, declare an alias such as
+`alias IntBox = Box<int>;` and select `IntBox.read`. Direct receiver type arguments,
+uninstantiated receivers and methods with their own type parameters are not
+supported in this form. Class instance method expressions are not yet supported;
+existing class static calls keep their ordinary meaning.
+
+Concrete native method references participate in global initialization
+dependencies even when the function is stored without calling it. Cycles are
+compile errors; ordinary method recursion is still valid. Editor completion
+offers methods from the exact receiver method set (plus enum constants for a
+non-pointer enum type), and argument hints include
+the explicit receiver during incomplete calls.

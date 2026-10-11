@@ -498,7 +498,13 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			add(expression.NameSpan, expression.ResolvedDeclaration)
 		case *ast.IndexExpr:
 			walkExpression(expression.Object)
-			walkExpression(expression.Index)
+			if expression.Instantiated {
+				for i := range expression.TypeArguments {
+					walkType(&expression.TypeArguments[i])
+				}
+			} else {
+				walkExpression(expression.Index)
+			}
 		case *ast.SliceExpr:
 			walkExpression(expression.Object)
 			walkExpression(expression.Low)

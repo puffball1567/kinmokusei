@@ -35,6 +35,7 @@ type Checker struct {
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
 	goTypeExpressions          map[source.Span]ast.TypeRef
+	nativeTypeMethodSets       map[source.Span]ast.NativeTypeMethodSet
 	inConstructor              bool
 	inFieldInitializer         bool
 	fieldInitializerAvailable  map[string]bool
@@ -82,6 +83,13 @@ type Checker struct {
 	enumChecks                 map[*ast.EnumDecl]globalBindingCheckState
 	checkingLocalArrow         *localArrowInference
 	resultErrorUses            map[*bool]resultErrorUse
+
+	nativeInterfaceDeclarations     map[string]*ast.InterfaceDecl
+	nativeInterfaceAliases          map[string]ast.TypeRef
+	nativeInterfaceBounds           map[*gotypes.TypeParam]Type
+	nativeInterfacesReady           bool
+	nativeInterfaceArgumentsReady   bool
+	pendingNativeInterfaceArguments []nativeInterfaceApplication
 }
 
 type GoInteropPolicy struct {
@@ -114,10 +122,16 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
-		goNamedImports:    map[string]map[string]goNamedImport{},
-		goFieldReceivers:  map[*ast.MemberExpr]gotypes.Type{},
-		goTypeExpressions: map[source.Span]ast.TypeRef{},
-		memberFlow:        map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
+		goNamedImports:       map[string]map[string]goNamedImport{},
+		goFieldReceivers:     map[*ast.MemberExpr]gotypes.Type{},
+		goTypeExpressions:    map[source.Span]ast.TypeRef{},
+		nativeTypeMethodSets: map[source.Span]ast.NativeTypeMethodSet{},
+
+		nativeInterfaceDeclarations: map[string]*ast.InterfaceDecl{},
+		nativeInterfaceAliases:      map[string]ast.TypeRef{},
+		nativeInterfaceBounds:       map[*gotypes.TypeParam]Type{},
+
+		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
@@ -145,9 +159,13 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
 	c.declareInterfaces(program)
+	c.nativeInterfacesReady = true
+	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareClasses(program)
 	c.declareTopLevel(program)
 	c.declareReceiverMethods(program)
+	c.nativeInterfaceArgumentsReady = true
+	c.validatePendingNativeInterfaceArguments()
 	c.validateStructValueCycles(program)
 	for _, decl := range c.globalCheckOrder(program) {
 		c.ensureGlobalBindingChecked(decl)
@@ -195,6 +213,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
 	program.GoTypeExpressions = c.goTypeExpressions
+	program.NativeTypeMethodSets = c.nativeTypeMethodSets
 	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
@@ -624,7 +643,12 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		}
 		if named, ok := c.nativeTypes[expr.Name]; ok && c.isTopLevelAllowed(expr.Span, expr.Name) {
 			expr.ResolvedDeclaration = named.declaration.NameSpan
+			c.nativeMethodExpressionReceiver(expr)
 			c.report(expr.Span, fmt.Sprintf("type %q cannot be used as a value; call it with one argument to convert", expr.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		if _, _, found := c.nativeMethodExpressionReceiver(expr); found {
+			c.report(expr.Span, fmt.Sprintf("type %q cannot be used as a value", expr.Name))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		c.report(expr.Span, fmt.Sprintf("undefined name %q", expr.Name))

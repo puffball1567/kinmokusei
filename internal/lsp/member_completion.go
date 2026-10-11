@@ -455,7 +455,11 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	if ref.TypeParameter {
 		if !static {
 			for _, method := range program.TypeParameterMethods[ref.ResolvedDeclaration] {
-				add(completionItem{Label: method.Name, Kind: 2, Detail: method.Name + ": " + formatTypeRef(method.Type), SortText: "0_" + method.Name})
+				kind := 2
+				if !method.Type.IsFunction() {
+					kind = 10
+				}
+				add(completionItem{Label: method.Name, Kind: kind, Detail: method.Name + ": " + formatTypeRef(method.Type), SortText: "0_" + method.Name})
 			}
 		}
 		return

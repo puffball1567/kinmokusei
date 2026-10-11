@@ -11,6 +11,32 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Accept direct source runtime interface bounds (`T extends Reader<E>`) with
+  structural public instance method matching, inherited/generic contracts,
+  dependent inference, source aliases and generic owner/method specialization.
+  Preserve verified text, nullable signatures, properties, Result effects,
+  multiple results and variadics. Recheck early type applications after complete
+  declarations, retain source names in editor completion/navigation/signatures,
+  and compare generated behavior with independent Go. Source interface/type-set
+  composition remains diagnosed.
+
+- Support fully instantiated native and imported Go generic function values
+  using `function<T>` or `function[T]`, including named imports and linked
+  source aliases. Share explicit type-argument checks with generic calls;
+  preserve native text/nullability contracts, Result effects, multiple results
+  and variadics. Add independent Go runtime comparison, source-map verification
+  and editor navigation/rename/signature coverage. Missing type arguments and
+  generic instance method values remain diagnosed rather than guessed.
+
+- Add explicit-receiver method expressions for native structs, enums, distinct
+  defined types and interfaces, including concrete generic aliases. Preserve value/
+  pointer method sets, source text/nullability contracts, variadics, Results,
+  multiple results and linked identities. Preserve enum constant namespaces in
+  editor completion alongside eligible methods; provide method-only completion
+  for other native receivers and receiver-aware argument hints; detect
+  initialization cycles through native
+  method bodies, including stored method values and expressions.
+
 - Fix native-struct collection fields rejecting local slices, maps and nested/
   generic collections of the same source type (#86). Rebuild canonical Go
   storage while retaining nominal, fixed-length, text and nullable contracts.

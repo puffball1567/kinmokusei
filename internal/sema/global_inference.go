@@ -52,8 +52,16 @@ func (c *Checker) initializerChecker() *Checker {
 		nativeTypes: c.nativeTypes, enums: c.enums, allowed: c.allowed, unimportedReferences: c.unimportedReferences,
 		goPackages: c.goPackages, goNamedImports: c.goNamedImports,
 		goImporter: c.goImporter, allowUnsafeGo: c.allowUnsafeGo, goSizes: c.goSizes,
-		goFieldReceivers:         c.goFieldReceivers,
-		goTypeExpressions:        c.goTypeExpressions,
+		goFieldReceivers:     c.goFieldReceivers,
+		goTypeExpressions:    c.goTypeExpressions,
+		nativeTypeMethodSets: c.nativeTypeMethodSets,
+
+		nativeInterfaceDeclarations:   c.nativeInterfaceDeclarations,
+		nativeInterfaceAliases:        c.nativeInterfaceAliases,
+		nativeInterfaceBounds:         c.nativeInterfaceBounds,
+		nativeInterfacesReady:         c.nativeInterfacesReady,
+		nativeInterfaceArgumentsReady: c.nativeInterfaceArgumentsReady,
+
 		nativeConstraintsReady:   c.nativeConstraintsReady,
 		structGoTypesFinalized:   c.structGoTypesFinalized,
 		deferredParameterBounds:  c.deferredParameterBounds,
@@ -79,6 +87,7 @@ func (c *Checker) initializerChecker() *Checker {
 
 func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.diagnostics = append(c.diagnostics, dependency.diagnostics...)
+	c.pendingNativeInterfaceArguments = append(c.pendingNativeInterfaceArguments, dependency.pendingNativeInterfaceArguments...)
 	c.usesTasks = c.usesTasks || dependency.usesTasks
 	c.usesExceptions = c.usesExceptions || dependency.usesExceptions
 	c.usesUTF8 = c.usesUTF8 || dependency.usesUTF8

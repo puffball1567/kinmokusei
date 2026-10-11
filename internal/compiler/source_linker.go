@@ -465,6 +465,9 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 	case *ast.IndexExpr:
 		linker.linkExpression(expression.Object, visible, locals)
 		linker.linkExpression(expression.Index, visible, locals)
+		for i := range expression.TypeArguments {
+			linker.linkType(&expression.TypeArguments[i], visible, locals)
+		}
 	case *ast.SliceExpr:
 		linker.linkExpression(expression.Object, visible, locals)
 		linker.linkExpression(expression.Low, visible, locals)

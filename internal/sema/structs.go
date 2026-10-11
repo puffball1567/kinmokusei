@@ -267,7 +267,17 @@ func (c *Checker) instantiateNativeStorageType(named *gotypes.Named, arguments [
 		}
 		goArguments[index] = resolved
 	}
-	instantiated, err := gotypes.Instantiate(nil, named, goArguments, true)
+	validate := true
+	for i := 0; i < named.TypeParams().Len(); i++ {
+		parameter := named.TypeParams().At(i)
+		if _, source := c.nativeInterfaceBounds[parameter]; source || c.deferredParameterBounds[parameter] {
+			// Source applications are checked against complete source method
+			// contracts, not against these provisional Go storage method sets.
+			validate = false
+			break
+		}
+	}
+	instantiated, err := gotypes.Instantiate(nil, named, goArguments, validate)
 	return instantiated, err == nil
 }
 
@@ -548,6 +558,9 @@ func (c *Checker) checkStruct(decl *ast.StructDecl) {
 }
 
 func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, structName string) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
+	defer func() { c.globalDependencyOwner = previousDependency }()
 	previousFlow := c.enterCallableFlow()
 	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)
@@ -594,6 +607,9 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 }
 
 func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, typeName string) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
+	defer func() { c.globalDependencyOwner = previousDependency }()
 	previousFlow := c.enterCallableFlow()
 	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)

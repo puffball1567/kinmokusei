@@ -512,6 +512,17 @@ compatible `Result<T>` methods retain their `(T, error)` lowering.
 This does not enable native source interfaces as constraint operands or remove
 the separate restrictions on direct imported Go generic calls.
 
+Direct source runtime interface bounds (`T extends Reader<E>`) are supported on
+the development branch. They match compatible public instance method sets
+structurally while preserving source method spelling, verified text, nullable
+contracts, native identity, Result effects, multiple results and variadics.
+Dependent arguments are inferred from source signatures; source aliases,
+inherited/generic interfaces, generic owners and method-local parameters retain
+this metadata. Getter/setter requirements remain properties. This does not
+change ordinary class-to-interface assignment's explicit implementation rule,
+or permit runtime interfaces in source type-set compositions. Early generic
+applications are checked again after bounds and receiver methods are complete.
+
 An operand carrying method requirements cannot appear in a `|` union, even
 through an intermediate source constraint; combine it using `&` instead.
 Imported Go type-set interfaces can also be operands. For example,

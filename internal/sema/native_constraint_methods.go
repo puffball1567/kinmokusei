@@ -16,6 +16,12 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 		argument = *argument.Element
 	}
 	switch argument.Kind {
+	case TypeParameter:
+		if identity, ok := argument.GoType.(*gotypes.TypeParam); ok && !pointer {
+			if bound, exists := c.nativeInterfaceBounds[identity]; exists {
+				return c.nativeConstraintMethods(bound)
+			}
+		}
 	case Class:
 		if symbol := c.classes[argument.Name]; symbol != nil {
 			if pointer { // A source class already lowers to *Class; **Class has no methods.

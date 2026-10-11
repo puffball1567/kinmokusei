@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -60,6 +61,11 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		if enumeration := c.enums[identifier.Name]; !shadowed && enumeration != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			member := enumeration.members[expr.Name]
 			if member == nil {
+				if _, exists := c.nativeTypes[identifier.Name].methods[expr.Name]; exists {
+					if receiver, ref, found := c.nativeMethodExpressionReceiver(identifier); found {
+						return c.checkNativeMethodExpression(expr, receiver, ref)
+					}
+				}
 				c.report(expr.Span, fmt.Sprintf("enum %s has no member %q", identifier.Name, expr.Name))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
@@ -121,6 +127,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			return method.typeInfo
 		}
 	}
+	if receiver, ref, found := c.nativeMethodExpressionReceiver(expr.Object); found {
+		return c.checkNativeMethodExpression(expr, receiver, ref)
+	}
 	object := c.singleValue(c.checkExpression(expr.Object), expr.Object.GetSpan())
 	if object.Kind == Nullable {
 		message := fmt.Sprintf("nullable value %s must be checked against null before member access", object.String())
@@ -135,6 +144,13 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		object = *object.Element
+	}
+	if object.Kind == TypeParameter {
+		if parameter, ok := object.GoType.(*gotypes.TypeParam); ok {
+			if bound, source := c.nativeInterfaceBounds[parameter]; source {
+				return c.checkSourceConstraintMember(expr, bound, write)
+			}
+		}
 	}
 	if object.Kind == Object {
 		field, ok := object.Fields[expr.Name]
@@ -226,6 +242,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, structObject))
 		}
 		if method, ok := structure.methods[expr.Name]; ok {
+			c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 			if method.pointerReceiver && !structPointer && !c.isAddressableExpression(expr.Object) {
 				c.report(expr.Span, fmt.Sprintf("pointer method %q requires an addressable %s value", expr.Name, structObject.String()))
 				return Type{Kind: Invalid, Name: "<invalid>"}
@@ -282,6 +299,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				if method.visibility != ast.Public && method.declarationSpan.Path != expr.Span.Path {
 					c.report(expr.Span, fmt.Sprintf("method %q is private on defined type %s", expr.Name, nativeObject.String()))
 				}
+				c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 				expr.ResolvedName = method.goName
 				expr.ResolvedDeclaration = method.declarationSpan
 				return substituteNativeTypeParameters(method.typeInfo, nativeDefinedTypeBindings(symbol, nativeObject))

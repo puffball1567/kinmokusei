@@ -94,8 +94,15 @@ func (c *Checker) predeclareNamedTypes(program *ast.Program) {
 
 func (c *Checker) predeclareInterfaceNames(program *ast.Program) {
 	for _, declaration := range program.Declarations {
+		if alias, ok := declaration.(*ast.TypeDecl); ok && alias.Alias {
+			c.nativeInterfaceAliases[alias.Name] = alias.Underlying
+		}
 		decl, ok := declaration.(*ast.InterfaceDecl)
-		if !ok || !decl.Constraint {
+		if !ok {
+			continue
+		}
+		if !decl.Constraint {
+			c.nativeInterfaceDeclarations[decl.Name] = decl
 			continue
 		}
 		if _, exists := c.interfaces[decl.Name]; exists {
@@ -488,9 +495,16 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 		}
 		return substituteNativeTypeParameters(base, bindings)
 	}
+	sourceBounds := c.hasSourceInterfaceBounds(symbol.typeParameters)
+	if sourceBounds && !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic defined type "+ref.Name) {
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	goArguments := make([]gotypes.Type, got)
 	for index, argument := range arguments {
 		goArgument, ok := goTypeOf(argument)
+		if sourceBounds && !ok {
+			goArgument, ok = c.goTypeForNativeStorage(argument)
+		}
 		if !ok {
 			c.report(ref.GenericArguments[index].Span, fmt.Sprintf("type %s cannot yet be used as a generic defined type argument", argument.String()))
 			valid = false
@@ -501,7 +515,7 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	instantiated, err := gotypes.Instantiate(nil, base.GoType, goArguments, true)
+	instantiated, err := gotypes.Instantiate(nil, base.GoType, goArguments, !sourceBounds)
 	if err != nil {
 		c.report(ref.Span, fmt.Sprintf("cannot instantiate generic defined type %s: %v", ref.Name, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}

@@ -137,7 +137,11 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 		}
 		named := false
 		if declaration.Path != "" {
-			if parameters := parametersAtDeclaration(result.Program, declaration); len(parameters) == len(signature.ParameterTypes) {
+			parameters := parametersAtDeclaration(result.Program, declaration)
+			if member, ok := call.Callee.(*ast.MemberExpr); ok && member.MethodExpressionReceiver != nil && len(parameters)+1 == len(signature.ParameterTypes) {
+				signature.ParameterNames = append([]string{"receiver"}, parameterNames(parameters)...)
+				named = true
+			} else if len(parameters) == len(signature.ParameterTypes) {
 				signature.ParameterNames = parameterNames(parameters)
 				if hasVariadicParameter(parameters) {
 					signature.Variadic = true
@@ -207,6 +211,14 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 }
 
 func (s *Server) goMemberSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
+	if members, ok := nativeMethodExpressionSetAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
+		for _, member := range members.Methods {
+			if member.Name == context.Name {
+				return nativeMethodExpressionSignature(result.Program, member)
+			}
+		}
+		return ast.CallableSignature{}, false
+	}
 	if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
 		ref, pointer, valid := goCompletionTypeInfo(ref)
 		if !valid {
@@ -225,6 +237,20 @@ func (s *Server) goMemberSignature(result compiler.Result, doc document, context
 func (s *Server) goValueMethodSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
 	receiver, ok := completionReceiverAt(result.Program, doc.Path, context.OpenOffset, context.Qualifier)
 	if !ok {
+		return ast.CallableSignature{}, false
+	}
+	if receiver.typeRef.TypeParameter {
+		for _, member := range result.Program.TypeParameterMethods[receiver.typeRef.ResolvedDeclaration] {
+			if member.Name != context.Name || !member.Type.IsFunction() {
+				continue
+			}
+			signature := signatureFromTypeRef(member.Type)
+			parameters := parametersAtDeclaration(result.Program, member.Span)
+			if len(parameters) == len(signature.ParameterTypes) {
+				signature.ParameterNames = parameterNames(parameters)
+			}
+			return signature, true
+		}
 		return ast.CallableSignature{}, false
 	}
 	ref, pointer, ok := goCompletionTypeInfo(receiver.typeRef)
