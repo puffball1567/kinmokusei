@@ -14,6 +14,9 @@ type Program struct {
 	// GoTypeExpressions records checked type-valued expressions for editor
 	// method-expression completion. It never changes runtime emission.
 	GoTypeExpressions map[source.Span]TypeRef
+	// NativeTypeMethodSets indexes checked, source-aware callable method
+	// sets for native type receivers, including incomplete editor selectors.
+	NativeTypeMethodSets map[source.Span][]ObjectTypeField
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool
@@ -981,6 +984,10 @@ type MemberExpr struct {
 	SuperBase              string
 	VirtualDispatch        bool
 	VirtualOwner           string
+
+	// MethodExpressionReceiver is a checked native type, not a runtime value.
+	MethodExpressionReceiver *TypeRef
+
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
 	GenericMethod                bool

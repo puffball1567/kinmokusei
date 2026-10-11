@@ -148,6 +148,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitExpression(field.Value)
 			}
 		case *ast.MemberExpr:
+			visitType(expression.MethodExpressionReceiver)
 			visitExpression(expression.Object)
 		case *ast.IndexExpr:
 			visitExpression(expression.Object)

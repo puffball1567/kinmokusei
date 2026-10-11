@@ -548,6 +548,9 @@ func (c *Checker) checkStruct(decl *ast.StructDecl) {
 }
 
 func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, structName string) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
+	defer func() { c.globalDependencyOwner = previousDependency }()
 	previousFlow := c.enterCallableFlow()
 	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)
@@ -594,6 +597,9 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 }
 
 func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, typeName string) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
+	defer func() { c.globalDependencyOwner = previousDependency }()
 	previousFlow := c.enterCallableFlow()
 	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)

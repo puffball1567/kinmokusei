@@ -40,7 +40,9 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	}
 	var items []completionItem
 	if member {
-		if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, dot); ok {
+		if members, ok := nativeMethodExpressionMembersAt(result.Program, doc.Path, doc.Text, dot); ok {
+			items = nativeMethodExpressionCompletions(members, prefix)
+		} else if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, dot); ok {
 			items = goMethodExpressionCompletions(result, doc.Path, ref, prefix)
 		} else if isGoPackageQualifier(result.Program, doc.Path, qualifier) {
 			items = goMemberCompletions(result, doc.Path, qualifier, prefix)

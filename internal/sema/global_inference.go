@@ -54,6 +54,7 @@ func (c *Checker) initializerChecker() *Checker {
 		goImporter: c.goImporter, allowUnsafeGo: c.allowUnsafeGo, goSizes: c.goSizes,
 		goFieldReceivers:         c.goFieldReceivers,
 		goTypeExpressions:        c.goTypeExpressions,
+		nativeTypeMethodSets:     c.nativeTypeMethodSets,
 		nativeConstraintsReady:   c.nativeConstraintsReady,
 		structGoTypesFinalized:   c.structGoTypesFinalized,
 		deferredParameterBounds:  c.deferredParameterBounds,

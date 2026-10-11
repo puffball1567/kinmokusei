@@ -37,8 +37,16 @@ prepend its type to the callable's parameter list. Value/pointer/interface and
 promoted methods, callbacks, variadics, multiple results, explicit nil behavior,
 editor completion and signature help have focused coverage and an independent
 Go oracle. Uninstantiated generic receivers are rejected; exported Go aliases of
-concrete instantiations work. Direct generic receiver instantiation and native
-source-type method expressions remain separate follow-up work.
+concrete instantiations work. Native structs, distinct defined types and source
+interfaces now support explicit-receiver method expressions as well, including
+source aliases of concrete generic instantiations. These retain source
+text/nullability contracts, Results and multiple results, value/pointer method
+sets, method-only completion and receiver-aware argument hints. Native method
+bodies participate in global initialization-cycle checking even when referenced
+through a stored method value or expression. Independent runtime coverage is in
+`native_method_expressions_test.go`. Direct generic receiver instantiation,
+generic methods, enums and class instance method expressions remain follow-up
+work; existing class static methods are unchanged.
 
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent

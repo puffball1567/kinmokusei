@@ -21,6 +21,12 @@ func classConstructionDependency(owner string) string {
 	return "constructor " + owner
 }
 
+// Declaration identity distinguishes same-named methods on different native
+// receivers, including types renamed by source linking.
+func nativeMethodDependency(declaration source.Span) string {
+	return fmt.Sprintf("native method %s:%d", declaration.Path, declaration.Start.Offset)
+}
+
 func (c *Checker) recordGlobalDependency(name string) {
 	owner := c.globalDependencyOwner
 	if owner == "" {

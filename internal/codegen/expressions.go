@@ -379,6 +379,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.CompositeLit{Type: goType(expr.Type), Elts: fields}, nil
 	case *kinmokuseiAST.MemberExpr:
+		if expr.MethodExpressionReceiver != nil {
+			return &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}, nil
+		}
 		if expr.Property {
 			object, err := generatePropertyReceiver(expr)
 			if err != nil {

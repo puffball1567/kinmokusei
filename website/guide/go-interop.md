@@ -146,8 +146,9 @@ nullable-safe class references.
 
 Direct `<T>`/`[T]` receiver instantiation in a method expression is not yet
 supported. An exported Go alias of a concrete instantiation can be used instead;
-an uninstantiated generic type is rejected. These forms select imported Go
-methods, not Kinmokusei instance methods or class static methods.
+an uninstantiated generic type is rejected. Native structs, defined types and
+interfaces also support the [explicit-receiver form](./classes-and-structs#native-method-expressions).
+Class static calls remain a separate feature.
 
 ## Multiple results and errors
 

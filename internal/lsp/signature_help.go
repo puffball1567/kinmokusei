@@ -137,7 +137,11 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 		}
 		named := false
 		if declaration.Path != "" {
-			if parameters := parametersAtDeclaration(result.Program, declaration); len(parameters) == len(signature.ParameterTypes) {
+			parameters := parametersAtDeclaration(result.Program, declaration)
+			if member, ok := call.Callee.(*ast.MemberExpr); ok && member.MethodExpressionReceiver != nil && len(parameters)+1 == len(signature.ParameterTypes) {
+				signature.ParameterNames = append([]string{"receiver"}, parameterNames(parameters)...)
+				named = true
+			} else if len(parameters) == len(signature.ParameterTypes) {
 				signature.ParameterNames = parameterNames(parameters)
 				if hasVariadicParameter(parameters) {
 					signature.Variadic = true
@@ -207,6 +211,14 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 }
 
 func (s *Server) goMemberSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
+	if members, ok := nativeMethodExpressionMembersAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
+		for _, member := range members {
+			if member.Name == context.Name {
+				return nativeMethodExpressionSignature(result.Program, member)
+			}
+		}
+		return ast.CallableSignature{}, false
+	}
 	if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
 		ref, pointer, valid := goCompletionTypeInfo(ref)
 		if !valid {
