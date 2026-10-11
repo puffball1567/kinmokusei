@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Support fully instantiated native and imported Go generic function values
+  using `function<T>` or `function[T]`, including named imports and linked
+  source aliases. Share explicit type-argument checks with generic calls;
+  preserve native text/nullability contracts, Result effects, multiple results
+  and variadics. Add independent Go runtime comparison, source-map verification
+  and editor navigation/rename/signature coverage. Missing type arguments and
+  generic instance method values remain diagnosed rather than guessed.
+
 - Add explicit-receiver method expressions for native structs, enums, distinct
   defined types and interfaces, including concrete generic aliases. Preserve value/
   pointer method sets, source text/nullability contracts, variadics, Results,

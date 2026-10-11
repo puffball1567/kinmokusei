@@ -17,25 +17,9 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 	if len(expr.TypeArguments) > len(callable.TypeParameters) {
 		c.report(expr.Span, fmt.Sprintf("%s has %d type parameters, got %d explicit type arguments", callableName, len(callable.TypeParameters), len(expr.TypeArguments)))
 	}
-	bindings := make(nativeTypeBindings, len(callable.TypeParameters))
-	for _, parameter := range callable.TypeParameters {
-		// Only the callee's own declarations are inference variables. A type
-		// parameter captured from its receiver or caller must remain fixed.
-		bindings[parameter.GoType] = Type{Kind: Invalid}
-	}
-	for index, argument := range expr.TypeArguments {
-		resolved := c.resolveType(argument)
-		if resolved.Kind == Invalid {
-			continue
-		}
-		if !validNativeTypeArgument(resolved) {
-			c.report(argument.Span, fmt.Sprintf("type %s cannot be used as a generic function type argument", resolved.String()))
-			continue
-		}
-		if index < len(callable.TypeParameters) {
-			bindings[callable.TypeParameters[index].GoType] = resolved
-		}
-	}
+	// Only the callee's own parameters are inference variables; captured
+	// receiver/caller parameters remain fixed.
+	bindings := c.nativeFunctionTypeBindings(callable, expr.TypeArguments)
 	actualTypes := c.checkGenericCallbackArguments(expr, callable, bindings)
 	if len(actualTypes) == 1 && actualTypes[0].Kind == MultiValue {
 		return c.checkNativeGenericMultipleCall(expr, callableName, callable, bindings, actualTypes[0])
@@ -566,18 +550,9 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		}
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	typeArguments := make([]gotypes.Type, len(expr.TypeArguments))
-	for i := range expr.TypeArguments {
-		resolved := c.resolveType(expr.TypeArguments[i])
-		if resolved.Kind == Invalid {
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		goType, valid := goTypeOf(resolved)
-		if !valid {
-			c.report(expr.TypeArguments[i].Span, fmt.Sprintf("type argument %s cannot be represented as a Go type", resolved.String()))
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		typeArguments[i] = goType
+	typeArguments, valid := c.explicitGoFunctionTypeArguments(expr.TypeArguments)
+	if !valid {
+		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, typeArguments)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)

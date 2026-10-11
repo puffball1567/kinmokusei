@@ -67,7 +67,7 @@ where applicable, editor support and user documentation.
 |---|---|---|
 | 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
 | 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
-| 3 | Instantiated generic function values | Generic calls work; explicitly instantiated functions cannot yet be stored without an immediate call |
+| 3 | Instantiated generic function values | Implemented in development for full explicit argument lists, source/Go functions and named/aliased imports, with Result/variadic/text contracts, independent Go comparison and editor support; partial/contextual instantiation and generic instance method values remain |
 | 4 | Direct generic receiver instantiation in method expressions | Concrete aliases work; selecting a method directly from an instantiated generic type remains |
 | 5 | Native enum method expressions | Implemented in development: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
 | 6 | Native source interface constraints | Runtime interfaces work; use as source generic constraint contracts remains |

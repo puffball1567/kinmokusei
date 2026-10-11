@@ -1010,11 +1010,16 @@ func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
 type IndexExpr struct {
-	Object      Expression
-	Index       Expression
-	Addressable bool
-	Assignable  bool
-	Span        source.Span
+	// TypeArguments retains a possible explicit instantiation. For ambiguous
+	// f[T] syntax, Index retains the ordinary index until checking resolves f.
+	TypeArguments []TypeRef
+	Instantiated  bool
+	ResolvedType  TypeRef
+	Object        Expression
+	Index         Expression
+	Addressable   bool
+	Assignable    bool
+	Span          source.Span
 }
 
 func (*IndexExpr) expression()            {}

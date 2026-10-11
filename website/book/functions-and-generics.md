@@ -296,6 +296,17 @@ pair<int>(1, "one");
 
 Every uninferred parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
 
+In development builds after v0.4.6, a fully instantiated generic function is an
+ordinary typed callable: `const integerIdentity = identity<int>` fixes the
+parameter and result types without invoking `identity`. The bracket spelling
+`identity[int]` has the same meaning. This works for imported Go functions too,
+including named imports. All type arguments must be explicit for a function
+value; partial call inference does not imply partial value instantiation.
+Constraints are checked at instantiation, and native text/nullability and
+Result contracts remain visible through the callable. Generic instance methods
+still require direct calls. See the
+[Guide's function-value examples](../guide/functions-and-generics#instantiated-function-values).
+
 A value-returning body must end in a terminating statement, as required by Go.
 Remove unreachable statements after a final return. A switch or select that
 can exit through `break` does not by itself prove that a value is returned.

@@ -416,6 +416,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr.Instantiated {
+			return indexedGoType(object, expr.TypeArguments), nil
+		}
 		index, err := generateExpression(expr.Index)
 		if err != nil {
 			return nil, err

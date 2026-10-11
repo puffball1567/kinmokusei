@@ -152,7 +152,14 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(expression.Object)
 		case *ast.IndexExpr:
 			visitExpression(expression.Object)
-			visitExpression(expression.Index)
+			if expression.Instantiated {
+				for i := range expression.TypeArguments {
+					visitType(&expression.TypeArguments[i])
+				}
+				visitType(&expression.ResolvedType)
+			} else {
+				visitExpression(expression.Index)
+			}
 		case *ast.SliceExpr:
 			visitExpression(expression.Object)
 			visitExpression(expression.Low)

@@ -77,6 +77,45 @@ Direct arrow callback parameters can also be inferred in native and Go
 generic calls. See [generic callback inference](../book/functions-and-generics#generic-callback-inference)
 for examples and inference boundaries.
 
+### Instantiated function values
+
+::: info Development version
+Fully instantiated generic function values are supported after v0.4.6.
+:::
+
+Supply all type arguments when storing or passing a generic function:
+
+```ts
+function identity<T>(value: T): T { return value; }
+
+const integerIdentity = identity<int>;
+const sameIdentity = identity[int];
+const callbacks: ((value: int) => int)[] = [integerIdentity, sameIdentity];
+const answer = callbacks[0](42);
+```
+
+Both forms lower directly to a Go function instantiation, without a wrapper.
+The resulting value can be returned, stored in collections, or used as a
+callback. Native `string`, nullable types, `Result<T>`, multiple results and
+variadics retain their checked contracts. A Result-returning function value does
+not permit silently discarding the result.
+
+Imported Go functions work too:
+
+```ts
+import go { Clone } from "slices";
+
+const cloneIntegers = Clone<int[], int>;
+const copy = cloneIntegers([1, 2, 3]);
+```
+
+Ordinary `values[index]` remains indexing when `values` is a collection, even if
+it shadows a generic function. Constraints are checked when the function is
+instantiated. Partial argument lists and target-type inference for function
+values are not yet supported; supply every argument explicitly. Generic
+instance methods remain direct-call-only. Existing generic calls may still
+infer missing arguments.
+
 ## Constraints
 
 `extends comparable` maps to Go's `comparable` constraint:

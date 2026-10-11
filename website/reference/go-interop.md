@@ -39,6 +39,7 @@ source import aliases never rewrite Go package paths.
 | Raw `error` | Implemented | Explicit split or postfix `?` bridge |
 | Generic named types | Implemented | Explicit instantiation and identity |
 | Generic functions/methods | Implemented | Inferred, partial, or full explicit arguments |
+| Instantiated generic function values | Development version after v0.4.6 | `function<T, U>` / `function[T, U]`; full explicit arguments only, including named Go imports; generic instance method values remain unsupported |
 | Constraints | Implemented when reachable/representable | Checked using Go type information |
 | `unsafe.Pointer` in public shape | Requires policy | `[go.interop].unsafe = "allow"` |
 

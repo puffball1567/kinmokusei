@@ -96,6 +96,11 @@ The compiler reads actual Go export/type data and preserves:
 - generic functions, named types, methods, constraints, and explicit/inferred type arguments;
 - channels and direction, `select`, `defer`, and goroutine calls.
 
+Development builds also support fully instantiated generic function values;
+see [instantiated function values](./functions-and-generics#instantiated-function-values).
+These use the same Go type constraints and raw-text boundary as generic calls,
+without adding runtime wrappers.
+
 Imported type identity remains qualified:
 
 ```ts

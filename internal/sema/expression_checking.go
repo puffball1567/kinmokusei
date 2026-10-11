@@ -376,7 +376,16 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 }
 
 func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
-	object := c.singleValue(c.checkExpression(expr.Object), expr.Object.GetSpan())
+	var object Type
+	if len(expr.TypeArguments) != 0 {
+		object = c.genericValueOperand(expr.Object)
+		if object.Generic || expr.Index == nil {
+			return c.checkGenericFunctionValue(expr, object)
+		}
+	} else {
+		object = c.checkExpression(expr.Object)
+	}
+	object = c.singleValue(object, expr.Object.GetSpan())
 	if object.Kind == Nullable {
 		c.report(expr.Object.GetSpan(), fmt.Sprintf("nullable value %s must be checked against null before indexing", object.String()))
 		if object.Element == nil {
