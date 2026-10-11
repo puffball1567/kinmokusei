@@ -11,11 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
-- Add explicit-receiver method expressions for native structs, distinct defined
-  types and interfaces, including concrete generic aliases. Preserve value/
+- Add explicit-receiver method expressions for native structs, enums, distinct
+  defined types and interfaces, including concrete generic aliases. Preserve value/
   pointer method sets, source text/nullability contracts, variadics, Results,
-  multiple results and linked identities. Provide method-only editor completion
-  and receiver-aware argument hints; detect initialization cycles through native
+  multiple results and linked identities. Preserve enum constant namespaces in
+  editor completion alongside eligible methods; provide method-only completion
+  for other native receivers and receiver-aware argument hints; detect
+  initialization cycles through native
   method bodies, including stored method values and expressions.
 
 - Fix native-struct collection fields rejecting local slices, maps and nested/

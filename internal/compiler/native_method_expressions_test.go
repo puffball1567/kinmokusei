@@ -24,6 +24,12 @@ export struct Counter {
  public function checked():Result<int> { if(this.value<0){return fail(errors.New("negative"));}return ok(this.value); }
 }
 export alias Alias=Counter;
+export enum Status:int8{Pending,Running,Complete}
+export alias StatusAlias=Status;
+public function read(this:Status):int{return int(this);}
+public function advance(this:*Status,n:int8):Status{*this=Status(int8(*this)+n);return *this;}
+public function isNil(this:*Status):boolean{return this===nil;}
+public function Pending(this:Status):int{return int(this);}
 export struct Box<T>{public item:T;public function read():T{return this.item;}}
 export alias IntBox=Box<int>;
 export type Numbers<T>=distinct T[];
@@ -40,7 +46,15 @@ export interface DerivedReader extends Reader{}
 export class Dynamic implements DerivedReader{constructor(public value:int){}public function read():int{return this.value*2;}}
 export function callback():(v:Counter,n:int)=>int{return Counter.copy;}
 `,
-		"entry.km": `import {Counter,Alias,IntBox,IntNumbers,IntEcho,EchoImpl,Number,Reader,DerivedReader,Dynamic,callback} from "./models";
+		"entry.km": `import {Counter,Alias,Status,StatusAlias,IntBox,IntNumbers,IntEcho,EchoImpl,Number,Reader,DerivedReader,Dynamic,callback} from "./models";
+export function EnumMethods():int[]{
+ let v=Status.Pending;const read=Status.read;const advance=(*Status).advance;
+ const old=read(v);const next=advance(&v,1);const aliasRead=StatusAlias.read;
+ const pointerRead=(*StatusAlias).read;const callback:(v:Status)=>int=Status.read;
+ return [old,read(next),aliasRead(v),pointerRead(&v),callback(Status.Complete),int(Status.Pending),(*Status).Pending(&v),StatusAlias.Pending(v)];
+}
+export function EnumNilPointer():boolean{return (*Status).isNil(nil);}
+export function EnumNilValue():int{return (*Status).read(nil);}
 export function Run(n:int):int[]{
  let v=Counter{value:n};const copy=Counter.copy;const pointerRead=(*Counter).read;
  const old=copy(v,3);(*Alias).set(&v,n+5);const aliasRead=Alias.read;
@@ -88,6 +102,16 @@ func(v counter)sum(xs ...int)int{n:=v.value;for _,x:=range xs{n+=x};return n}
 func(v counter)pair()(int,string){return v.value,"ok"}
 func(v counter)checked()(int,error){if v.value<0{return 0,errors.New("negative")};return v.value,nil}
 type alias=counter
+type status int8
+const(pending status=iota;running;complete)
+type statusAlias=status
+func(v status)read()int{return int(v)}
+func(v *status)advance(n int8)status{*v=status(int8(*v)+n);return *v}
+func(v *status)isNil()bool{return v==nil}
+func(v status)Pending()int{return int(v)}
+func EnumMethods()[]int{v:=pending;read:=status.read;advance:=(*status).advance;old:=read(v);next:=advance(&v,1);aliasRead:=statusAlias.read;pointerRead:=(*statusAlias).read;var callback func(status)int=status.read;return []int{old,read(next),aliasRead(v),pointerRead(&v),callback(complete),int(pending),(*status).Pending(&v),statusAlias.Pending(v)}}
+func EnumNilPointer()bool{return (*status).isNil(nil)}
+func EnumNilValue()int{return (*status).read(nil)}
 type box[T any]struct{item T}
 func(v box[T])read()T{return v.item}
 type intBox=box[int]
@@ -127,7 +151,9 @@ func panics(f func()int)(did bool){defer func(){did=recover()!=nil}();f();return
 func TestMethods(t *testing.T){
  for _,n:=range []int{-10,0,17}{if a,b:=g.Run(n),r.Run(n);!reflect.DeepEqual(a,b){t.Fatal("methods",n,a,b)};a,ae:=g.Checked(n);b,be:=r.Checked(n);if a!=b||(ae==nil)!=(be==nil){t.Fatal("result",a,ae,b,be)};if ae!=nil&&ae.Error()!=be.Error(){t.Fatal("error",ae,be)}}
  if !g.NilPointer()||g.NilPointer()!=r.NilPointer(){t.Fatal("nil pointer")}
- for _,pair:=range [][2]func()int{{g.NilValue,r.NilValue},{g.NilInterface,r.NilInterface}}{if !panics(pair[0])||!panics(pair[1]){t.Fatal("nil panic")}}
+ if a,b:=g.EnumMethods(),r.EnumMethods();!reflect.DeepEqual(a,b){t.Fatal("enum methods",a,b)}
+ if !g.EnumNilPointer()||g.EnumNilPointer()!=r.EnumNilPointer(){t.Fatal("enum nil pointer")}
+ for _,pair:=range [][2]func()int{{g.NilValue,r.NilValue},{g.NilInterface,r.NilInterface},{g.EnumNilValue,r.EnumNilValue}}{if !panics(pair[0])||!panics(pair[1]){t.Fatal("nil panic")}}
  if a,b:=g.Evaluation(),r.Evaluation();!reflect.DeepEqual(a,b){t.Fatal("evaluation",a,b)}
  if g.Shadow()!=r.Shadow(){t.Fatal("lexical shadowing")}
 }
@@ -137,21 +163,22 @@ func TestMethods(t *testing.T){
 
 func TestNativeMethodExpressionVisibilityAcrossModules(t *testing.T) {
 	t.Parallel()
-	for _, pointer := range []bool{false, true} {
-		root := t.TempDir()
-		declaration := `export struct S{private function hidden():int{return 1;}}`
-		receiver := "S"
-		if pointer {
-			receiver = "(*S)"
-		}
-		for name, contents := range map[string]string{"models.km": declaration, "entry.km": `import {S} from "./models";const read=` + receiver + `.hidden;`} {
-			if err := os.WriteFile(filepath.Join(root, name), []byte(contents), 0o644); err != nil {
-				t.Fatal(err)
+	for _, declaration := range []string{`export struct S{private function hidden():int{return 1;}}`, `export enum S{A}private function hidden(this:S):int{return int(this);}`} {
+		for _, pointer := range []bool{false, true} {
+			root := t.TempDir()
+			receiver := "S"
+			if pointer {
+				receiver = "(*S)"
 			}
-		}
-		_, diagnostics, err := EmitGo([]string{filepath.Join(root, "entry.km")}, "methods")
-		if err != nil || len(diagnostics) == 0 || !strings.Contains(diagnostics[0].Message, "is private") {
-			t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
+			for name, contents := range map[string]string{"models.km": declaration, "entry.km": `import {S} from "./models";const read=` + receiver + `.hidden;`} {
+				if err := os.WriteFile(filepath.Join(root, name), []byte(contents), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			_, diagnostics, err := EmitGo([]string{filepath.Join(root, "entry.km")}, "methods")
+			if err != nil || len(diagnostics) == 0 || !strings.Contains(diagnostics[0].Message, "is private") {
+				t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
+			}
 		}
 	}
 }

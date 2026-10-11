@@ -219,7 +219,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"interop.test":                        {implementedGoCompatibilityContracts[22]},
 	"callbacks.test":                      {implementedGoCompatibilityContracts[23]},
 	"go-method-expressions.test":          {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[28]},
-	"native-method-expressions.test":      {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[61], implementedGoCompatibilityContracts[62], implementedGoCompatibilityContracts[63], implementedGoCompatibilityContracts[64]},
+	"native-method-expressions.test":      {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[61], implementedGoCompatibilityContracts[62], implementedGoCompatibilityContracts[63], implementedGoCompatibilityContracts[64], implementedGoCompatibilityContracts[72]},
 	"interfaces.test":                     {implementedGoCompatibilityContracts[24]},
 	"generics.test":                       {implementedGoCompatibilityContracts[25]},
 	"generictypes.test":                   {implementedGoCompatibilityContracts[26]},

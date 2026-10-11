@@ -6,11 +6,11 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-func nativeMethodExpressionMembersAt(program *ast.Program, path, text string, dot int) ([]ast.ObjectTypeField, bool) {
+func nativeMethodExpressionSetAt(program *ast.Program, path, text string, dot int) (ast.NativeTypeMethodSet, bool) {
 	if dot < 0 || dot > len(text) {
-		return nil, false
+		return ast.NativeTypeMethodSet{}, false
 	}
-	var members []ast.ObjectTypeField
+	var members ast.NativeTypeMethodSet
 	start, found := dot, false
 	for span, methods := range program.NativeTypeMethodSets {
 		if !samePath(span.Path, path) || span.End.Offset > dot || span.Start.Offset >= start || !goMethodExpressionReceiverSuffix(text[span.End.Offset:dot]) {
@@ -38,9 +38,14 @@ func nativeMethodExpressionSignature(program *ast.Program, member ast.ObjectType
 	return ast.CallableSignature{ParameterNames: names, ParameterTypes: types, Result: formatTypeRef(*ref.Return), Variadic: ref.Variadic}, true
 }
 
-func nativeMethodExpressionCompletions(members []ast.ObjectTypeField, prefix string) []completionItem {
+func nativeMethodExpressionCompletions(set ast.NativeTypeMethodSet, prefix string) []completionItem {
 	items := []completionItem{}
-	for _, member := range members {
+	for _, member := range set.Constants {
+		if strings.HasPrefix(member.Name, prefix) {
+			items = append(items, completionItem{Label: member.Name, Kind: 20, Detail: member.Type.Name + "." + member.Name, SortText: "0_" + member.Name})
+		}
+	}
+	for _, member := range set.Methods {
 		if !strings.HasPrefix(member.Name, prefix) {
 			continue
 		}

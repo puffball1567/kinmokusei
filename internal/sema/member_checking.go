@@ -60,6 +60,11 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		if enumeration := c.enums[identifier.Name]; !shadowed && enumeration != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			member := enumeration.members[expr.Name]
 			if member == nil {
+				if _, exists := c.nativeTypes[identifier.Name].methods[expr.Name]; exists {
+					if receiver, ref, found := c.nativeMethodExpressionReceiver(identifier); found {
+						return c.checkNativeMethodExpression(expr, receiver, ref)
+					}
+				}
 				c.report(expr.Span, fmt.Sprintf("enum %s has no member %q", identifier.Name, expr.Name))
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}

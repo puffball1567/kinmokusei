@@ -69,6 +69,28 @@ alias UserNames = string[];
 type UserID = distinct int64;
 ```
 
+In the development version, enums also support explicit-receiver
+[method expressions](./classes-and-structs#native-method-expressions):
+
+```ts
+public function code(this: Status): int { return int(this); }
+public function set(this: *Status, next: Status): void { *this = next; }
+
+function example(): int {
+  let status = Status.Pending;
+  const code = Status.code;       // (Status) => int
+  const set = (*Status).set;      // (*Status, Status) => void
+  set(&status, Status.Running);
+  return code(status);           // 4
+}
+```
+
+Value/pointer method sets follow Go rules; `Status.set` is rejected. Aliases
+share the enum's method set. Enum constants remain in the original enum
+namespace: `Status.Pending` is a constant, not a method expression. If a constant
+and a method share a name, the constant takes precedence in that namespace;
+selecting the method through `(*Status)` or an alias remains possible.
+
 ## Generics and constraints
 
 Functions, structs, interfaces, classes, defined types, and aliases can declare

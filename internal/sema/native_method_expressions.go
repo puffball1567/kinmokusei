@@ -15,10 +15,6 @@ func (c *Checker) nativeMethodExpressionReceiver(expression ast.Expression) (Typ
 	var ref ast.TypeRef
 	switch expression := expression.(type) {
 	case *ast.IdentifierExpr:
-		// Enum names retain their existing member namespace and completion.
-		if c.enums[expression.Name] != nil {
-			return Type{}, ref, false
-		}
 		if _, exists := c.lookupTypeParameter(expression.Name); exists {
 			return Type{}, ref, false
 		}
@@ -54,7 +50,7 @@ func (c *Checker) nativeMethodExpressionReceiver(expression ast.Expression) (Typ
 		return Type{}, ref, false
 	}
 	receiver := c.resolveType(ref)
-	c.recordNativeMethodExpressionType(expression.GetSpan(), receiver)
+	c.recordNativeMethodExpressionType(expression.GetSpan(), receiver, ref)
 	return receiver, ref, true
 }
 
@@ -128,9 +124,9 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 	return method.typeInfo
 }
 
-func (c *Checker) recordNativeMethodExpressionType(span source.Span, receiver Type) {
+func (c *Checker) recordNativeMethodExpressionType(span source.Span, receiver Type, ref ast.TypeRef) {
 	if c.nativeTypeMethodSets == nil {
-		c.nativeTypeMethodSets = map[source.Span][]ast.ObjectTypeField{}
+		c.nativeTypeMethodSets = map[source.Span]ast.NativeTypeMethodSet{}
 	}
 	members := []ast.ObjectTypeField{}
 	for name, method := range c.nativeMethodExpressionSet(receiver) {
@@ -139,5 +135,20 @@ func (c *Checker) recordNativeMethodExpressionType(span source.Span, receiver Ty
 		}
 	}
 	sort.Slice(members, func(i, j int) bool { return members[i].Name < members[j].Name })
-	c.nativeTypeMethodSets[span] = members
+	set := ast.NativeTypeMethodSet{Methods: members}
+	// Only the enum declaration's namespace exposes its constants; aliases
+	// share the method set, but do not create new enum constant namespaces.
+	if enumeration := c.enums[ref.Name]; enumeration != nil && !ref.IsPointer() {
+		visibleMethods := set.Methods[:0]
+		for _, method := range set.Methods {
+			if enumeration.members[method.Name] == nil {
+				visibleMethods = append(visibleMethods, method)
+			}
+		}
+		set.Methods = visibleMethods
+		for _, member := range enumeration.declaration.Members {
+			set.Constants = append(set.Constants, ast.ObjectTypeField{Name: member.Name, Span: member.NameSpan, Type: ast.TypeRef{Name: ref.Name}})
+		}
+	}
+	c.nativeTypeMethodSets[span] = set
 }

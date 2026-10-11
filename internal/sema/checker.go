@@ -35,7 +35,7 @@ type Checker struct {
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
 	goTypeExpressions          map[source.Span]ast.TypeRef
-	nativeTypeMethodSets       map[source.Span][]ast.ObjectTypeField
+	nativeTypeMethodSets       map[source.Span]ast.NativeTypeMethodSet
 	inConstructor              bool
 	inFieldInitializer         bool
 	fieldInitializerAvailable  map[string]bool
@@ -118,7 +118,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		goNamedImports:       map[string]map[string]goNamedImport{},
 		goFieldReceivers:     map[*ast.MemberExpr]gotypes.Type{},
 		goTypeExpressions:    map[source.Span]ast.TypeRef{},
-		nativeTypeMethodSets: map[source.Span][]ast.ObjectTypeField{},
+		nativeTypeMethodSets: map[source.Span]ast.NativeTypeMethodSet{},
 		memberFlow:           map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},

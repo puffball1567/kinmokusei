@@ -15,8 +15,9 @@ type Program struct {
 	// method-expression completion. It never changes runtime emission.
 	GoTypeExpressions map[source.Span]TypeRef
 	// NativeTypeMethodSets indexes checked, source-aware callable method
-	// sets for native type receivers, including incomplete editor selectors.
-	NativeTypeMethodSets map[source.Span][]ObjectTypeField
+	// sets and enum constants for native type receivers, including incomplete
+	// editor selectors.
+	NativeTypeMethodSets map[source.Span]NativeTypeMethodSet
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool
@@ -28,6 +29,13 @@ type Program struct {
 	UsesExceptions       bool
 	UsesDecoratorContext bool
 	UsesUTF8             bool
+}
+
+// NativeTypeMethodSet keeps callable expressions separate from constants in
+// the same source namespace. Pointer receivers have no enum constants.
+type NativeTypeMethodSet struct {
+	Methods   []ObjectTypeField
+	Constants []ObjectTypeField
 }
 
 type ImportDecl struct {

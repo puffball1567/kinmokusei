@@ -211,8 +211,8 @@ func (s *Server) resolvedSignature(result compiler.Result, doc document, context
 }
 
 func (s *Server) goMemberSignature(result compiler.Result, doc document, context callContext) (ast.CallableSignature, bool) {
-	if members, ok := nativeMethodExpressionMembersAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
-		for _, member := range members {
+	if members, ok := nativeMethodExpressionSetAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
+		for _, member := range members.Methods {
 			if member.Name == context.Name {
 				return nativeMethodExpressionSignature(result.Program, member)
 			}

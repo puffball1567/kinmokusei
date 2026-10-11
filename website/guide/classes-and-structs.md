@@ -164,7 +164,7 @@ the address of the receiver. `(*Counter).snapshot` is valid but panics on a nil
 pointer because the value method needs a receiver value. A nil-aware pointer
 method may handle `nil` itself, as in ordinary Go pointer interop.
 
-Distinct defined types and source interfaces also support `Type.method`.
+Enums, distinct defined types and source interfaces also support `Type.method`.
 Interface expressions dispatch through the explicit interface argument and
 retain inherited methods. A nil interface panics when invoked. Text guarantees,
 nullable parameters/results, `Result<T>`, multiple results and variadic arguments
@@ -174,11 +174,12 @@ callback; private methods are available only within their declaring source file.
 For a concrete generic receiver, declare an alias such as
 `alias IntBox = Box<int>;` and select `IntBox.read`. Direct receiver type arguments,
 uninstantiated receivers and methods with their own type parameters are not
-supported in this form. Enums and class instance method expressions are not yet
-supported; existing class static calls keep their ordinary meaning.
+supported in this form. Class instance method expressions are not yet supported;
+existing class static calls keep their ordinary meaning.
 
 Concrete native method references participate in global initialization
 dependencies even when the function is stored without calling it. Cycles are
 compile errors; ordinary method recursion is still valid. Editor completion
-offers methods from the exact receiver method set, and argument hints include
+offers methods from the exact receiver method set (plus enum constants for a
+non-pointer enum type), and argument hints include
 the explicit receiver during incomplete calls.

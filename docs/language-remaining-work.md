@@ -37,15 +37,16 @@ prepend its type to the callable's parameter list. Value/pointer/interface and
 promoted methods, callbacks, variadics, multiple results, explicit nil behavior,
 editor completion and signature help have focused coverage and an independent
 Go oracle. Uninstantiated generic receivers are rejected; exported Go aliases of
-concrete instantiations work. Native structs, distinct defined types and source
+concrete instantiations work. Native structs, enums, distinct defined types and source
 interfaces now support explicit-receiver method expressions as well, including
 source aliases of concrete generic instantiations. These retain source
 text/nullability contracts, Results and multiple results, value/pointer method
-sets, method-only completion and receiver-aware argument hints. Native method
-bodies participate in global initialization-cycle checking even when referenced
+sets, receiver-aware argument hints and exact-method-set completion (with enum
+constants retained in the enum type namespace). Native method bodies
+participate in global initialization-cycle checking even when referenced
 through a stored method value or expression. Independent runtime coverage is in
 `native_method_expressions_test.go`. Direct generic receiver instantiation,
-generic methods, enums and class instance method expressions remain follow-up
+generic methods and class instance method expressions remain follow-up
 work; existing class static methods are unchanged.
 
 v0.5 marks completion of the audited Go language compatibility work. Close or
@@ -53,6 +54,27 @@ explicitly classify each Go contract, test accepted behavior against independent
 Go programs, and document deliberate source-language differences. Neither the
 103 existing runtime contract groups nor statement coverage alone establishes
 that milestone. OOP work continues alongside Go compatibility.
+
+## Next patch release work areas
+
+The next patch milestone is useful, tested partial progress across these ten
+areas, not full Go compatibility. An area's size varies; this list is not a
+percentage-complete metric or an exhaustive inventory of Go semantics. Accepted
+subsets need diagnostics for unsupported cases, independent runtime comparison
+where applicable, editor support and user documentation.
+
+| # | Work area | Current boundary |
+|---|---|---|
+| 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
+| 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
+| 3 | Instantiated generic function values | Generic calls work; explicitly instantiated functions cannot yet be stored without an immediate call |
+| 4 | Direct generic receiver instantiation in method expressions | Concrete aliases work; selecting a method directly from an instantiated generic type remains |
+| 5 | Native enum method expressions | Implemented in development: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
+| 6 | Native source interface constraints | Runtime interfaces work; use as source generic constraint contracts remains |
+| 7 | Source struct constraint terms | Completion of native storage and constraint terms must be coordinated before enabling these terms |
+| 8 | Recursive/dependent constraint composition | Continue comparable-bound and substitution-dependent intersection auditing |
+| 9 | Anonymous interface scope | Method-only source interfaces work; audit remaining accepted forms and source method contracts |
+| 10 | Constant, inference and multiple-result combinations | Broad partial support exists; add focused coverage for remaining combinations |
 
 ## Approved implementation queue
 
