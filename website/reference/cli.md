@@ -169,5 +169,11 @@ they do not produce a diagnostic JSON object. See [Diagnostics](./diagnostics).
 | Status | Meaning |
 | --- | --- |
 | `0` | Successful command or valid check |
-| `1` | Invalid source, project/input failure, build/run failure, incompatible ABI, or incomplete audit |
+| `1` | Invalid source, project/input failure, build or launch failure, incompatible ABI, or incomplete audit |
 | `2` | Invalid command or option usage |
+
+After a successful build, `keika run` returns the program's own normal exit code,
+including nonzero codes. It forwards standard input/output/error without adding
+an `exit status` message. Build and launch failures, or termination without a
+normal exit code, return `1`. The temporary executable is removed when the
+command finishes; generated Go and source maps remain in the managed directory.

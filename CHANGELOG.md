@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve the program's normal exit status in `keika run` by building a private
+  temporary executable and launching it directly instead of using `go run`.
+  Forward process streams unchanged and remove the temporary executable on
+  completion; build/launch failures retain status 1 (#92).
+
 - Support method-only anonymous interface generic bounds with structural
   matching and dependent inference, including aliases and generic owners.
   Preserve source text/nullability/Result signatures, multiple results,
