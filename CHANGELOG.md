@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve declared types in C-style `for` initializers, including narrow
+  numbers, named/generic types and typed nil values. Retain fresh per-iteration
+  bindings, capture/address identity, initialization order and loop labels;
+  verify generated behavior against independent Go (#98).
+
 - Preserve the program's normal exit status in `keika run` by building a private
   temporary executable and launching it directly instead of using `go run`.
   Forward process streams unchanged and remove the temporary executable on
