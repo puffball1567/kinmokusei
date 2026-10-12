@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -443,24 +442,7 @@ func runGenerated(args []string) int {
 		diagnostic.Write(os.Stderr, diagnostics)
 		return 1
 	}
-	arguments := []string{"run"}
-	if hasTarget {
-		arguments = append(arguments, target.GoBuildFlags()...)
-	}
-	arguments = append(arguments, "-mod=readonly", "-buildvcs=false", ".")
-	command := exec.Command("go", arguments...)
-	command.Dir = generatedDirectory
-	command.Env = project.OfflineEnvironment(command.Environ())
-	if hasTarget {
-		command.Env = target.Environment(command.Environ())
-	}
-	command.Stdin = os.Stdin
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	if err = command.Run(); err != nil {
-		return 1
-	}
-	return 0
+	return runGeneratedModule(generatedDirectory, target, hasTarget)
 }
 
 func runCheck(args []string) int {
