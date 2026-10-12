@@ -64,7 +64,7 @@ func (c *Checker) validatePendingNativeInterfaceArguments() {
 // Keep source contracts separately from Go constraint storage. Native interface
 // storage is provisional and Go signatures erase verified text and nullability.
 func (c *Checker) nativeSourceInterfaceConstraint(bound Type, span source.Span) (gotypes.Type, bool) {
-	if !c.nativeInterfacesReady {
+	if bound.Kind != GoInterface && !c.nativeInterfacesReady {
 		c.report(span, "source interface constraint is not ready; use a direct interface bound")
 		return nil, false
 	}

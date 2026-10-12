@@ -59,6 +59,32 @@ Slices alias backing storage as Go slices do. Fixed arrays copy on assignment an
 
 These forms are intentionally distinct. Choose them based on representation and ownership rather than appearance alone.
 
+## Anonymous method interfaces
+
+In the development version after v0.4.6, method-only anonymous interfaces use
+structural matching for native classes, structs/pointers, distinct types, named
+source interfaces and compatible Go values:
+
+```ts
+function text(value: interface { read(): string; }): string {
+  return value.read();
+}
+```
+
+Only public, non-generic instance methods count. Pointer-only struct methods
+require a pointer; a nullable receiver must be narrowed before assignment.
+Method signatures retain verified text, nullable contracts, `Result`, multiple
+results and variadics, including nested method-interface signatures. A raw Go
+string result cannot promise verified `string`; an explicit interface conversion
+does not bypass these checks.
+`nil` is accepted as an interface value, but calling a method on a nil interface
+panics as in Go. Declaring two source methods that lower to the same Go name is
+a compile error. Passing such a source interface to opaque Go APIs remains
+conservative when an implementation can hide verified-text storage.
+
+These interfaces can also be [generic bounds](./functions-and-generics#anonymous-interface-bounds).
+This form contains methods only, not properties or embedded interfaces.
+
 ## Enums, aliases, and defined types
 
 Enums are distinct integer types. `alias Name = T` is transparent. `type Name = distinct T` creates a nominal defined type with explicit conversions and its own method set.

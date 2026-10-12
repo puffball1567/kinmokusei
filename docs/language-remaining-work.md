@@ -75,7 +75,7 @@ where applicable, editor support and user documentation.
 | 6 | Native source interface constraints | Direct runtime interface bounds are implemented in development: structural method sets, inherited/generic signatures, dependent inference, owner substitution, properties, Result/text/nullability, editor support and independent Go comparison; composition into source type sets remains |
 | 7 | Source struct constraint terms | Completion of native storage and constraint terms must be coordinated before enabling these terms |
 | 8 | Recursive/dependent constraint composition | Continue comparable-bound and substitution-dependent intersection auditing |
-| 9 | Anonymous interface scope | Method-only source interfaces work; audit remaining accepted forms and source method contracts |
+| 9 | Anonymous interface scope | Method-only anonymous bounds and runtime structural matching are implemented in development for native and compatible Go values, preserving text/nullability/Result contracts, dependent inference, owner substitution, exact method sets, duplicate-name diagnostics, hidden-storage checks, editor bound navigation and independent Go comparison; properties, embeddings and type-set composition remain |
 | 10 | Constant, inference and multiple-result combinations | Broad partial support exists; add focused coverage for remaining combinations |
 
 ## Approved implementation queue

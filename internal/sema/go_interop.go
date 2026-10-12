@@ -153,6 +153,7 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 					return Type{Kind: Invalid, Name: "<invalid>"}
 				}
 				expression.ResolvedName = method.Name
+				expression.ResolvedDeclaration = method.DeclarationSpan
 				if method.GoName != "" {
 					expression.ResolvedName = method.GoName
 				}

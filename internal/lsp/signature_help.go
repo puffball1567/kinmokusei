@@ -249,6 +249,9 @@ func (s *Server) goValueMethodSignature(result compiler.Result, doc document, co
 				continue
 			}
 			signature := signatureFromTypeRef(member.Type)
+			if len(member.ParameterNames) == len(signature.ParameterTypes) {
+				signature.ParameterNames = member.ParameterNames
+			}
 			parameters := parametersAtDeclaration(result.Program, member.Span)
 			if len(parameters) == len(signature.ParameterTypes) {
 				signature.ParameterNames = parameterNames(parameters)

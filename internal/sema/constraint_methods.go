@@ -34,6 +34,10 @@ func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOpera
 	if resolved.Kind == Invalid {
 		return constraintOperand{}
 	}
+	if isSourceAnonymousInterface(resolved) {
+		c.report(term.Span, "source anonymous interface operands are not yet supported in type-set composition; use a direct interface bound")
+		return constraintOperand{}
+	}
 	// Source value interfaces have additional conformance, method-name and
 	// nullable-signature rules. Do not erase those rules into a Go method set.
 	if resolved.Kind != Interface && resolved.Kind != TypeParameter && resolved.Kind != Nullable {

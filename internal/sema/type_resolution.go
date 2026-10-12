@@ -16,19 +16,7 @@ func (c *Checker) resolveTypeThroughNativeIndirection(ref ast.TypeRef) Type {
 
 func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if ref.GoInterface && !ref.Nullable {
-		result := Type{Kind: GoInterface, Name: "interface{}"}
-		for _, method := range ref.ObjectFields {
-			goName := ""
-			if !ref.Go {
-				goName = memberGoName(method.Name, ast.Public)
-			}
-			result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: method.Name, GoName: goName, Type: c.resolveType(method.Type)})
-		}
-		if converted, ok := goTypeOf(result); ok {
-			result.GoType = converted
-			result.Name = goTypeDisplayName(converted)
-		}
-		return result
+		return c.resolveAnonymousInterface(ref)
 	}
 	if len(ref.GoResults) != 0 {
 		result := Type{Kind: MultiValue, Name: "multiple values"}

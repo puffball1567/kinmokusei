@@ -116,12 +116,17 @@ type TypeRef struct {
 }
 
 type ObjectTypeField struct {
-	Name       string
-	JSONName   string
-	GoTag      string
-	GoEmbedded bool
-	Type       TypeRef
-	Span       source.Span
+	Name     string
+	NameSpan source.Span
+	// GoName and ParameterNames retain checked anonymous-interface method
+	// identity and editor labels without changing the source spelling.
+	GoName         string
+	ParameterNames []string
+	JSONName       string
+	GoTag          string
+	GoEmbedded     bool
+	Type           TypeRef
+	Span           source.Span
 }
 
 func (t TypeRef) GetSpan() source.Span { return t.Span }

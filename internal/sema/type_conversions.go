@@ -122,7 +122,7 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 	if result, text := c.checkTextConversion(expr, target, value); text {
 		return result
 	}
-	if target.Kind != TypeParameter && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
+	if target.Kind != TypeParameter && !isSourceAnonymousInterface(target) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		c.report(expr.Span, "Go interface conversion would erase a verified UTF-8 text storage contract; use bstring storage at the Go boundary")
 	}
 	targetGo, targetOK := goTypeOf(target)

@@ -1,0 +1,16 @@
+import go fmt from "fmt"
+
+struct Text {
+  public value: string
+  public function read(): string { return this.value }
+}
+
+function read<E, T extends interface { read(): E; }>(value: T): E {
+  return value.read()
+}
+
+function main(): void {
+  // E is inferred as verified string, not raw Go bstring.
+  const text: string = read(Text { value: "gold" })
+  fmt.Println(text)
+}

@@ -7,6 +7,21 @@ func identicalMethodSignature(left, right Type) bool {
 	if !sameConstraintNullability(left, right) {
 		return false
 	}
+	// Nested interface signatures also carry source contracts. Their Go
+	// storage alone cannot distinguish string from bstring or nullable results.
+	if isSourceAnonymousInterface(left) || isSourceAnonymousInterface(right) {
+		leftMethods, leftOK := anonymousInterfaceContractMethods(left)
+		rightMethods, rightOK := anonymousInterfaceContractMethods(right)
+		if !leftOK || !rightOK || len(leftMethods) != len(rightMethods) {
+			return false
+		}
+		for name, method := range leftMethods {
+			other, ok := rightMethods[name]
+			if !ok || !identicalMethodSignature(method, other) {
+				return false
+			}
+		}
+	}
 	if left.Kind == Function && right.Kind == Function {
 		if left.Generic != right.Generic || len(left.TypeParameters) != len(right.TypeParameters) || left.Variadic != right.Variadic || len(left.Parameters) != len(right.Parameters) || left.Result == nil || right.Result == nil {
 			return false

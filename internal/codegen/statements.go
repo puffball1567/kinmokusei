@@ -109,7 +109,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			tok = token.CONST
 		}
 		spec := &goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(goName(stmt.Name))}, Values: []goast.Expr{value}}
-		if stmt.Type.Name != "" || stmt.Type.IsFunction() || stmt.Type.IsPointer() || stmt.Type.IsArray() {
+		if stmt.Type.Name != "" || stmt.Type.IsFunction() || stmt.Type.IsPointer() || stmt.Type.IsArray() || stmt.Type.GoInterface {
 			spec.Type = goType(stmt.Type)
 		}
 		return &goast.DeclStmt{Decl: &goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil

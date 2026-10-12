@@ -163,7 +163,7 @@ func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef, paramete
 	if resolved.Kind == Invalid {
 		return nil, false
 	}
-	if resolved.Kind == Interface {
+	if resolved.Kind == Interface || isSourceAnonymousInterface(resolved) {
 		bound, valid := c.nativeSourceInterfaceConstraint(resolved, ref.Span)
 		if valid {
 			c.nativeInterfaceBounds[parameter] = resolved

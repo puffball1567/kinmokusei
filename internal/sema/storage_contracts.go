@@ -27,6 +27,9 @@ func (c *Checker) sourceStorageContractsMatchSeen(target, value Type, visiting [
 	if target.Kind == TypeParameter && value.Kind == TypeParameter && target.GoType == value.GoType {
 		return true
 	}
+	if isSourceAnonymousInterface(target) {
+		return c.nativeSourceInterfaceArgumentSatisfies(target, value)
+	}
 	if parameter, ok := target.GoType.(*gotypes.TypeParam); target.Kind == TypeParameter && ok {
 		for _, term := range c.collectionTerms(parameter) {
 			if !c.sourceStorageContractsMatchSeen(term, value, visiting) {

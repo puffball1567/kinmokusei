@@ -102,6 +102,8 @@ func (c *Checker) finalizeNativeStructGoTypes(program *ast.Program) {
 
 func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
 	switch value.Kind {
+	case GoInterface:
+		return c.anonymousInterfaceStorage(value)
 	case Struct:
 		symbol := c.structs[value.Name]
 		if symbol == nil || symbol.goNamed == nil {

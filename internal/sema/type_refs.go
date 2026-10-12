@@ -492,7 +492,7 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 	if t.Kind == GoInterface {
 		methods := make([]ast.ObjectTypeField, len(t.GoMethods))
 		for i, method := range t.GoMethods {
-			methods[i] = ast.ObjectTypeField{Name: method.Name, Type: typeRefFromType(method.Type, span), Span: span}
+			methods[i] = ast.ObjectTypeField{Name: method.Name, GoName: method.GoName, ParameterNames: method.Type.ParameterNames, Type: typeRefFromType(method.Type, span), Span: span}
 		}
 		return ast.TypeRef{GoInterface: true, ObjectFields: methods, Go: true, Span: span}
 	}

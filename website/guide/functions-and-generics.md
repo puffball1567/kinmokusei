@@ -173,6 +173,31 @@ runtime interface into `constraint C = Reader<int> & comparable` remains
 unsupported. See the [manual](../book/functions-and-generics#source-interface-bounds)
 for the Go-interoperability boundary.
 
+### Anonymous interface bounds
+
+::: info Development version
+Source anonymous interface bounds are supported after v0.4.6.
+:::
+
+Use a method-only anonymous interface when a contract is local to one generic
+function, or put it in an alias when several declarations share it:
+
+<<< ../snippets/anonymous-interface-constraints.km{ts}
+
+This prints `gold`. The same structural matching rules apply to named and
+anonymous bounds: public non-generic instance methods, exact value/pointer method
+sets, invariant signatures, and dependent inference. Verified text, nullable
+parameters/results, `Result`, multiple results and variadics remain checked.
+Generic class/struct/defined-type parameters and generic method owners can use
+these bounds too. Editor completion and argument hints retain source method
+names; bound-method references support definition lookup and rename.
+
+An imported Go method can satisfy the bound only if its source-visible signature
+matches. For example, Go `String() string` matches `String(): bstring`, not
+`String(): string`. Anonymous interface operands in `constraint` type-set
+composition remain unsupported; use a direct `extends interface { ... }` bound.
+Anonymous getter/setter or embedded-interface entries are not part of this form.
+
 ## Generic named types
 
 Classes, structs, interfaces, and distinct defined types may declare parameters and must be fully instantiated in type positions:
