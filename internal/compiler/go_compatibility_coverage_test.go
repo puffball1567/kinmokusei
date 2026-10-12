@@ -223,6 +223,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"generic-function-values.test":        {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[25], implementedGoCompatibilityContracts[47]},
 	"source-interface-constraints.test":   {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[64], implementedGoCompatibilityContracts[72]},
 	"anonymous-bounds.test":               {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[64], implementedGoCompatibilityContracts[72], implementedGoCompatibilityContracts[93]},
+	"typed-for.test":                      {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[28]},
 	"interfaces.test":                     {implementedGoCompatibilityContracts[24]},
 	"generics.test":                       {implementedGoCompatibilityContracts[25]},
 	"generictypes.test":                   {implementedGoCompatibilityContracts[26]},

@@ -507,6 +507,12 @@ func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.St
 		if err != nil {
 			return nil, err
 		}
+		if initializer && variable.Used && variable.Type.IsSpecified() {
+			// A Go for initializer must be a simple statement, so retain :=
+			// (and Go's fresh per-iteration bindings) while materializing the
+			// checked declared type rather than defaulting constants/nil.
+			value = &goast.CallExpr{Fun: &goast.ParenExpr{X: goType(variable.Type)}, Args: []goast.Expr{value}}
+		}
 		name := goName(variable.Name)
 		operator := token.DEFINE
 		if !variable.Used {
