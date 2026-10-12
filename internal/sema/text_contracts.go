@@ -97,12 +97,22 @@ func (c *Checker) containsTextContract(value Type, visiting []Type, unknown bool
 			}
 		}
 	}
-	if shape.Kind == GoInterface && c.classSatisfiesSourceAnonymousInterface(shape) {
+	if isSourceAnonymousInterface(shape) {
 		// Structural interfaces hide implementation fields just like named
 		// source interfaces. Their method signatures alone are not sufficient
 		// to decide whether reflection can reach verified-text storage.
 		for name, class := range c.classes {
 			if instance, ok := c.textContractStructuralInstance(name, class, shape); ok && c.containsTextContract(instance, visiting, unknown) {
+				return true
+			}
+		}
+		for _, structure := range c.structs {
+			if c.structuralNativeTextContract(structure.typeInfo, structure.typeParameters, shape, visiting, unknown) {
+				return true
+			}
+		}
+		for _, defined := range c.nativeTypes {
+			if !defined.declaration.Alias && defined.typeInfo.Kind != Invalid && c.structuralNativeTextContract(defined.typeInfo, defined.typeParameters, shape, visiting, unknown) {
 				return true
 			}
 		}
@@ -180,7 +190,7 @@ func (c *Checker) textContractStructuralInstance(name string, class *classSymbol
 		}
 	}
 	instance, valid := c.textContractClassInstance(name, class, bindings)
-	return instance, valid && c.classSatisfiesGoInterface(class, instance, contract)
+	return instance, valid && c.nativeSourceInterfaceArgumentSatisfies(contract, instance)
 }
 
 func textContractOpenBindings(parameters []Type) nativeTypeBindings {
@@ -192,7 +202,12 @@ func textContractOpenBindings(parameters []Type) nativeTypeBindings {
 }
 
 func (c *Checker) textContractClassInstance(name string, class *classSymbol, bindings nativeTypeBindings) (Type, bool) {
-	arguments := append([]Type(nil), class.typeParameters...)
+	arguments, valid := c.textContractTypeArguments(class.typeParameters, bindings)
+	return Type{Kind: Class, Name: name, GoType: class.goNamed, TypeArguments: arguments}, valid
+}
+
+func (c *Checker) textContractTypeArguments(parameters []Type, bindings nativeTypeBindings) ([]Type, bool) {
+	arguments := append([]Type(nil), parameters...)
 	goBindings := make(map[gotypes.Type]gotypes.Type, len(arguments))
 	nativeBindings := make(nativeTypeBindings, len(arguments))
 	for index, parameter := range arguments {
@@ -204,22 +219,21 @@ func (c *Checker) textContractClassInstance(name string, class *classSymbol, bin
 		}
 		nativeBindings[parameter.GoType] = arguments[index]
 	}
-	for index, parameter := range class.typeParameters {
+	for index, parameter := range parameters {
 		if bindings[parameter.GoType].Kind == Invalid {
 			continue
 		}
 		if !c.nativeTypeArgumentSatisfies(parameter, arguments[index], goBindings, nativeBindings) {
-			return Type{}, false
+			return nil, false
 		}
 		if goParameter, ok := parameter.GoType.(*gotypes.TypeParam); ok {
 			shape, hasShape := c.parameterRangeShape(goParameter)
 			if hasShape && !sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index])) || !c.collectionArgumentNullabilityMatches(goParameter, arguments[index], nativeBindings) {
-				return Type{}, false
+				return nil, false
 			}
 		}
 	}
-	instance := Type{Kind: Class, Name: name, GoType: class.goNamed, TypeArguments: arguments}
-	return instance, true
+	return arguments, true
 }
 
 func (c *Checker) checkTextConversion(expr *ast.CallExpr, target, value Type) (Type, bool) {

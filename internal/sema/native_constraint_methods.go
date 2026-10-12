@@ -16,6 +16,16 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 		argument = *argument.Element
 	}
 	switch argument.Kind {
+	case GoInterface:
+		if isSourceAnonymousInterface(argument) {
+			methods := map[string]methodSymbol{}
+			if !pointer {
+				for _, method := range argument.GoMethods {
+					methods[method.Name] = methodSymbol{goName: method.GoName, typeInfo: method.Type, visibility: ast.Public, declarationSpan: method.DeclarationSpan}
+				}
+			}
+			return methods, nil, true, true
+		}
 	case TypeParameter:
 		if identity, ok := argument.GoType.(*gotypes.TypeParam); ok && !pointer {
 			if bound, exists := c.nativeInterfaceBounds[identity]; exists {

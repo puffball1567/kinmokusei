@@ -85,11 +85,13 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 				p.synchronizeStatement()
 			}
 			parameterTypes := make([]ast.TypeRef, len(parameters))
+			parameterNames := make([]string, len(parameters))
 			for index, parameter := range parameters {
 				parameterTypes[index] = parameter.Type
+				parameterNames[index] = parameter.Name
 			}
 			methodType := ast.TypeRef{Parameters: parameterTypes, Return: &result, Variadic: len(parameters) != 0 && parameters[len(parameters)-1].Variadic, Span: name.Span.Merge(result.Span)}
-			methods = append(methods, ast.ObjectTypeField{Name: name.Lexeme, JSONName: name.Lexeme, Type: methodType, Span: name.Span.Merge(result.Span)})
+			methods = append(methods, ast.ObjectTypeField{Name: name.Lexeme, NameSpan: name.Span, ParameterNames: parameterNames, JSONName: name.Lexeme, Type: methodType, Span: name.Span.Merge(result.Span)})
 		}
 		end, ok := p.expect(token.RightBrace, "expected '}' after anonymous interface")
 		if !ok {

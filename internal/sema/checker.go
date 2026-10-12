@@ -35,6 +35,7 @@ type Checker struct {
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
 	goTypeExpressions          map[source.Span]ast.TypeRef
+	goTypeExpressionMethods    map[source.Span]map[string]ast.CallableSignature
 	nativeTypeMethodSets       map[source.Span]ast.NativeTypeMethodSet
 	inConstructor              bool
 	inFieldInitializer         bool
@@ -122,10 +123,11 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
-		goNamedImports:       map[string]map[string]goNamedImport{},
-		goFieldReceivers:     map[*ast.MemberExpr]gotypes.Type{},
-		goTypeExpressions:    map[source.Span]ast.TypeRef{},
-		nativeTypeMethodSets: map[source.Span]ast.NativeTypeMethodSet{},
+		goNamedImports:          map[string]map[string]goNamedImport{},
+		goFieldReceivers:        map[*ast.MemberExpr]gotypes.Type{},
+		goTypeExpressions:       map[source.Span]ast.TypeRef{},
+		goTypeExpressionMethods: map[source.Span]map[string]ast.CallableSignature{},
+		nativeTypeMethodSets:    map[source.Span]ast.NativeTypeMethodSet{},
 
 		nativeInterfaceDeclarations: map[string]*ast.InterfaceDecl{},
 		nativeInterfaceAliases:      map[string]ast.TypeRef{},
@@ -213,6 +215,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
 	program.GoTypeExpressions = c.goTypeExpressions
+	program.GoTypeExpressionMethods = c.goTypeExpressionMethods
 	program.NativeTypeMethodSets = c.nativeTypeMethodSets
 	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks

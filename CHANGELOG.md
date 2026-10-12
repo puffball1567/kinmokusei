@@ -11,6 +11,24 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Support method-only anonymous interface generic bounds with structural
+  matching and dependent inference, including aliases and generic owners.
+  Preserve source text/nullability/Result signatures, multiple results,
+  variadics and editor bound completion/navigation/rename. Generalize runtime
+  anonymous-interface matching beyond classes; reject raw Go/source contract
+  erasure through assignment or explicit conversion, including nested interface
+  signatures, and reject private/static/generic methods. Check hidden text storage for
+  value/pointer/defined implementers, diagnose duplicate lowered method names
+  instead of panicking, and emit explicit interface types for nil bindings.
+  Verify linked generated code and source maps against independent Go.
+
+- Support direct `<T>`/`[T]` receiver instantiation in native and imported Go
+  method expressions, including pointer receivers, named imports and linked
+  aliases. Reuse type-argument and constraint validation without erasing native
+  text/nullability/Result contracts. Preserve lexical indexing when values
+  shadow type names; specialize editor completion/signatures and support type
+  argument navigation/rename. Compare generated behavior with independent Go.
+
 - Accept direct source runtime interface bounds (`T extends Reader<E>`) with
   structural public instance method matching, inherited/generic contracts,
   dependent inference, source aliases and generic owner/method specialization.

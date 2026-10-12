@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type TypeKind int
@@ -59,6 +60,7 @@ type Type struct {
 	Kind           TypeKind
 	Name           string
 	Parameters     []Type
+	ParameterNames []string
 	Variadic       bool
 	Generic        bool
 	TypeParameters []Type
@@ -78,9 +80,10 @@ type Type struct {
 }
 
 type GoInterfaceMethod struct {
-	Name   string
-	GoName string
-	Type   Type
+	Name            string
+	GoName          string
+	Type            Type
+	DeclarationSpan source.Span
 }
 
 type GoStructField struct {

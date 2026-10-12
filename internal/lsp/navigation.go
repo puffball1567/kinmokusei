@@ -220,6 +220,16 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 				return declaration, true
 			}
 		}
+		// Anonymous bound methods are declared inside a type expression, not
+		// among the named declarations collected above. Checked metadata carries
+		// their declaration identity and source-aware callable contract.
+		for _, methods := range program.TypeParameterMethods {
+			for _, method := range methods {
+				if sameSourceSpan(method.Span, occurrence.Declaration) {
+					return declarationInfo{Name: method.Name, Detail: method.Name + ": " + formatTypeRef(method.Type), Kind: 6, Span: method.Span, Selection: method.Span}, true
+				}
+			}
+		}
 		for _, imported := range program.Imports {
 			if imported.Go {
 				for i, span := range imported.NameSpans {

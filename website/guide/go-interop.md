@@ -149,9 +149,15 @@ calling a value method through a nil pointer or an interface method through a
 nil interface panics as in Go. This feature does not turn raw Go pointers into
 nullable-safe class references.
 
-Direct `<T>`/`[T]` receiver instantiation in a method expression is not yet
-supported. An exported Go alias of a concrete instantiation can be used instead;
-an uninstantiated generic type is rejected. Native structs, defined types and
+Generic receivers support direct `<T>`/`[T]` instantiation. For example,
+`(*atomic.Pointer<int>).Load` from `import go atomic from "sync/atomic"` takes
+an explicit `*atomic.Pointer<int>` and returns `*int`. Named imports also work:
+`import go { Pointer as Ptr } from "sync/atomic"` permits `(*Ptr[int]).Load`.
+All type arguments must satisfy the ordinary Go type constraints and storage
+rules: `string` cannot establish a verified UTF-8 contract in a Go generic type;
+use `bstring` for raw Go string storage. An exported Go alias of a concrete
+instantiation also works; an uninstantiated generic type is rejected.
+Native structs, defined types and
 interfaces also support the [explicit-receiver form](./classes-and-structs#native-method-expressions).
 Class static calls remain a separate feature.
 

@@ -37,7 +37,7 @@ func (c *Checker) recordTypeParameterMethods(program *ast.Program) {
 						}
 						continue
 					}
-					program.TypeParameterMethods[declaration.NameSpan] = append(program.TypeParameterMethods[declaration.NameSpan], ast.ObjectTypeField{Name: name, Type: typeRefFromType(callable, method.declarationSpan), Span: method.declarationSpan})
+					program.TypeParameterMethods[declaration.NameSpan] = append(program.TypeParameterMethods[declaration.NameSpan], ast.ObjectTypeField{Name: name, ParameterNames: callable.ParameterNames, Type: typeRefFromType(callable, method.declarationSpan), Span: method.declarationSpan})
 				}
 				continue
 			}

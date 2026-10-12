@@ -376,9 +376,16 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 }
 
 func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
+	if _, _, found := c.nativeMethodExpressionReceiver(expr); found {
+		c.report(expr.Span, "a native instantiated type cannot be used as a value")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	var object Type
 	if len(expr.TypeArguments) != 0 {
 		object = c.genericValueOperand(expr.Object)
+		if object.Kind == GoTypeName {
+			return c.checkGoTypeInstantiationExpression(expr, object)
+		}
 		if object.Generic || expr.Index == nil {
 			return c.checkGenericFunctionValue(expr, object)
 		}

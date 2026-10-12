@@ -30,7 +30,13 @@ public function read(this:Status):int{return int(this);}
 public function advance(this:*Status,n:int8):Status{*this=Status(int8(*this)+n);return *this;}
 public function isNil(this:*Status):boolean{return this===nil;}
 public function Pending(this:Status):int{return int(this);}
-export struct Box<T>{public item:T;public function read():T{return this.item;}}
+export struct Box<T>{
+ public item:T;public function read():T{return this.item;}
+ public pointer function set(value:T):void{this.item=value;}
+ public function pair():(T,int){return this.item,1;}
+ public function checked():Result<T>{return ok(this.item);}
+ public function count(...values:T[]):int{return len(values);}
+}
 export alias IntBox=Box<int>;
 export type Numbers<T>=distinct T[];
 public function first<T>(this:Numbers<T>):T{return this[0];}
@@ -46,7 +52,18 @@ export interface DerivedReader extends Reader{}
 export class Dynamic implements DerivedReader{constructor(public value:int){}public function read():int{return this.value*2;}}
 export function callback():(v:Counter,n:int)=>int{return Counter.copy;}
 `,
-		"entry.km": `import {Counter,Alias,Status,StatusAlias,IntBox,IntNumbers,IntEcho,EchoImpl,Number,Reader,DerivedReader,Dynamic,callback} from "./models";
+		"entry.km": `import {Counter,Alias,Status,StatusAlias,Box,Numbers,Echo,IntBox,IntNumbers,IntEcho,EchoImpl,Number,Reader,DerivedReader,Dynamic,callback} from "./models";
+export function Direct(n:int):int[]{
+ let box=Box<int>{item:n};const read=Box<int>.read;const pointerRead=(*Box[int]).read;
+ const old=read(box);(*Box[int]).set(&box,n+3);const [pair,tag]=Box<int>.pair(box);
+ const count=Box[int].count;const values=[n,n+1];
+ const numbers=Numbers<int>([n+1]);const first=Numbers[int].first;
+ const echo:Echo<int>=new EchoImpl();const echoCall=Echo[int].echo;
+ const text=Box<string>{item:"gold"};const getText=Box<string>.read;
+ return [old,read(box),pointerRead(&box),first(numbers),echoCall(echo,n+2),len(getText(text)),pair,tag,count(box,values...),Dependent(box)];
+}
+export function DirectChecked(n:int):Result<int>{return Box<int>.checked(Box<int>{item:n});}
+export function Dependent<T>(v:Box<T>):T{return Box[T].read(v);}
 export function EnumMethods():int[]{
  let v=Status.Pending;const read=Status.read;const advance=(*Status).advance;
  const old=read(v);const next=advance(&v,1);const aliasRead=StatusAlias.read;
@@ -114,6 +131,10 @@ func EnumNilPointer()bool{return (*status).isNil(nil)}
 func EnumNilValue()int{return (*status).read(nil)}
 type box[T any]struct{item T}
 func(v box[T])read()T{return v.item}
+func(v *box[T])set(value T){v.item=value}
+func(v box[T])pair()(T,int){return v.item,1}
+func(v box[T])checked()(T,error){return v.item,nil}
+func(v box[T])count(values ...T)int{return len(values)}
 type intBox=box[int]
 type numbers[T any][]T
 func(v numbers[T])first()T{return v[0]}
@@ -130,6 +151,9 @@ type derivedReader interface{reader}
 type dynamic struct{value int}
 func(v *dynamic)read()int{return v.value*2}
 func callback()func(counter,int)int{return counter.copy}
+func Direct(n int)[]int{b:=box[int]{n};read:=box[int].read;pointerRead:=(*box[int]).read;old:=read(b);(*box[int]).set(&b,n+3);pair,tag:=box[int].pair(b);count:=box[int].count;values:=[]int{n,n+1};ns:=numbers[int]{n+1};first:=numbers[int].first;var value echo[int]=&echoImpl{};echoCall:=echo[int].echo;text:=box[string]{"gold"};getText:=box[string].read;return []int{old,read(b),pointerRead(&b),first(ns),echoCall(value,n+2),len(getText(text)),pair,tag,count(b,values...),Dependent(b)}}
+func DirectChecked(n int)(int,error){return box[int].checked(box[int]{n})}
+func Dependent[T any](v box[T])T{return box[T].read(v)}
 func Run(n int)[]int{
  v:=counter{n};copy:=counter.copy;pointerRead:=(*counter).read;old:=copy(v,3);(*alias).set(&v,n+5);aliasRead:=alias.read
  sum:=counter.sum;xs:=[]int{1,2};num,label:=counter.pair(v)
@@ -150,6 +174,7 @@ import("reflect";"testing";g "native-method-expressions.test";r "native-method-e
 func panics(f func()int)(did bool){defer func(){did=recover()!=nil}();f();return}
 func TestMethods(t *testing.T){
  for _,n:=range []int{-10,0,17}{if a,b:=g.Run(n),r.Run(n);!reflect.DeepEqual(a,b){t.Fatal("methods",n,a,b)};a,ae:=g.Checked(n);b,be:=r.Checked(n);if a!=b||(ae==nil)!=(be==nil){t.Fatal("result",a,ae,b,be)};if ae!=nil&&ae.Error()!=be.Error(){t.Fatal("error",ae,be)}}
+ for _,n:=range []int{-10,0,17}{if a,b:=g.Direct(n),r.Direct(n);!reflect.DeepEqual(a,b){t.Fatal("direct generic methods",n,a,b)};a,ae:=g.DirectChecked(n);b,be:=r.DirectChecked(n);if a!=b||ae!=nil||be!=nil{t.Fatal("generic Result",a,ae,b,be)}}
  if !g.NilPointer()||g.NilPointer()!=r.NilPointer(){t.Fatal("nil pointer")}
  if a,b:=g.EnumMethods(),r.EnumMethods();!reflect.DeepEqual(a,b){t.Fatal("enum methods",a,b)}
  if !g.EnumNilPointer()||g.EnumNilPointer()!=r.EnumNilPointer(){t.Fatal("enum nil pointer")}

@@ -36,8 +36,9 @@ Imported Go method expressions now use the receiver's exact method set and
 prepend its type to the callable's parameter list. Value/pointer/interface and
 promoted methods, callbacks, variadics, multiple results, explicit nil behavior,
 editor completion and signature help have focused coverage and an independent
-Go oracle. Uninstantiated generic receivers are rejected; exported Go aliases of
-concrete instantiations work. Native structs, enums, distinct defined types and source
+Go oracle. Direct `<T>`/`[T]` receiver applications and exported Go aliases of
+concrete instantiations work; uninstantiated generic receivers are rejected.
+Native structs, enums, distinct defined types and source
 interfaces now support explicit-receiver method expressions as well, including
 source aliases of concrete generic instantiations. These retain source
 text/nullability contracts, Results and multiple results, value/pointer method
@@ -45,8 +46,9 @@ sets, receiver-aware argument hints and exact-method-set completion (with enum
 constants retained in the enum type namespace). Native method bodies
 participate in global initialization-cycle checking even when referenced
 through a stored method value or expression. Independent runtime coverage is in
-`native_method_expressions_test.go`. Direct generic receiver instantiation,
-generic methods and class instance method expressions remain follow-up
+`native_method_expressions_test.go`. Direct generic receiver instantiation is
+implemented for native and Go types, preserving constraints and lexical
+shadowing. Generic methods and class instance method expressions remain follow-up
 work; existing class static methods are unchanged.
 
 v0.5 marks completion of the audited Go language compatibility work. Close or
@@ -68,12 +70,12 @@ where applicable, editor support and user documentation.
 | 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
 | 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
 | 3 | Instantiated generic function values | Implemented in development for full explicit argument lists, source/Go functions and named/aliased imports, with Result/variadic/text contracts, independent Go comparison and editor support; partial/contextual instantiation and generic instance method values remain |
-| 4 | Direct generic receiver instantiation in method expressions | Concrete aliases work; selecting a method directly from an instantiated generic type remains |
+| 4 | Direct generic receiver instantiation in method expressions | Implemented in development for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types, including pointers, aliases, constraints, source contracts, independent Go comparison and editor support; class instance expressions and method-local generics remain |
 | 5 | Native enum method expressions | Implemented in development: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
 | 6 | Native source interface constraints | Direct runtime interface bounds are implemented in development: structural method sets, inherited/generic signatures, dependent inference, owner substitution, properties, Result/text/nullability, editor support and independent Go comparison; composition into source type sets remains |
 | 7 | Source struct constraint terms | Completion of native storage and constraint terms must be coordinated before enabling these terms |
 | 8 | Recursive/dependent constraint composition | Continue comparable-bound and substitution-dependent intersection auditing |
-| 9 | Anonymous interface scope | Method-only source interfaces work; audit remaining accepted forms and source method contracts |
+| 9 | Anonymous interface scope | Method-only anonymous bounds and runtime structural matching are implemented in development for native and compatible Go values, preserving text/nullability/Result contracts, dependent inference, owner substitution, exact method sets, duplicate-name diagnostics, hidden-storage checks, editor bound navigation and independent Go comparison; properties, embeddings and type-set composition remain |
 | 10 | Constant, inference and multiple-result combinations | Broad partial support exists; add focused coverage for remaining combinations |
 
 ## Approved implementation queue

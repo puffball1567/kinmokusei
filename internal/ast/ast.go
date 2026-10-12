@@ -14,6 +14,9 @@ type Program struct {
 	// GoTypeExpressions records checked type-valued expressions for editor
 	// method-expression completion. It never changes runtime emission.
 	GoTypeExpressions map[source.Span]TypeRef
+	// GoTypeExpressionMethods contains checked, specialized method-expression
+	// signatures, including selectors that are incomplete during editing.
+	GoTypeExpressionMethods map[source.Span]map[string]CallableSignature
 	// NativeTypeMethodSets indexes checked, source-aware callable method
 	// sets and enum constants for native type receivers, including incomplete
 	// editor selectors.
@@ -113,12 +116,17 @@ type TypeRef struct {
 }
 
 type ObjectTypeField struct {
-	Name       string
-	JSONName   string
-	GoTag      string
-	GoEmbedded bool
-	Type       TypeRef
-	Span       source.Span
+	Name     string
+	NameSpan source.Span
+	// GoName and ParameterNames retain checked anonymous-interface method
+	// identity and editor labels without changing the source spelling.
+	GoName         string
+	ParameterNames []string
+	JSONName       string
+	GoTag          string
+	GoEmbedded     bool
+	Type           TypeRef
+	Span           source.Span
 }
 
 func (t TypeRef) GetSpan() source.Span { return t.Span }

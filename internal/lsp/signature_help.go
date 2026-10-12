@@ -219,6 +219,10 @@ func (s *Server) goMemberSignature(result compiler.Result, doc document, context
 		}
 		return ast.CallableSignature{}, false
 	}
+	if methods, ok := goMethodExpressionMethodsAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
+		signature, found := methods[context.Name]
+		return signature, found
+	}
 	if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, context.MemberDotOffset); ok {
 		ref, pointer, valid := goCompletionTypeInfo(ref)
 		if !valid {
@@ -245,6 +249,9 @@ func (s *Server) goValueMethodSignature(result compiler.Result, doc document, co
 				continue
 			}
 			signature := signatureFromTypeRef(member.Type)
+			if len(member.ParameterNames) == len(signature.ParameterTypes) {
+				signature.ParameterNames = member.ParameterNames
+			}
 			parameters := parametersAtDeclaration(result.Program, member.Span)
 			if len(parameters) == len(signature.ParameterTypes) {
 				signature.ParameterNames = parameterNames(parameters)

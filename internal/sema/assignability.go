@@ -87,7 +87,12 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	if value.Kind == Nullable || value.Kind == Null || target.Kind == Null {
 		return value.Kind == Null && target.Kind == Null
 	}
-	if target.Kind != TypeParameter && !exactType(target, value) && !c.classSatisfiesSourceAnonymousInterface(target) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
+	if isSourceAnonymousInterface(target) {
+		// Structural source contracts apply to values as well as generic bounds.
+		// Go assignability alone would erase string/nullability in method results.
+		return value.Kind == Nil || c.nativeSourceInterfaceArgumentSatisfies(target, value)
+	}
+	if target.Kind != TypeParameter && !exactType(target, value) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		return false
 	}
 	if value.Kind == GoPointer && target.Kind != TypeParameter {
@@ -143,12 +148,6 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		if class == nil {
 			return false
 		}
-		// Source anonymous interfaces are structural at the value boundary.
-		// Match their exported Go method set against the class's lowered methods
-		// even when the class did not declare a named `implements` contract.
-		if c.classSatisfiesSourceAnonymousInterface(target) {
-			return c.classSatisfiesGoInterface(class, value, target)
-		}
 		for _, declared := range class.goImplements {
 			if gotypes.AssignableTo(declared, target.GoType) || gotypes.Identical(declared, target.GoType) {
 				return true
@@ -185,38 +184,6 @@ func (c *Checker) isAssignable(target, value Type) bool {
 		}
 	}
 	return assignable(target, value) && c.sourceStorageContractsMatch(target, value)
-}
-
-func (c *Checker) classSatisfiesSourceAnonymousInterface(target Type) bool {
-	for _, method := range target.GoMethods {
-		if method.GoName != "" {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *Checker) classSatisfiesGoInterface(class *classSymbol, instance, target Type) bool {
-	bindings := nativeClassBindings(class, instance)
-	for _, required := range target.GoMethods {
-		var provided *methodSymbol
-		for name := range class.methods {
-			method := class.methods[name]
-			if method.goName == required.GoName && !method.static {
-				copy := method
-				provided = &copy
-				break
-			}
-		}
-		if provided == nil {
-			return false
-		}
-		actual := substituteNativeTypeParameters(provided.typeInfo, bindings)
-		if !identicalMethodSignature(actual, required.Type) {
-			return false
-		}
-	}
-	return true
 }
 
 func exactType(left, right Type) bool { return assignable(left, right) && assignable(right, left) }

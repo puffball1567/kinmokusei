@@ -52,7 +52,7 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 			tok = token.CONST
 		}
 		spec := &goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(goName(decl.Name))}, Values: []goast.Expr{value}}
-		if decl.Type.Name != "" || decl.Type.IsFunction() || decl.Type.IsPointer() || decl.Type.IsArray() {
+		if decl.Type.Name != "" || decl.Type.IsFunction() || decl.Type.IsPointer() || decl.Type.IsArray() || decl.Type.GoInterface {
 			spec.Type = goType(decl.Type)
 		}
 		return []goast.Decl{&goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil

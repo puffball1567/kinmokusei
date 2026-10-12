@@ -41,6 +41,8 @@ func(Value)hidden(){}
 type Constraint interface{~int;Method()}
 type Box[T any]struct{N T}
 func(v Box[T])Get()T{return v.N}
+type Bounded[T ~int]struct{N T}
+func(v Bounded[T])Get()T{return v.N}
 type IntBox=Box[int]
 type Left struct{}
 func(Left)Read()int{return 1}
@@ -65,6 +67,16 @@ type Ambiguous struct{Left;Right}
 		{`const f=c.Value.N;`, "no exported method", false},
 		{`const f=c.Constraint.Method;`, "constraint interfaces", false},
 		{`const f=c.Box.Get;`, "instantiated receiver", false},
+		{`const f=c.Box<int>.Get;function read(v:c.Box<int>):int{return f(v);}`, "", false},
+		{`const f=c.Box[int].Get;function read(v:c.Box<int>):int{return f(v);}`, "", false},
+		{`const f=(*c.Box[int]).Get;function read(v:*c.Box<int>):int{return f(v);}`, "", false},
+		{`constraint Int=~int;function read<T extends Int>(v:c.Box<T>):T{return c.Box<T>.Get(v);}`, "", false},
+		{`const f=c.Box<string>.Get;`, "UTF-8 contract", false},
+		{`const f=c.Bounded<bstring>.Get;`, "does not satisfy", false},
+		{`const f=c.Box<int>;`, "cannot be used as a value", false},
+		{`const f=c.Box<Missing>.Get;`, "unknown type", false},
+		{`const f=c.Box<int,int>.Get;`, "expects 1 type arguments", false},
+		{`const f=c.Value<int>.Raw;`, "not generic", false},
 		{`const f=c.IntBox.Get;function read():int{return f(c.IntBox{N:42});}`, "", false},
 		{`const f=c.Ambiguous.Read;`, "no exported method", false},
 	} {

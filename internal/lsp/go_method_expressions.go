@@ -5,18 +5,24 @@ import (
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/compiler"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 // Use semantic identity rather than guessing a type from an identifier's
 // spelling. This also keeps namespace/named-import shadowing lexical.
 func goMethodExpressionReceiverAt(program *ast.Program, path, text string, dot int) (ast.TypeRef, bool) {
+	span, found := goMethodExpressionReceiverSpanAt(program, path, text, dot)
+	return program.GoTypeExpressions[span], found
+}
+
+func goMethodExpressionReceiverSpanAt(program *ast.Program, path, text string, dot int) (source.Span, bool) {
 	if dot < 0 || dot > len(text) {
-		return ast.TypeRef{}, false
+		return source.Span{}, false
 	}
-	var receiver ast.TypeRef
+	var receiver source.Span
 	start := dot
 	found := false
-	for span, ref := range program.GoTypeExpressions {
+	for span := range program.GoTypeExpressions {
 		if !samePath(span.Path, path) || span.End.Offset > dot || span.Start.Offset >= start {
 			continue
 		}
@@ -26,9 +32,26 @@ func goMethodExpressionReceiverAt(program *ast.Program, path, text string, dot i
 		if !goMethodExpressionReceiverSuffix(text[span.End.Offset:dot]) {
 			continue
 		}
-		receiver, start, found = ref, span.Start.Offset, true
+		receiver, start, found = span, span.Start.Offset, true
 	}
 	return receiver, found
+}
+
+func goMethodExpressionMethodsAt(program *ast.Program, path, text string, dot int) (map[string]ast.CallableSignature, bool) {
+	span, found := goMethodExpressionReceiverSpanAt(program, path, text, dot)
+	methods, checked := program.GoTypeExpressionMethods[span]
+	return methods, found && checked
+}
+
+func checkedGoMethodExpressionCompletions(methods map[string]ast.CallableSignature, prefix string) []completionItem {
+	items := []completionItem{}
+	for name, signature := range methods {
+		if strings.HasPrefix(name, prefix) {
+			items = append(items, completionItem{Label: name, Kind: 2, Detail: "method expression: " + name + "(" + strings.Join(signature.ParameterTypes, ", ") + "): " + signature.Result, SortText: "0_" + name})
+		}
+	}
+	sortCompletionItems(items)
+	return items
 }
 
 func goMethodExpressionReceiverSuffix(suffix string) bool {

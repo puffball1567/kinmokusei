@@ -327,6 +327,9 @@ func (c *Checker) recordCallSignature(expr *ast.CallExpr, callable Type) {
 	}
 	for index, parameter := range callable.Parameters {
 		signature.ParameterTypes[index] = parameter.String()
+		if index < len(callable.ParameterNames) {
+			signature.ParameterNames[index] = callable.ParameterNames[index]
+		}
 	}
 	if goSignature, ok := callable.GoType.(*gotypes.Signature); ok {
 		for index := 0; index < goSignature.Params().Len() && index < len(signature.ParameterNames); index++ {

@@ -52,9 +52,10 @@ func (c *Checker) initializerChecker() *Checker {
 		nativeTypes: c.nativeTypes, enums: c.enums, allowed: c.allowed, unimportedReferences: c.unimportedReferences,
 		goPackages: c.goPackages, goNamedImports: c.goNamedImports,
 		goImporter: c.goImporter, allowUnsafeGo: c.allowUnsafeGo, goSizes: c.goSizes,
-		goFieldReceivers:     c.goFieldReceivers,
-		goTypeExpressions:    c.goTypeExpressions,
-		nativeTypeMethodSets: c.nativeTypeMethodSets,
+		goFieldReceivers:        c.goFieldReceivers,
+		goTypeExpressions:       c.goTypeExpressions,
+		goTypeExpressionMethods: c.goTypeExpressionMethods,
+		nativeTypeMethodSets:    c.nativeTypeMethodSets,
 
 		nativeInterfaceDeclarations:   c.nativeInterfaceDeclarations,
 		nativeInterfaceAliases:        c.nativeInterfaceAliases,

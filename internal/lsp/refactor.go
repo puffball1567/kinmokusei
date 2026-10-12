@@ -434,6 +434,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkType(&ref.GoResults[index])
 		}
 		for index := range ref.ObjectFields {
+			if ref.GoInterface && !ref.Go {
+				declare(ref.ObjectFields[index].NameSpan)
+			}
 			walkType(&ref.ObjectFields[index].Type)
 		}
 	}

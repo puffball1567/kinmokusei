@@ -67,7 +67,15 @@ export function callback():(v:Value,n:int)=>int{return Value.Add;}`,
 		"entry.km": `import {callback} from "./helper";
 import go api from "go-method-expressions.test/contracts";
 import go { IntBox } from "go-method-expressions.test/contracts";
+import go { Box as ImportedBox } from "go-method-expressions.test/contracts";
 import go bytes from "bytes";
+export function Direct(n:int):int[]{
+ let b:api.Box<int>=api.Box<int>{N:n};const read=api.Box<int>.Get;const pointerRead=(*ImportedBox[int]).Get;
+ const named=ImportedBox<int>.Get;const text=api.Box<bstring>{N:b"gold"};const getText=api.Box[bstring].Get;
+ return [read(b),pointerRead(&b),named(b),len(getText(text))];
+}
+constraint Int=~int;
+export function Dependent<T extends Int>(v:api.Box<T>):T{return api.Box<T>.Get(v);}
 export function Run(n:int):int[]{
  let v:api.Value=api.Value{N:n};
  const add=api.Value.Add;const set=(*api.Value).Set;
@@ -120,6 +128,7 @@ type box[T any]struct{number T}
 func(v box[T])get()T{return v.number}
 type intBox=box[int]
 func apply(f func(counter,int)int,v counter,n int)int{return f(v,n)}
+func Direct(n int)[]int{b:=box[int]{n};read:=box[int].get;pointerRead:=(*box[int]).get;named:=box[int].get;text:=box[string]{"gold"};getText:=box[string].get;return []int{read(b),pointerRead(&b),named(b),len(getText(text))}}
 func Run(n int)[]int{
  v:=counter{n};add:=counter.add;set:=(*counter).set;pointerAdd:=(*counter).add;read:=contract.add
  old:=add(v,2);set(&v,n+3);promoted:=embedded.add;composite:=embedded{v}
@@ -143,6 +152,7 @@ import("reflect";"testing";api "go-method-expressions.test/contracts";g "go-meth
 func panics(f func()int)(did bool){defer func(){did=recover()!=nil}();f();return}
 func TestMethods(t *testing.T){
  for _,n:=range []int{-10,0,17}{if a,b:=g.Run(n),r.Run(n);!reflect.DeepEqual(a,b){t.Fatal("methods",n,a,b)}}
+ for _,n:=range []int{-10,0,17}{if a,b:=g.Direct(n),r.Direct(n);!reflect.DeepEqual(a,b){t.Fatal("direct generic methods",n,a,b)};if g.Dependent(api.Box[int]{N:n})!=n{t.Fatal("dependent receiver")}}
  for _,n:=range []int{-10,0,17}{a,ae:=g.Checked(n);b,be:=r.Checked(n);if a!=b||(ae==nil)!=(be==nil){t.Fatal("Result forwarding",a,ae,b,be)};if ae!=nil&&ae.Error()!=be.Error(){t.Fatal("error identity",ae,be)}}
  value:=api.Value{N:7};if g.PointerConversion(&value)!=&value{t.Fatal("pointer conversion identity")}
  if !g.NilPointer()||g.NilPointer()!=r.NilPointer(){t.Fatal("nil pointer method")}
