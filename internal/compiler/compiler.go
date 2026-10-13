@@ -497,7 +497,7 @@ func goImporterForProgram(program *ast.Program, rootPaths []string, lockedRoot s
 			return newModuleGoImporter(directory, nil)
 		}
 	}
-	return importer.Default()
+	return newPositionedGoImporter()
 }
 
 type moduleLoader struct {

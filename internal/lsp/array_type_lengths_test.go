@@ -3,6 +3,7 @@ package lsp
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -62,11 +63,15 @@ function use():int{const Count=2;const a:[Count]int=[1,2];return len(a);}`
 		requestAt("textDocument/rename", 5, uri, positionOf(text, "DigestSize", 1), `"newName":"HashSize"`),
 		requestAt("textDocument/prepareRename", 6, uri, positionOf(text, "Size as", 0), ""),
 	)
-	for id, line := range map[float64]int{2: 0, 4: 1} {
+	for id, line := range map[float64]int{2: 0} {
 		definition, ok := messages[id]["result"].(map[string]any)
 		if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(line) {
 			t.Fatalf("alias definition %v=%#v", id, messages[id])
 		}
+	}
+	goDefinition, ok := messages[4]["result"].(map[string]any)
+	if !ok || !strings.HasSuffix(goDefinition["uri"].(string), "/crypto/sha256/sha256.go") {
+		t.Fatalf("Go constant alias definition=%#v", messages[4])
 	}
 	for _, id := range []float64{3, 5} {
 		result, ok := messages[id]["result"].(map[string]any)

@@ -76,6 +76,32 @@ async function run() {
       'valid fixture retained diagnostics'
     );
 
+    const goText = 'import go fmt from "fmt";\nfunction format():string{return fmt.Sprint(42); }\n';
+    await replaceDocument(document, goText);
+    const goPosition = document.positionAt(goText.indexOf('Sprint'));
+    await eventually(async () => {
+      const results = await vscode.commands.executeCommand(
+        'vscode.executeHoverProvider', document.uri, goPosition
+      );
+      return results.some((hover) => {
+        const text = hoverText(hover);
+        return text.includes('func fmt.Sprint') && text.includes('Sprint formats');
+      });
+    }, 'Go hover did not include the checked signature and documentation');
+    const definitions = await eventually(async () => {
+      const results = await vscode.commands.executeCommand(
+        'vscode.executeDefinitionProvider', document.uri, goPosition
+      );
+      return results.length ? results : false;
+    }, 'Go definition navigation did not return a location');
+    const definition = definitions[0];
+    const target = definition.targetUri || definition.uri;
+    const range = definition.targetSelectionRange || definition.range;
+    assert.ok(target.fsPath.endsWith(path.join('fmt', 'print.go')));
+    const goSource = await vscode.workspace.openTextDocument(target);
+    assert.equal(goSource.getText(range), 'Sprint');
+    await replaceDocument(document, originalText);
+
     await replaceDocument(document, originalText + '\nconst broken: missing;\n');
     await eventually(
       () => vscode.languages.getDiagnostics(document.uri).length > 0,

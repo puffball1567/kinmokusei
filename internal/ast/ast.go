@@ -4,7 +4,16 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 
 type Node interface{ GetSpan() source.Span }
 
+// GoReference retains checked Go symbol identity for editor navigation. Position
+// belongs to the compilation's Go importer file set, not the Kinmokusei source.
+type GoReference struct {
+	Name     string
+	Detail   string
+	Position int
+}
+
 type Program struct {
+	GoReferences map[source.Span]GoReference
 	// Decorators indexes source applications, including parameter applications.
 	// Each entry is also attached to its declaration or parameter.
 	Decorators []*Decorator

@@ -18,6 +18,7 @@ import (
 )
 
 type moduleGoImporter struct {
+	fileSet     *gotoken.FileSet
 	directory   string
 	exportFiles map[string]string
 	loadErrors  map[string]error
@@ -37,12 +38,13 @@ type listedGoPackage struct {
 
 func newModuleGoImporter(directory string, target *project.BuildTarget) gotypes.Importer {
 	resolver := &moduleGoImporter{
+		fileSet:     gotoken.NewFileSet(),
 		directory:   directory,
 		exportFiles: map[string]string{},
 		loadErrors:  map[string]error{},
 		target:      target,
 	}
-	resolver.importer = importer.ForCompiler(gotoken.NewFileSet(), "gc", resolver.lookup)
+	resolver.importer = importer.ForCompiler(resolver.fileSet, "gc", resolver.lookup)
 	return resolver
 }
 

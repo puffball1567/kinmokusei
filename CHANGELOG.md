@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Show Go declaration signatures and available source documentation on hover,
+  and navigate directly to selected Go source declarations. Support namespace
+  and named imports, aliases, fields, methods, promoted members and generic
+  method expressions; retain signature hover when dependency sources are missing.
+
 - Preserve declared types in C-style `for` initializers, including narrow
   numbers, named/generic types and typed nil values. Retain fresh per-iteration
   bindings, capture/address identity, initialization order and loop labels;
