@@ -45,6 +45,7 @@ func (c *Checker) checkGoMethodExpression(expr *ast.MemberExpr, receiver Type) T
 		return invalid
 	}
 	inheritGoQualifier(&result, receiver)
+	c.recordGoReference(expr.NameSpan, selection.Obj())
 	expr.Go = true
 	expr.ResolvedName = expr.Name
 	return result

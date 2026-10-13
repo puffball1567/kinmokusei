@@ -34,6 +34,7 @@ type Checker struct {
 	allowUnsafeGo              bool
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
+	goReferences               map[source.Span]ast.GoReference
 	goTypeExpressions          map[source.Span]ast.TypeRef
 	goTypeExpressionMethods    map[source.Span]map[string]ast.CallableSignature
 	nativeTypeMethodSets       map[source.Span]ast.NativeTypeMethodSet
@@ -125,6 +126,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
 		goNamedImports:          map[string]map[string]goNamedImport{},
 		goFieldReceivers:        map[*ast.MemberExpr]gotypes.Type{},
+		goReferences:            map[source.Span]ast.GoReference{},
 		goTypeExpressions:       map[source.Span]ast.TypeRef{},
 		goTypeExpressionMethods: map[source.Span]map[string]ast.CallableSignature{},
 		nativeTypeMethodSets:    map[source.Span]ast.NativeTypeMethodSet{},
@@ -214,6 +216,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
+	program.GoReferences = c.goReferences
 	program.GoTypeExpressions = c.goTypeExpressions
 	program.GoTypeExpressionMethods = c.goTypeExpressionMethods
 	program.NativeTypeMethodSets = c.nativeTypeMethodSets
