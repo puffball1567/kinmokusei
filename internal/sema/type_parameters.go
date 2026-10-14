@@ -199,6 +199,9 @@ func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings
 	if !ok {
 		goArgument, ok = c.goTypeForNativeStorage(argument)
 	}
+	if ok && !comparableStorageReady(goArgument, map[gotypes.Type]bool{}) {
+		return false // Invalid/unresolved by-value storage is unsafe for Go predicates.
+	}
 	if constraint.NumMethods() != 0 {
 		if sourceBound, source := c.nativeInterfaceBounds[goParameter]; source {
 			return ok && c.nativeSourceInterfaceArgumentSatisfies(substituteNativeTypeParameters(sourceBound, nativeBindings), argument) && gotypes.Satisfies(goArgument, constraintWithoutMethods(constraint))
@@ -214,10 +217,10 @@ func (c *Checker) nativeTypeArgumentSatisfies(parameter, argument Type, bindings
 }
 
 func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs []ast.TypeRef, fallback source.Span, owner string) bool {
-	// Bounds and implementing method sets are completed in separate declaration
-	// phases. Recheck early applications once both are available; accepting a
-	// provisional empty interface without this recheck would erase the contract.
-	if !c.nativeInterfaceArgumentsReady && c.hasSourceInterfaceBounds(parameters) {
+	// Storage, bounds and implementing method sets finish in separate declaration
+	// phases. Recheck every early application once all are available: incomplete
+	// storage can panic in Go predicates, and provisional bounds erase contracts.
+	if !c.nativeInterfaceArgumentsReady {
 		c.pendingNativeInterfaceArguments = append(c.pendingNativeInterfaceArguments, nativeInterfaceApplication{
 			parameters: parameters, arguments: arguments, refs: refs, span: fallback, owner: owner,
 		})

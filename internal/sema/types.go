@@ -203,7 +203,7 @@ func (t Type) IsComparable() bool {
 
 func (t Type) isComparable(visiting map[string]bool) bool {
 	if t.GoType != nil {
-		return gotypes.Comparable(t.GoType)
+		return comparableStorageReady(t.GoType, map[gotypes.Type]bool{}) && gotypes.Comparable(t.GoType)
 	}
 	switch t.Kind {
 	case Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface, GoInterface:

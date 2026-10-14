@@ -412,6 +412,11 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 		symbol.typeInfo = underlying
 	} else {
 		underlyingGo, ok := goTypeOf(underlying)
+		if !ok && underlying.Kind == GoPointer && underlying.Element != nil && underlying.Element.Kind == Struct {
+			// Indirections may refer to a source struct before its cached Go
+			// descriptor is available. Its canonical named identity is stable.
+			underlyingGo, ok = c.goTypeForNativeStorage(underlying)
+		}
 		if !ok {
 			c.report(symbol.declaration.Underlying.Span, fmt.Sprintf("type %s cannot yet be used as a distinct defined type; use an alias or a native struct", underlying.String()))
 			symbol.typeInfo = Type{Kind: Invalid, Name: symbol.declaration.Name}
@@ -496,6 +501,7 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 		return substituteNativeTypeParameters(base, bindings)
 	}
 	sourceBounds := c.hasSourceInterfaceBounds(symbol.typeParameters)
+	deferred := !c.nativeInterfaceArgumentsReady
 	if sourceBounds && !c.validateNativeTypeArguments(symbol.typeParameters, arguments, ref.GenericArguments, ref.Span, "generic defined type "+ref.Name) {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
@@ -515,10 +521,13 @@ func (c *Checker) resolveNativeDefinedType(ref ast.TypeRef, symbol *nativeTypeSy
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	instantiated, err := gotypes.Instantiate(nil, base.GoType, goArguments, !sourceBounds)
+	instantiated, err := gotypes.Instantiate(nil, base.GoType, goArguments, !sourceBounds && !deferred)
 	if err != nil {
 		c.report(ref.Span, fmt.Sprintf("cannot instantiate generic defined type %s: %v", ref.Name, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if deferred && !sourceBounds {
+		c.pendingNativeGoInstances = append(c.pendingNativeGoInstances, boundInstance{origin: base.GoType, arguments: goArguments, ref: ref})
 	}
 	names := make([]string, len(arguments))
 	for index := range arguments {

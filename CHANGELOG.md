@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Defer Map-key and early generic type-argument checks until native storage
+  and method sets are complete, preventing `nil underlying` panics on recursive
+  defined types. Diagnose invalid keys/constraints before Go emission while
+  preserving valid recursive pointer/channel types, canonical struct storage
+  and hidden verified-text contracts. Unresolved recursive arguments at direct
+  Go generic boundaries now receive a diagnostic (#103).
+
 - Preserve declared types in C-style `for` initializers, including narrow
   numbers, named/generic types and typed nil values. Retain fresh per-iteration
   bindings, capture/address identity, initialization order and loop labels;

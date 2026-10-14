@@ -143,6 +143,19 @@ func (c *Checker) containsTextContract(value Type, visiting []Type, unknown bool
 			}
 		}
 	}
+	if shape.Kind == Struct {
+		// Indirect generic references can capture a field snapshot before its
+		// declaration is complete. Hidden-storage checks must also inspect the
+		// canonical checked fields, without reconstructing away source qualifiers.
+		if structure := c.structs[shape.Name]; structure != nil {
+			bindings := nativeStructBindings(structure, shape)
+			for _, field := range structure.fields {
+				if c.containsTextContract(substituteNativeTypeParameters(field.typeInfo, bindings), visiting, unknown) {
+					return true
+				}
+			}
+		}
+	}
 	for _, child := range []*Type{shape.Element, shape.Key, shape.Result} {
 		if child != nil && c.containsTextContract(*child, visiting, unknown) {
 			return true

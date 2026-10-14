@@ -89,6 +89,8 @@ func (c *Checker) initializerChecker() *Checker {
 func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.diagnostics = append(c.diagnostics, dependency.diagnostics...)
 	c.pendingNativeInterfaceArguments = append(c.pendingNativeInterfaceArguments, dependency.pendingNativeInterfaceArguments...)
+	c.pendingMapKeys = append(c.pendingMapKeys, dependency.pendingMapKeys...)
+	c.pendingNativeGoInstances = append(c.pendingNativeGoInstances, dependency.pendingNativeGoInstances...)
 	c.usesTasks = c.usesTasks || dependency.usesTasks
 	c.usesExceptions = c.usesExceptions || dependency.usesExceptions
 	c.usesUTF8 = c.usesUTF8 || dependency.usesUTF8
