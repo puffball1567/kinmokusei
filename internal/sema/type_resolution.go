@@ -340,6 +340,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			alias = imported.declaration.ResolvedAlias
 		}
 		applyGoQualifier(&result, imported.path, alias)
+		c.recordGoReference(ref.NameSpan, typeName)
 		return result
 	}
 	if contract, ok := c.interfaces[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {

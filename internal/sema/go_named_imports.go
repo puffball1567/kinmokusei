@@ -63,6 +63,8 @@ func (c *Checker) declareNamedGoImports(imported *goPackageSymbol, program *ast.
 			c.report(span, fmt.Sprintf("Go package %q has no exported member %q", imported.path, selected))
 			continue
 		}
+		c.recordGoReference(span, object)
+		c.recordGoReference(declaration.NameSpans[i], object)
 		bindings[name] = goNamedImport{pack: imported, span: span, name: selected}
 	}
 }
@@ -84,7 +86,7 @@ func (c *Checker) checkNamedGoIdentifier(identifier *ast.IdentifierExpr, importe
 	}
 	member := &ast.MemberExpr{
 		Object: &ast.IdentifierExpr{Name: alias, Span: identifier.Span},
-		Name:   imported.name, Span: identifier.Span,
+		Name:   imported.name, NameSpan: identifier.Span, Span: identifier.Span,
 	}
 	result := c.checkGoMember(member, imported.pack)
 	identifier.GoMember = member

@@ -19,15 +19,14 @@ func TestNamedGoImportNavigation(t *testing.T) {
 		requestAt("textDocument/completion", 5, uri, at, ""),
 	)
 	hover, ok := messages[2]["result"].(map[string]any)
-	if !ok || !strings.Contains(hover["contents"].(map[string]any)["value"].(string), "import go { Sprint }") {
+	if !ok || !strings.Contains(hover["contents"].(map[string]any)["value"].(string), "func fmt.Sprint") {
 		t.Fatalf("hover: %v", messages[2])
 	}
 	definition, ok := messages[3]["result"].(map[string]any)
 	if !ok {
 		t.Fatalf("definition: %v", messages[3])
 	}
-	start := definition["range"].(map[string]any)["start"].(map[string]any)
-	if start["line"] != float64(0) || start["character"] != float64(12) {
+	if !strings.HasSuffix(definition["uri"].(string), "/fmt/print.go") {
 		t.Fatalf("definition: %v", definition)
 	}
 	if messages[4]["result"] != nil {

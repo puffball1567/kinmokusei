@@ -139,6 +139,7 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 	}
 	applyGoQualifier(&result, imported.path, alias)
 	expression.ResolvedName = expression.Name
+	c.recordGoReference(expression.NameSpan, object)
 	c.recordGoTypeExpression(expression, result)
 	return result
 }
@@ -151,6 +152,10 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 				if !c.allowUnsafeGo && goTypeContainsUnsafePointer(method.Type.GoType, nil) {
 					c.report(expression.Span, "Go method uses unsafe.Pointer; set [go.interop] unsafe = \"allow\" to use it")
 					return Type{Kind: Invalid, Name: "<invalid>"}
+				}
+				if receiver.GoType != nil {
+					object, _, _ := gotypes.LookupFieldOrMethod(receiver.GoType, true, nil, expression.Name)
+					c.recordGoReference(expression.NameSpan, object)
 				}
 				expression.ResolvedName = method.Name
 				expression.ResolvedDeclaration = method.DeclarationSpan
@@ -207,6 +212,7 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	inheritGoQualifier(&result, receiver)
+	c.recordGoReference(expression.NameSpan, object)
 	expression.ResolvedName = expression.Name
 	return result
 }
@@ -353,4 +359,19 @@ func goObjectKind(object gotypes.Object) string {
 	default:
 		return "Go"
 	}
+}
+
+func (c *Checker) recordGoReference(span source.Span, object gotypes.Object) {
+	if span.Path == "" || object == nil || object.Pkg() == nil || !object.Exported() {
+		return
+	}
+	if c.goReferences == nil {
+		c.goReferences = map[source.Span]ast.GoReference{}
+	}
+	c.goReferences[span] = ast.GoReference{Name: object.Name(), Position: int(object.Pos()), Detail: gotypes.ObjectString(object, func(pkg *gotypes.Package) string {
+		if pkg == nil {
+			return ""
+		}
+		return pkg.Name()
+	})}
 }

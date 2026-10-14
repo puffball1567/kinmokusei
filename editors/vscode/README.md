@@ -12,6 +12,22 @@ The extension does not duplicate compiler or language-analysis logic. Hover,
 completion, navigation, rename, diagnostics, symbols, and signature help are
 provided by the versioned language server distributed with the `keika` CLI.
 
+## Go module navigation
+
+Go imports provide completion and call signatures, plus hover signatures and
+available documentation comments. **Go to Definition** opens the actual Go
+function, type, constant, variable, field or method declaration in the selected
+Go toolchain or dependency sources. Named imports and aliases resolve to the
+same underlying Go declaration; promoted fields and methods resolve to their
+original declarations. The server uses the project's locked dependencies and
+build target, matching source checking.
+
+If the dependency source is unavailable, hover still shows the checked Go
+signature and definition navigation returns no location. External Go symbols
+remain read-only for rename. No Kinmokusei wrapper is required. These features
+are provided by `keika`; use a version containing this implementation and
+restart the language server after updating it.
+
 ## Configuration
 
 `kinmokusei.server.path` selects the `keika` executable. The default resolves
