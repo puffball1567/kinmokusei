@@ -236,9 +236,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, "Result cannot be nested inside a Map type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if key.Kind != Invalid && !key.IsComparable() {
-			c.report(ref.GenericArguments[0].Span, fmt.Sprintf("type %s cannot be used as a Map key", key.String()))
-		}
+		c.checkResolvedMapKey(key, ref.GenericArguments[0].Span)
 		return Type{Kind: Map, Name: "Map", Key: &key, Element: &value}
 	}
 	if ref.Name == "GoChannel" || ref.Name == "GoSendChannel" || ref.Name == "GoReceiveChannel" {
@@ -296,6 +294,11 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			valid := true
 			for i := range ref.GenericArguments {
 				resolved := c.resolveType(ref.GenericArguments[i])
+				if storage, ok := goTypeOf(resolved); ok && !nativeStorageGraphReady(storage, map[gotypes.Type]bool{}) {
+					c.report(ref.GenericArguments[i].Span, "Go generic type arguments referencing unresolved source storage are not yet supported")
+					valid = false
+					continue
+				}
 				if c.containsDeclaredVerifiedText(resolved) || underlyingGoInterface(goType) == nil && c.containsVerifiedText(resolved, nil) {
 					c.report(ref.GenericArguments[i].Span, "Go generic type arguments cannot establish a UTF-8 contract; use bstring/raw storage")
 					valid = false

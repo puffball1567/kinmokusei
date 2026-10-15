@@ -262,14 +262,16 @@ func (c *Checker) instantiateNativeStorageType(named *gotypes.Named, arguments [
 		return named, true
 	}
 	goArguments := make([]gotypes.Type, len(arguments))
+	ready := true
 	for index, argument := range arguments {
 		resolved, ok := c.goTypeForNativeStorage(argument)
 		if !ok {
 			return nil, false
 		}
 		goArguments[index] = resolved
+		ready = ready && comparableStorageReady(resolved, map[gotypes.Type]bool{})
 	}
-	validate := true
+	validate := c.nativeInterfaceArgumentsReady && ready && named.Origin().Underlying() != nil
 	for i := 0; i < named.TypeParams().Len(); i++ {
 		parameter := named.TypeParams().At(i)
 		if _, source := c.nativeInterfaceBounds[parameter]; source || c.deferredParameterBounds[parameter] {

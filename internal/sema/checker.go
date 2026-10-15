@@ -92,6 +92,8 @@ type Checker struct {
 	nativeInterfacesReady           bool
 	nativeInterfaceArgumentsReady   bool
 	pendingNativeInterfaceArguments []nativeInterfaceApplication
+	pendingMapKeys                  []pendingMapKey
+	pendingNativeGoInstances        []boundInstance
 }
 
 type GoInteropPolicy struct {
@@ -169,7 +171,9 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.declareTopLevel(program)
 	c.declareReceiverMethods(program)
 	c.nativeInterfaceArgumentsReady = true
+	c.validatePendingMapKeys()
 	c.validatePendingNativeInterfaceArguments()
+	c.validatePendingNativeGoInstances()
 	c.validateStructValueCycles(program)
 	for _, decl := range c.globalCheckOrder(program) {
 		c.ensureGlobalBindingChecked(decl)

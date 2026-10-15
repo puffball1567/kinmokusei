@@ -95,6 +95,14 @@ alias UserNames = string[];
 type UserID = distinct int64;
 ```
 
+In the development version after v0.4.6, recursive defined types retain a stable
+identity while their storage is completed. Map-key and early generic constraints
+are checked after completion: a recursive pointer or channel can be comparable,
+but a map/slice cannot be a key merely because it refers to itself. Invalid keys
+receive a source diagnostic rather than a compiler panic. Direct Go generic
+arguments that depend on unresolved source storage remain unsupported and are
+diagnosed; this does not prevent ordinary completed Go generic applications.
+
 In the development version, enums also support explicit-receiver
 [method expressions](./classes-and-structs#native-method-expressions):
 

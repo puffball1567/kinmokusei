@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Defer Map-key and early generic type-argument checks until native storage
+  and method sets are complete, preventing `nil underlying` panics on recursive
+  defined types. Diagnose invalid keys/constraints before Go emission while
+  preserving valid recursive pointer/channel types, canonical struct storage
+  and hidden verified-text contracts. Unresolved recursive arguments at direct
+  Go generic boundaries now receive a diagnostic (#103).
+
 - Show Go declaration signatures and available source documentation on hover,
   and navigate directly to selected Go source declarations. Support namespace
   and named imports, aliases, fields, methods, promoted members and generic

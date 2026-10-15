@@ -15,6 +15,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`type A=distinct Map<A,int>;`,
+	`type A<T>=distinct Map<A<T>,T>;function f(v:A<int>):void{}`,
+	`struct Box<T extends comparable>{public v:int;}type A=distinct *Box<A>;`,
 	`function takes(v:int32):int32{return v;}function f():int32{let total:int32=0;for(let i:int32=0;i<3;i++){total+=takes(i);}return total;}`,
 	`class C{public x:int=1;}function f(e:error,b:boolean):void{let p:C|null=new C();try{p=null;if(b){throw e;}p=new C();}catch(_:error){const n=p.x;}}`,
 	`class C{public x:int=1;}function f():int{let p:C|null=new C();try{p=null;return 0;}finally{if(p===null){return -1;}return p.x;}}`,
