@@ -1,0 +1,12 @@
+import go flag from "flag"
+import go { Println } from "fmt"
+
+function main(): void {
+  const flags = flag.NewFlagSet("example", flag.ContinueOnError)
+  const option: *flag.Flag | null = flags.Lookup("missing")
+  if (option === null) {
+    Println("missing")
+    return
+  }
+  Println(option.Name)
+}

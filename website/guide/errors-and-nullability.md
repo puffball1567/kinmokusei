@@ -115,6 +115,15 @@ be rejected.
 
 Member access, calls, indexing, slicing, pointer operations, and channel operations require a non-null proof. Operations that are explicitly safe on nil Go slices/maps—such as `len`, `append`, `delete`, `clear`, and range where applicable—retain that behavior.
 
+When a Go API may return nil, choose an explicit nullable binding:
+
+<<< ../snippets/nullable-go.km{ts}
+
+Receiving a raw Go pointer or interface does not automatically prove it non-null.
+This example prints `missing`; accessing `option.Name` before the guard is
+rejected. An interface guard tests whether the interface itself is nil, not
+whether it contains a typed nil pointer. See [Nullability](../reference/types#nullability).
+
 `?` propagation from inside `try` still exits the enclosing Result function and
 runs `finally`; it is not a typed exception handled by `catch`. Handler flow
 checks include interrupted states, not just the normally completed try body.

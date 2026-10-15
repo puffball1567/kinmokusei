@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve explicitly nullable bindings and fields when assigning raw Go
+  pointers, interfaces, functions and other nil-capable storage. A matching Go
+  type is not a non-null proof; require a null guard while retaining proofs
+  from checked snapshots, fresh literals, address-taking and collection
+  allocation. Cover aliases, callbacks, linked modules, reassignment and
+  interface typed-nil behavior against independent Go (first part of #117).
+
 - Defer Map-key and early generic type-argument checks until native storage
   and method sets are complete, preventing `nil underlying` panics on recursive
   defined types. Diagnose invalid keys/constraints before Go emission while
