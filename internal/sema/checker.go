@@ -416,7 +416,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		if stmt.Operator == "" || stmt.Operator == "=" {
 			value := c.checkExpressionExpectedSlot(&stmt.Value, target)
 			c.requireAssignable(target, value, stmt.Value.GetSpan())
-			c.updateAssignmentFlow(stmt.Target, value)
+			c.updateAssignmentFlow(stmt.Target, value, stmt.Value)
 		} else {
 			c.markAssignmentTargetRead(stmt.Target)
 			value := c.singleValue(c.checkExpression(stmt.Value), stmt.Value.GetSpan())

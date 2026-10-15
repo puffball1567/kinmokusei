@@ -32,7 +32,7 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 		}
 		binding.ResolvedType = typeRefFromType(result, binding.Span)
 		c.declareMultiLocal(binding.Name, result, stmt.Constant, stmt, i, binding.Span)
-		c.updateIdentifierFlow(binding.Name, binding.Span, result)
+		c.updateIdentifierFlow(binding.Name, binding.Span, result, nil)
 		if value.Kind == Result && i == len(results)-1 {
 			c.trackResultError(binding.Name, binding.Span)
 		}
@@ -77,7 +77,7 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			var slot ast.Expression = &ast.IdentifierExpr{Name: "_", Span: binding.Span}
 			c.applyClassUpcast(&slot, declared, results[i])
 			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
-			c.updateIdentifierFlow(binding.Name, binding.Span, results[i])
+			c.updateIdentifierFlow(binding.Name, binding.Span, results[i], nil)
 			if value.Kind == Result && i == len(results)-1 {
 				c.trackResultError(binding.Name, binding.Span)
 			}

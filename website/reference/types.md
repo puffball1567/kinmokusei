@@ -244,6 +244,22 @@ The compiler tracks maybe-null, definitely-null, and non-null facts separately f
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.
 
+A raw Go pointer, interface or function type does not imply that its value is
+non-nil. Assigning one to an explicit `T | null` local or field preserves the
+nullable state; check it against `null` before access. Aliases and generic named
+types obey the same storage rule. Slices, maps and channels also permit nil
+storage, so their unqualified type alone does not establish a non-null proof.
+Fresh literals, address-taking, collection allocation, and already checked
+nullable snapshots can establish a proof without another guard.
+
+<<< ../snippets/nullable-go.km{ts}
+
+This prints `missing`. An interface containing a typed nil pointer is not a nil
+interface: its comparison with `null` is false, just as comparison with `nil`
+in Go would be. The guard checks the interface value, not hidden pointees or
+the behavior of the implementation's methods. Direct raw Go use retains Go's
+nil behavior; this rule does not add automatic runtime boundary assertions.
+
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 
 <<< ../snippets-invalid/null-proof-invalidated.km{ts}

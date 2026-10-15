@@ -79,7 +79,7 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 		targetType := c.checkAssignmentTarget(target)
 		if i < len(results) {
 			c.requireAssignable(targetType, results[i], target.GetSpan())
-			c.updateAssignmentFlow(target, results[i])
+			c.updateAssignmentFlow(target, results[i], nil)
 		}
 	}
 }

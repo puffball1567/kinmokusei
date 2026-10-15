@@ -59,6 +59,24 @@ that milestone. OOP work continues alongside Go compatibility.
 
 ## Next patch release work areas
 
+### Nullability safety follow-up (#117)
+
+Development builds preserve explicit `T | null` state when receiving raw Go
+references. A matching pointer/interface/function/collection storage type no
+longer establishes a non-null assignment proof. Null guards, already checked
+snapshots, fresh literals, address-taking and collection allocation still
+establish proofs. Aliases, linked modules, callbacks, mutable assignments and
+Go interface typed-nil semantics have checker and independent runtime coverage
+in `go_nullable_flow_test.go`.
+
+This is only the first part of #117. Optional chaining, null coalescing,
+runtime-checked postfix non-null assertions, non-null boundary checks, raw-nil
+restrictions and recursive zero-safety rules are not implemented by this fix.
+The zero-safety audit must cover map/receive/assertion success checks,
+`makeSlice`, reslicing and `clear`, including nested structs and generic types.
+
+### Go compatibility areas
+
 The next patch milestone is useful, tested partial progress across these ten
 areas, not full Go compatibility. An area's size varies; this list is not a
 percentage-complete metric or an exhaustive inventory of Go semantics. Accepted
