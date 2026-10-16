@@ -16,6 +16,13 @@ func TestMemberCompletionEditingExistingName(t *testing.T) {
 	}
 	for _, test := range []struct{ name, input, want, hidden string }{
 		{"source", `class Box{constructor(public value:int){}}function run(box:Box):int{return box.va|lue;}`, "value", ""},
+		{"asserted source", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return box!.va|lue;}`, "value", ""},
+		{"asserted source empty", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return box!.|}`, "value", ""},
+		{"asserted selector whitespace", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return box! /* snapshot */ . va|lue;}`, "value", ""},
+		{"asserted private filtering", `class Box{private value:int=1;public valid:int=2;}function run(box:Box|null):int{return box!.va|lid;}`, "valid", "value"},
+		{"asserted inferred local", `class Box{constructor(public value:int){}}function run(box:Box|null):int{const checked=box!;return checked.va|lue;}`, "value", ""},
+		{"asserted generic alias", `import {Box as Crate} from "./library";function run(box:Crate<int>|null):int{return box!.va|lue;}`, "value", ""},
+		{"asserted Go pointer", `import go flag from "flag";function run(box:*flag.Flag|null):bstring{return box!.Na|me;}`, "Name", "Value"},
 		{"source selector start", `class Box{constructor(public value:int){}}function run(box:Box):int{return box.|value;}`, "value", ""},
 		{"source call argument", `class Box{constructor(public value:int){}}function consume(n:int):int{return n;}function run(box:Box):int{return consume(box.va|lue);}`, "value", ""},
 		{"import alias", `import {Box as Crate} from "./library";function run():int{const box=new Crate<int>(42);return box.va|lue;}`, "value", ""},
@@ -31,9 +38,11 @@ func TestMemberCompletionEditingExistingName(t *testing.T) {
 		{"trailing whitespace", "class Box{constructor(public value:int){}}function f(box:Box):int{return box.va|\r\n  ", "value", ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			marker := strings.Index(test.input, "|")
-			input := strings.Replace(test.input, "|", "", 1)
-			at := positionOf(test.input, "|", 0)
+			// Nullable unions may contain earlier pipes; the final pipe is the
+			// cursor marker in these fixtures.
+			marker := strings.LastIndex(test.input, "|")
+			input := test.input[:marker] + test.input[marker+1:]
+			at := positionOf(test.input, "|", strings.Count(test.input, "|")-1)
 			uri := fileURI(filepath.Join(root, "entry.km"))
 			messages := serveMessages(t, openDocument(uri, input), requestAt("textDocument/completion", 2, uri, at, ""))
 			labels := map[string]bool{}

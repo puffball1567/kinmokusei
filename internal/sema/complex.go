@@ -168,7 +168,7 @@ func initializerEmitsConstant(expr ast.Expression) bool {
 	case *ast.LiteralExpr:
 		return e.Kind == ast.IntegerLiteral || e.Kind == ast.FloatLiteral || e.Kind == ast.ImaginaryLiteral || e.Kind == ast.StringLiteral || e.Kind == ast.ByteStringLiteral || e.Kind == ast.BooleanLiteral
 	case *ast.UnaryExpr:
-		return initializerEmitsConstant(e.Operand)
+		return e.Operator != ast.NonNullOperator && initializerEmitsConstant(e.Operand)
 	case *ast.BinaryExpr:
 		return initializerEmitsConstant(e.Left) && initializerEmitsConstant(e.Right)
 	case *ast.CallExpr:

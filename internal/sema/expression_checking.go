@@ -146,6 +146,9 @@ func (c *Checker) checkObjectLiteralExpected(expr *ast.ObjectLiteralExpr, expect
 }
 
 func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
+	if expr.Operator == ast.NonNullOperator {
+		return c.checkNonNullAssertion(expr)
+	}
 	if _, _, found := c.nativeMethodExpressionReceiver(expr); found {
 		c.report(expr.Span, "a native pointer type cannot be used as a value")
 		return Type{Kind: Invalid, Name: "<invalid>"}

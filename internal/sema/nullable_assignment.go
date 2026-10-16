@@ -14,7 +14,7 @@ func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression)
 		return false
 	case GoPointer, GoInterface, Array, Map, GoChannel, Function, TypeParameter:
 		// These types alone do not prove that the runtime value is non-nil.
-	case GoNamed:
+	case GoNamed, GoBasic:
 		if !isNilable(value) {
 			return true
 		}
@@ -25,7 +25,7 @@ func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression)
 	case *ast.ArrowExpr, *ast.ArrayLiteralExpr, *ast.ObjectLiteralExpr, *ast.GoCompositeLiteralExpr, *ast.NewExpr:
 		return true
 	case *ast.UnaryExpr:
-		return expression.Operator == "&"
+		return expression.Operator == "&" || expression.Operator == ast.NonNullOperator
 	case *ast.CallExpr:
 		return expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
 	case *ast.IdentifierExpr:

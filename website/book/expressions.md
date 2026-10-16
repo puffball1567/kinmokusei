@@ -204,6 +204,25 @@ function port(text: string): Result<int> {
 
 The operand evaluates once. On error, the function returns immediately with its result zero value plus the error. On success, the expression yields the non-error value. `?` is not optional chaining and does not apply to nullable values.
 
+## Checked non-null expressions
+
+Postfix `!` makes absence a runtime assertion failure:
+
+<<< ../snippets/non-null-assertion.km{ts}
+
+It evaluates the operand once and returns the same non-nil reference. On nil,
+it panics with the original source filename, line and column, and later parts
+of the enclosing expression do not run. The check is retained in expressions
+such as `len(arrayPointer!)`, even when the array length is known statically.
+An interface containing a typed nil pointer is a non-nil interface; the
+assertion is not a recursive validation of foreign objects.
+
+Use `value!.field`, `callback!()` or `items![index]` directly. To check a
+received reference, write `(<-channel)!`; `channel!` checks the channel instead.
+Assertions do not narrow the original mutable binding for later statements.
+Expected absence belongs in an ordinary null guard; Result failure still needs
+explicit propagation or handling, not `!`.
+
 ## Arrow expressions
 
 Arrows are typed function values with expression or block bodies:

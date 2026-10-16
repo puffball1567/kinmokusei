@@ -69,9 +69,17 @@ establish proofs. Aliases, linked modules, callbacks, mutable assignments and
 Go interface typed-nil semantics have checker and independent runtime coverage
 in `go_nullable_flow_test.go`.
 
-This is only the first part of #117. Optional chaining, null coalescing,
-runtime-checked postfix non-null assertions, non-null boundary checks, raw-nil
-restrictions and recursive zero-safety rules are not implemented by this fix.
+Development builds also implement runtime-checked postfix `!` with single
+evaluation, filename/line/column panic messages and editor type metadata.
+Checks remain effective in fixed-array `len`/`cap` operands; Result/Task errors
+cannot be discarded through an assertion. Nil-capable generic constraints,
+linked aliases, named types, callbacks and typed-nil Go interfaces have runtime
+comparison coverage in `non_null_assertions_test.go`. Nullable `unsafe.Pointer`
+assignment follows the same conservative storage rule as ordinary Go pointers.
+
+This is still partial progress on #117. Optional chaining, null coalescing,
+non-null boundary checks, raw-nil restrictions and recursive zero-safety rules
+remain unimplemented.
 The zero-safety audit must cover map/receive/assertion success checks,
 `makeSlice`, reslicing and `clear`, including nested structs and generic types.
 
