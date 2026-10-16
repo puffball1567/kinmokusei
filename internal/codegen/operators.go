@@ -102,7 +102,7 @@ func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	case *kinmokuseiAST.LiteralExpr:
 		return expr.Kind != kinmokuseiAST.NilLiteral && expr.Kind != kinmokuseiAST.NullLiteral
 	case *kinmokuseiAST.UnaryExpr:
-		return isGoConstant(expr.Operand)
+		return expr.Operator != kinmokuseiAST.NonNullOperator && isGoConstant(expr.Operand)
 	case *kinmokuseiAST.BinaryExpr:
 		return isGoConstant(expr.Left) && isGoConstant(expr.Right)
 	case *kinmokuseiAST.CallExpr:

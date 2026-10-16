@@ -4,7 +4,9 @@ import (
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/lexer"
 	"github.com/puffball1567/kinmokusei/internal/source"
+	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
 type completionReceiver struct {
@@ -13,11 +15,7 @@ type completionReceiver struct {
 	static  bool
 }
 
-func sourceMemberCompletions(program *ast.Program, path string, offset int, qualifier, prefix string) []completionItem {
-	receiver, ok := completionReceiverAt(program, path, offset, qualifier)
-	if !ok {
-		return []completionItem{}
-	}
+func sourceMemberCompletions(program *ast.Program, receiver completionReceiver, prefix string) []completionItem {
 	candidates := map[string]completionItem{}
 	add := func(item completionItem) {
 		if strings.HasPrefix(item.Label, prefix) {
@@ -31,6 +29,28 @@ func sourceMemberCompletions(program *ast.Program, path string, offset int, qual
 	}
 	sortCompletionItems(items)
 	return items
+}
+
+func assertedCompletionReceiverAt(program *ast.Program, path, text string, dot int) (completionReceiver, bool) {
+	if dot < 0 || dot > len(text) {
+		return completionReceiver{}, false
+	}
+	// Recovery blanks the selector, leaving the checked receiver in the AST.
+	// Use token identity rather than proximity so a distant assertion cannot
+	// supply a type for an unrelated receiver. Whitespace/comments are allowed.
+	tokens, _ := lexer.Lex(path, text[:dot])
+	if len(tokens) < 2 || tokens[len(tokens)-2].Kind != token.Bang {
+		return completionReceiver{}, false
+	}
+	end := tokens[len(tokens)-2].Span.End.Offset
+	var asserted ast.TypeRef
+	visitProgramExpressions(program, func(expression ast.Expression) {
+		unary, ok := expression.(*ast.UnaryExpr)
+		if ok && unary.Operator == ast.NonNullOperator && samePath(unary.Span.Path, path) && unary.Span.End.Offset == end {
+			asserted = unary.AssertionType
+		}
+	})
+	return completionReceiver{typeRef: asserted, owner: enclosingMemberOwner(program, path, dot)}, asserted.IsSpecified()
 }
 
 func completionReceiverAt(program *ast.Program, path string, offset int, qualifier string) (completionReceiver, bool) {
@@ -227,6 +247,10 @@ func variableType(program *ast.Program, variable *ast.VariableDecl) (ast.TypeRef
 
 func expressionCompletionType(program *ast.Program, expression ast.Expression) (ast.TypeRef, bool) {
 	switch expression := expression.(type) {
+	case *ast.UnaryExpr:
+		if expression.Operator == ast.NonNullOperator {
+			return expression.AssertionType, expression.AssertionType.IsSpecified()
+		}
 	case *ast.NewExpr:
 		return ast.TypeRef{Name: expression.ClassName, GenericArguments: append([]ast.TypeRef(nil), expression.TypeArguments...), ResolvedDeclaration: expression.ResolvedDeclaration}, true
 	case *ast.GoCompositeLiteralExpr:

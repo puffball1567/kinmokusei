@@ -15,7 +15,7 @@ func isAllowedExpressionStatement(expression ast.Expression) bool {
 		return await.Void
 	}
 	unary, ok := expression.(*ast.UnaryExpr)
-	return ok && unary.Operator == "<-"
+	return ok && (unary.Operator == "<-" || unary.Operator == ast.NonNullOperator)
 }
 
 func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {

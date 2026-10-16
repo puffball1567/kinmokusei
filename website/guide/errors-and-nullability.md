@@ -132,6 +132,16 @@ run different code and return a different value.
 
 ## Flow facts and invalidation
 
+When null would be a programming error, use checked postfix `!`:
+
+<<< ../snippets/non-null-assertion.km{ts}
+
+The operand runs once. A nil result causes a panic whose message identifies the
+source filename, line and column. The checked expression has type `T`, but the
+original binding remains `T | null`; bind the checked result if you want to use
+it repeatedly. Prefix `!flag` still means boolean negation. Do not use postfix
+`!` for expected failure: it cannot unwrap `Result<T>` or a `Task`.
+
 The declared type never changes. The checker maintains a separate fact for each program point:
 
 ```ts

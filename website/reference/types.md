@@ -260,6 +260,12 @@ in Go would be. The guard checks the interface value, not hidden pointees or
 the behavior of the implementation's methods. Direct raw Go use retains Go's
 nil behavior; this rule does not add automatic runtime boundary assertions.
 
+Postfix `value!` explicitly checks a nullable or raw nil-capable reference and
+yields its non-null type, panicking at the assertion when the value is nil.
+The operand is evaluated once; an interface check concerns the interface
+itself, not a typed nil pointer it may contain. This does not validate arbitrary
+Go-owned mutable storage. See [assertions](./operators#assertions-and-conversions).
+
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 
 <<< ../snippets-invalid/null-proof-invalidated.km{ts}

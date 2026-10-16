@@ -49,10 +49,16 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 		} else if isGoPackageQualifier(result.Program, doc.Path, qualifier) {
 			items = goMemberCompletions(result, doc.Path, qualifier, prefix)
 		} else {
-			if receiver, ok := completionReceiverAt(result.Program, doc.Path, offset, qualifier); ok && goCompletionType(receiver.typeRef) {
+			receiver, ok := completionReceiverAt(result.Program, doc.Path, offset, qualifier)
+			if !ok {
+				receiver, ok = assertedCompletionReceiverAt(result.Program, doc.Path, doc.Text, dot)
+			}
+			if ok && goCompletionType(receiver.typeRef) {
 				items = goValueMemberCompletions(result, result.Program, doc.Path, receiver.typeRef, prefix)
+			} else if ok {
+				items = sourceMemberCompletions(result.Program, receiver, prefix)
 			} else {
-				items = sourceMemberCompletions(result.Program, doc.Path, offset, qualifier, prefix)
+				items = []completionItem{}
 			}
 		}
 	} else {

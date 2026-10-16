@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add runtime-checked postfix `!` for nullable and raw nil-capable references,
+  with single evaluation and source-file/line/column panic messages. Support
+  chained member/index/call access, linked aliases and nil-capable generic
+  constraints; retain Result/Task checks and interface typed-nil semantics.
+  Keep assertions in fixed-array `len`/`cap` operands nonconstant, expose the
+  checked type to editor completion, and preserve nullable `unsafe.Pointer`
+  assignments (next part of #117).
+
 - Preserve explicitly nullable bindings and fields when assigning raw Go
   pointers, interfaces, functions and other nil-capable storage. A matching Go
   type is not a non-null proof; require a null guard while retaining proofs

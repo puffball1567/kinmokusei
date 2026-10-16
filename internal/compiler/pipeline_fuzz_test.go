@@ -15,6 +15,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=1;}function f(v:C|null):int{return v!.n;}`,
+	`function f(v:*[3]int|null):int{return len(v!)+cap(v!);}`,
+	`constraint P=~*int;function f<T extends P>(v:T|null):T{return v!;}`,
+	`function f<T>(v:T|null):T{return v!;}`,
+	`alias F=()=>boolean;function f(v:F|null):boolean{return !v!();}`,
+	`function f():Result<*int>{return ok(nil);}function g():void{const p=f()!;}`,
 	`type A=distinct Map<A,int>;`,
 	`type A<T>=distinct Map<A<T>,T>;function f(v:A<int>):void{}`,
 	`struct Box<T extends comparable>{public v:int;}type A=distinct *Box<A>;`,

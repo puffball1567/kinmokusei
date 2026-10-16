@@ -83,6 +83,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		switch expression := expression.(type) {
 		case *ast.UnaryExpr:
 			visitExpression(expression.Operand)
+			visitType(&expression.AssertionType)
 		case *ast.PropagateExpr:
 			visitExpression(expression.Value)
 			visitType(&expression.ValueType)

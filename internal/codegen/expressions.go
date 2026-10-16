@@ -35,6 +35,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.BasicLit{Kind: kind, Value: expr.Text}, nil
 	case *kinmokuseiAST.UnaryExpr:
+		if expr.Operator == kinmokuseiAST.NonNullOperator {
+			return generateNonNullAssertion(expr)
+		}
 		value, err := generateExpression(expr.Operand)
 		if err != nil {
 			return nil, err

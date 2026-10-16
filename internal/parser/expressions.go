@@ -116,6 +116,9 @@ func (p *Parser) parseCall() ast.Expression {
 	}
 	for {
 		switch {
+		case p.at(token.Bang) && !p.lineBreakBeforeNext():
+			operator := p.advance()
+			expr = &ast.UnaryExpr{Operator: ast.NonNullOperator, Operand: expr, AssertionSpan: operator.Span, Span: expr.GetSpan().Merge(operator.Span)}
 		case p.match(token.LeftParen):
 			args, expanded, end, ok := p.parseArguments()
 			if !ok {
