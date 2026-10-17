@@ -252,10 +252,14 @@ func staticMethodGoName(className, methodName string, visibility ast.Visibility)
 // A source selector lowers to an unqualified package function. Do not let a
 // local binding silently redirect that call to an unrelated value or closure.
 func (c *Checker) checkStaticMemberShadowing(name string, span source.Span) {
+	c.checkGeneratedNameShadowing(name, "static member", span)
+}
+
+func (c *Checker) checkGeneratedNameShadowing(name, kind string, span source.Span) {
 	for _, scope := range c.scopes {
 		for local := range scope {
 			if generatedIdentifier(local) == name {
-				c.report(span, fmt.Sprintf("local name %q shadows generated static member %q; rename the local binding", local, name))
+				c.report(span, fmt.Sprintf("local name %q shadows generated %s %q; rename the local binding", local, kind, name))
 				return
 			}
 		}
@@ -263,7 +267,7 @@ func (c *Checker) checkStaticMemberShadowing(name string, span source.Span) {
 	for _, scope := range c.typeParameterScopes {
 		for parameter := range scope {
 			if generatedIdentifier(parameter) == name {
-				c.report(span, fmt.Sprintf("type parameter %q shadows generated static member %q; rename the type parameter", parameter, name))
+				c.report(span, fmt.Sprintf("type parameter %q shadows generated %s %q; rename the type parameter", parameter, kind, name))
 				return
 			}
 		}

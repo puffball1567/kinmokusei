@@ -199,8 +199,10 @@ func declarationNameSpan(name string, span source.Span) source.Span {
 }
 
 func isBuiltinValueName(name string) bool {
-	return name == "goChannel" || name == "closeGoChannel" || strings.HasPrefix(name, "__kinmokusei_") ||
-		name == "__kinmokuseiUTF8" || name == "__kinmokuseiUTF8Error" || name == "__kinmokuseiDecodeUTF8" || name == "__kinmokuseiSliceUTF8"
+	// All internal runtimes share this namespace, including CamelCase names
+	// used by exception, Task, class and decorator lowering. Reserve it for
+	// every binding kind, even when the corresponding runtime is not yet used.
+	return name == "goChannel" || name == "closeGoChannel" || strings.HasPrefix(name, "__kinmokusei")
 }
 
 func isBuiltinTypeName(name string) bool {

@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Diagnose local bindings that occupy the `__kinmokusei` runtime namespace,
+  including exception/Task helpers, parameters, case bindings and type
+  parameters. Reject constructor-factory shadowing at `new` expressions before
+  Go emission, including `NewException` (#113).
+
 - Parse `keika deps list` flags before resolving the optional project directory.
   Show command usage for help, reject unknown flags, and accept flag-like
   directory names after `--` without changing the manifest or lock (#93).
