@@ -399,6 +399,7 @@ func (c *Checker) checkNew(expr *ast.NewExpr) Type {
 	if expr.ClassName == "Exception" {
 		c.usesExceptions = true
 	}
+	c.checkGeneratedNameShadowing("New"+expr.ClassName, "constructor", expr.Span)
 	if class.abstract {
 		c.report(expr.Span, fmt.Sprintf("cannot instantiate abstract class %s", expr.ClassName))
 	}
