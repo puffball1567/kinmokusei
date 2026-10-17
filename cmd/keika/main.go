@@ -147,7 +147,13 @@ func runDeps(args []string) int {
 		}
 		return 0
 	case "list":
-		root, ok := dependencyRoot(args[1:])
+		flags := flag.NewFlagSet("deps list", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		flags.Usage = func() { fmt.Fprintln(os.Stderr, "Usage: keika deps list [project-directory]") }
+		if err := flags.Parse(args[1:]); err != nil {
+			return 2
+		}
+		root, ok := dependencyRoot(flags.Args())
 		if !ok {
 			return 2
 		}
