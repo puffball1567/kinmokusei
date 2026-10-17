@@ -116,9 +116,9 @@ let pointer: *http.Client = &client;
 
 ## Method values and method expressions
 
-::: info Available after v0.4.6
-Imported Go method expressions are implemented in the development version.
-Released v0.4.6 supports bound method values but not this new type-based form.
+::: info Available since v0.4.7
+Imported Go method expressions are released in v0.4.7.
+Older v0.4.6 supports bound method values but not this type-based form.
 :::
 
 A bound method value such as `buffer.Len` captures its receiver. A method

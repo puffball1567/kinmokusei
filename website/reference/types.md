@@ -30,7 +30,7 @@ have restricted positions described below.
 
 ### Fixed-array lengths
 
-On the development branch (not yet in v0.4.6), `[N]T` accepts a compile-time
+Since v0.4.7, `[N]T` accepts a compile-time
 integer expression for `N`, not just an integer literal. The value must be
 non-negative and fit the selected Go target's `int`. Integer-valued untyped
 floating/complex constants are allowed; typed floating values are not. Length
@@ -58,7 +58,7 @@ does not supply a constant length. Declaration cycles are rejected:
 
 <<< ../snippets-invalid/array-type-length-cycle.km{ts}
 
-The released v0.4.6 compiler requires a non-negative representable integer literal
+The older v0.4.6 compiler requires a non-negative representable integer literal
 in `[N]T`. Both versions reject negative lengths and integer overflow.
 
 ## Built-in correspondence

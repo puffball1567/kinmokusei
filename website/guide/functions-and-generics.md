@@ -79,8 +79,8 @@ for examples and inference boundaries.
 
 ### Instantiated function values
 
-::: info Development version
-Fully instantiated generic function values are supported after v0.4.6.
+::: info Available since v0.4.7
+Fully instantiated generic function values are released in v0.4.7.
 :::
 
 Supply all type arguments when storing or passing a generic function:
@@ -137,7 +137,7 @@ Ordinary Go interfaces can add method requirements:
 integer operators and `value.String()`. `constraint Stream = io.Reader & io.Closer`
 combines method contracts without restricting the underlying type.
 
-On the development branch (not in v0.4.6), native classes, structs/pointers,
+Since v0.4.7, native classes, structs/pointers,
 source interface values and distinct types can satisfy these Go method contracts
 on source generic declarations. Only compatible public instance methods count;
 pointer-only struct methods require a pointer. Generic owner substitution and
@@ -147,8 +147,8 @@ for an executable example and the remaining boundaries.
 
 ### Source interface bounds
 
-::: info Development version
-Direct source interface bounds are supported after v0.4.6.
+::: info Available since v0.4.7
+Direct source interface bounds are released in v0.4.7.
 :::
 
 A runtime interface can also constrain a generic parameter:
@@ -175,8 +175,8 @@ for the Go-interoperability boundary.
 
 ### Anonymous interface bounds
 
-::: info Development version
-Source anonymous interface bounds are supported after v0.4.6.
+::: info Available since v0.4.7
+Source anonymous interface bounds are released in v0.4.7.
 :::
 
 Use a method-only anonymous interface when a contract is local to one generic

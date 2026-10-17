@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-10-17
+
+- Replace documentation hero artwork, logo, favicon and social sharing card
+  with the approved clockwork osmanthus identity. Retain transparent artwork
+  across light/dark layouts and publish PNG sharing metadata.
+
 - Add runtime-checked postfix `!` for nullable and raw nil-capable references,
   with single evaluation and source-file/line/column panic messages. Support
   chained member/index/call access, linked aliases and nil-capable generic
@@ -988,7 +994,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...HEAD
+[0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/puffball1567/kinmokusei/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/puffball1567/kinmokusei/compare/v0.4.3...v0.4.4

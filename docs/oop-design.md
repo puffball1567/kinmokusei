@@ -257,9 +257,9 @@ binding holding an immutable runtime value, `static const` always requires a
 compile-time constant.
 
 `Limits.size` emits `const LimitsSize int = 32`, usable as a constant by Go
-consumers, including Go array lengths. Development builds also accept accessible
+consumers, including Go array lengths. Since v0.4.7, source programs accept accessible
 integer constants in Kinmokusei array **type** lengths, such as `[Limits.size]int`;
-the v0.4.6 compiler still requires integer literals there. Known enum-member values
+the older v0.4.6 compiler requires integer literals there. Known enum-member values
 participate in scalar constant checking. Constants occupy no per-instance storage
 and are excluded from JSON.
 
