@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type TypeKind int
@@ -59,6 +60,7 @@ type Type struct {
 	Kind           TypeKind
 	Name           string
 	Parameters     []Type
+	ParameterNames []string
 	Variadic       bool
 	Generic        bool
 	TypeParameters []Type
@@ -78,9 +80,10 @@ type Type struct {
 }
 
 type GoInterfaceMethod struct {
-	Name   string
-	GoName string
-	Type   Type
+	Name            string
+	GoName          string
+	Type            Type
+	DeclarationSpan source.Span
 }
 
 type GoStructField struct {
@@ -200,7 +203,7 @@ func (t Type) IsComparable() bool {
 
 func (t Type) isComparable(visiting map[string]bool) bool {
 	if t.GoType != nil {
-		return gotypes.Comparable(t.GoType)
+		return comparableStorageReady(t.GoType, map[gotypes.Type]bool{}) && gotypes.Comparable(t.GoType)
 	}
 	switch t.Kind {
 	case Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Float32, Float64, Byte, UntypedInt, Class, Interface, GoInterface:

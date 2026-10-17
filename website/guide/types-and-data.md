@@ -59,6 +59,32 @@ Slices alias backing storage as Go slices do. Fixed arrays copy on assignment an
 
 These forms are intentionally distinct. Choose them based on representation and ownership rather than appearance alone.
 
+## Anonymous method interfaces
+
+Since v0.4.7, method-only anonymous interfaces use
+structural matching for native classes, structs/pointers, distinct types, named
+source interfaces and compatible Go values:
+
+```ts
+function text(value: interface { read(): string; }): string {
+  return value.read();
+}
+```
+
+Only public, non-generic instance methods count. Pointer-only struct methods
+require a pointer; a nullable receiver must be narrowed before assignment.
+Method signatures retain verified text, nullable contracts, `Result`, multiple
+results and variadics, including nested method-interface signatures. A raw Go
+string result cannot promise verified `string`; an explicit interface conversion
+does not bypass these checks.
+`nil` is accepted as an interface value, but calling a method on a nil interface
+panics as in Go. Declaring two source methods that lower to the same Go name is
+a compile error. Passing such a source interface to opaque Go APIs remains
+conservative when an implementation can hide verified-text storage.
+
+These interfaces can also be [generic bounds](./functions-and-generics#anonymous-interface-bounds).
+This form contains methods only, not properties or embedded interfaces.
+
 ## Enums, aliases, and defined types
 
 Enums are distinct integer types. `alias Name = T` is transparent. `type Name = distinct T` creates a nominal defined type with explicit conversions and its own method set.
@@ -68,6 +94,36 @@ enum Status: uint16 { Pending, Running = 4, Complete }
 alias UserNames = string[];
 type UserID = distinct int64;
 ```
+
+Since v0.4.7, recursive defined types retain a stable
+identity while their storage is completed. Map-key and early generic constraints
+are checked after completion: a recursive pointer or channel can be comparable,
+but a map/slice cannot be a key merely because it refers to itself. Invalid keys
+receive a source diagnostic rather than a compiler panic. Direct Go generic
+arguments that depend on unresolved source storage remain unsupported and are
+diagnosed; this does not prevent ordinary completed Go generic applications.
+
+Since v0.4.7, enums also support explicit-receiver
+[method expressions](./classes-and-structs#native-method-expressions):
+
+```ts
+public function code(this: Status): int { return int(this); }
+public function set(this: *Status, next: Status): void { *this = next; }
+
+function example(): int {
+  let status = Status.Pending;
+  const code = Status.code;       // (Status) => int
+  const set = (*Status).set;      // (*Status, Status) => void
+  set(&status, Status.Running);
+  return code(status);           // 4
+}
+```
+
+Value/pointer method sets follow Go rules; `Status.set` is rejected. Aliases
+share the enum's method set. Enum constants remain in the original enum
+namespace: `Status.Pending` is a constant, not a method expression. If a constant
+and a method share a name, the constant takes precedence in that namespace;
+selecting the method through `(*Status)` or an alias remains possible.
 
 ## Generics and constraints
 

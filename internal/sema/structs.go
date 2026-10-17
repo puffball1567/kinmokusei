@@ -102,6 +102,8 @@ func (c *Checker) finalizeNativeStructGoTypes(program *ast.Program) {
 
 func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
 	switch value.Kind {
+	case GoInterface:
+		return c.anonymousInterfaceStorage(value)
 	case Struct:
 		symbol := c.structs[value.Name]
 		if symbol == nil || symbol.goNamed == nil {
@@ -260,14 +262,26 @@ func (c *Checker) instantiateNativeStorageType(named *gotypes.Named, arguments [
 		return named, true
 	}
 	goArguments := make([]gotypes.Type, len(arguments))
+	ready := true
 	for index, argument := range arguments {
 		resolved, ok := c.goTypeForNativeStorage(argument)
 		if !ok {
 			return nil, false
 		}
 		goArguments[index] = resolved
+		ready = ready && comparableStorageReady(resolved, map[gotypes.Type]bool{})
 	}
-	instantiated, err := gotypes.Instantiate(nil, named, goArguments, true)
+	validate := c.nativeInterfaceArgumentsReady && ready && named.Origin().Underlying() != nil
+	for i := 0; i < named.TypeParams().Len(); i++ {
+		parameter := named.TypeParams().At(i)
+		if _, source := c.nativeInterfaceBounds[parameter]; source || c.deferredParameterBounds[parameter] {
+			// Source applications are checked against complete source method
+			// contracts, not against these provisional Go storage method sets.
+			validate = false
+			break
+		}
+	}
+	instantiated, err := gotypes.Instantiate(nil, named, goArguments, validate)
 	return instantiated, err == nil
 }
 
@@ -548,6 +562,11 @@ func (c *Checker) checkStruct(decl *ast.StructDecl) {
 }
 
 func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, structName string) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
+	defer func() { c.globalDependencyOwner = previousDependency }()
+	previousFlow := c.enterCallableFlow()
+	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)
 	valueReceiver := Type{Kind: Struct, Name: structName}
 	if method.External {
@@ -592,6 +611,11 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 }
 
 func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, typeName string) {
+	previousDependency := c.globalDependencyOwner
+	c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
+	defer func() { c.globalDependencyOwner = previousDependency }()
+	previousFlow := c.enterCallableFlow()
+	defer c.leaveCallableFlow(previousFlow)
 	c.validateLabels(method.Body)
 	symbol := c.nativeTypes[typeName]
 	if symbol == nil {

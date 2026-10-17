@@ -22,6 +22,7 @@ source import aliases never rewrite Go package paths.
 | Structs, fields, tags | Implemented | Go literal/field selector rules for exported fields |
 | Pointers and `nil` | Implemented | Raw low-level Go pointer/nil semantics |
 | Methods and method values | Implemented | Value/pointer method sets and addressability preserved |
+| Imported Go method expressions | Implemented since v0.4.7 | `pkg.Type.Method` / `(*pkg.Type).Method`; explicit first receiver, interface/promoted methods, imported aliases and direct `<T>`/`[T]` receiver instantiation with checked type arguments |
 | Function values/callbacks | Implemented | Checked against the original Go signature |
 
 ## Type shapes
@@ -38,6 +39,7 @@ source import aliases never rewrite Go package paths.
 | Raw `error` | Implemented | Explicit split or postfix `?` bridge |
 | Generic named types | Implemented | Explicit instantiation and identity |
 | Generic functions/methods | Implemented | Inferred, partial, or full explicit arguments |
+| Instantiated generic function values | Implemented since v0.4.7 | `function<T, U>` / `function[T, U]`; full explicit arguments only, including named Go imports; generic instance method values remain unsupported |
 | Constraints | Implemented when reachable/representable | Checked using Go type information |
 | `unsafe.Pointer` in public shape | Requires policy | `[go.interop].unsafe = "allow"` |
 

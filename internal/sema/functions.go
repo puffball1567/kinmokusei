@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
-	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
@@ -12,9 +11,8 @@ func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
 	c.globalDependencyOwner = decl.Name
 	defer func() { c.globalDependencyOwner = previousDependency }()
 	c.validateLabels(decl.Body)
-	previousMemberFlow := c.memberFlow
-	c.memberFlow = map[memberFlowKey]memberFlowState{}
-	defer func() { c.memberFlow = previousMemberFlow }()
+	previousFlow := c.enterCallableFlow()
+	defer c.leaveCallableFlow(previousFlow)
 	c.pushTypeParameterScope(c.functionTypeParameters[decl])
 	defer c.popTypeParameterScope()
 	c.pushScope()
@@ -49,34 +47,7 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 	previousInConstructor := c.inConstructor
 	c.inConstructor = false
 	defer func() { c.inConstructor = previousInConstructor }()
-	outerFlow := c.snapshotNullableFlow()
-	memberRoots := map[source.Span]bool{}
-	if len(c.capturedMemberRoots) != 0 {
-		for declaration := range c.capturedMemberRoots[len(c.capturedMemberRoots)-1] {
-			memberRoots[declaration] = true
-		}
-	}
-	for key, state := range outerFlow.members {
-		if state.nonNull {
-			memberRoots[key.root] = true
-		}
-	}
-	base := len(c.scopes)
-	c.scopes = cloneValueScopes(c.scopes)
-	c.memberFlow = map[memberFlowKey]memberFlowState{}
-	for scopeIndex, scope := range c.scopes {
-		for name, symbol := range scope {
-			if !symbol.constant && symbol.declaredType.Kind == Nullable {
-				symbol.typeInfo = symbol.declaredType
-				c.scopes[scopeIndex][name] = symbol
-			}
-		}
-	}
-	c.callableScopeBases = append(c.callableScopeBases, base)
-	c.capturedWrites = append(c.capturedWrites, map[source.Span]source.Span{})
-	c.capturedMemberWrites = append(c.capturedMemberWrites, source.Span{})
-	c.capturedMemberRoots = append(c.capturedMemberRoots, memberRoots)
-	c.pushScope()
+	lexicalContext := c.enterClosureLexical()
 	parameters := make([]Type, len(expr.Parameters))
 	for i, parameter := range expr.Parameters {
 		if inferred, ok := inferredParameters[i]; ok {
@@ -142,25 +113,12 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		c.report(expr.Span, "arrow functions cannot return Task; Task is a non-escaping local capability")
 	}
 	c.callableControlState = previousControl
-	c.popScope()
-	captured := c.capturedWrites[len(c.capturedWrites)-1]
-	c.capturedWrites = c.capturedWrites[:len(c.capturedWrites)-1]
-	capturedMemberWrite := c.capturedMemberWrites[len(c.capturedMemberWrites)-1]
+	effects := c.leaveClosureLexical(lexicalContext)
 	if inference := c.checkingLocalArrow; inference != nil && inference.declaration.Value == expr {
-		inference.capturedWrites = captured
-		inference.memberWrite = capturedMemberWrite
+		inference.capturedWrites = effects.writes
+		inference.memberWrite = effects.memberWrite
 	}
-	c.capturedMemberWrites = c.capturedMemberWrites[:len(c.capturedMemberWrites)-1]
-	c.capturedMemberRoots = c.capturedMemberRoots[:len(c.capturedMemberRoots)-1]
-	c.callableScopeBases = c.callableScopeBases[:len(c.callableScopeBases)-1]
-	c.restoreNullableFlow(outerFlow)
-	for declaration := range captured {
-		c.markDeclarationEscaped(declaration, expr.Span, "a closure that can mutate it")
-	}
-	if capturedMemberWrite.Start.Line != 0 {
-		c.invalidateAllMemberFacts(expr.Span, "a closure with possible member mutation")
-		c.recordMemberWrite(expr.Span)
-	}
+	c.publishClosureEffects(effects, expr.Span)
 	c.prepareGoTypeForEmission(&result, expr.Span)
 	resolved := typeRefFromType(result, expr.Span)
 	expr.ResolvedReturnType = resolved

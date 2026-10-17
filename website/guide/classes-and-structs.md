@@ -55,8 +55,10 @@ Use `public static const limit: int = 32;` for a typed class constant and read i
 as `ClassName.limit`. Its initializer must be a known compile-time numeric,
 string or boolean value; runtime calls and mutable values are rejected. Constants
 are inherited with the same visibility rules and cannot be assigned or addressed.
-Public constants become Go constants, not storage or accessor calls. Kinmokusei
-array type lengths still require integer literals.
+Public constants become Go constants, not storage or accessor calls. Since
+v0.4.7, an accessible integer constant can also supply a Kinmokusei
+array type length such as `[ClassName.limit]int`; older v0.4.6 requires integer
+literals there. See the [array-length rules](../reference/types#fixed-array-lengths).
 
 Instance properties use `public get value(): int { ... }` and
 `private set value(next: int) { ... }`. Read with `instance.value` and assign
@@ -131,3 +133,69 @@ struct Counter {
 ```
 
 External receiver declarations are also available when separating data layout and behavior improves readability.
+
+## Native method expressions
+
+::: info Available since v0.4.7
+Native type-based method expressions are released in v0.4.7.
+:::
+
+A bound method such as `counter.snapshot` captures its receiver. A method
+expression takes that receiver explicitly as its first argument:
+
+```ts
+struct Counter {
+  public value: int;
+  public function snapshot(): int { return this.value; }
+  public pointer function increment(): void { this.value++; }
+}
+
+function example(): int {
+  let counter = Counter { value: 2 };
+  const read = Counter.snapshot;          // (Counter) => int
+  const increment = (*Counter).increment; // (*Counter) => void
+  increment(&counter);
+  return read(counter);                  // 3
+}
+```
+
+`Counter.increment` is rejected: a method expression does not implicitly take
+the address of the receiver. `(*Counter).snapshot` is valid but panics on a nil
+pointer because the value method needs a receiver value. A nil-aware pointer
+method may handle `nil` itself, as in ordinary Go pointer interop.
+
+Enums, distinct defined types and source interfaces also support `Type.method`.
+Interface expressions dispatch through the explicit interface argument and
+retain inherited methods. A nil interface panics when invoked. Text guarantees,
+nullable parameters/results, `Result<T>`, multiple results and variadic arguments
+remain part of the callable contract. The function can be stored or passed as a
+callback; private methods are available only within their declaring source file.
+
+Generic receiver types can be instantiated directly, using either `<T>` or `[T]`:
+
+```ts
+struct Box<T> {
+  public item: T;
+  public function read(): T { return this.item; }
+}
+
+function readText(box: Box<string>): string {
+  const read = Box<string>.read; // (Box<string>) => string
+  return read(box);
+}
+```
+
+`Box[string].read` and `(*Box<string>).read` are also valid. All receiver type
+arguments must be explicit and satisfy their constraints; a type parameter from
+the enclosing generic function can be used. Concrete aliases such as
+`alias IntBox = Box<int>;` still work. Uninstantiated receivers and methods with
+their own type parameters are not supported in this form.
+Class instance method expressions are not yet supported;
+existing class static calls keep their ordinary meaning.
+
+Concrete native method references participate in global initialization
+dependencies even when the function is stored without calling it. Cycles are
+compile errors; ordinary method recursion is still valid. Editor completion
+offers methods from the exact receiver method set (plus enum constants for a
+non-pointer enum type), and argument hints include
+the explicit receiver during incomplete calls.

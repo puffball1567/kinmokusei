@@ -418,10 +418,11 @@ func sameNullableFlowSnapshot(left, right nullableFlowSnapshot) bool {
 	return true
 }
 
-func (c *Checker) updateAssignmentFlow(target ast.Expression, value Type) {
+func (c *Checker) updateAssignmentFlow(target ast.Expression, value Type, expression ast.Expression) {
+	nonNull := c.assignmentProvesNonNull(value, expression)
 	if identifier, ok := target.(*ast.IdentifierExpr); ok {
 		c.invalidateMemberFactsRootedAt(identifier, target.GetSpan(), "an assignment to its receiver")
-		c.updateIdentifierFlow(identifier.Name, identifier.Span, value)
+		c.updateIdentifierFlowProof(identifier.Name, identifier.Span, value, nonNull)
 		return
 	}
 	if member, ok := target.(*ast.MemberExpr); ok {
@@ -429,13 +430,17 @@ func (c *Checker) updateAssignmentFlow(target ast.Expression, value Type) {
 		declared, typed := c.memberTypes[key]
 		c.recordMemberWrite(target.GetSpan())
 		c.invalidateAllMemberFacts(target.GetSpan(), "a possibly aliased field assignment")
-		if stable && typed && declared.Kind == Nullable && declared.Element != nil && value.Kind != Nullable && value.Kind != Null && value.Kind != Nil && value.Kind != Invalid && c.isAssignable(*declared.Element, value) {
+		if stable && typed && declared.Kind == Nullable && declared.Element != nil && nonNull && c.isAssignable(*declared.Element, value) {
 			c.memberFlow[key] = memberFlowState{declaredType: declared, nonNullType: *declared.Element, nonNull: true}
 		}
 	}
 }
 
-func (c *Checker) updateIdentifierFlow(name string, span source.Span, value Type) {
+func (c *Checker) updateIdentifierFlow(name string, span source.Span, value Type, expression ast.Expression) {
+	c.updateIdentifierFlowProof(name, span, value, c.assignmentProvesNonNull(value, expression))
+}
+
+func (c *Checker) updateIdentifierFlowProof(name string, span source.Span, value Type, nonNull bool) {
 	for index := len(c.scopes) - 1; index >= 0; index-- {
 		symbol, exists := c.scopes[index][name]
 		if !exists {
@@ -456,7 +461,7 @@ func (c *Checker) updateIdentifierFlow(name string, span source.Span, value Type
 		}
 		c.recordCapturedWrite(index, symbol.declarationSpan, span)
 		symbol.typeInfo = declared
-		if declared.Kind == Nullable && declared.Element != nil && !symbol.flowEscaped && value.Kind != Nullable && value.Kind != Null && value.Kind != Nil && value.Kind != Invalid && c.isAssignable(*declared.Element, value) {
+		if declared.Kind == Nullable && declared.Element != nil && !symbol.flowEscaped && nonNull && c.isAssignable(*declared.Element, value) {
 			symbol.typeInfo = *declared.Element
 			symbol.flowInvalidated = source.Span{}
 			symbol.flowInvalidationCause = ""
@@ -470,13 +475,14 @@ func (c *Checker) updateIdentifierFlow(name string, span source.Span, value Type
 }
 
 func (c *Checker) recordCapturedWrite(scopeIndex int, declaration, cause source.Span) {
-	if c.suppressFlowEffects != 0 {
+	if c.suppressFlowEffects != 0 || len(c.callableScopeBases) == 0 {
 		return
 	}
-	for index, base := range c.callableScopeBases {
-		if scopeIndex >= base {
-			continue
-		}
+	// Each closure collects its own summary. Propagate to its enclosing closure
+	// only after restoration, so an unreachable closure creation cannot publish
+	// effects directly into every enclosing capture frame.
+	index := len(c.callableScopeBases) - 1
+	if scopeIndex < c.callableScopeBases[index] {
 		if _, exists := c.capturedWrites[index][declaration]; !exists {
 			c.capturedWrites[index][declaration] = cause
 		}

@@ -1,6 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kinmokusei">
-  <rect width="64" height="64" rx="16" fill="#f5f1ed"/>
-  <circle cx="32" cy="26" r="11" fill="#ec846d"/>
-  <path d="M9 38c8-3 14-3 22 0s15 3 24 0" fill="none" stroke="#36586a" stroke-linecap="round" stroke-width="4"/>
-  <path d="M14 48c7-2 12-2 18 0s12 2 18 0" fill="none" stroke="#6da2aa" stroke-linecap="round" stroke-width="3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Kinmokusei</title>
+  <desc id="desc">A mechanical osmanthus blossom with four brass petals and a green metal leaf.</desc>
+  <rect width="64" height="64" rx="16" fill="#fff8e9"/>
+  <defs><path id="petal" d="M0 0C-9-2-15-12-9-16C-2-21 6-9 0 0Z"/></defs>
+  <g stroke="#684620" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
+    <path d="M19 55 35 31" fill="none" stroke="#bd853a" stroke-width="6"/>
+    <path d="M29 45C35 33 48 32 57 36C49 49 36 53 29 45Z" fill="#71805b"/>
+    <path d="m31 45 22-8" stroke="#eac06d"/>
+    <g fill="#f0a332" transform="translate(27 25)">
+      <use href="#petal"/><use href="#petal" transform="rotate(90)"/>
+      <use href="#petal" transform="rotate(180)"/><use href="#petal" transform="rotate(270)"/>
+    </g>
+    <circle cx="27" cy="25" r="5" fill="#f8c86b"/>
+    <path d="m25 27 4-4" fill="none"/>
+    <circle cx="26" cy="46" r="3.5" fill="#eac06d"/>
+  </g>
 </svg>

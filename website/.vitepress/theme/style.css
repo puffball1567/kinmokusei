@@ -273,10 +273,23 @@ body {
   box-shadow: 0 9px 25px rgba(180, 79, 82, 0.22);
 }
 
-.VPHomeHero .image-src {
+.VPHomeHero .image-container {
   width: min(440px, 82vw);
-  max-width: none;
+  height: auto;
+  aspect-ratio: 1;
+  transform: none;
+}
+
+.VPHomeHero .image-src {
+  position: relative;
+  top: auto;
+  left: auto;
+  display: block;
+  width: 100%;
+  max-width: 100%;
   max-height: none;
+  height: auto;
+  transform: none;
 }
 
 .VPFeatures {
@@ -624,8 +637,12 @@ body {
     padding-top: 72px !important;
   }
 
-  .VPHomeHero .image-src {
-    width: min(360px, 78vw);
+  .VPHomeHero .image {
+    margin: 0 0 24px;
+  }
+
+  .VPHomeHero .image-container {
+    width: min(320px, 78vw);
   }
 
   .code-journey {

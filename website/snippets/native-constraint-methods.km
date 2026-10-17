@@ -1,0 +1,19 @@
+import go fmt from "fmt"
+
+interface LabelView {
+  function string(): bstring
+}
+
+class Label implements LabelView {
+  constructor(private raw: bstring) {}
+  public function string(): bstring { return this.raw }
+}
+
+function describe<T extends fmt.Stringer>(value: T): bstring {
+  return value.String()
+}
+
+const main = (): void => {
+  const view: LabelView = new Label("gold")
+  fmt.Println(describe(view))
+}

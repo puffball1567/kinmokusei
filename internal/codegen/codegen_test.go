@@ -168,7 +168,7 @@ function sum(limit: int): int {
 		t.Fatal(err)
 	}
 	text := string(generated)
-	for _, want := range []string{"for index := 0; index < limit; index = index + 1", "for total < 10", "total = total + index"} {
+	for _, want := range []string{"for index := (int)(0); index < limit; index = index + 1", "for total < 10", "total = total + index"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, text)
 		}

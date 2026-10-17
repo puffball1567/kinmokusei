@@ -8,8 +8,8 @@ hero:
   text: Clear source. Readable Go.
   tagline: A TypeScript-inspired source language for the Go ecosystem—designed for explicit behavior, direct package access, and generated code you can own.
   image:
-    src: /hero-kinmokusei.svg
-    alt: A quiet sunset reflected across calm water
+    src: /hero-kinmokusei.png
+    alt: A clockwork osmanthus branch with brass blossoms, riveted green metal leaves and articulated stems
   actions:
     - theme: brand
       text: Get started

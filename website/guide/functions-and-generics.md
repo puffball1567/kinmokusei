@@ -77,6 +77,45 @@ Direct arrow callback parameters can also be inferred in native and Go
 generic calls. See [generic callback inference](../book/functions-and-generics#generic-callback-inference)
 for examples and inference boundaries.
 
+### Instantiated function values
+
+::: info Available since v0.4.7
+Fully instantiated generic function values are released in v0.4.7.
+:::
+
+Supply all type arguments when storing or passing a generic function:
+
+```ts
+function identity<T>(value: T): T { return value; }
+
+const integerIdentity = identity<int>;
+const sameIdentity = identity[int];
+const callbacks: ((value: int) => int)[] = [integerIdentity, sameIdentity];
+const answer = callbacks[0](42);
+```
+
+Both forms lower directly to a Go function instantiation, without a wrapper.
+The resulting value can be returned, stored in collections, or used as a
+callback. Native `string`, nullable types, `Result<T>`, multiple results and
+variadics retain their checked contracts. A Result-returning function value does
+not permit silently discarding the result.
+
+Imported Go functions work too:
+
+```ts
+import go { Clone } from "slices";
+
+const cloneIntegers = Clone<int[], int>;
+const copy = cloneIntegers([1, 2, 3]);
+```
+
+Ordinary `values[index]` remains indexing when `values` is a collection, even if
+it shadows a generic function. Constraints are checked when the function is
+instantiated. Partial argument lists and target-type inference for function
+values are not yet supported; supply every argument explicitly. Generic
+instance methods remain direct-call-only. Existing generic calls may still
+infer missing arguments.
+
 ## Constraints
 
 `extends comparable` maps to Go's `comparable` constraint:
@@ -97,6 +136,67 @@ Ordinary Go interfaces can add method requirements:
 `constraint Printable = ~int & fmt.Stringer`. Generic code can then use both
 integer operators and `value.String()`. `constraint Stream = io.Reader & io.Closer`
 combines method contracts without restricting the underlying type.
+
+Since v0.4.7, native classes, structs/pointers,
+source interface values and distinct types can satisfy these Go method contracts
+on source generic declarations. Only compatible public instance methods count;
+pointer-only struct methods require a pointer. Generic owner substitution and
+dependent method-based inference preserve text and nullability contracts. See
+the [manual](../book/functions-and-generics#native-values-with-go-method-contracts)
+for an executable example and the remaining boundaries.
+
+### Source interface bounds
+
+::: info Available since v0.4.7
+Direct source interface bounds are released in v0.4.7.
+:::
+
+A runtime interface can also constrain a generic parameter:
+
+<<< ../snippets/source-interface-constraints.km{ts}
+
+This prints `gold`. The compiler infers `E` from the implementation's method
+signature, preserving verified `string` rather than erasing it to `bstring`.
+Compatible public instance methods satisfy the bound structurally; an explicit
+`implements` declaration is not needed for this generic call. Ordinary class
+assignment to a source interface still follows its explicit `implements` rules.
+
+Inherited/generic interfaces, source aliases, generic owners and method-local
+parameters retain source signatures. Generic code uses source method names
+(`value.read()`), and accessors use property syntax. Native `Result`, multiple
+results, variadics and nullable parameter/result contracts remain checked.
+Private, static and generic methods do not count; pointer-only struct methods
+require a pointer argument. A nullable receiver must be narrowed first.
+
+Direct bounds such as `T extends Reader<E>` are supported. Combining a source
+runtime interface into `constraint C = Reader<int> & comparable` remains
+unsupported. See the [manual](../book/functions-and-generics#source-interface-bounds)
+for the Go-interoperability boundary.
+
+### Anonymous interface bounds
+
+::: info Available since v0.4.7
+Source anonymous interface bounds are released in v0.4.7.
+:::
+
+Use a method-only anonymous interface when a contract is local to one generic
+function, or put it in an alias when several declarations share it:
+
+<<< ../snippets/anonymous-interface-constraints.km{ts}
+
+This prints `gold`. The same structural matching rules apply to named and
+anonymous bounds: public non-generic instance methods, exact value/pointer method
+sets, invariant signatures, and dependent inference. Verified text, nullable
+parameters/results, `Result`, multiple results and variadics remain checked.
+Generic class/struct/defined-type parameters and generic method owners can use
+these bounds too. Editor completion and argument hints retain source method
+names; bound-method references support definition lookup and rename.
+
+An imported Go method can satisfy the bound only if its source-visible signature
+matches. For example, Go `String() string` matches `String(): bstring`, not
+`String(): string`. Anonymous interface operands in `constraint` type-set
+composition remain unsupported; use a direct `extends interface { ... }` bound.
+Anonymous getter/setter or embedded-interface entries are not part of this form.
 
 ## Generic named types
 

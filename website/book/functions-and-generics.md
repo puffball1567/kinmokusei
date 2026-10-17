@@ -63,6 +63,12 @@ Arrows have statically checked function types. Captured bindings use lexical
 scope; captures do not create a JavaScript runtime or dynamic closure environment
 beyond the generated Go closure.
 
+Each arrow body has its own return, loop-exit, nullable-flow and Task checks.
+An enclosing null proof for a mutable capture is not inherited: the value may
+change before the arrow is invoked. An immutable local snapshot can retain its
+proof. Even an arrow declared after an unconditional `return` is type-checked;
+unreachable outer code does not disable checks inside the arrow's body.
+
 ### Arrow definitions and main
 
 Arrow-style entry points and function definitions are supported:
@@ -290,6 +296,17 @@ pair<int>(1, "one");
 
 Every uninferred parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
 
+Since v0.4.7, a fully instantiated generic function is an
+ordinary typed callable: `const integerIdentity = identity<int>` fixes the
+parameter and result types without invoking `identity`. The bracket spelling
+`identity[int]` has the same meaning. This works for imported Go functions too,
+including named imports. All type arguments must be explicit for a function
+value; partial call inference does not imply partial value instantiation.
+Constraints are checked at instantiation, and native text/nullability and
+Result contracts remain visible through the callable. Generic instance methods
+still require direct calls. See the
+[Guide's function-value examples](../guide/functions-and-generics#instantiated-function-values).
+
 A value-returning body must end in a terminating statement, as required by Go.
 Remove unreachable statements after a final return. A switch or select that
 can exit through `break` does not by itself prove that a value is returned.
@@ -383,9 +400,75 @@ diagnosed if conversion would lose source type information, including through
 later generic substitutions. Existing collection-only nullable inference is
 unchanged.
 
+### Native values with Go method contracts
+
+Available since v0.4.7; the following example is not accepted by older v0.4.6.
+
+<<< ../snippets/native-constraint-methods.km{ts}
+
+This prints `gold`. The native interface is the argument type, while the generic
+bound remains Go's `fmt.Stringer`. Native classes, structs and distinct defined
+types can satisfy the same bound through compatible public instance methods.
+Inherited methods and generic owner signatures are checked after substitution.
+Dependent arguments such as `E` in `api.Getter<E>` can be inferred from those
+method signatures; getters/setters count through their generated `GetX`/`SetX`
+names. Finite type sets and `comparable` remain additional requirements.
+
+A struct value has only its value-receiver methods; use a pointer for a
+pointer-receiver requirement. Private/protected, static and method-local generic
+methods do not satisfy a Go method contract. Parameter and result contracts are
+invariant: `string` is not interchangeable with Go's raw `bstring`, including
+inside collections and callbacks, and nullable signatures cannot be erased.
+Compatible `Result<T>`/`Result<void>` methods implement `(T, error)`/`error`
+returns, and variadic signatures must agree.
+
+This addition concerns source generic declarations, not direct imported Go
+generic calls. Native source interfaces still cannot be constraint operands
+(for example `constraint Named = LabelView`); direct source interface bounds
+are described below.
+
 Use `&`, not a union, to combine method contracts:
 
 <<< ../snippets-invalid/constraint-method-union.km{ts}
+
+### Source interface bounds
+
+Available since v0.4.7; this example is not accepted by older v0.4.6.
+
+<<< ../snippets/source-interface-constraints.km{ts}
+
+This prints `gold`. `Reader<E>` remains a runtime interface and can also appear
+directly in a bound. The implementation's checked method signatures determine
+dependent arguments such as `E`; inference preserves verified text, native
+identity and nullable types. If the methods disagree or do not determine all
+arguments, supply explicit arguments; incompatible contracts are errors.
+
+For generic constraint satisfaction, compatible public instance method sets
+are structural: `Label` does not need an `implements` clause. This does not
+change ordinary class-to-interface assignment, which still requires an
+explicit declared implementation. A struct value supplies value-receiver
+methods only; its pointer also supplies pointer-receiver methods. Static,
+private/protected and method-local generic methods cannot satisfy the bound.
+A nullable receiver cannot satisfy a method-bearing bound without narrowing.
+
+Source generic bodies use source names, for example `value.read()`, not the
+generated Go `Read` spelling. Inherited and generic interfaces, source aliases,
+generic owners, method-local constraints and fully instantiated function values
+retain these contracts. Getter/setter requirements use property access and
+still distinguish read-only and write-only properties. `Result` effects,
+multiple results and variadic signatures remain checked.
+
+A Go implementer can satisfy a compatible raw method contract, for example
+an interface with `function String(): bstring`. Its Go string-returning method
+cannot establish `function String(): string`: those bytes are not proven UTF-8.
+Method parameters and results must match invariantly, including nested
+nullable, text and native type contracts; constraint checking does not insert
+implicit validation wrappers.
+
+Direct bounds (`T extends Reader<E>`) are supported. Source runtime interfaces
+are not yet operands in source type-set declarations such as
+`constraint C = Reader<int> & comparable`. Such combinations are diagnosed,
+not silently weakened.
 
 ### Reusing Go type sets
 

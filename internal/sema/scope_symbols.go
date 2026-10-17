@@ -27,6 +27,9 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 			c.rejectResultValueType(t, decl.Type.Span, "variables")
 			c.rejectTaskAPIType(t, decl.Type.Span, "global variables")
 			if _, exists := declared[name]; !exists {
+				if existing := c.globals[name]; existing.declaration == decl && c.globalBindingChecks[decl] == globalBindingChecked {
+					t = existing.typeInfo
+				}
 				c.globals[name] = valueSymbol{typeInfo: t, declaredType: t, constant: decl.Constant, declarationSpan: decl.NameSpan, declaration: decl}
 			}
 		case *ast.FunctionDecl:
@@ -231,22 +234,22 @@ func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool
 		if symbol, ok := c.scopes[i][name]; ok {
 			symbol = resolveLocalArrowType(symbol)
 			c.recordLocalArrowReference(symbol, name, span)
-			if symbol.declaration != nil {
+			if !c.inArrayLength && symbol.declaration != nil {
 				symbol.declaration.Used = true
 			}
-			if symbol.multiDeclaration != nil {
+			if !c.inArrayLength && symbol.multiDeclaration != nil {
 				symbol.multiDeclaration.Bindings[symbol.multiIndex].Used = true
 			}
-			if symbol.rangeBinding != nil {
+			if !c.inArrayLength && symbol.rangeBinding != nil {
 				symbol.rangeBinding.Used = true
 			}
-			if symbol.selectCase != nil {
+			if !c.inArrayLength && symbol.selectCase != nil {
 				symbol.selectCase.Bindings[symbol.selectIndex].Used = true
 			}
-			if symbol.typeSwitchCase != nil {
+			if !c.inArrayLength && symbol.typeSwitchCase != nil {
 				symbol.typeSwitchCase.Used = true
 			}
-			if symbol.catchClause != nil {
+			if !c.inArrayLength && symbol.catchClause != nil {
 				symbol.catchClause.Used = true
 			}
 			return symbol, true
@@ -259,6 +262,13 @@ func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool
 	if ok {
 		c.recordGlobalDependency(name)
 		if symbol.typeInfo.Kind == Invalid && symbol.declaration != nil {
+			symbol = c.resolveAnnotatedBindingType(symbol)
+			if symbol.typeInfo.Kind == Invalid {
+				c.ensureGlobalBindingChecked(symbol.declaration)
+				symbol = c.globals[name]
+			}
+		}
+		if c.inArrayLength && symbol.constant && isScalarConstantType(symbol.typeInfo) && symbol.declaration != nil {
 			c.ensureGlobalBindingChecked(symbol.declaration)
 			symbol = c.globals[name]
 		}

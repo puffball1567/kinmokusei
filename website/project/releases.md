@@ -36,10 +36,41 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
-## Unreleased: development branch
+## v0.4.7 highlights
 
-No additional unreleased changes are listed here. The text-contract and FFI
-changes formerly documented as development-only are included in v0.4.6.
+Use matching v0.4.7 compiler and editor artifacts. This patch publishes the
+accumulated compiler/editor improvements and the clockwork osmanthus artwork.
+
+- Runtime-checked postfix `!`, conservative nullable assignments from Go values,
+  and direct completion for asserted receivers.
+- Go and native explicit-receiver method expressions, including direct generic
+  receiver applications and aliases of concrete instantiations.
+- Fully instantiated generic function values and structural source/anonymous
+  interface bounds with dependent inference and checked source contracts.
+- Native values satisfying Go method constraints without erasing text,
+  nullable, Result, variadic or method-set requirements.
+- Compile-time constant expressions in fixed-array lengths, with editor
+  definition/reference/rename support.
+- Go declaration/documentation hover, direct Go-source definition navigation,
+  and Go-to-`.km` source-map sidecars for diagnostics and coverage consumers.
+- Recursive-type validation, native collection storage, `for` initializer types,
+  closure flow, native exception messages and `keika run` exit-status fixes.
+- New transparent mechanical-osmanthus hero, logo, favicon and PNG social card.
+
+### Migrating from v0.4.6
+
+An explicit `T | null` variable receiving a raw Go reference stays nullable.
+Check it before accessing members or use [postfix `!`](../reference/operators#assertions-and-conversions)
+when absence is a programming error. Postfix `!` evaluates once and panics at
+the source location on nil; it is not an erased assertion or a Result handler.
+Go interfaces containing typed nil pointers retain Go's interface semantics.
+The verified-text contract from v0.4.6 is unchanged.
+
+Recheck source libraries against the stronger type/contract diagnostics, and
+declare `min-kinmokusei = "0.4.7"` when relying on the new functionality.
+See the [v0.4.7 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.7)
+for the complete upgrade summary. The broader null/zero-value safety audit is
+still in progress; this release is not a declaration of complete Go coverage.
 
 ## v0.4.6 highlights
 

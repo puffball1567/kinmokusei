@@ -35,9 +35,17 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.BasicLit{Kind: kind, Value: expr.Text}, nil
 	case *kinmokuseiAST.UnaryExpr:
+		if expr.Operator == kinmokuseiAST.NonNullOperator {
+			return generateNonNullAssertion(expr)
+		}
 		value, err := generateExpression(expr.Operand)
 		if err != nil {
 			return nil, err
+		}
+		if expr.Operator == "*" {
+			// StarExpr represents both dereferences and pointer types. In a
+			// selector the printer must retain (*pkg.Type).Method parentheses.
+			return &goast.StarExpr{X: value}, nil
 		}
 		return &goast.UnaryExpr{Op: goToken(expr.Operator), X: value}, nil
 	case *kinmokuseiAST.BinaryExpr:
@@ -315,6 +323,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			} else {
 				body = &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{value}}}}
 			}
+			if expr.SourceMapping {
+				body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
+			}
 		}
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
 	case *kinmokuseiAST.ArrayLiteralExpr:
@@ -371,6 +382,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.CompositeLit{Type: goType(expr.Type), Elts: fields}, nil
 	case *kinmokuseiAST.MemberExpr:
+		if expr.MethodExpressionReceiver != nil {
+			return &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}, nil
+		}
 		if expr.Property {
 			object, err := generatePropertyReceiver(expr)
 			if err != nil {
@@ -404,6 +418,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		object, err := generateExpression(expr.Object)
 		if err != nil {
 			return nil, err
+		}
+		if expr.Instantiated {
+			return indexedGoType(object, expr.TypeArguments), nil
 		}
 		index, err := generateExpression(expr.Index)
 		if err != nil {

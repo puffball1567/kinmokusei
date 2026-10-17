@@ -9,6 +9,23 @@ const (
 	globalBindingChecked
 )
 
+func (c *Checker) resolveAnnotatedBindingType(symbol valueSymbol) valueSymbol {
+	if symbol.declaration == nil || !symbol.declaration.Type.IsSpecified() {
+		return symbol
+	}
+	// A non-scalar annotation establishes the type without its initializer.
+	// In particular, constant len/cap must not demand runtime initialization.
+	// Scalar bindings still need ordinary checking to establish constant values.
+	dependency := c.initializerChecker()
+	typeInfo := dependency.resolveType(symbol.declaration.Type)
+	c.finishInitializerCheck(dependency)
+	if typeInfo.Kind != Invalid && !isScalarConstantType(typeInfo) {
+		symbol.typeInfo, symbol.declaredType = typeInfo, typeInfo
+		c.globals[symbol.declaration.Name] = symbol
+	}
+	return symbol
+}
+
 // Resolve dependencies on demand through ordinary lexical name lookup. Each
 // initializer/body is checked once; this changes neither declaration order nor
 // runtime initialization. A visiting binding retains its predeclared signature,
@@ -35,7 +52,17 @@ func (c *Checker) initializerChecker() *Checker {
 		nativeTypes: c.nativeTypes, enums: c.enums, allowed: c.allowed, unimportedReferences: c.unimportedReferences,
 		goPackages: c.goPackages, goNamedImports: c.goNamedImports,
 		goImporter: c.goImporter, allowUnsafeGo: c.allowUnsafeGo, goSizes: c.goSizes,
-		goFieldReceivers:         c.goFieldReceivers,
+		goFieldReceivers:        c.goFieldReceivers,
+		goTypeExpressions:       c.goTypeExpressions,
+		goTypeExpressionMethods: c.goTypeExpressionMethods,
+		nativeTypeMethodSets:    c.nativeTypeMethodSets,
+
+		nativeInterfaceDeclarations:   c.nativeInterfaceDeclarations,
+		nativeInterfaceAliases:        c.nativeInterfaceAliases,
+		nativeInterfaceBounds:         c.nativeInterfaceBounds,
+		nativeInterfacesReady:         c.nativeInterfacesReady,
+		nativeInterfaceArgumentsReady: c.nativeInterfaceArgumentsReady,
+
 		nativeConstraintsReady:   c.nativeConstraintsReady,
 		structGoTypesFinalized:   c.structGoTypesFinalized,
 		deferredParameterBounds:  c.deferredParameterBounds,
@@ -47,10 +74,12 @@ func (c *Checker) initializerChecker() *Checker {
 		methodTypeParameters:     c.methodTypeParameters,
 		validFallthrough:         c.validFallthrough,
 		constantValues:           c.constantValues,
+		arrayLengthChecks:        c.arrayLengthChecks,
 		globalDependencies:       c.globalDependencies,
 		globalBindingChecks:      c.globalBindingChecks,
 		classConstantChecks:      c.classConstantChecks,
 		classConstantValues:      c.classConstantValues,
+		enumChecks:               c.enumChecks,
 		resultErrorUses:          c.resultErrorUses,
 		memberFlow:               map[memberFlowKey]memberFlowState{},
 		memberTypes:              map[memberFlowKey]Type{},
@@ -59,6 +88,9 @@ func (c *Checker) initializerChecker() *Checker {
 
 func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.diagnostics = append(c.diagnostics, dependency.diagnostics...)
+	c.pendingNativeInterfaceArguments = append(c.pendingNativeInterfaceArguments, dependency.pendingNativeInterfaceArguments...)
+	c.pendingMapKeys = append(c.pendingMapKeys, dependency.pendingMapKeys...)
+	c.pendingNativeGoInstances = append(c.pendingNativeGoInstances, dependency.pendingNativeGoInstances...)
 	c.usesTasks = c.usesTasks || dependency.usesTasks
 	c.usesExceptions = c.usesExceptions || dependency.usesExceptions
 	c.usesUTF8 = c.usesUTF8 || dependency.usesUTF8

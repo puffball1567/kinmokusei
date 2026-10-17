@@ -11,6 +11,139 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-10-17
+
+- Replace documentation hero artwork, logo, favicon and social sharing card
+  with the approved clockwork osmanthus identity. Retain transparent artwork
+  across light/dark layouts and publish PNG sharing metadata.
+
+- Add runtime-checked postfix `!` for nullable and raw nil-capable references,
+  with single evaluation and source-file/line/column panic messages. Support
+  chained member/index/call access, linked aliases and nil-capable generic
+  constraints; retain Result/Task checks and interface typed-nil semantics.
+  Keep assertions in fixed-array `len`/`cap` operands nonconstant, expose the
+  checked type to editor completion, and preserve nullable `unsafe.Pointer`
+  assignments (next part of #117).
+
+- Preserve explicitly nullable bindings and fields when assigning raw Go
+  pointers, interfaces, functions and other nil-capable storage. A matching Go
+  type is not a non-null proof; require a null guard while retaining proofs
+  from checked snapshots, fresh literals, address-taking and collection
+  allocation. Cover aliases, callbacks, linked modules, reassignment and
+  interface typed-nil behavior against independent Go (first part of #117).
+
+- Defer Map-key and early generic type-argument checks until native storage
+  and method sets are complete, preventing `nil underlying` panics on recursive
+  defined types. Diagnose invalid keys/constraints before Go emission while
+  preserving valid recursive pointer/channel types, canonical struct storage
+  and hidden verified-text contracts. Unresolved recursive arguments at direct
+  Go generic boundaries now receive a diagnostic (#103).
+
+- Show Go declaration signatures and available source documentation on hover,
+  and navigate directly to selected Go source declarations. Support namespace
+  and named imports, aliases, fields, methods, promoted members and generic
+  method expressions; retain signature hover when dependency sources are missing.
+
+- Preserve declared types in C-style `for` initializers, including narrow
+  numbers, named/generic types and typed nil values. Retain fresh per-iteration
+  bindings, capture/address identity, initialization order and loop labels;
+  verify generated behavior against independent Go (#98).
+
+- Preserve the program's normal exit status in `keika run` by building a private
+  temporary executable and launching it directly instead of using `go run`.
+  Forward process streams unchanged and remove the temporary executable on
+  completion; build/launch failures retain status 1 (#92).
+
+- Support method-only anonymous interface generic bounds with structural
+  matching and dependent inference, including aliases and generic owners.
+  Preserve source text/nullability/Result signatures, multiple results,
+  variadics and editor bound completion/navigation/rename. Generalize runtime
+  anonymous-interface matching beyond classes; reject raw Go/source contract
+  erasure through assignment or explicit conversion, including nested interface
+  signatures, and reject private/static/generic methods. Check hidden text storage for
+  value/pointer/defined implementers, diagnose duplicate lowered method names
+  instead of panicking, and emit explicit interface types for nil bindings.
+  Verify linked generated code and source maps against independent Go.
+
+- Support direct `<T>`/`[T]` receiver instantiation in native and imported Go
+  method expressions, including pointer receivers, named imports and linked
+  aliases. Reuse type-argument and constraint validation without erasing native
+  text/nullability/Result contracts. Preserve lexical indexing when values
+  shadow type names; specialize editor completion/signatures and support type
+  argument navigation/rename. Compare generated behavior with independent Go.
+
+- Accept direct source runtime interface bounds (`T extends Reader<E>`) with
+  structural public instance method matching, inherited/generic contracts,
+  dependent inference, source aliases and generic owner/method specialization.
+  Preserve verified text, nullable signatures, properties, Result effects,
+  multiple results and variadics. Recheck early type applications after complete
+  declarations, retain source names in editor completion/navigation/signatures,
+  and compare generated behavior with independent Go. Source interface/type-set
+  composition remains diagnosed.
+
+- Support fully instantiated native and imported Go generic function values
+  using `function<T>` or `function[T]`, including named imports and linked
+  source aliases. Share explicit type-argument checks with generic calls;
+  preserve native text/nullability contracts, Result effects, multiple results
+  and variadics. Add independent Go runtime comparison, source-map verification
+  and editor navigation/rename/signature coverage. Missing type arguments and
+  generic instance method values remain diagnosed rather than guessed.
+
+- Add explicit-receiver method expressions for native structs, enums, distinct
+  defined types and interfaces, including concrete generic aliases. Preserve value/
+  pointer method sets, source text/nullability contracts, variadics, Results,
+  multiple results and linked identities. Preserve enum constant namespaces in
+  editor completion alongside eligible methods; provide method-only completion
+  for other native receivers and receiver-aware argument hints; detect
+  initialization cycles through native
+  method bodies, including stored method values and expressions.
+
+- Fix native-struct collection fields rejecting local slices, maps and nested/
+  generic collections of the same source type (#86). Rebuild canonical Go
+  storage while retaining nominal, fixed-length, text and nullable contracts.
+- Display the source exception class and message for uncaught native exceptions
+  instead of an internal panic-wrapper pointer (#87). Preserve dynamic subclass
+  names through source linking, bare rethrow, typed catches and message access;
+  ordinary thrown Go errors retain their error message.
+
+- Emit versioned Go-to-`.km` source-map sidecars for compiler-managed builds
+  and optional `emit-go -source-map` output. Preserve physical Go coordinates,
+  capture checked-input hashes and stable source-origin IDs, and support
+  source-level failure lookup and cross-executable coverage consumers without
+  runtime instrumentation or `//line` directives.
+
+- Preserve explicit receiver parameters in method-expression signature help
+  during incomplete calls, including parenthesized pointer types. Recover
+  selector offsets across comments/whitespace and close nested delimiters
+  without modifying editor documents or suggesting invalid method sets.
+
+- Add imported Go method expressions (`pkg.Type.Method`, `(*pkg.Type).Method`
+  and named-import aliases) with an explicit first receiver argument. Preserve
+  value/pointer/interface and promoted method sets, variadics, multiple results,
+  callback assignment, evaluation order and Go nil/panic behavior. Check unsafe
+  policy and reject fields, ambiguous selectors and uninstantiated generic
+  receiver types. Add editor completion and explicit-receiver signature help.
+
+- Isolate closure-body nullable flow, loop exits and reachability from the
+  enclosing body, with shared callable-flow boundaries for functions,
+  constructors and methods. Check nullable mutation and Task return paths even
+  when a closure is declared in unreachable outer code. Publish nested capture
+  effects only after restoring the enclosing context, so unreachable closure
+  creation does not invalidate an otherwise valid enclosing proof.
+
+- Allow native classes, struct values/pointers, source interface values and
+  distinct defined types to satisfy Go method constraints on source generics.
+  Substitute generic/inherited method signatures and infer dependent arguments
+  from their methods. Preserve public instance method sets, pointer-receiver
+  rules, `Result` lowering, variadics, finite type sets and `comparable`;
+  reject mismatched verified-text/nullability contracts instead of erasing them.
+
+- Accept compile-time integer expressions in fixed-array type lengths, including
+  source/imported constants, enum members, class static constants and constant
+  `len`/`cap`/`min`/`max`. Fold lengths into ordinary Go array types while preserving
+  source definition/reference/rename navigation. Reject runtime lengths, negative
+  or fractional values, target-width overflow and declaration cycles.
+
 ## [0.4.6] - 2026-10-04
 
 - Preserve verified-text storage checks through source structural interfaces
@@ -861,7 +994,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...HEAD
+[0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/puffball1567/kinmokusei/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/puffball1567/kinmokusei/compare/v0.4.3...v0.4.4

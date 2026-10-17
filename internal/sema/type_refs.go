@@ -11,10 +11,12 @@ import (
 func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 	var activeTypeParameters map[string]source.Span
 	var visitType func(*ast.TypeRef)
+	var visitExpression func(ast.Expression)
 	visitType = func(ref *ast.TypeRef) {
 		if ref == nil {
 			return
 		}
+		visitExpression(ref.FixedLengthExpression)
 		if ref.Qualifier == "" {
 			if declaration, ok := activeTypeParameters[ref.Name]; ok {
 				ref.TypeParameter = true
@@ -76,12 +78,12 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitType(parameters[index].Constraint)
 		}
 	}
-	var visitExpression func(ast.Expression)
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
 		case *ast.UnaryExpr:
 			visitExpression(expression.Operand)
+			visitType(&expression.AssertionType)
 		case *ast.PropagateExpr:
 			visitExpression(expression.Value)
 			visitType(&expression.ValueType)
@@ -147,10 +149,18 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				visitExpression(field.Value)
 			}
 		case *ast.MemberExpr:
+			visitType(expression.MethodExpressionReceiver)
 			visitExpression(expression.Object)
 		case *ast.IndexExpr:
 			visitExpression(expression.Object)
-			visitExpression(expression.Index)
+			if expression.Instantiated {
+				for i := range expression.TypeArguments {
+					visitType(&expression.TypeArguments[i])
+				}
+				visitType(&expression.ResolvedType)
+			} else {
+				visitExpression(expression.Index)
+			}
 		case *ast.SliceExpr:
 			visitExpression(expression.Object)
 			visitExpression(expression.Low)
@@ -483,7 +493,7 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 	if t.Kind == GoInterface {
 		methods := make([]ast.ObjectTypeField, len(t.GoMethods))
 		for i, method := range t.GoMethods {
-			methods[i] = ast.ObjectTypeField{Name: method.Name, Type: typeRefFromType(method.Type, span), Span: span}
+			methods[i] = ast.ObjectTypeField{Name: method.Name, GoName: method.GoName, ParameterNames: method.Type.ParameterNames, Type: typeRefFromType(method.Type, span), Span: span}
 		}
 		return ast.TypeRef{GoInterface: true, ObjectFields: methods, Go: true, Span: span}
 	}

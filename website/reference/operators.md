@@ -7,7 +7,13 @@ description: Kinmokusei operator precedence, associativity, operand types, updat
 
 ## Expression binding order
 
-Calls, member selection, indexing, and slicing bind to their target before prefix operators. Prefix `!`, `+`, `-`, `^`, `*`, `&`, `<-`, `go`, and `await` bind before postfix assertions (`as? T`, `as! T`) and result propagation (`?`). Binary expressions then group by the table below. Parentheses override that order.
+Calls, member selection, indexing, slicing and postfix non-null `!` chain on
+their target before prefix operators. Thus `value!.read()` checks `value`
+before calling `read`, and `!callback!()` negates the checked callback's result.
+Prefix `!`, `+`, `-`, `^`, `*`, `&`, `<-`, `go`, and `await` bind before type
+assertions (`as? T`, `as! T`) and result propagation (`?`). Binary expressions
+then group by the table below. Parentheses override that order; write
+`(<-channel)!` to assert the received reference, not the channel itself.
 
 ## Binary precedence
 
@@ -26,7 +32,7 @@ The grouping follows the implemented Go-compatible bitwise precedence. `a + b <<
 
 ## Boolean and comparison operators
 
-`!` accepts one `boolean`. `&&` and `||` accept boolean operands, evaluate left to right, and short-circuit the right operand when the result is already known.
+Prefix `!` accepts one `boolean`. `&&` and `||` accept boolean operands, evaluate left to right, and short-circuit the right operand when the result is already known.
 
 The two equality spellings are semantic aliases: `==` and `===` both perform typed equality, while `!=` and `!==` both perform typed inequality. None performs JavaScript-style coercion. Operands must have compatible identical types and be comparable; slices, maps, and functions are not generally comparable. A concrete nil-capable or nullable counterpart is required when comparing with `nil` or `null`.
 
@@ -98,6 +104,15 @@ compound assignment evaluates a selector/index/pointer target once.
 Strings support only `+=`. Remainder and bitwise updates require integers. Map indexes are writable; string indexes, methods, constants, and non-addressable temporary fields/array indexes are not.
 
 ## Assertions and conversions
+
+Postfix `value!` checks a nullable or raw nil-capable reference once and yields
+its non-null value. A nil value panics at the assertion's source filename, line
+and column. This is an actual runtime check, not TypeScript's erased assertion.
+An interface holding a typed nil pointer is still a non-nil interface; the check
+does not inspect hidden pointees. `Result`, `Task`, scalars and structs cannot
+be unwrapped this way. A newline before `!` starts a prefix operation instead.
+
+<<< ../snippets/non-null-assertion.km{ts}
 
 `as? Type` performs a checked Go-interface or class downcast and returns value plus `boolean`. `as! Type` is forced and panics on failure. Both evaluate the source once.
 

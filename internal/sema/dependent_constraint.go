@@ -9,9 +9,10 @@ import (
 )
 
 type boundInstance struct {
-	origin    gotypes.Type
-	arguments []gotypes.Type
-	ref       ast.TypeRef
+	origin          gotypes.Type
+	arguments       []gotypes.Type
+	nativeArguments []Type
+	ref             ast.TypeRef
 }
 
 // Install every declaration identity before resolving bounds. Dependencies are
@@ -57,12 +58,12 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 				deferred = true
 			}
 		})
-		if deferred && !deferredOnly {
+		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint)) {
 			c.deferredParameterBounds[identity] = true
 			state[name] = 2
 			return
 		}
-		bound, valid := c.resolveNativeTypeParameterConstraint(*parameter.Constraint)
+		bound, valid := c.resolveNativeTypeParameterConstraint(*parameter.Constraint, identity)
 		if valid && c.recursiveComparableConstraint(*parameter.Constraint, bound, scope, state) {
 			c.report(parameter.Constraint.Span, "recursive comparable type-set bound cannot be resolved; break the dependency with an independent type parameter")
 			valid = false
@@ -84,6 +85,12 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 		complete(parameter.Name)
 	}
 	for _, instance := range instances {
+		if instance.nativeArguments != nil {
+			if symbol := c.interfaces[instance.ref.Name]; symbol != nil && symbol.constraint && c.hasSourceInterfaceBounds(symbol.typeParameters) {
+				c.validateNativeTypeArguments(symbol.typeParameters, instance.nativeArguments, instance.ref.GenericArguments, instance.ref.Span, "constraint "+instance.ref.Name)
+				continue
+			}
+		}
 		if _, err := gotypes.Instantiate(nil, instance.origin, instance.arguments, true); err != nil {
 			if instance.ref.Qualifier == "" {
 				c.report(instance.ref.Span, fmt.Sprintf("cannot instantiate constraint %s: %v", instance.ref.Name, err))
@@ -210,6 +217,11 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 		}
 		for _, parameter := range parameters {
 			if value := bindings[parameter.GoType]; value.Kind != Invalid {
+				if bound, source := c.nativeInterfaceBounds[parameter.GoType.(*gotypes.TypeParam)]; source {
+					c.inferNativeSourceInterfaceArguments(bound, value, bindings)
+				} else if constraint := underlyingGoInterface(parameter.GoType.(*gotypes.TypeParam).Constraint()); constraint != nil {
+					c.inferNativeConstraintMethods(constraint, value, bindings)
+				}
 				if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 					_ = c.inferNativeTypeArguments(shape, c.constraintArgumentShape(value), bindings)
 				}

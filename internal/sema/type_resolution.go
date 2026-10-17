@@ -16,19 +16,7 @@ func (c *Checker) resolveTypeThroughNativeIndirection(ref ast.TypeRef) Type {
 
 func (c *Checker) resolveType(ref ast.TypeRef) Type {
 	if ref.GoInterface && !ref.Nullable {
-		result := Type{Kind: GoInterface, Name: "interface{}"}
-		for _, method := range ref.ObjectFields {
-			goName := ""
-			if !ref.Go {
-				goName = memberGoName(method.Name, ast.Public)
-			}
-			result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: method.Name, GoName: goName, Type: c.resolveType(method.Type)})
-		}
-		if converted, ok := goTypeOf(result); ok {
-			result.GoType = converted
-			result.Name = goTypeDisplayName(converted)
-		}
-		return result
+		return c.resolveAnonymousInterface(ref)
 	}
 	if len(ref.GoResults) != 0 {
 		result := Type{Kind: MultiValue, Name: "multiple values"}
@@ -95,6 +83,9 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		if ref.IsFixedArray() {
+			if !c.resolveArrayLength(ref) {
+				return Type{Kind: Invalid, Name: "<invalid>"}
+			}
 			if !c.integerConstantFitsFixedType(big.NewInt(*ref.FixedLength), builtins["int"]) {
 				c.report(ref.Span, "array length is out of range for int")
 				return Type{Kind: Invalid, Name: "<invalid>"}
@@ -245,9 +236,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, "Result cannot be nested inside a Map type")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if key.Kind != Invalid && !key.IsComparable() {
-			c.report(ref.GenericArguments[0].Span, fmt.Sprintf("type %s cannot be used as a Map key", key.String()))
-		}
+		c.checkResolvedMapKey(key, ref.GenericArguments[0].Span)
 		return Type{Kind: Map, Name: "Map", Key: &key, Element: &value}
 	}
 	if ref.Name == "GoChannel" || ref.Name == "GoSendChannel" || ref.Name == "GoReceiveChannel" {
@@ -305,6 +294,11 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			valid := true
 			for i := range ref.GenericArguments {
 				resolved := c.resolveType(ref.GenericArguments[i])
+				if storage, ok := goTypeOf(resolved); ok && !nativeStorageGraphReady(storage, map[gotypes.Type]bool{}) {
+					c.report(ref.GenericArguments[i].Span, "Go generic type arguments referencing unresolved source storage are not yet supported")
+					valid = false
+					continue
+				}
 				if c.containsDeclaredVerifiedText(resolved) || underlyingGoInterface(goType) == nil && c.containsVerifiedText(resolved, nil) {
 					c.report(ref.GenericArguments[i].Span, "Go generic type arguments cannot establish a UTF-8 contract; use bstring/raw storage")
 					valid = false
@@ -340,12 +334,13 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 			c.report(ref.Span, fmt.Sprintf(`Go type %s.%s uses unsafe.Pointer; set [go.interop] unsafe = "allow" to use it`, ref.Qualifier, ref.Name))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		imported.declaration.Used = true
+		c.markGoImportUsed(imported.declaration)
 		alias := imported.declaration.Alias
 		if imported.declaration.ResolvedAlias != "" {
 			alias = imported.declaration.ResolvedAlias
 		}
 		applyGoQualifier(&result, imported.path, alias)
+		c.recordGoReference(ref.NameSpan, typeName)
 		return result
 	}
 	if contract, ok := c.interfaces[ref.Name]; ok && c.isTopLevelAllowed(ref.Span, ref.Name) {

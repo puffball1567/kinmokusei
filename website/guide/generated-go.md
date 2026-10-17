@@ -17,6 +17,32 @@ Without `-o`, the command writes source to standard output. The package name def
 
 Project `build` and `run` commands use `.kinmokusei/gen/` for compiler-managed intermediate modules. Do not commit that directory. Use `emit-go` for a durable artifact.
 
+## Source locations and coverage
+
+`build` and `run` also write `generated.go.map.json` beside their generated Go
+file. To keep a durable source/map pair, request the sidecar explicitly:
+
+```sh
+keika emit-go -o generated.go -source-map generated.go.map.json src/main.km
+```
+
+`-source-map` requires `-o`; the two outputs must be distinct and cannot overwrite
+any loaded `.km` input. Without this flag, `emit-go` keeps its existing output.
+
+The versioned JSON connects physical Go ranges to executable `.km` statement
+origins and expression-bodied arrows. It includes input/output SHA-256 hashes
+and stable origin IDs so test tools can locate failures and combine results from
+different test executables. It does not change Go line numbers, inject runtime
+calls, or aggregate coverage itself. Consumers must verify hashes and archive
+the matching Go file and sidecar before another build overwrites compiler state.
+
+Generated runtime support and declarations without an executable origin remain
+unmapped; use the original Go location as a fallback. Statement ranges are not
+branch coverage and are not a promise that every line of a source range ran.
+See [Testing applications](./testing) for consumer boundaries and
+the [source-map schema](https://github.com/puffball1567/kinmokusei/blob/devel/docs/compiler-architecture.md#source-map-interchange)
+in the repository for the machine-readable contract.
+
 ## Generation guarantees
 
 Generated source is:

@@ -106,7 +106,7 @@ func (c *Checker) instantiateNativeConstraint(ref ast.TypeRef, symbol *interface
 		return nil, false
 	}
 	if c.pendingBoundInstances != nil {
-		*c.pendingBoundInstances = append(*c.pendingBoundInstances, boundInstance{origin: symbol.goNamed, arguments: goArguments, ref: ref})
+		*c.pendingBoundInstances = append(*c.pendingBoundInstances, boundInstance{origin: symbol.goNamed, arguments: goArguments, nativeArguments: arguments, ref: ref})
 	}
 	return instance, true
 }

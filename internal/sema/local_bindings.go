@@ -63,7 +63,7 @@ func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
 	} else {
 		c.declareLocal(stmt.Name, declared, stmt.Constant, stmt, stmt.Span)
 	}
-	c.updateIdentifierFlow(stmt.Name, stmt.NameSpan, value)
+	c.updateIdentifierFlow(stmt.Name, stmt.NameSpan, value, stmt.Value)
 }
 
 func (c *Checker) recordLocalArrowReference(symbol valueSymbol, name string, span source.Span) {

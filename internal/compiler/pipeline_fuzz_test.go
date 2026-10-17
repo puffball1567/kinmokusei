@@ -15,6 +15,16 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=1;}function f(v:C|null):int{return v!.n;}`,
+	`function f(v:*[3]int|null):int{return len(v!)+cap(v!);}`,
+	`constraint P=~*int;function f<T extends P>(v:T|null):T{return v!;}`,
+	`function f<T>(v:T|null):T{return v!;}`,
+	`alias F=()=>boolean;function f(v:F|null):boolean{return !v!();}`,
+	`function f():Result<*int>{return ok(nil);}function g():void{const p=f()!;}`,
+	`type A=distinct Map<A,int>;`,
+	`type A<T>=distinct Map<A<T>,T>;function f(v:A<int>):void{}`,
+	`struct Box<T extends comparable>{public v:int;}type A=distinct *Box<A>;`,
+	`function takes(v:int32):int32{return v;}function f():int32{let total:int32=0;for(let i:int32=0;i<3;i++){total+=takes(i);}return total;}`,
 	`class C{public x:int=1;}function f(e:error,b:boolean):void{let p:C|null=new C();try{p=null;if(b){throw e;}p=new C();}catch(_:error){const n=p.x;}}`,
 	`class C{public x:int=1;}function f():int{let p:C|null=new C();try{p=null;return 0;}finally{if(p===null){return -1;}return p.x;}}`,
 	`function w():int{return 1;}function f(tag:int):void{const t=go w();switch(tag){case await t{}default{}}}`,

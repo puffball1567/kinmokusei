@@ -34,6 +34,10 @@ type Checker struct {
 	allowUnsafeGo              bool
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
+	goReferences               map[source.Span]ast.GoReference
+	goTypeExpressions          map[source.Span]ast.TypeRef
+	goTypeExpressionMethods    map[source.Span]map[string]ast.CallableSignature
+	nativeTypeMethodSets       map[source.Span]ast.NativeTypeMethodSet
 	inConstructor              bool
 	inFieldInitializer         bool
 	fieldInitializerAvailable  map[string]bool
@@ -71,13 +75,25 @@ type Checker struct {
 	capturedMemberRoots        []map[source.Span]bool
 	structGoTypesFinalized     bool
 	constantValues             map[ast.Expression]gotypes.TypeAndValue
+	arrayLengthChecks          map[ast.Expression]bool
+	inArrayLength              bool
 	globalDependencyOwner      string
 	globalDependencies         map[string]map[string]bool
 	globalBindingChecks        map[*ast.VariableDecl]globalBindingCheckState
 	classConstantChecks        map[*ast.FieldDecl]globalBindingCheckState
 	classConstantValues        map[*ast.FieldDecl]gotypes.TypeAndValue
+	enumChecks                 map[*ast.EnumDecl]globalBindingCheckState
 	checkingLocalArrow         *localArrowInference
 	resultErrorUses            map[*bool]resultErrorUse
+
+	nativeInterfaceDeclarations     map[string]*ast.InterfaceDecl
+	nativeInterfaceAliases          map[string]ast.TypeRef
+	nativeInterfaceBounds           map[*gotypes.TypeParam]Type
+	nativeInterfacesReady           bool
+	nativeInterfaceArgumentsReady   bool
+	pendingNativeInterfaceArguments []nativeInterfaceApplication
+	pendingMapKeys                  []pendingMapKey
+	pendingNativeGoInstances        []boundInstance
 }
 
 type GoInteropPolicy struct {
@@ -110,9 +126,18 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		functions: map[string]functionSymbol{}, globals: map[string]valueSymbol{},
 		classes: map[string]*classSymbol{}, structs: map[string]*structSymbol{}, interfaces: map[string]*interfaceSymbol{}, nativeTypes: map[string]*nativeTypeSymbol{}, enums: map[string]*enumSymbol{}, allowed: allowed, unimportedReferences: program.UnimportedReferences,
 		goPackages: map[string]map[string]*goPackageSymbol{}, goImporter: goImporter, allowUnsafeGo: policy.AllowUnsafe, goSizes: policy.Sizes,
-		goNamedImports:   map[string]map[string]goNamedImport{},
-		goFieldReceivers: map[*ast.MemberExpr]gotypes.Type{},
-		memberFlow:       map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
+		goNamedImports:          map[string]map[string]goNamedImport{},
+		goFieldReceivers:        map[*ast.MemberExpr]gotypes.Type{},
+		goReferences:            map[source.Span]ast.GoReference{},
+		goTypeExpressions:       map[source.Span]ast.TypeRef{},
+		goTypeExpressionMethods: map[source.Span]map[string]ast.CallableSignature{},
+		nativeTypeMethodSets:    map[source.Span]ast.NativeTypeMethodSet{},
+
+		nativeInterfaceDeclarations: map[string]*ast.InterfaceDecl{},
+		nativeInterfaceAliases:      map[string]ast.TypeRef{},
+		nativeInterfaceBounds:       map[*gotypes.TypeParam]Type{},
+
+		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
 		receiverTypeParameters: map[*ast.MethodDecl]map[string]Type{},
 		methodTypeParameters:   map[*ast.MethodDecl]map[string]Type{},
@@ -120,14 +145,18 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		globalBindingChecks:    map[*ast.VariableDecl]globalBindingCheckState{},
 		classConstantChecks:    map[*ast.FieldDecl]globalBindingCheckState{},
 		classConstantValues:    map[*ast.FieldDecl]gotypes.TypeAndValue{},
+		enumChecks:             map[*ast.EnumDecl]globalBindingCheckState{},
 		globalDependencies:     map[string]map[string]bool{},
 		constantValues:         map[ast.Expression]gotypes.TypeAndValue{},
+		arrayLengthChecks:      map[ast.Expression]bool{},
 		resultErrorUses:        map[*bool]resultErrorUse{},
 	}
 	c.installExceptionBuiltin()
 	c.declareGoPackages(program)
+	c.predeclareArrayLengthBindings(program)
 	c.predeclareInterfaceNames(program)
 	c.predeclareNamedTypes(program)
+	c.predeclareStaticFields(program)
 	c.declareNativeConstraints(program)
 	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareNativeTypes(program)
@@ -136,16 +165,22 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
 	c.declareInterfaces(program)
+	c.nativeInterfacesReady = true
+	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareClasses(program)
 	c.declareTopLevel(program)
 	c.declareReceiverMethods(program)
+	c.nativeInterfaceArgumentsReady = true
+	c.validatePendingMapKeys()
+	c.validatePendingNativeInterfaceArguments()
+	c.validatePendingNativeGoInstances()
 	c.validateStructValueCycles(program)
 	for _, decl := range c.globalCheckOrder(program) {
 		c.ensureGlobalBindingChecked(decl)
 	}
 	for _, decl := range program.Declarations {
 		if decl, ok := decl.(*ast.EnumDecl); ok {
-			c.checkEnum(decl)
+			c.ensureEnumChecked(decl)
 		}
 	}
 	for _, decl := range program.Declarations {
@@ -185,6 +220,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
+	program.GoReferences = c.goReferences
+	program.GoTypeExpressions = c.goTypeExpressions
+	program.GoTypeExpressionMethods = c.goTypeExpressionMethods
+	program.NativeTypeMethodSets = c.nativeTypeMethodSets
 	c.reportUnusedResultErrors()
 	program.UsesTasks = c.usesTasks
 	program.UsesExceptions = c.usesExceptions
@@ -377,7 +416,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 		if stmt.Operator == "" || stmt.Operator == "=" {
 			value := c.checkExpressionExpectedSlot(&stmt.Value, target)
 			c.requireAssignable(target, value, stmt.Value.GetSpan())
-			c.updateAssignmentFlow(stmt.Target, value)
+			c.updateAssignmentFlow(stmt.Target, value, stmt.Value)
 		} else {
 			c.markAssignmentTargetRead(stmt.Target)
 			value := c.singleValue(c.checkExpression(stmt.Value), stmt.Value.GetSpan())
@@ -614,7 +653,12 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		}
 		if named, ok := c.nativeTypes[expr.Name]; ok && c.isTopLevelAllowed(expr.Span, expr.Name) {
 			expr.ResolvedDeclaration = named.declaration.NameSpan
+			c.nativeMethodExpressionReceiver(expr)
 			c.report(expr.Span, fmt.Sprintf("type %q cannot be used as a value; call it with one argument to convert", expr.Name))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		if _, _, found := c.nativeMethodExpressionReceiver(expr); found {
+			c.report(expr.Span, fmt.Sprintf("type %q cannot be used as a value", expr.Name))
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		c.report(expr.Span, fmt.Sprintf("undefined name %q", expr.Name))

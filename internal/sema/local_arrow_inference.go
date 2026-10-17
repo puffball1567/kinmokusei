@@ -82,18 +82,5 @@ func (c *Checker) finishLocalArrowBinding(inference *localArrowInference) {
 	}
 	symbol.initializingArrow = false
 	scope[decl.Name] = symbol
-	for declaration, cause := range inference.capturedWrites {
-		c.markDeclarationEscaped(declaration, decl.Span, "a closure that can mutate it")
-		for index, scope := range c.scopes {
-			for _, captured := range scope {
-				if captured.declarationSpan == declaration {
-					c.recordCapturedWrite(index, declaration, cause)
-				}
-			}
-		}
-	}
-	if inference.memberWrite.Start.Line != 0 {
-		c.invalidateAllMemberFacts(decl.Span, "a closure with possible member mutation")
-		c.recordMemberWrite(decl.Span)
-	}
+	c.publishClosureEffects(closureEffects{writes: inference.capturedWrites, memberWrite: inference.memberWrite}, decl.Span)
 }

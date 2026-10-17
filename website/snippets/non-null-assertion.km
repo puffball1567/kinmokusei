@@ -1,0 +1,14 @@
+import go { Println } from "fmt"
+
+class User {
+  constructor(public name: string) {}
+}
+
+function configuredUser(): User | null {
+  return new User("Kinmokusei")
+}
+
+function main(): void {
+  const user = configuredUser()!
+  Println(user.name)
+}

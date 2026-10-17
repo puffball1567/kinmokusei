@@ -116,6 +116,9 @@ func (p *Parser) parseCall() ast.Expression {
 	}
 	for {
 		switch {
+		case p.at(token.Bang) && !p.lineBreakBeforeNext():
+			operator := p.advance()
+			expr = &ast.UnaryExpr{Operator: ast.NonNullOperator, Operand: expr, AssertionSpan: operator.Span, Span: expr.GetSpan().Merge(operator.Span)}
 		case p.match(token.LeftParen):
 			args, expanded, end, ok := p.parseArguments()
 			if !ok {
@@ -132,13 +135,28 @@ func (p *Parser) parseCall() ast.Expression {
 			expr = &ast.MemberExpr{Object: expr, Name: name.Lexeme, NameSpan: name.Span, Span: expr.GetSpan().Merge(name.Span)}
 		case p.at(token.LeftBracket) && isExplicitTypeArgumentCallee(expr):
 			checkpoint := p.checkpoint()
-			typeArguments, ok := p.tryParseCallTypeArguments()
-			if ok {
+			typeArguments, ok := p.tryParseBracketTypeArguments()
+			if ok && p.match(token.LeftParen) {
 				args, expanded, end, valid := p.parseArguments()
 				if !valid {
 					return expr
 				}
 				expr = &ast.CallExpr{Callee: expr, TypeArguments: typeArguments, Arguments: args, Expanded: expanded, Span: expr.GetSpan().Merge(end.Span)}
+				continue
+			}
+			if ok {
+				end := p.previous().Span
+				p.restore(checkpoint)
+				p.advance()
+				indexed := p.parseSubscript(expr)
+				if index, valid := indexed.(*ast.IndexExpr); valid && index.Span.End == end.End && len(p.diagnostics) == checkpoint.diagnostics {
+					index.TypeArguments = typeArguments
+					expr = index
+				} else {
+					p.restore(checkpoint)
+					typeArguments, _ = p.tryParseBracketTypeArguments()
+					expr = &ast.IndexExpr{Object: expr, TypeArguments: typeArguments, Span: expr.GetSpan().Merge(end)}
+				}
 				continue
 			}
 			p.restore(checkpoint)
@@ -175,6 +193,10 @@ func (p *Parser) parseCall() ast.Expression {
 				if expr == nil {
 					return nil
 				}
+				continue
+			}
+			if ok && (typeApplicationBoundary(p.peek().Kind) || p.lineBreakBeforeNext()) {
+				expr = &ast.IndexExpr{Object: expr, TypeArguments: typeArguments, Span: expr.GetSpan().Merge(p.previous().Span)}
 				continue
 			}
 			p.restore(checkpoint)
@@ -256,10 +278,9 @@ func isExplicitTypeArgumentCallee(expr ast.Expression) bool {
 	}
 }
 
-// tryParseCallTypeArguments recognizes package.Function[T, U](...) and the
-// explicitly typed builtin calls. The caller rolls parser state and diagnostics
-// back when the bracket is an ordinary index expression.
-func (p *Parser) tryParseCallTypeArguments() ([]ast.TypeRef, bool) {
+// tryParseBracketTypeArguments recognizes the type argument list without
+// consuming a call opener. The caller restores state for ordinary indexing.
+func (p *Parser) tryParseBracketTypeArguments() ([]ast.TypeRef, bool) {
 	if !p.match(token.LeftBracket) {
 		return nil, false
 	}
@@ -277,10 +298,16 @@ func (p *Parser) tryParseCallTypeArguments() ([]ast.TypeRef, bool) {
 	if _, ok := p.expect(token.RightBracket, "expected ']' after explicit Go type arguments"); !ok {
 		return nil, false
 	}
-	if !p.match(token.LeftParen) {
-		return nil, false
-	}
 	return arguments, true
+}
+
+func typeApplicationBoundary(kind token.Kind) bool {
+	switch kind {
+	case token.EOF, token.Semicolon, token.Comma, token.RightParen, token.RightBracket, token.RightBrace, token.Dot, token.LeftBracket, token.As, token.Equal, token.StrictEqual, token.NotEqual, token.StrictUnequal, token.And, token.Or:
+		return true
+	default:
+		return false
+	}
 }
 
 // tryParseAngleTypeArguments recognizes the type-argument portion of the

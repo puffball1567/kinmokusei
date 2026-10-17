@@ -20,14 +20,16 @@ Since v0.4.1, [external Kinmokusei packages](/guide/external-packages) support t
 
 ## Release availability
 
-The current compiler/editor release is v0.4.6. It includes typed borrowed/retained
-FFI arrays, multiple handles/call-scoped callbacks, typed callback arrays and a
-main-thread policy. It also separates verified UTF-8 `string` from raw `bstring`,
-with checked decoding, boundary-safe slicing and matching Go/HTTP APIs. This
-patch intentionally changes source/API text contracts; review
-[migration notes](../project/releases#migrating-from-v045) when upgrading older
-applications and source libraries. Nullable/Task control-flow corrections were
-already released in v0.4.5.
+The current compiler/editor release is v0.4.7. It adds checked postfix `!`,
+more precise nullable Go assignments, method expressions, instantiated generic
+function values, source interface bounds, constant-expression array lengths,
+Go-source navigation and source maps. It also updates the documentation artwork.
+See [v0.4.7 highlights](../project/releases#v047-highlights) for upgrade notes.
+
+The verified UTF-8 `string` / raw `bstring` split and expanded incoming FFI
+surface introduced in v0.4.6 remain available. Review the
+[v0.4.5 migration](../project/releases#migrating-from-v045) when upgrading from
+the older text contract.
 
 ## Safety boundaries
 

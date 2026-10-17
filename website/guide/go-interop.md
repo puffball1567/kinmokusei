@@ -92,9 +92,14 @@ The compiler reads actual Go export/type data and preserves:
 - constants, variables, functions, and aliases;
 - basic, named, alias, anonymous struct, pointer, array, slice, map, and interface types;
 - public fields, tags, methods, addressability, and method sets;
-- multiple results, raw `error`, variadics, function and method values, and callbacks;
+- multiple results, raw `error`, variadics, function/method values, method expressions, and callbacks;
 - generic functions, named types, methods, constraints, and explicit/inferred type arguments;
 - channels and direction, `select`, `defer`, and goroutine calls.
+
+Development builds also support fully instantiated generic function values;
+see [instantiated function values](./functions-and-generics#instantiated-function-values).
+These use the same Go type constraints and raw-text boundary as generic calls,
+without adding runtime wrappers.
 
 Imported type identity remains qualified:
 
@@ -108,6 +113,53 @@ let pointer: *http.Client = &client;
 ```
 
 `time.Duration` does not collapse into plain `int64`. Unsupported reachable shapes are diagnosed at the source use site; an unused advanced export does not reject an entire package.
+
+## Method values and method expressions
+
+::: info Available since v0.4.7
+Imported Go method expressions are released in v0.4.7.
+Older v0.4.6 supports bound method values but not this type-based form.
+:::
+
+A bound method value such as `buffer.Len` captures its receiver. A method
+expression such as `(*bytes.Buffer).Len` does not: its first argument is the
+explicit receiver. The resulting function can be stored or passed as a callback.
+
+<<< @/snippets/go-method-expressions.km
+
+`time.Time.IsZero` accepts a `time.Time`; `(*bytes.Buffer).Len` accepts a
+`*bytes.Buffer`. A named Go import alias can also serve as the receiver type,
+for example `import go { Time as Instant } from "time"` followed by
+`Instant.IsZero`. Interface types such as `io.Reader.Read` are supported and
+accept the interface value as the first argument.
+
+The receiver type's actual Go method set decides which methods are available.
+`bytes.Buffer.Len` is rejected because `Len` has a pointer receiver; a method
+expression never implicitly takes the address of its first argument. Promoted
+methods retain the outer receiver type. Fields are not method expressions.
+Variadics and multiple results keep their original Go signatures after the
+additional receiver parameter.
+
+Editor argument hints retain that first receiver parameter during incomplete
+calls, including parenthesized pointer types. Whitespace and comments around
+the dot do not prevent method completion or argument hints.
+
+Go nil behavior is unchanged: a nil-aware pointer method can accept `nil`, but
+calling a value method through a nil pointer or an interface method through a
+nil interface panics as in Go. This feature does not turn raw Go pointers into
+nullable-safe class references.
+
+Generic receivers support direct `<T>`/`[T]` instantiation. For example,
+`(*atomic.Pointer<int>).Load` from `import go atomic from "sync/atomic"` takes
+an explicit `*atomic.Pointer<int>` and returns `*int`. Named imports also work:
+`import go { Pointer as Ptr } from "sync/atomic"` permits `(*Ptr[int]).Load`.
+All type arguments must satisfy the ordinary Go type constraints and storage
+rules: `string` cannot establish a verified UTF-8 contract in a Go generic type;
+use `bstring` for raw Go string storage. An exported Go alias of a concrete
+instantiation also works; an uninstantiated generic type is rejected.
+Native structs, defined types and
+interfaces also support the [explicit-receiver form](./classes-and-structs#native-method-expressions).
+Class static calls remain a separate feature.
 
 ## Multiple results and errors
 

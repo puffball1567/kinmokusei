@@ -1,0 +1,18 @@
+import go bytes from "bytes";
+import go fmt from "fmt";
+import go time from "time";
+
+function main(): void {
+  const isZero = time.Time.IsZero;
+  fmt.Println(isZero(time.Time{}));
+
+  let buffer: bytes.Buffer = bytes.Buffer{};
+  const write = (*bytes.Buffer).WriteString;
+  const [written, failure] = write(&buffer, "Kinmokusei");
+  if (failure !== nil) {
+    fmt.Println(failure);
+    return;
+  }
+  const length = (*bytes.Buffer).Len;
+  fmt.Println(written, length(&buffer));
+}

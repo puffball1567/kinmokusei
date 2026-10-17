@@ -146,6 +146,13 @@ func (c *Checker) checkObjectLiteralExpected(expr *ast.ObjectLiteralExpr, expect
 }
 
 func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
+	if expr.Operator == ast.NonNullOperator {
+		return c.checkNonNullAssertion(expr)
+	}
+	if _, _, found := c.nativeMethodExpressionReceiver(expr); found {
+		c.report(expr.Span, "a native pointer type cannot be used as a value")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
 	if expr.Operator == "<-" {
 		return c.checkChannelReceive(expr, false)
 	}
@@ -158,7 +165,7 @@ func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 		if operand.Kind == Invalid {
 			return operand
 		}
-		if !c.isAddressableExpression(expr.Operand) {
+		if operand.Kind == GoTypeName || !c.isAddressableExpression(expr.Operand) {
 			c.report(expr.Span, "operator & requires an addressable operand")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
@@ -201,6 +208,11 @@ func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 	case "*":
 		if operand.Kind == Invalid {
 			return operand
+		}
+		if operand.Kind == GoTypeName && operand.GoType != nil {
+			result := Type{Kind: GoTypeName, Name: "*" + operand.String(), GoType: gotypes.NewPointer(operand.GoType), GoQualifier: operand.GoQualifier}
+			c.recordGoTypeExpression(expr, result)
+			return result
 		}
 		if operand.Kind == GoPointer && operand.Element != nil {
 			return *operand.Element
@@ -367,7 +379,23 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 }
 
 func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
-	object := c.singleValue(c.checkExpression(expr.Object), expr.Object.GetSpan())
+	if _, _, found := c.nativeMethodExpressionReceiver(expr); found {
+		c.report(expr.Span, "a native instantiated type cannot be used as a value")
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	var object Type
+	if len(expr.TypeArguments) != 0 {
+		object = c.genericValueOperand(expr.Object)
+		if object.Kind == GoTypeName {
+			return c.checkGoTypeInstantiationExpression(expr, object)
+		}
+		if object.Generic || expr.Index == nil {
+			return c.checkGenericFunctionValue(expr, object)
+		}
+	} else {
+		object = c.checkExpression(expr.Object)
+	}
+	object = c.singleValue(object, expr.Object.GetSpan())
 	if object.Kind == Nullable {
 		c.report(expr.Object.GetSpan(), fmt.Sprintf("nullable value %s must be checked against null before indexing", object.String()))
 		if object.Element == nil {

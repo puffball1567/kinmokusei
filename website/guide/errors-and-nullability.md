@@ -85,6 +85,13 @@ Bare `throw;` rethrows the currently handled exception. `finally` runs after nor
 
 Only values carrying the explicit Kinmokusei exception marker enter catch dispatch. Bounds failures and arbitrary Go panics keep unwinding after `finally`.
 
+An uncaught native exception terminates with a Go panic containing its original
+source class name and message, for example `panic: NotFoundException: missing`.
+The name is the constructed subclass, including after rethrow or a catch through
+a base type; generated module-link names are not used. Throwing an ordinary Go
+`error` displays its `.Error()` message. This panic display does not add a class
+prefix to `Exception.message` or `.error()`, which still return message text.
+
 ## Nullable references
 
 `T | null` marks a nil-backed reference as nullable. `null` belongs to this checked type system; imported raw Go `nil` retains its low-level Go meaning. The two do not assign implicitly.
@@ -108,6 +115,15 @@ be rejected.
 
 Member access, calls, indexing, slicing, pointer operations, and channel operations require a non-null proof. Operations that are explicitly safe on nil Go slices/maps—such as `len`, `append`, `delete`, `clear`, and range where applicable—retain that behavior.
 
+When a Go API may return nil, choose an explicit nullable binding:
+
+<<< ../snippets/nullable-go.km{ts}
+
+Receiving a raw Go pointer or interface does not automatically prove it non-null.
+This example prints `missing`; accessing `option.Name` before the guard is
+rejected. An interface guard tests whether the interface itself is nil, not
+whether it contains a typed nil pointer. See [Nullability](../reference/types#nullability).
+
 `?` propagation from inside `try` still exits the enclosing Result function and
 runs `finally`; it is not a typed exception handled by `catch`. Handler flow
 checks include interrupted states, not just the normally completed try body.
@@ -115,6 +131,16 @@ Bind getter results to locals before narrowing, because each property read can
 run different code and return a different value.
 
 ## Flow facts and invalidation
+
+When null would be a programming error, use checked postfix `!`:
+
+<<< ../snippets/non-null-assertion.km{ts}
+
+The operand runs once. A nil result causes a panic whose message identifies the
+source filename, line and column. The checked expression has type `T`, but the
+original binding remains `T | null`; bind the checked result if you want to use
+it repeatedly. Prefix `!flag` still means boolean negation. Do not use postfix
+`!` for expected failure: it cannot unwrap `Result<T>` or a `Task`.
 
 The declared type never changes. The checker maintains a separate fact for each program point:
 
@@ -128,6 +154,12 @@ if (user !== null) {
 ```
 
 Facts join conservatively across branches, switches, selects, and loop backedges. Address-taking, aliases, mutable closure capture, receiver reassignment, unknown calls, and reachable writes invalidate facts they may affect. A later check or non-null assignment can establish a new proof.
+
+Closure bodies are checked separately from their enclosing flow. A mutable
+capture needs a check inside the closure, since it can change before invocation.
+An unreachable nested closure declaration does not contribute mutation effects
+to the enclosing flow, but the nested body still gets its own nullable and Task
+checks.
 
 When storage is not stable, bind a snapshot:
 

@@ -46,7 +46,20 @@ func (s *Server) hover(id json.RawMessage, raw json.RawMessage) error {
 	if !ok {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
-	program := s.analyze(doc)
+	analysis := s.analyzeNavigation(doc)
+	program := analysis.Program
+	if reference, found := goReferenceAt(program, doc, offset); found {
+		symbol := analysis.GoSymbol(reference)
+		value := "```go\n" + symbol.Detail + "\n```"
+		if symbol.Documentation != "" {
+			value += "\n\n" + symbol.Documentation
+		}
+		result := map[string]any{
+			"contents": map[string]any{"kind": "markdown", "value": value},
+			"range":    s.protocolRangeFor(doc.Path, identifierSpanAt(doc, offset, identifierAt(doc, offset))),
+		}
+		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: result})
+	}
 	if detail, builtin := builtinHover(program, doc, offset); builtin {
 		result := map[string]any{
 			"contents": map[string]any{"kind": "markdown", "value": "```kinmokusei\n" + detail + "\n```"},
@@ -127,7 +140,20 @@ func (s *Server) definition(id json.RawMessage, raw json.RawMessage) error {
 	if !ok {
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
 	}
-	program := s.analyze(doc)
+	analysis := s.analyzeNavigation(doc)
+	program := analysis.Program
+	if reference, found := goReferenceAt(program, doc, offset); found {
+		span := analysis.GoSymbol(reference).Declaration
+		if span.Path == "" {
+			return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
+		}
+		absolute, err := filepath.Abs(span.Path)
+		if err != nil {
+			return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
+		}
+		result := map[string]any{"uri": pathURI(absolute), "range": s.protocolRangeFor(span.Path, span)}
+		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: result})
+	}
 	if _, builtin := builtinHover(program, doc, offset); builtin {
 		// Compiler-provided declarations have no source file to navigate to.
 		return s.writeResponse(response{JSONRPC: "2.0", ID: id, Result: json.RawMessage("null")})
@@ -218,6 +244,16 @@ func (s *Server) declarationAtProgram(doc document, offset int, program *ast.Pro
 					declaration.Name = displayName
 				}
 				return declaration, true
+			}
+		}
+		// Anonymous bound methods are declared inside a type expression, not
+		// among the named declarations collected above. Checked metadata carries
+		// their declaration identity and source-aware callable contract.
+		for _, methods := range program.TypeParameterMethods {
+			for _, method := range methods {
+				if sameSourceSpan(method.Span, occurrence.Declaration) {
+					return declarationInfo{Name: method.Name, Detail: method.Name + ": " + formatTypeRef(method.Type), Kind: 6, Span: method.Span, Selection: method.Span}, true
+				}
 			}
 		}
 		for _, imported := range program.Imports {

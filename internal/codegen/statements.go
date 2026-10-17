@@ -26,6 +26,7 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 				result.List = append(result.List, declaration)
 			}
 		}
+		statementStart := len(result.List)
 		if variable, ok := stmt.(*kinmokuseiAST.VariableDecl); ok {
 			if propagated, ok := variable.Value.(*kinmokuseiAST.PropagateExpr); ok {
 				generated, err := generatePropagationStatements(propagated, variable)
@@ -39,6 +40,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 						Rhs: []goast.Expr{goast.NewIdent(goName(variable.Name))},
 					})
 				}
+				if block.SourceMapping {
+					result.List = markSourceStatements(result.List, statementStart, stmt.GetSpan())
+				}
 				continue
 			}
 		}
@@ -49,6 +53,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 					return nil, err
 				}
 				result.List = append(result.List, generated...)
+				if block.SourceMapping {
+					result.List = markSourceStatements(result.List, statementStart, stmt.GetSpan())
+				}
 				continue
 			}
 		}
@@ -73,6 +80,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 					Rhs: []goast.Expr{goast.NewIdent(goName(binding.Name))},
 				})
 			}
+		}
+		if block.SourceMapping {
+			result.List = markSourceStatements(result.List, statementStart, stmt.GetSpan())
 		}
 	}
 	return result, nil
@@ -99,7 +109,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			tok = token.CONST
 		}
 		spec := &goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(goName(stmt.Name))}, Values: []goast.Expr{value}}
-		if stmt.Type.Name != "" || stmt.Type.IsFunction() || stmt.Type.IsPointer() || stmt.Type.IsArray() {
+		if stmt.Type.Name != "" || stmt.Type.IsFunction() || stmt.Type.IsPointer() || stmt.Type.IsArray() || stmt.Type.GoInterface {
 			spec.Type = goType(stmt.Type)
 		}
 		return &goast.DeclStmt{Decl: &goast.GenDecl{Tok: tok, Specs: []goast.Spec{spec}}}, nil
@@ -496,6 +506,12 @@ func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.St
 		value, err := generateExpression(variable.Value)
 		if err != nil {
 			return nil, err
+		}
+		if initializer && variable.Used && variable.Type.IsSpecified() {
+			// A Go for initializer must be a simple statement, so retain :=
+			// (and Go's fresh per-iteration bindings) while materializing the
+			// checked declared type rather than defaulting constants/nil.
+			value = &goast.CallExpr{Fun: &goast.ParenExpr{X: goType(variable.Type)}, Args: []goast.Expr{value}}
 		}
 		name := goName(variable.Name)
 		operator := token.DEFINE

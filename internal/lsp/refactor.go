@@ -420,6 +420,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		}
 		add(ref.QualifierSpan, ref.QualifierDeclaration)
 		add(ref.NameSpan, ref.ResolvedDeclaration)
+		walkExpression(ref.FixedLengthExpression)
 		for index := range ref.GenericArguments {
 			walkType(&ref.GenericArguments[index])
 		}
@@ -433,6 +434,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkType(&ref.GoResults[index])
 		}
 		for index := range ref.ObjectFields {
+			if ref.GoInterface && !ref.Go {
+				declare(ref.ObjectFields[index].NameSpan)
+			}
 			walkType(&ref.ObjectFields[index].Type)
 		}
 	}
@@ -497,7 +501,13 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			add(expression.NameSpan, expression.ResolvedDeclaration)
 		case *ast.IndexExpr:
 			walkExpression(expression.Object)
-			walkExpression(expression.Index)
+			if expression.Instantiated {
+				for i := range expression.TypeArguments {
+					walkType(&expression.TypeArguments[i])
+				}
+			} else {
+				walkExpression(expression.Index)
+			}
 		case *ast.SliceExpr:
 			walkExpression(expression.Object)
 			walkExpression(expression.Low)

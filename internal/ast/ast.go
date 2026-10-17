@@ -4,13 +4,32 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 
 type Node interface{ GetSpan() source.Span }
 
+// GoReference retains checked Go symbol identity for editor navigation. Position
+// belongs to the compilation's Go importer file set, not the Kinmokusei source.
+type GoReference struct {
+	Name     string
+	Detail   string
+	Position int
+}
+
 type Program struct {
+	GoReferences map[source.Span]GoReference
 	// Decorators indexes source applications, including parameter applications.
 	// Each entry is also attached to its declaration or parameter.
 	Decorators []*Decorator
 	// TypeParameterMethods is checked editor metadata keyed by parameter
 	// declaration identity. It does not participate in source syntax or emission.
 	TypeParameterMethods map[source.Span][]ObjectTypeField
+	// GoTypeExpressions records checked type-valued expressions for editor
+	// method-expression completion. It never changes runtime emission.
+	GoTypeExpressions map[source.Span]TypeRef
+	// GoTypeExpressionMethods contains checked, specialized method-expression
+	// signatures, including selectors that are incomplete during editing.
+	GoTypeExpressionMethods map[source.Span]map[string]CallableSignature
+	// NativeTypeMethodSets indexes checked, source-aware callable method
+	// sets and enum constants for native type receivers, including incomplete
+	// editor selectors.
+	NativeTypeMethodSets map[source.Span]NativeTypeMethodSet
 	// UnimportedReferences prevents aliases from exposing their runtime target's
 	// original source spelling after modules are flattened.
 	UnimportedReferences map[source.Span]bool
@@ -24,6 +43,13 @@ type Program struct {
 	UsesUTF8             bool
 }
 
+// NativeTypeMethodSet keeps callable expressions separate from constants in
+// the same source namespace. Pointer receivers have no enum constants.
+type NativeTypeMethodSet struct {
+	Methods   []ObjectTypeField
+	Constants []ObjectTypeField
+}
+
 type ImportDecl struct {
 	Names          []string
 	NameSpans      []source.Span
@@ -34,10 +60,13 @@ type ImportDecl struct {
 	AliasSpan      source.Span
 	ResolvedAlias  string
 	Used           bool
-	Path           string
-	ResolvedPath   string
-	PathSpan       source.Span
-	Span           source.Span
+	// UsedByArrayLength preserves package initialization when source length
+	// expressions are folded and no qualified reference survives in Go output.
+	UsedByArrayLength bool
+	Path              string
+	ResolvedPath      string
+	PathSpan          source.Span
+	Span              source.Span
 }
 
 func (d ImportDecl) GetSpan() source.Span { return d.Span }
@@ -65,12 +94,15 @@ type TypeRef struct {
 	GenericArguments     []TypeRef
 	Element              *TypeRef
 	FixedLength          *int64
-	Pointee              *TypeRef
-	Parameters           []TypeRef
-	Return               *TypeRef
-	ObjectFields         []ObjectTypeField
-	Object               bool
-	GoStruct             bool
+	// FixedLengthExpression retains source references for linking and tooling.
+	// Semantic checking writes the evaluated length through FixedLength.
+	FixedLengthExpression Expression
+	Pointee               *TypeRef
+	Parameters            []TypeRef
+	Return                *TypeRef
+	ObjectFields          []ObjectTypeField
+	Object                bool
+	GoStruct              bool
 	// GoInterface describes an anonymous interface type. GoResults is also used
 	// for source tuple result types; Go marks results reconstructed from Go
 	// signatures, while source declarations leave it unset.
@@ -93,12 +125,17 @@ type TypeRef struct {
 }
 
 type ObjectTypeField struct {
-	Name       string
-	JSONName   string
-	GoTag      string
-	GoEmbedded bool
-	Type       TypeRef
-	Span       source.Span
+	Name     string
+	NameSpan source.Span
+	// GoName and ParameterNames retain checked anonymous-interface method
+	// identity and editor labels without changing the source spelling.
+	GoName         string
+	ParameterNames []string
+	JSONName       string
+	GoTag          string
+	GoEmbedded     bool
+	Type           TypeRef
+	Span           source.Span
 }
 
 func (t TypeRef) GetSpan() source.Span { return t.Span }
@@ -393,7 +430,9 @@ func (d *MultiVariableDecl) GetSpan() source.Span { return d.Span }
 
 type BlockStmt struct {
 	Statements []Statement
-	Span       source.Span
+	// SourceMapping is emission-only metadata, enabled for mapped Go artifacts.
+	SourceMapping bool
+	Span          source.Span
 }
 
 func (*BlockStmt) statement()             {}
@@ -750,10 +789,17 @@ type LiteralExpr struct {
 func (*LiteralExpr) expression()            {}
 func (e *LiteralExpr) GetSpan() source.Span { return e.Span }
 
+// NonNullOperator is distinct from prefix boolean negation. It is a checked
+// postfix operation, never a Go constant or an erased type assertion.
+const NonNullOperator = "postfix!"
+
 type UnaryExpr struct {
 	Operator string
 	Operand  Expression
-	Span     source.Span
+	// AssertionType and AssertionSpan are populated for NonNullOperator only.
+	AssertionType TypeRef
+	AssertionSpan source.Span
+	Span          source.Span
 }
 
 func (*UnaryExpr) expression()            {}
@@ -902,6 +948,7 @@ type ArrowExpr struct {
 	ExpressionBody     Expression
 	BlockBody          *BlockStmt
 	ResolvedReturnType TypeRef
+	SourceMapping      bool // Map an expression body as an executable source origin.
 	Span               source.Span
 }
 
@@ -969,6 +1016,10 @@ type MemberExpr struct {
 	SuperBase              string
 	VirtualDispatch        bool
 	VirtualOwner           string
+
+	// MethodExpressionReceiver is a checked native type, not a runtime value.
+	MethodExpressionReceiver *TypeRef
+
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
 	GenericMethod                bool
@@ -983,11 +1034,16 @@ func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
 type IndexExpr struct {
-	Object      Expression
-	Index       Expression
-	Addressable bool
-	Assignable  bool
-	Span        source.Span
+	// TypeArguments retains a possible explicit instantiation. For ambiguous
+	// f[T] syntax, Index retains the ordinary index until checking resolves f.
+	TypeArguments []TypeRef
+	Instantiated  bool
+	ResolvedType  TypeRef
+	Object        Expression
+	Index         Expression
+	Addressable   bool
+	Assignable    bool
+	Span          source.Span
 }
 
 func (*IndexExpr) expression()            {}

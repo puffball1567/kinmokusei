@@ -25,10 +25,41 @@ description: Precise Kinmokusei type representations, identity, assignability, g
 | Result | `Result<T>` | Function return `(T, error)` effect |
 | Task | `Task<T>` | Compiler-tracked local task state |
 
-Parentheses and generic brackets disambiguate nested shapes. A fixed array type
-currently requires a non-negative representable integer literal for its length,
-not a constant name or expression. `Result` and `Task` have restricted positions
-described below.
+Parentheses and generic brackets disambiguate nested shapes. `Result` and `Task`
+have restricted positions described below.
+
+### Fixed-array lengths
+
+Since v0.4.7, `[N]T` accepts a compile-time
+integer expression for `N`, not just an integer literal. The value must be
+non-negative and fit the selected Go target's `int`. Integer-valued untyped
+floating/complex constants are allowed; typed floating values are not. Length
+is part of type identity: `[1 + 2]int` and `[3]int` are the same type.
+
+<<< ../snippets/array-type-lengths.km{ts}
+
+The expression can use source or imported Go constants, enum members and
+accessible static class constants, including forward-declared constants.
+Ordinary constant arithmetic/conversions and constant `len`, `cap`, `min` and
+`max` use the same rules as value expressions. `len("湯")` is three UTF-8 bytes,
+not one code point. Compile-time lengths produce ordinary numeric Go array
+types; there is no runtime allocation or expression evaluation for the length.
+
+A `const` initialized by a runtime call is not a compile-time constant. Function
+parameters and `let` scalar bindings likewise cannot supply runtime lengths:
+
+<<< ../snippets-invalid/array-type-runtime-length.km{ts}
+
+`len`/`cap` of a concrete array or array pointer can be constant even when the
+array is mutable or the pointer is nil. An explicitly annotated global array's
+initializer is not needed to obtain its length. Calls or channel receives inside
+the operand make these operations nonconstant; a generic type-set value also
+does not supply a constant length. Declaration cycles are rejected:
+
+<<< ../snippets-invalid/array-type-length-cycle.km{ts}
+
+The older v0.4.6 compiler requires a non-negative representable integer literal
+in `[N]T`. Both versions reject negative lengths and integer overflow.
 
 ## Built-in correspondence
 
@@ -212,6 +243,28 @@ allocate a wrapper. Scalars, fixed arrays, native structs, structural objects,
 The compiler tracks maybe-null, definitely-null, and non-null facts separately from declared types. Facts join by guarantees across reachable flow and are invalidated by writes or effect boundaries that may change storage.
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.
+
+A raw Go pointer, interface or function type does not imply that its value is
+non-nil. Assigning one to an explicit `T | null` local or field preserves the
+nullable state; check it against `null` before access. Aliases and generic named
+types obey the same storage rule. Slices, maps and channels also permit nil
+storage, so their unqualified type alone does not establish a non-null proof.
+Fresh literals, address-taking, collection allocation, and already checked
+nullable snapshots can establish a proof without another guard.
+
+<<< ../snippets/nullable-go.km{ts}
+
+This prints `missing`. An interface containing a typed nil pointer is not a nil
+interface: its comparison with `null` is false, just as comparison with `nil`
+in Go would be. The guard checks the interface value, not hidden pointees or
+the behavior of the implementation's methods. Direct raw Go use retains Go's
+nil behavior; this rule does not add automatic runtime boundary assertions.
+
+Postfix `value!` explicitly checks a nullable or raw nil-capable reference and
+yields its non-null type, panicking at the assertion when the value is nil.
+The operand is evaluated once; an interface check concerns the interface
+itself, not a typed nil pointer it may contain. This does not validate arbitrary
+Go-owned mutable storage. See [assertions](./operators#assertions-and-conversions).
 
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 

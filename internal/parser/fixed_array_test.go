@@ -59,11 +59,8 @@ func TestRejectsInvalidFixedArrayLengthMatrix(t *testing.T) {
 		name, source, want string
 	}{
 		{"missing", `function bad(value: []int): void {}`, "expected fixed array length"},
-		{"negative", `function bad(value: [-1]int): void {}`, "expected fixed array length"},
-		{"fractional", `function bad(value: [1.5]int): void {}`, "expected fixed array length"},
 		{"missing close", `function bad(value: [2 int): void {}`, "expected ']' after fixed array length"},
 		{"missing element", `function bad(value: [2]): void {}`, "expected type name"},
-		{"overflow", `function bad(value: [9223372036854775808]int): void {}`, "fixed array length is out of range"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -81,6 +78,21 @@ func TestRejectsInvalidFixedArrayLengthMatrix(t *testing.T) {
 			}
 			if !found {
 				t.Fatalf("diagnostics = %v, want %q", diagnostics, test.want)
+			}
+		})
+	}
+}
+
+func TestPreservesFixedArrayLengthExpressions(t *testing.T) {
+	for _, input := range []string{"N+1", "len(\"湯\")", "max(2,3)", "Size.N", "-1", "1.5", "1<<100"} {
+		t.Run(input, func(t *testing.T) {
+			program, count := parseSource(t, "alias Row=["+input+"]int;")
+			if count != 0 {
+				t.Fatalf("%d parser diagnostics", count)
+			}
+			ref := program.Declarations[0].(*ast.TypeDecl).Underlying
+			if !ref.IsFixedArray() || ref.FixedLengthExpression == nil {
+				t.Fatalf("missing length expression: %#v", ref)
 			}
 		})
 	}
