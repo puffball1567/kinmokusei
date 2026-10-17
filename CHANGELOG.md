@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Parse `keika deps list` flags before resolving the optional project directory.
+  Show command usage for help, reject unknown flags, and accept flag-like
+  directory names after `--` without changing the manifest or lock (#93).
+
 - Preserve source order for calls and channel receives in structural object
   field initializers, including nested and contextually typed literals. Keep
   generated field declarations canonical so structural type identity and JSON
