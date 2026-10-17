@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve source order for calls and channel receives in structural object
+  field initializers, including nested and contextually typed literals. Keep
+  generated field declarations canonical so structural type identity and JSON
+  names are unchanged (#115).
+
 ## [0.4.7] - 2026-10-17
 
 - Replace documentation hero artwork, logo, favicon and social sharing card

@@ -15,6 +15,7 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function mark(v:int):int{return v;}const o={zeta:mark(1),alpha:mark(2),mid:mark(3)};`,
 	`class C{public n:int=1;}function f(v:C|null):int{return v!.n;}`,
 	`function f(v:*[3]int|null):int{return len(v!)+cap(v!);}`,
 	`constraint P=~*int;function f<T extends P>(v:T|null):T{return v!;}`,
