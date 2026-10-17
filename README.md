@@ -106,7 +106,13 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
-v0.4.6 additionally supports typed borrowed/retained FFI arrays,
+v0.4.7 adds runtime-checked postfix `!`, stronger nullable Go assignments,
+method expressions, instantiated generic function values, source interface
+bounds, constant-expression array lengths, source maps and Go-source navigation.
+It also refreshes the documentation imagery with clockwork osmanthus artwork.
+See the [v0.4.7 release summary](website/project/releases.md#v047-highlights).
+
+v0.4.6 introduced typed borrowed/retained FFI arrays,
 multiple handle arguments, multiple call-scoped callbacks, callback array inputs
 and a checked main-thread policy. This patch also intentionally changes string
 contracts; review [v0.4.5 migration](website/project/releases.md#migrating-from-v045)
@@ -127,7 +133,7 @@ Go packages support explicit namespace imports:
 ```ts
 import go strings from "strings";
 
-function normalize(value: string): string {
+function normalize(value: bstring): bstring {
   return strings.ToUpper(strings.TrimSpace(value));
 }
 ```

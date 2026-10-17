@@ -296,7 +296,7 @@ pair<int>(1, "one");
 
 Every uninferred parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
 
-In development builds after v0.4.6, a fully instantiated generic function is an
+Since v0.4.7, a fully instantiated generic function is an
 ordinary typed callable: `const integerIdentity = identity<int>` fixes the
 parameter and result types without invoking `identity`. The bracket spelling
 `identity[int]` has the same meaning. This works for imported Go functions too,
@@ -402,7 +402,7 @@ unchanged.
 
 ### Native values with Go method contracts
 
-Development branch addition: the following example is not accepted by v0.4.6.
+Available since v0.4.7; the following example is not accepted by older v0.4.6.
 
 <<< ../snippets/native-constraint-methods.km{ts}
 
@@ -433,7 +433,7 @@ Use `&`, not a union, to combine method contracts:
 
 ### Source interface bounds
 
-Development branch addition: this example is not accepted by v0.4.6.
+Available since v0.4.7; this example is not accepted by older v0.4.6.
 
 <<< ../snippets/source-interface-constraints.km{ts}
 

@@ -158,9 +158,14 @@ export default defineConfig({
     ["meta", { name: "color-scheme", content: "light dark" }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:site_name", content: "Kinmokusei Documentation" }],
-    ["meta", { property: "og:image", content: `${site}/social-card.svg` }],
-    ["meta", { property: "og:image:alt", content: "Kinmokusei — clear source, readable Go" }],
+    ["meta", { property: "og:image", content: `${site}/social-card.png` }],
+    ["meta", { property: "og:image:type", content: "image/png" }],
+    ["meta", { property: "og:image:width", content: "1200" }],
+    ["meta", { property: "og:image:height", content: "630" }],
+    ["meta", { property: "og:image:alt", content: "Kinmokusei — clockwork osmanthus, clear source, readable Go" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:image", content: `${site}/social-card.png` }],
+    ["meta", { name: "twitter:image:alt", content: "A clockwork osmanthus branch beside the Kinmokusei documentation title" }],
   ],
   transformHead({ pageData }) {
     const canonical = `${site}${canonicalPath(pageData.relativePath)}`;

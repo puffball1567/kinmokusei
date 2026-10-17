@@ -499,7 +499,7 @@ set, when present, and every required method; declaration alone need not prove
 that an implementor exists. A nullable value cannot satisfy a method-bearing
 bound without first being narrowed.
 
-On the development branch (not yet in v0.4.6), source generic functions also
+Since v0.4.7, source generic functions also
 accept native classes, structs, source interface values and distinct types whose
 public instance methods satisfy the Go contract. Owner type arguments and
 inherited methods are substituted before checking; dependent parameters such as
@@ -509,11 +509,11 @@ satisfy a pointer-receiver requirement; pass its pointer instead. Static,
 private and method-local generic methods do not implement a Go method contract.
 Signatures are invariant, including nested `string`/`bstring` and nullability;
 compatible `Result<T>` methods retain their `(T, error)` lowering.
-This does not enable native source interfaces as constraint operands or remove
-the separate restrictions on direct imported Go generic calls.
+This does not enable native source interfaces inside composed type-set operands
+or remove the separate restrictions on direct imported Go generic calls.
 
-Direct source runtime interface bounds (`T extends Reader<E>`) are supported on
-the development branch. They match compatible public instance method sets
+Direct source runtime interface bounds (`T extends Reader<E>`) are supported in
+v0.4.7. They match compatible public instance method sets
 structurally while preserving source method spelling, verified text, nullable
 contracts, native identity, Result effects, multiple results and variadics.
 Dependent arguments are inferred from source signatures; source aliases,

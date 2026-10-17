@@ -61,7 +61,7 @@ that milestone. OOP work continues alongside Go compatibility.
 
 ### Nullability safety follow-up (#117)
 
-Development builds preserve explicit `T | null` state when receiving raw Go
+v0.4.7 builds preserve explicit `T | null` state when receiving raw Go
 references. A matching pointer/interface/function/collection storage type no
 longer establishes a non-null assignment proof. Null guards, already checked
 snapshots, fresh literals, address-taking and collection allocation still
@@ -69,7 +69,7 @@ establish proofs. Aliases, linked modules, callbacks, mutable assignments and
 Go interface typed-nil semantics have checker and independent runtime coverage
 in `go_nullable_flow_test.go`.
 
-Development builds also implement runtime-checked postfix `!` with single
+v0.4.7 builds also implement runtime-checked postfix `!` with single
 evaluation, filename/line/column panic messages and editor type metadata.
 Checks remain effective in fixed-array `len`/`cap` operands; Result/Task errors
 cannot be discarded through an assertion. Nil-capable generic constraints,
@@ -95,13 +95,13 @@ where applicable, editor support and user documentation.
 |---|---|---|
 | 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
 | 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
-| 3 | Instantiated generic function values | Implemented in development for full explicit argument lists, source/Go functions and named/aliased imports, with Result/variadic/text contracts, independent Go comparison and editor support; partial/contextual instantiation and generic instance method values remain |
-| 4 | Direct generic receiver instantiation in method expressions | Implemented in development for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types, including pointers, aliases, constraints, source contracts, independent Go comparison and editor support; class instance expressions and method-local generics remain |
-| 5 | Native enum method expressions | Implemented in development: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
-| 6 | Native source interface constraints | Direct runtime interface bounds are implemented in development: structural method sets, inherited/generic signatures, dependent inference, owner substitution, properties, Result/text/nullability, editor support and independent Go comparison; composition into source type sets remains |
+| 3 | Instantiated generic function values | Released in v0.4.7 for full explicit argument lists, source/Go functions and named/aliased imports, with Result/variadic/text contracts, independent Go comparison and editor support; partial/contextual instantiation and generic instance method values remain |
+| 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types, including pointers, aliases, constraints, source contracts, independent Go comparison and editor support; class instance expressions and method-local generics remain |
+| 5 | Native enum method expressions | Released in v0.4.7: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
+| 6 | Native source interface constraints | Direct runtime interface bounds are released in v0.4.7: structural method sets, inherited/generic signatures, dependent inference, owner substitution, properties, Result/text/nullability, editor support and independent Go comparison; composition into source type sets remains |
 | 7 | Source struct constraint terms | Completion of native storage and constraint terms must be coordinated before enabling these terms |
 | 8 | Recursive/dependent constraint composition | Continue comparable-bound and substitution-dependent intersection auditing |
-| 9 | Anonymous interface scope | Method-only anonymous bounds and runtime structural matching are implemented in development for native and compatible Go values, preserving text/nullability/Result contracts, dependent inference, owner substitution, exact method sets, duplicate-name diagnostics, hidden-storage checks, editor bound navigation and independent Go comparison; properties, embeddings and type-set composition remain |
+| 9 | Anonymous interface scope | Method-only anonymous bounds and runtime structural matching are released in v0.4.7 for native and compatible Go values, preserving text/nullability/Result contracts, dependent inference, owner substitution, exact method sets, duplicate-name diagnostics, hidden-storage checks, editor bound navigation and independent Go comparison; properties, embeddings and type-set composition remain |
 | 10 | Constant, inference and multiple-result combinations | Broad partial support exists; add focused coverage for remaining combinations |
 
 ## Approved implementation queue
@@ -284,7 +284,7 @@ single inheritance, virtual/override/final methods, construction-phase dispatch,
 identity-preserving class upcasts/downcasts, and public generated Go APIs.
 Abstract classes are not necessary to use these features.
 
-Development branch addition (not yet in v0.4.6): native class, struct/pointer,
+Available since v0.4.7: native class, struct/pointer,
 source interface and distinct-type values can satisfy Go method requirements on
 source generic declarations. Method metadata preserves inherited/generic owner
 substitution, dependent inference, getter/setter names, Result/variadic lowering,
@@ -294,7 +294,7 @@ interfaces as constraint operands and direct Go generic-call restrictions remain
 separate work.
 
 Direct native source interface bounds (`T extends Reader<E>`) are implemented
-in development. Source-aware structural method matching, dependent inference,
+in v0.4.7. Source-aware structural method matching, dependent inference,
 generic owner/method substitution, properties, Result/multiple/variadic results,
 forward declaration checks and editor names preserve checked contracts.
 Early type applications are revalidated after complete method declarations.
@@ -492,7 +492,7 @@ these constants; differential coverage is in `nullable_array_constants_test.go`.
 |---|---|---|
 | Import alias name isolation | Dependency and canonical Go package names avoid local bindings and type parameters; explicit local shadowing and shared imported storage are preserved | Aliased references between multiple explicitly supplied root modules that would capture a local binding are diagnosed; rename that binding rather than changing the root's public Go name |
 | Source constraint composition | Source/imported Go type-set unions/intersections, comparable requirements, and Go interface methods are implemented, including generic terms, inference, linked export aliases and provably disjoint parameter-dependent collection shapes; direct native runtime interface bounds preserve source method contracts | Compose native source interface contracts into type sets; preserve source-only method argument shapes in composition; handle intersections whose overlap depends on later substitution |
-| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); machine-width and unsafe layout constants use selected target sizes in semantic and generated Go checking; type-parameter values and runtime bindings remain nonconstant. Development builds accept integer constant expressions in array type lengths, fold them into Go array types and preserve LSP references (`array_type_lengths_test.go`) | Audit remaining contextual-expression combinations and constant contexts without treating immutable runtime bindings as Go constants |
+| Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); machine-width and unsafe layout constants use selected target sizes in semantic and generated Go checking; type-parameter values and runtime bindings remain nonconstant. v0.4.7 builds accept integer constant expressions in array type lengths, fold them into Go array types and preserve LSP references (`array_type_lengths_test.go`) | Audit remaining contextual-expression combinations and constant contexts without treating immutable runtime bindings as Go constants |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs, inference and source method-only `interface { ... }` type literals | Source fields, private method identities and richer anonymous-interface members remain rejected |
 | Source-declared multiple results | Source functions, methods, arrows and function types accept `(T, U)` signatures, explicit returns and forwarding, including try/catch/finally; arrow result inference preserves per-slot types; explicit values support contextual checks and class upcasts, while forwarding requires direct Go assignability | Inference rejects ambiguous nil/null slots and incompatible branches; named results and multiple-result properties are not supported |
 
