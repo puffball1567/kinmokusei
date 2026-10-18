@@ -179,7 +179,9 @@ func TestInstallOfficialRelease(t *testing.T) {
 				if err != nil || string(old) != "original compiler" {
 					t.Fatalf("old version changed: %v", err)
 				}
-				if filepath.Dir(resolved) != filepath.Join(filepath.Dir(filepath.Dir(binary)), "0.4.8") {
+				actual, actualErr := os.Stat(filepath.Dir(resolved))
+				expected, expectedErr := os.Stat(filepath.Join(filepath.Dir(filepath.Dir(binary)), "0.4.8"))
+				if actualErr != nil || expectedErr != nil || !os.SameFile(actual, expected) {
 					t.Fatal("versioned layout was not preserved")
 				}
 			}
@@ -265,7 +267,9 @@ func TestInstallFailurePreservesCompiler(t *testing.T) {
 				u.verify = func(context.Context, string, string) error { return errors.New("wrong version") }
 			case "switch":
 				u.rename = func(from, to string) error {
-					if to == launcher {
+					actual, actualErr := os.Lstat(to)
+					expected, expectedErr := os.Lstat(launcher)
+					if actualErr == nil && expectedErr == nil && os.SameFile(actual, expected) {
 						return errors.New("switch denied")
 					}
 					return os.Rename(from, to)
@@ -314,6 +318,26 @@ func TestInstallFailurePreservesCompiler(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLauncherParentAlias(t *testing.T) {
+	t.Parallel()
+	u, _, _, _ := updaterFixture(t)
+	options, launcher, _ := installedFixture(t, true)
+	alias := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(filepath.Dir(launcher), alias); err != nil {
+		t.Fatal(err)
+	}
+	options.CommandPath = filepath.Join(alias, filepath.Base(launcher))
+	result, err := u.run(context.Background(), options)
+	if err != nil || !result.Updated {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	actual, actualErr := os.Stat(options.CommandPath)
+	expected, expectedErr := os.Stat(result.ExecutablePath)
+	if actualErr != nil || expectedErr != nil || !os.SameFile(actual, expected) {
+		t.Fatalf("aliased launcher was not switched: %v %v", actualErr, expectedErr)
 	}
 }
 
