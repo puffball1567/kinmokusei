@@ -31,13 +31,13 @@ Download the archive and `SHA256SUMS` from the [latest GitHub release](https://g
 
 Verify only the downloaded archive: `SHA256SUMS` also lists other platforms and
 the editor extension, which need not be present locally. The commands below
-use v0.4.7; set `release_version` to the tag's numeric version if installing a
+use v0.4.8; set `release_version` to the tag's numeric version if installing a
 different release. Choose the archive matching your OS and architecture.
 
 ::: code-group
 
 ```sh [Linux]
-release_version=0.4.7
+release_version=0.4.8
 release_archive="keika_${release_version}_linux_amd64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | sha256sum -c - || exit 1
 tar -xzf "$release_archive"
@@ -46,7 +46,7 @@ install -m 0755 "keika_${release_version}_linux_amd64/keika" ~/.local/bin/keika
 ```
 
 ```sh [macOS]
-release_version=0.4.7
+release_version=0.4.8
 release_archive="keika_${release_version}_darwin_arm64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | shasum -a 256 -c - || exit 1
 tar -xzf "$release_archive"
@@ -55,7 +55,7 @@ install -m 0755 "keika_${release_version}_darwin_arm64/keika" ~/.local/bin/keika
 ```
 
 ```powershell [Windows PowerShell]
-$release_version = "0.4.7"
+$release_version = "0.4.8"
 $release_archive = "keika_${release_version}_windows_amd64.zip"
 $checksum_lines = @(Get-Content .\SHA256SUMS | Where-Object { ($_ -split '\s+', 2)[1] -eq $release_archive })
 if ($checksum_lines.Count -ne 1) { throw "Expected one checksum for $release_archive" }
@@ -98,9 +98,10 @@ An untagged compiler built from a checkout reports `devel`.
 
 ## Update the compiler
 
-::: info Unreleased
-The following command is available in development builds after v0.4.7. Older
-compilers must first be updated using a release archive or `go install` above.
+::: info Available since v0.4.8
+Compilers through v0.4.7 must first be updated using a release archive or
+`go install` above. After installing v0.4.8, use the following command for
+subsequent updates.
 :::
 
 ```sh

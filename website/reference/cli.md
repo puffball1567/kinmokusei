@@ -27,9 +27,9 @@ keika <command> [options] [arguments]
 
 `run` rejects a locked non-host target before execution. Its positional arguments are all source inputs; it does not forward program arguments. Use `build`, then invoke the resulting executable directly, for programs that read `os.Args`. `build` uses the locked target and supports cross-building. Core compilation commands never resolve or update dependencies implicitly.
 
-## Compiler updates (unreleased)
+## Compiler updates
 
-Available in development builds after v0.4.7:
+Available since v0.4.8:
 
 | Command | Purpose |
 | --- | --- |

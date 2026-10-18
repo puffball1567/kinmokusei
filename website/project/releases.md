@@ -36,6 +36,39 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.8 highlights
+
+Use matching v0.4.8 compiler and editor artifacts.
+
+- `keika update` verifies and installs official stable compiler releases on
+  Linux/macOS. `--check` reports availability without changes, including on
+  Windows; `--version vX.Y.Z` selects an exact stable release. Bundled license
+  files and older versioned installations are retained.
+- Safe scalar union bounds containing verified `string` now work at Go
+  `any`/interface boundaries. Open type parameters and unions with shared
+  mutable verified-text storage remain rejected (#127).
+- Structural object initializers preserve source order for calls and channel
+  receives without changing structural type identity or JSON names (#115).
+- Compiler diagnostics reject local bindings in the `__kinmokusei` runtime
+  namespace and constructor-factory shadowing before emitting Go (#113).
+- `keika deps list --help` shows usage before project-directory resolution;
+  unknown flags are rejected and `--` allows flag-like directory names (#93).
+
+### Migrating from v0.4.7
+
+Install v0.4.8 once using a release archive or `go install`: v0.4.7 does not
+yet provide `keika update`. Later Linux/macOS updates can use that command.
+Windows users can check availability but still replace the compiler manually.
+See [compiler installation and updates](../learn/installation#update-the-compiler).
+
+Recheck code that declares compiler-runtime names or shadows a generated
+constructor factory at a `new` expression. Such programs now receive an early
+diagnostic instead of invalid generated Go or runtime helper capture. The
+verified `string` / raw `bstring` split and null-safety boundaries are unchanged.
+Libraries relying on the scalar-union correction should declare
+`min-kinmokusei = "0.4.8"`. See the
+[v0.4.8 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.8).
+
 ## v0.4.7 highlights
 
 Use matching v0.4.7 compiler and editor artifacts. This patch publishes the
