@@ -106,11 +106,14 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
-v0.4.7 adds runtime-checked postfix `!`, stronger nullable Go assignments,
-method expressions, instantiated generic function values, source interface
-bounds, constant-expression array lengths, source maps and Go-source navigation.
-It also refreshes the documentation imagery with clockwork osmanthus artwork.
-See the [v0.4.7 release summary](website/project/releases.md#v047-highlights).
+v0.4.8 adds verified compiler self-update on Linux/macOS and fixes safe scalar
+union constraints at Go interface boundaries, structural object initialization
+order, generated-name collisions and `deps list` help handling.
+See the [v0.4.8 release summary](website/project/releases.md#v048-highlights).
+
+Method expressions, checked postfix `!`, instantiated generic function values,
+source maps, Go-source navigation and clockwork osmanthus artwork remain
+available from v0.4.7.
 
 v0.4.6 introduced typed borrowed/retained FFI arrays,
 multiple handle arguments, multiple call-scoped callbacks, callback array inputs

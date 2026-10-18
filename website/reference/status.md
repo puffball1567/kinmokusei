@@ -20,11 +20,15 @@ Since v0.4.1, [external Kinmokusei packages](/guide/external-packages) support t
 
 ## Release availability
 
-The current compiler/editor release is v0.4.7. It adds checked postfix `!`,
-more precise nullable Go assignments, method expressions, instantiated generic
-function values, source interface bounds, constant-expression array lengths,
-Go-source navigation and source maps. It also updates the documentation artwork.
-See [v0.4.7 highlights](../project/releases#v047-highlights) for upgrade notes.
+The current compiler/editor release is v0.4.8. It adds verified compiler
+self-update on Linux/macOS, accepts safe verified-text scalar unions at Go
+interface boundaries, and fixes structural object initializer order, generated
+runtime-name collisions and dependency-list help handling.
+See [v0.4.8 highlights](../project/releases#v048-highlights) for upgrade notes.
+
+The method expressions, checked postfix `!`, generic function values,
+Go-source navigation, source maps and clockwork osmanthus artwork released in
+v0.4.7 remain available.
 
 The verified UTF-8 `string` / raw `bstring` split and expanded incoming FFI
 surface introduced in v0.4.6 remain available. Review the
