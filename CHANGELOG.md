@@ -11,6 +11,8 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-10-18
+
 - Accept safe scalar union constraints containing verified `string` at Go
   interface boundaries, including named text types and forwarded generic
   calls. Inspect each constraint term without relaxing checks for open bounds
@@ -1020,7 +1022,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...HEAD
+[0.4.8]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/puffball1567/kinmokusei/compare/v0.4.4...v0.4.5
