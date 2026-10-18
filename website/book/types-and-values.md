@@ -279,6 +279,11 @@ function payload(): { message: string, count: int } {
 
 A structural object's field-name/type set determines identity; field order does not. It is a copied data value with deterministic generated Go field names and JSON tags. Structural objects do not declare methods and cannot be nullable directly.
 
+Field order does affect initialization: calls and channel receives in field
+initializers run in the written order, not alphabetical field-name order.
+For example, `{ zeta: first(), alpha: second() }` calls `first()` before
+`second()`, even though the generated Go type lists `alpha` before `zeta`.
+
 ## Native structs
 
 ```ts

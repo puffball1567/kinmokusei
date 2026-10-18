@@ -151,6 +151,17 @@ An inner lexical block may introduce a name that hides an outer declaration. The
 
 Use shadowing sparingly: it is useful for a narrowed or transformed value, but repeated names can hide mutation mistakes. Relative imports, Go aliases, top-level declarations, built-ins, and compiler-owned names have stricter collision checks and cannot silently shadow one another in module scope.
 
+Names beginning with `__kinmokusei` are reserved for compiler-owned bindings.
+This includes local variables, parameters, type parameters, case/iteration
+bindings and explicit import aliases, even when the associated runtime is not
+used yet. Choose a different name instead of depending on runtime internals.
+
+A local or type-parameter name must also not hide the generated constructor
+needed by a `new` expression. For example, rename a local `NewWidget` before
+calling `new Widget()` in the same scope. This also applies to `NewException`.
+These ordinary factory names remain usable in scopes that do not need that
+constructor.
+
 ## Module scope is not shared scope
 
 Two source files do not see each other's declarations merely because both are passed to the compiler. A file must import the names it uses:

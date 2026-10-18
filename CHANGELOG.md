@@ -11,6 +11,34 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-10-18
+
+- Accept safe scalar union constraints containing verified `string` at Go
+  interface boundaries, including named text types and forwarded generic
+  calls. Inspect each constraint term without relaxing checks for open bounds
+  or shared mutable verified-text storage (#127).
+
+- Add `keika update`, `--check` and explicit stable `--version` selection.
+  Verify official HTTPS downloads, SHA-256 checksums, archive paths, license
+  bundles and the candidate compiler version before switching the launcher on
+  Linux/macOS. Preserve existing compilers on failure and versioned symlink
+  layouts; reject downgrades, concurrent updates and existing target directories.
+  Windows supports availability checks and manual-download guidance.
+
+- Diagnose local bindings that occupy the `__kinmokusei` runtime namespace,
+  including exception/Task helpers, parameters, case bindings and type
+  parameters. Reject constructor-factory shadowing at `new` expressions before
+  Go emission, including `NewException` (#113).
+
+- Parse `keika deps list` flags before resolving the optional project directory.
+  Show command usage for help, reject unknown flags, and accept flag-like
+  directory names after `--` without changing the manifest or lock (#93).
+
+- Preserve source order for calls and channel receives in structural object
+  field initializers, including nested and contextually typed literals. Keep
+  generated field declarations canonical so structural type identity and JSON
+  names are unchanged (#115).
+
 ## [0.4.7] - 2026-10-17
 
 - Replace documentation hero artwork, logo, favicon and social sharing card
@@ -994,7 +1022,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...HEAD
+[0.4.8]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/puffball1567/kinmokusei/compare/v0.4.4...v0.4.5

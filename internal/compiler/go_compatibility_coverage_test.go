@@ -189,6 +189,8 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"emitted-name-hygiene.test":           {implementedGoCompatibilityContracts[4], implementedGoCompatibilityContracts[32]},
 	"target-constants.test":               {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[12]},
 	"behavior.test":                       {implementedGoCompatibilityContracts[0]},
+	"objectorder":                         {implementedGoCompatibilityContracts[0]},
+	"text-unions.test":                    {implementedGoCompatibilityContracts[0]},
 	"generated.test":                      {implementedGoCompatibilityContracts[1]},
 	"generated.class.test":                {implementedGoCompatibilityContracts[2]},
 	"generated.interface.test":            {implementedGoCompatibilityContracts[3]},

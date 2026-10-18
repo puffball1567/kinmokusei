@@ -360,6 +360,14 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				Names: []*goast.Ident{goast.NewIdent(goName(resolvedName))}, Type: goType(expr.ResolvedFieldTypes[i]),
 				Tag: &goast.BasicLit{Kind: token.STRING, Value: "`json:\"" + field.Name + "\"`"},
 			})
+		}
+		// Only the type's field list is canonicalized. Keyed initializers must
+		// retain source order so calls and receives are not reordered by name.
+		for i, field := range expr.Fields {
+			resolvedName := expr.ResolvedFieldNames[i]
+			if resolvedName == "" {
+				resolvedName = field.Name
+			}
 			value, err := generateExpression(field.Value)
 			if err != nil {
 				return nil, err

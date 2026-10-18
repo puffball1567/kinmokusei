@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`import go reflect from "reflect";constraint Scalar=~int|~string|~boolean;function same<T extends Scalar>(a:T,b:T):boolean{return reflect.DeepEqual(a,b);}`,
+	`import go reflect from "reflect";constraint Storage=~string[]|~int;function f<T extends Storage>(v:T):void{reflect.ValueOf(v);}`,
+	`function f():int{const __kinmokuseiReturn=5;try{return __kinmokuseiReturn;}finally{}}`,
+	`function f(NewException:int):Exception{return new Exception("message");}`,
+	`function mark(v:int):int{return v;}const o={zeta:mark(1),alpha:mark(2),mid:mark(3)};`,
 	`class C{public n:int=1;}function f(v:C|null):int{return v!.n;}`,
 	`function f(v:*[3]int|null):int{return len(v!)+cap(v!);}`,
 	`constraint P=~*int;function f<T extends P>(v:T|null):T{return v!;}`,

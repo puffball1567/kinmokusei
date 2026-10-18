@@ -31,6 +31,8 @@ func run(args []string) int {
 		return runCheck(args[1:])
 	case "new":
 		return runNew(args[1:])
+	case "update":
+		return runUpdate(args[1:])
 	case "build":
 		return runBuild(args[1:])
 	case "run":
@@ -147,7 +149,13 @@ func runDeps(args []string) int {
 		}
 		return 0
 	case "list":
-		root, ok := dependencyRoot(args[1:])
+		flags := flag.NewFlagSet("deps list", flag.ContinueOnError)
+		flags.SetOutput(os.Stderr)
+		flags.Usage = func() { fmt.Fprintln(os.Stderr, "Usage: keika deps list [project-directory]") }
+		if err := flags.Parse(args[1:]); err != nil {
+			return 2
+		}
+		root, ok := dependencyRoot(flags.Args())
 		if !ok {
 			return 2
 		}
@@ -883,5 +891,5 @@ func lockedTargetForSources(paths []string) (project.BuildTarget, bool, error) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s <version|new|check|build|run|emit-go|emit-c-abi|ffi|abi|interop|lsp|install|deps|target> [options] <source%s>...\n", product.CommandName, product.SourceExtension)
+	fmt.Fprintf(os.Stderr, "usage: %s <version|new|update|check|build|run|emit-go|emit-c-abi|ffi|abi|interop|lsp|install|deps|target> [options] <source%s>...\n", product.CommandName, product.SourceExtension)
 }
