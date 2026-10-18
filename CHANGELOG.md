@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Accept safe scalar union constraints containing verified `string` at Go
+  interface boundaries, including named text types and forwarded generic
+  calls. Inspect each constraint term without relaxing checks for open bounds
+  or shared mutable verified-text storage (#127).
+
 - Add `keika update`, `--check` and explicit stable `--version` selection.
   Verify official HTTPS downloads, SHA-256 checksums, archive paths, license
   bundles and the candidate compiler version before switching the launcher on

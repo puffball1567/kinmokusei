@@ -77,6 +77,23 @@ their instantiated owner arguments, including inherited interface contracts.
 Source structural interfaces also inspect compatible class implementations;
 method signatures alone do not prove the absence of hidden verified-text fields.
 
+A union bound is checked term by term, not by whether all terms share a single
+Go storage shape. For example, this wrapper accepts verified text as well as
+numbers and booleans:
+
+```ts
+import go reflect from "reflect";
+
+constraint Scalar = ~int | ~string | ~boolean;
+function same<T extends Scalar>(left: T, right: T): boolean {
+  return reflect.DeepEqual(left, right);
+}
+```
+
+An unconstrained `T`, a `comparable`-only bound, or a union containing shared
+verified-text storage such as `~string[] | ~int` is still rejected at this
+boundary. Adding a safe alternative does not make an unsafe term safe.
+
 For `encoding/json` decoder targets, use a raw DTO with `bstring` fields, then
 validate text before constructing the domain model. Native struct pointers with
 raw fields are supported too; see the
