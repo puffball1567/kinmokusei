@@ -15,6 +15,19 @@ func textContractMismatch(left, right Type) bool {
 // An opaque Go interface can be used to mutate pointers/containers or invoke
 // callbacks by reflection. Do not let it erase verified-text storage contracts.
 func (c *Checker) textEscapesThroughGoInterface(value Type) bool {
+	if parameter, ok := value.GoType.(*gotypes.TypeParam); value.Kind == TypeParameter && ok {
+		// A union need not have one core shape. Check each normalized concrete
+		// source term: immutable scalar copies are safe even when another term
+		// has different storage. Open bounds still conceal arbitrary storage.
+		if terms := c.collectionTerms(parameter); len(terms) != 0 {
+			for _, term := range terms {
+				if c.textEscapesThroughGoInterface(term) {
+					return true
+				}
+			}
+			return false
+		}
+	}
 	switch shape := c.constraintArgumentShape(value); shape.Kind {
 	case Array, Map, GoPointer, Class, Function, Interface, GoInterface, GoChannel, TypeParameter:
 		return c.containsVerifiedText(value, nil)
