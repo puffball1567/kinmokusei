@@ -96,6 +96,46 @@ go version
 
 An untagged compiler built from a checkout reports `devel`.
 
+## Update the compiler
+
+::: info Unreleased
+The following command is available in development builds after v0.4.7. Older
+compilers must first be updated using a release archive or `go install` above.
+:::
+
+```sh
+keika update --check
+keika update
+keika version
+```
+
+`--check` contacts the official release service without changing the installation.
+`update` selects the latest stable GitHub release; choose an exact stable tag
+with `keika update --version vX.Y.Z`. Downgrades are rejected. A `devel` build
+requires an explicit `--version` before replacing itself.
+
+Automatic replacement currently supports Linux and macOS. On Windows,
+`--check` works and the update command directs you to the release archive
+instead of attempting to replace the running executable.
+
+Downloads use HTTPS and the release's `SHA256SUMS`. The entire release bundle,
+including `LICENSE`, `THIRD_PARTY_NOTICES.md` and `licenses/go/`, is retained.
+The downloaded compiler must report the expected version before the launcher
+is switched. Failed downloads, validation or switching leave the existing
+compiler in place. Checksums detect download corruption; they are not an
+independent signature of the publisher.
+
+The command needs write access to the launcher's directory and release storage;
+it never elevates privileges or invokes a package manager. An existing
+`kinmokusei/<version>/keika` installation reached through a symlink keeps that
+layout and older versions. Other installations use `keika-releases/<version>/`
+beside the invoked launcher, replacing the launcher with a symlink. Existing
+release directories are never overwritten. A concurrent update or an existing
+target directory produces an error instead of risking another installation.
+
+Self-update does not change your Go toolchain, editor extension, project
+manifest or lock. Install the matching VSIX separately after updating.
+
 ## Install the editor extension
 
 The matching `.vsix` is attached to each GitHub release. In Visual Studio Code, run **Extensions: Install from VSIX**, select the downloaded file, and ensure `keika` is visible on the editor process's `PATH`.

@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add `keika update`, `--check` and explicit stable `--version` selection.
+  Verify official HTTPS downloads, SHA-256 checksums, archive paths, license
+  bundles and the candidate compiler version before switching the launcher on
+  Linux/macOS. Preserve existing compilers on failure and versioned symlink
+  layouts; reject downgrades, concurrent updates and existing target directories.
+  Windows supports availability checks and manual-download guidance.
+
 - Diagnose local bindings that occupy the `__kinmokusei` runtime namespace,
   including exception/Task helpers, parameters, case bindings and type
   parameters. Reject constructor-factory shadowing at `new` expressions before
