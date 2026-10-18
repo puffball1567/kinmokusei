@@ -27,6 +27,28 @@ keika <command> [options] [arguments]
 
 `run` rejects a locked non-host target before execution. Its positional arguments are all source inputs; it does not forward program arguments. Use `build`, then invoke the resulting executable directly, for programs that read `os.Args`. `build` uses the locked target and supports cross-building. Core compilation commands never resolve or update dependencies implicitly.
 
+## Compiler updates (unreleased)
+
+Available in development builds after v0.4.7:
+
+| Command | Purpose |
+| --- | --- |
+| `keika update [--version vX.Y.Z]` | Verify and install an official stable compiler release on Linux/macOS |
+| `keika update --check [--version vX.Y.Z]` | Report availability without modifying the installation |
+
+The default selection is the latest stable release. Drafts, pre-releases,
+invalid tags and explicit downgrades are rejected. An already current or newer
+compiler is left unchanged. Untagged development builds require an explicit
+version for replacement. Help exits with status 0, malformed arguments with 2,
+and download/validation/installation failures with 1.
+
+Only this explicit command contacts the compiler release service; normal
+compilation never checks for compiler updates. The updater verifies SHA-256,
+archive paths, bundled license materials and the downloaded compiler version
+before atomically switching the invoked launcher. It does not update the Go
+toolchain, VSIX or dependency graph. Windows supports checking but not automatic
+replacement yet. See [installation and update details](../learn/installation#update-the-compiler).
+
 ## Core input and output behavior
 
 | Command | Standard input/output | Files written |

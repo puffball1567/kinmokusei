@@ -16,6 +16,11 @@ import (
 
 func captureRun(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
+	return captureCommand(t, func() int { return run(args) })
+}
+
+func captureCommand(t *testing.T, command func() int) (int, string, string) {
+	t.Helper()
 	oldStdout, oldStderr := os.Stdout, os.Stderr
 	outputDirectory := t.TempDir()
 	stdoutWriter, err := os.Create(filepath.Join(outputDirectory, "stdout"))
@@ -27,7 +32,7 @@ func captureRun(t *testing.T, args ...string) (int, string, string) {
 		t.Fatal(err)
 	}
 	os.Stdout, os.Stderr = stdoutWriter, stderrWriter
-	status := run(args)
+	status := command()
 	os.Stdout, os.Stderr = oldStdout, oldStderr
 	if err = stdoutWriter.Close(); err != nil {
 		t.Fatal(err)
