@@ -256,6 +256,9 @@ func expressionCompletionType(program *ast.Program, expression ast.Expression) (
 	case *ast.GoCompositeLiteralExpr:
 		return expression.Type, true
 	case *ast.ClassUpcastExpr:
+		if expression.NullableInterface {
+			return expression.TargetType, expression.TargetType.IsSpecified()
+		}
 		return ast.TypeRef{Name: expression.TargetClass, Span: expression.Span}, true
 	case *ast.PropagateExpr:
 		return expression.ValueType, expression.ValueType.IsSpecified()

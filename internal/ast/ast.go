@@ -1076,15 +1076,16 @@ func (*NewExpr) expression()            {}
 func (e *NewExpr) GetSpan() source.Span { return e.Span }
 
 // ClassUpcastExpr is inserted by semantic analysis when a derived reference is
-// consumed as one of its base types. Code generation uses a nil-preserving
-// helper rather than selecting an embedded base field directly.
+// consumed as one of its base types, or a nullable class is boxed into a
+// nullable interface. Both conversions preserve nil and evaluate Value once.
 type ClassUpcastExpr struct {
-	Value       Expression
-	SourceClass string
-	TargetClass string
-	SourceType  TypeRef
-	TargetType  TypeRef
-	Span        source.Span
+	Value             Expression
+	SourceClass       string
+	TargetClass       string
+	SourceType        TypeRef
+	TargetType        TypeRef
+	NullableInterface bool
+	Span              source.Span
 }
 
 func (*ClassUpcastExpr) expression()            {}

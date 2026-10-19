@@ -254,7 +254,13 @@ nullable snapshots can establish a proof without another guard.
 
 <<< ../snippets/nullable-go.km{ts}
 
-This prints `missing`. An interface containing a typed nil pointer is not a nil
+This prints `missing`. Converting a source `Class | null` value to a compatible
+`Interface | null` preserves absence: a null class becomes a nil interface, not
+an interface boxing a typed nil pointer. This also applies to nullable Go
+interfaces, including `error | null`. The source expression is evaluated once,
+and a non-null class retains its reference identity and method dispatch.
+
+An existing raw Go interface containing a typed nil pointer is not a nil
 interface: its comparison with `null` is false, just as comparison with `nil`
 in Go would be. The guard checks the interface value, not hidden pointees or
 the behavior of the implementation's methods. Direct raw Go use retains Go's

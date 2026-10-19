@@ -124,6 +124,7 @@ func TestExpressionCompletionTypeFallbackMatrix(t *testing.T) {
 		{"new class", &ast.NewExpr{ClassName: "Box", ResolvedDeclaration: functionSpan}, "Box", true},
 		{"Go composite", &ast.GoCompositeLiteralExpr{Type: ast.TypeRef{Name: "Request", Go: true}}, "Request", true},
 		{"class upcast", &ast.ClassUpcastExpr{TargetClass: "Base"}, "Base", true},
+		{"nullable interface upcast", &ast.ClassUpcastExpr{NullableInterface: true, TargetType: ast.TypeRef{Name: "Reader", Nullable: true}}, "Reader", true},
 		{"propagated value", &ast.PropagateExpr{ValueType: box}, "Box", true},
 		{"non-null assertion", &ast.UnaryExpr{Operator: ast.NonNullOperator, AssertionType: box}, "Box", true},
 		{"unresolved non-null assertion", &ast.UnaryExpr{Operator: ast.NonNullOperator}, "", false},

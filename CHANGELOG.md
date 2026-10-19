@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve `null` when converting a nullable class reference to a nullable
+  source/Go interface, including `error | null`, generic interfaces, collection
+  elements and multiple assignment. Evaluate the source once; retain ordinary
+  Go interface typed-nil semantics for raw Go interface inputs (#116).
+
 ## [0.4.8] - 2026-10-18
 
 - Accept safe scalar union constraints containing verified `string` at Go

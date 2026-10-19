@@ -487,6 +487,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if expr.NullableInterface {
+			return generateNullableInterfaceUpcast(expr, value), nil
+		}
 		return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(upcastName(expr.SourceClass, expr.TargetClass)), expr.SourceType.GenericArguments), Args: []goast.Expr{value}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported expression %T", expr)
