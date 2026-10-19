@@ -175,6 +175,8 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 		case *ast.ClassUpcastExpr:
 			visitExpression(expression.Value)
+			visitType(&expression.SourceType)
+			visitType(&expression.TargetType)
 		}
 	}
 	visitStatement = func(statement ast.Statement) {
