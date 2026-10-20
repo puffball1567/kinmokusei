@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add explicit Linux/macOS compiler version selection with `keika use vX.Y.Z`,
+  including downgrades, checked local-cache reuse and `--offline`. Preserve a
+  separate `keika-use` management command so pre-management compilers cannot
+  strand the installation. Retain official download, checksum, archive, license
+  and executable-version checks; reject changed caches and unrelated files.
+
 ## [0.4.9] - 2026-10-21
 
 - Recognize audited, direct Go call contracts for `reflect.DeepEqual`, allowing

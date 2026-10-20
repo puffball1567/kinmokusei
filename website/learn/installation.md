@@ -137,6 +137,52 @@ target directory produces an error instead of risking another installation.
 Self-update does not change your Go toolchain, editor extension, project
 manifest or lock. Install the matching VSIX separately after updating.
 
+## Switch compiler versions
+
+::: info Development builds after v0.4.9
+The following commands are not included in v0.4.9. Build a subsequent development
+checkout to try them before the next release.
+:::
+
+On Linux/macOS, select an exact official stable version, including an older one:
+
+```sh
+keika use v0.4.8
+keika version
+keika-use v0.4.9
+keika version
+```
+
+The first selection saves an independent management executable and creates
+`keika-use` beside your existing launcher. Use this companion command to switch
+again if the selected older compiler has no `use` command. The success message
+prints its exact path. The selected compiler, not the manager, handles normal
+compilation; there is no wrapper process on build/run paths.
+Selecting a version from a newer compiler that supports `use` also refreshes
+the management snapshot. Invoking the independent companion reuses its existing
+snapshot; it is not a separate automatically updating package manager.
+
+An uncached version is fetched from the official Release, using the same HTTPS,
+checksum, archive, notice and executable-version checks as `update`. A complete
+local bundle recorded by the new updater is checked against its file-hash receipt
+and reused without network access. Force cache-only operation with:
+
+```sh
+keika-use --offline v0.4.8
+```
+
+An older installation without a receipt is adopted only after all bundle files
+match a freshly verified official archive. A missing cache under `--offline`, a
+changed bundle, a symlink inside the bundle, a target mismatch or an unrelated
+`keika-use` file is an error, not permission to overwrite it. Local receipts detect
+accidental changes; they are not publisher signatures or protection against a
+user with write access to the entire installation.
+
+Switching is explicit and atomic, shares the update lock, preserves old releases
+and bundled notices, and never changes `PATH`, the Go toolchain, the VSIX or
+project files. Only stable tags in `vX.Y.Z` form are accepted. `keika update`
+remains upgrade-only. Windows users select a release archive manually.
+
 ## Install the editor extension
 
 The matching `.vsix` is attached to each GitHub release. In Visual Studio Code, run **Extensions: Install from VSIX**, select the downloaded file, and ensure `keika` is visible on the editor process's `PATH`.
