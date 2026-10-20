@@ -11,6 +11,8 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-10-21
+
 - Recognize audited, direct Go call contracts for `reflect.DeepEqual`, allowing
   unconstrained native generics and verified-text containers without unsafe
   permission. Check resolved function identity and signature; preserve ordinary
@@ -1034,7 +1036,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...HEAD
+[0.4.9]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6

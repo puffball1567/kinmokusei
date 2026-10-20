@@ -20,11 +20,14 @@ Since v0.4.1, [external Kinmokusei packages](/guide/external-packages) support t
 
 ## Release availability
 
-The current compiler/editor release is v0.4.8. It adds verified compiler
-self-update on Linux/macOS, accepts safe verified-text scalar unions at Go
-interface boundaries, and fixes structural object initializer order, generated
-runtime-name collisions and dependency-list help handling.
-See [v0.4.8 highlights](../project/releases#v048-highlights) for upgrade notes.
+The current compiler/editor release is v0.4.9. It recognizes safe direct
+`reflect.DeepEqual` calls for unconstrained generic values and verified-text
+containers, and preserves null when converting nullable classes to nullable
+interfaces. Other opaque Go API protections remain in place.
+See [v0.4.9 highlights](../project/releases#v049-highlights) for upgrade notes.
+
+Compiler self-update and the scalar-union, object-order and generated-name
+corrections released in v0.4.8 remain available.
 
 The method expressions, checked postfix `!`, generic function values,
 Go-source navigation, source maps and clockwork osmanthus artwork released in
