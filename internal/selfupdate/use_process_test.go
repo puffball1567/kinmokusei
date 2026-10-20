@@ -25,23 +25,18 @@ func TestUseManagerSurvivesLegacyCompilerInRealProcess(t *testing.T) {
 	}
 	source := filepath.Join(root, "legacy.go")
 	if err := os.WriteFile(source, []byte(`package main
-import("fmt";"os";"path/filepath")
-func main(){if len(os.Args)!=2||os.Args[1]!="version"{fmt.Fprintln(os.Stderr,"legacy compiler has no use command");os.Exit(2)};p,_:=os.Executable();fmt.Println("keika v"+filepath.Base(filepath.Dir(p)))}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	legacy := filepath.Join(root, "legacy")
-	if output, err := exec.Command("go", "build", "-o", legacy, source).CombinedOutput(); err != nil {
-		t.Fatalf("legacy build: %v %s", err, output)
-	}
-	bytes, err := os.ReadFile(legacy)
-	if err != nil {
+import("fmt";"os")
+var version string
+func main(){if len(os.Args)!=2||os.Args[1]!="version"{fmt.Fprintln(os.Stderr,"legacy compiler has no use command");os.Exit(2)};fmt.Println("keika "+version)}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	for _, version := range []string{"0.4.8", "0.4.9"} {
 		directory := filepath.Join(bin, "keika-releases", version)
 		writeFixtureBundle(t, directory)
-		if err := os.WriteFile(filepath.Join(directory, "keika"), bytes, 0o755); err != nil {
-			t.Fatal(err)
+		// Real released compilers embed their version, independent of whether
+		// os.Executable reports an invoked symlink (Darwin) or its target (Linux).
+		if output, err := exec.Command("go", "build", "-ldflags=-X main.version=v"+version, "-o", filepath.Join(directory, "keika"), source).CombinedOutput(); err != nil {
+			t.Fatalf("legacy build: %v %s", err, output)
 		}
 		if err := writeReceipt(directory, "v"+version, runtime.GOOS, runtime.GOARCH); err != nil {
 			t.Fatal(err)
