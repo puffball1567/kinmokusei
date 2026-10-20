@@ -356,3 +356,32 @@ func TestUsePreservesVersionedLayout(t *testing.T) {
 		t.Fatalf("selected=%s err=%v", selected, err)
 	}
 }
+
+func TestUseThroughSymlinkedLauncherParent(t *testing.T) {
+	requireSwitchPlatform(t)
+	t.Parallel()
+	u, _, _, _ := updaterFixture(t)
+	options, launcher, _ := installedFixture(t, false)
+	alias := filepath.Join(t.TempDir(), "bin-alias")
+	if err := os.Symlink(filepath.Dir(launcher), alias); err != nil {
+		t.Fatal(err)
+	}
+	options.CommandPath = filepath.Join(alias, filepath.Base(launcher))
+	options.Version = "v0.4.8"
+	result, err := u.use(context.Background(), UseOptions{Options: options})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ManagerPath != filepath.Join(filepath.Dir(launcher), "keika-use") {
+		t.Fatalf("manager path is not canonical: %s", result.ManagerPath)
+	}
+	manager, err := filepath.EvalSymlinks(result.ManagerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	options.CommandPath = filepath.Join(alias, "keika-use")
+	options.ExecutablePath = manager
+	if _, err := u.use(context.Background(), UseOptions{Options: options, Offline: true}); err != nil {
+		t.Fatal(err)
+	}
+}
