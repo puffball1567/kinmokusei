@@ -2,6 +2,7 @@ package sema
 
 import (
 	goast "go/ast"
+	"go/importer"
 	goparser "go/parser"
 	"go/token"
 	gotypes "go/types"
@@ -65,6 +66,22 @@ func TestBorrowedGoCallRejectsUnresolvedStorage(t *testing.T) {
 	for _, index := range []int{-1, 2} {
 		if c.borrowedGoCallArgumentAssignable(call, index, expected, builtins["string"]) {
 			t.Fatal("parameter outside the checked contract accepted")
+		}
+	}
+}
+
+func TestNamedGoCallContractCacheIsBounded(t *testing.T) {
+	pkg, err := importer.Default().Import("reflect")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Checker{}
+	imported := goNamedImport{pack: &goPackageSymbol{path: "reflect", packageInfo: pkg, declaration: &ast.ImportDecl{Alias: "reflect"}}, name: "DeepEqual"}
+	identifier := &ast.IdentifierExpr{Name: "equal"}
+	for i := 0; i < 10; i++ {
+		c.checkNamedGoIdentifier(identifier, imported)
+		if len(c.goCallContracts) != 1 {
+			t.Fatalf("flow pass %d retained synthetic member contracts: %d", i, len(c.goCallContracts))
 		}
 	}
 }

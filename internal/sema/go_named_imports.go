@@ -93,6 +93,7 @@ func (c *Checker) checkNamedGoIdentifier(identifier *ast.IdentifierExpr, importe
 	if contract, known := c.goCallContracts[member]; known {
 		c.goCallContracts[identifier] = contract
 	}
+	delete(c.goCallContracts, member) // Only the stable identifier owns this synthetic member's contract.
 	identifier.GoMember = member
 	identifier.ResolvedDeclaration = imported.span
 	if value, ok := c.constantValues[member]; ok {
