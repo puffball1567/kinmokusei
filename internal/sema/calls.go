@@ -8,6 +8,9 @@ import (
 )
 
 func (c *Checker) checkCall(expr *ast.CallExpr) Type {
+	// Re-resolve direct callee identity on each flow-analysis pass. Contracts
+	// are not callable types and never follow mutable/unknown function values.
+	delete(c.goCallContracts, expr.Callee)
 	defer func() {
 		if !expr.Conversion && expr.Builtin == ast.NotBuiltinCall {
 			c.recordMemberWrite(expr.Span)
@@ -272,7 +275,9 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			} else {
 				actual = c.checkExpressionExpectedSlot(&expr.Arguments[i], expected)
 			}
-			c.requireAssignable(expected, actual, arg.GetSpan())
+			if !c.borrowedGoCallArgumentAssignable(expr, i, expected, actual) {
+				c.requireAssignable(expected, actual, arg.GetSpan())
+			}
 		} else if checkedArgument == nil {
 			c.checkExpression(arg)
 		}

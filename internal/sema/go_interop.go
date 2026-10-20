@@ -87,6 +87,7 @@ func (c *Checker) lookupGoPackage(path, alias string) *goPackageSymbol {
 }
 
 func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageSymbol) Type {
+	delete(c.goCallContracts, expression)
 	expression.Go = true
 	if imported == nil || imported.packageInfo == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -116,6 +117,7 @@ func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageS
 		}
 	case *gotypes.Func:
 		result, err = kinmokuseiFunctionFromGo(object.Type().(*gotypes.Signature))
+		c.recordGoCallContract(expression, object)
 	case *gotypes.Var:
 		result, err = kinmokuseiTypeFromGo(object.Type())
 		expression.Addressable = true

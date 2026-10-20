@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Recognize audited, direct Go call contracts for `reflect.DeepEqual`, allowing
+  unconstrained native generics and verified-text containers without unsafe
+  permission. Check resolved function identity and signature; preserve ordinary
+  restrictions for other opaque APIs, unknown function values, nested calls,
+  JSON decoding and interface assertions. Support namespace/named import aliases,
+  multiple-result arguments and Task/defer calls (#131).
+
 - Preserve `null` when converting a nullable class reference to a nullable
   source/Go interface, including `error | null`, generic interfaces, collection
   elements and multiple assignment. Evaluate the source once; retain ordinary

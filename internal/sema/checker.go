@@ -34,6 +34,7 @@ type Checker struct {
 	allowUnsafeGo              bool
 	goSizes                    gotypes.Sizes
 	goFieldReceivers           map[*ast.MemberExpr]gotypes.Type
+	goCallContracts            map[ast.Expression]goCallContract
 	goReferences               map[source.Span]ast.GoReference
 	goTypeExpressions          map[source.Span]ast.TypeRef
 	goTypeExpressionMethods    map[source.Span]map[string]ast.CallableSignature

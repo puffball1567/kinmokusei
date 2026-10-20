@@ -15,6 +15,8 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`import go {DeepEqual as eq} from "reflect";function same<T>(a:T,b:T):boolean{return eq(a,b);}`,
+	`import go r from "reflect";function f(v:string[]):boolean{return r.DeepEqual(r.ValueOf(v),r.ValueOf(v));}`,
 	`interface I{function read():int;}class C implements I{public function read():int{return 1;}}function f(v:C|null):I|null{return v;}`,
 	`interface I{function read():int;}class C implements I{public function read():int{return 1;}}function f(v:C|null):void{let target:I|null=null;let n=0;const pair=():(C|null,int)=>{return v,1;};[target,n]=pair();}`,
 	`import go reflect from "reflect";constraint Scalar=~int|~string|~boolean;function same<T extends Scalar>(a:T,b:T):boolean{return reflect.DeepEqual(a,b);}`,
