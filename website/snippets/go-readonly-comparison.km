@@ -1,0 +1,13 @@
+import go fmt from "fmt";
+import go reflect from "reflect";
+
+function same<T>(left: T, right: T): boolean {
+  return reflect.DeepEqual(left, right);
+}
+
+function main(): void {
+  const left = ["金木犀", "雪"];
+  const right = ["金木犀", "雪"];
+  const different = ["金木犀", "雨"];
+  fmt.Println(same(left, right), same(left, different));
+}

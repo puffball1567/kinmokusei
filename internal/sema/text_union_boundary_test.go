@@ -39,7 +39,7 @@ func TestUTF8UnionGoInterfaceBoundary(t *testing.T) {
 				test.declarations += "constraint Bound=" + test.bound + ";"
 			}
 			diagnostics := checkSource(t, `import go reflect from "reflect";`+test.declarations+
-				`function same<T`+bound+`>(left:T,right:T):boolean{return reflect.DeepEqual(left,right);}`)
+				`function same<T`+bound+`>(left:T,right:T):boolean{reflect.ValueOf(left);reflect.ValueOf(right);return true;}`)
 			if !test.unsafe {
 				if len(diagnostics) != 0 {
 					t.Fatalf("safe values rejected: %v", diagnostics)

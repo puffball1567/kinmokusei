@@ -11,6 +11,20 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-10-21
+
+- Recognize audited, direct Go call contracts for `reflect.DeepEqual`, allowing
+  unconstrained native generics and verified-text containers without unsafe
+  permission. Check resolved function identity and signature; preserve ordinary
+  restrictions for other opaque APIs, unknown function values, nested calls,
+  JSON decoding and interface assertions. Support namespace/named import aliases,
+  multiple-result arguments and Task/defer calls (#131).
+
+- Preserve `null` when converting a nullable class reference to a nullable
+  source/Go interface, including `error | null`, generic interfaces, collection
+  elements and multiple assignment. Evaluate the source once; retain ordinary
+  Go interface typed-nil semantics for raw Go interface inputs (#116).
+
 ## [0.4.8] - 2026-10-18
 
 - Accept safe scalar union constraints containing verified `string` at Go
@@ -1022,7 +1036,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...HEAD
+[0.4.9]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/puffball1567/kinmokusei/compare/v0.4.5...v0.4.6

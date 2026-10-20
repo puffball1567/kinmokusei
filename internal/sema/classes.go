@@ -490,6 +490,19 @@ func (c *Checker) applyClassUpcast(slot *ast.Expression, expected, actual Type) 
 	if actualClass.Kind == Nullable && actualClass.Element != nil {
 		actualClass = *actualClass.Element
 	}
+	if expected.Kind == Nullable && actual.Kind == Nullable && actualClass.Kind == Class &&
+		(targetClass.Kind == Interface || targetClass.Kind != TypeParameter && underlyingGoInterface(targetClass.GoType) != nil) {
+		// A Go assignment boxes a nil class pointer into a non-nil interface.
+		// Preserve source null at this explicit nullable boundary instead. Raw
+		// Go interface inputs retain their original dynamic type/nil semantics.
+		span := (*slot).GetSpan()
+		*slot = &ast.ClassUpcastExpr{
+			Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name,
+			SourceType: typeRefFromType(actualClass, span), TargetType: typeRefFromType(expected, span),
+			NullableInterface: true, Span: span,
+		}
+		return
+	}
 	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name {
 		if ancestor, ok := c.classAncestorType(actualClass, targetClass.Name); ok && exactType(targetClass, ancestor) {
 			*slot = &ast.ClassUpcastExpr{
