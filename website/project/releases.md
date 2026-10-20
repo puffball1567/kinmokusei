@@ -36,6 +36,35 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.9 highlights
+
+Use matching v0.4.9 compiler and editor artifacts.
+
+- An audited direct-call contract for `reflect.DeepEqual` permits unconstrained
+  native generic values, verified-text containers, nested records and nullable
+  classes without unsafe permission. Namespace/named aliases, multiple-result
+  arguments and Task/defer calls retain ordinary Go comparison behavior (#131).
+- Nullable source classes converted to nullable source/Go interfaces preserve
+  null instead of boxing a typed nil pointer. This includes `error | null`,
+  generic owners, linked modules and collection elements. Non-null references
+  and dispatch are preserved, and the source is evaluated once (#116).
+
+### Migrating from v0.4.8
+
+Linux/macOS installations with write access can use `keika update`; Windows
+users still replace the compiler manually. Install the matching VSIX separately.
+Libraries using the comparison contract or null-conversion correction should
+declare `min-kinmokusei = "0.4.9"`.
+
+The comparison permission belongs to the resolved package function and exact
+signature, not to similarly named methods or arbitrary function values. Keep
+the direct `reflect.DeepEqual` call inside a source wrapper. `reflect.ValueOf`,
+JSON, formatting and interface assertions retain their existing checks.
+Existing raw Go interfaces containing typed nil retain Go semantics; this fix
+does not complete the broader null/zero-value audit. See
+[read-only comparison](../guide/go-interop#read-only-comparison) and the
+[v0.4.9 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.9).
+
 ## v0.4.8 highlights
 
 Use matching v0.4.8 compiler and editor artifacts.

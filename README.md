@@ -106,10 +106,13 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
-v0.4.8 adds verified compiler self-update on Linux/macOS and fixes safe scalar
-union constraints at Go interface boundaries, structural object initialization
-order, generated-name collisions and `deps list` help handling.
-See the [v0.4.8 release summary](website/project/releases.md#v048-highlights).
+v0.4.9 supports safe direct `reflect.DeepEqual` calls with unconstrained generics
+and verified-text containers, and fixes null preservation when converting a
+nullable class to a nullable interface. Other opaque Go API checks remain in place.
+See the [v0.4.9 release summary](website/project/releases.md#v049-highlights).
+
+Compiler self-update and the scalar-union, initialization-order, generated-name
+and dependency-list corrections released in v0.4.8 remain available.
 
 Method expressions, checked postfix `!`, instantiated generic function values,
 source maps, Go-source navigation and clockwork osmanthus artwork remain
