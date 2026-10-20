@@ -192,6 +192,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"objectorder":                         {implementedGoCompatibilityContracts[0]},
 	"text-unions.test":                    {implementedGoCompatibilityContracts[0]},
 	"nullable-interfaces.test":            {implementedGoCompatibilityContracts[0]},
+	"readonly-comparison.test":            {implementedGoCompatibilityContracts[0]},
 	"generated.test":                      {implementedGoCompatibilityContracts[1]},
 	"generated.class.test":                {implementedGoCompatibilityContracts[2]},
 	"generated.interface.test":            {implementedGoCompatibilityContracts[3]},

@@ -85,6 +85,19 @@ external Go callers must honor the declared Kinmokusei contract. Hand-written
 Go mutation and explicitly unsafe memory operations are outside the checked
 source guarantee.
 
+## Read-only comparison
+
+Use `reflect.DeepEqual` for generic assertions and comparisons of verified-text
+collections. Its direct-call safety contract is recognized since v0.4.9:
+
+<<< ../snippets/go-readonly-comparison.km{ts}
+
+This prints `true false`. No unsafe permission or finite scalar constraint is
+required. Namespace and named import aliases work too. Keep the direct call
+inside your source wrapper: storing the Go function in an unclassified function
+value does not carry this contract. Other reflective, formatting and JSON APIs
+retain their ordinary checks; see the [exact contract](../reference/go-interop).
+
 ## What the boundary preserves
 
 The compiler reads actual Go export/type data and preserves:

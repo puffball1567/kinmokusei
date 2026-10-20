@@ -89,6 +89,10 @@ func (c *Checker) checkNamedGoIdentifier(identifier *ast.IdentifierExpr, importe
 		Name:   imported.name, NameSpan: identifier.Span, Span: identifier.Span,
 	}
 	result := c.checkGoMember(member, imported.pack)
+	delete(c.goCallContracts, identifier)
+	if contract, known := c.goCallContracts[member]; known {
+		c.goCallContracts[identifier] = contract
+	}
 	identifier.GoMember = member
 	identifier.ResolvedDeclaration = imported.span
 	if value, ok := c.constantValues[member]; ok {

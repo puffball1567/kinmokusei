@@ -27,7 +27,7 @@ func (c *Checker) checkMultipleCallArguments(expr *ast.CallExpr, name string, ca
 		expected := callable.Parameters[index]
 		// The Go call forwards all values directly; per-slot source coercions
 		// would need explicit bindings before this call.
-		if !c.isAssignable(expected, actual) || !assignable(expected, actual) {
+		if !c.borrowedGoCallArgumentAssignable(expr, i, expected, actual) && (!c.isAssignable(expected, actual) || !assignable(expected, actual)) {
 			c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot pass result %d of type %s as %s; destructure values requiring conversion", i+1, actual.String(), expected.String()))
 		}
 	}

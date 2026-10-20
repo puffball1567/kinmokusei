@@ -67,7 +67,7 @@ No implicit bridge turns `(T, error)` into a hidden wrapper, erases pointer iden
 
 Pointers to nominal native structs keep their source identity in matching source
 signatures and pointer receiver methods. Passing shared verified-text storage
-through Go `any`/interfaces is rejected: reflection could write unchecked
+through unclassified Go `any`/interfaces is rejected: reflection could write unchecked
 bytes or invoke a callback with raw input. This includes `string[]`, pointers to
 text-bearing records, classes and hidden implementation fields; generic storage
 must prove the same property for its complete bound. Go containers/callbacks use
@@ -85,14 +85,30 @@ numbers and booleans:
 import go reflect from "reflect";
 
 constraint Scalar = ~int | ~string | ~boolean;
-function same<T extends Scalar>(left: T, right: T): boolean {
-  return reflect.DeepEqual(left, right);
+function inspect<T extends Scalar>(value: T): reflect.Value {
+  return reflect.ValueOf(value);
 }
 ```
 
 An unconstrained `T`, a `comparable`-only bound, or a union containing shared
 verified-text storage such as `~string[] | ~int` is still rejected at this
 boundary. Adding a safe alternative does not make an unsafe term safe.
+
+The compiler recognizes an audited borrowed-input contract for direct calls to
+Go's `reflect.DeepEqual`. It observes inputs without writing reachable storage,
+retaining references after return, invoking input methods/callbacks, or returning
+a mutation capability. This permits unconstrained native generic values,
+verified-text containers, records and nullable class values. Comparison retains
+Go semantics, including typed nil, nil versus empty slices, cycles, functions
+and NaN; no data-copy adapter is inserted.
+
+The contract requires the resolved package function and its exact signature,
+not its source spelling. Namespace and named import aliases are supported.
+Unknown function values, same-named source functions/methods, `reflect.ValueOf`,
+JSON and formatting APIs receive no exemption. Nested expressions still undergo
+all ordinary checks. Use a source wrapper that directly calls `DeepEqual` rather
+than storing it in an unclassified function value. See the
+[comparison example](../guide/go-interop#read-only-comparison).
 
 For `encoding/json` decoder targets, use a raw DTO with `bstring` fields, then
 validate text before constructing the domain model. Native struct pointers with
