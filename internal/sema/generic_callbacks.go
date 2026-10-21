@@ -29,16 +29,46 @@ func genericArgumentParameter(callable Type, call *ast.CallExpr, index int) Type
 func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Type, bindings nativeTypeBindings) []Type {
 	actuals := make([]Type, len(call.Arguments))
 	pending := make(map[int]*ast.ArrowExpr)
+	// Keep contextual construction separate from authoritative inference below.
+	// Explicit arguments and preceding typed values can fix a fresh literal's
+	// storage, but must not default an earlier constant or recheck an expression.
+	contexts := make(nativeTypeBindings, len(bindings))
+	for parameter, value := range bindings {
+		contexts[parameter] = value
+	}
 	for i, argument := range call.Arguments {
 		if arrow, ok := argument.(*ast.ArrowExpr); ok {
 			pending[i] = arrow
 		} else {
-			actual := c.checkExpression(argument)
+			formal := genericArgumentParameter(callable, call, i)
+			var actual Type
+			switch argument.(type) {
+			case *ast.ArrayLiteralExpr, *ast.ObjectLiteralExpr:
+				c.inferNativeConstraintArguments(callable.TypeParameters, contexts)
+				context := substituteNativeTypeParameters(formal, contexts)
+				if !containsUnboundCallbackType(context, contexts) {
+					actual = c.checkExpressionExpectedSlot(&call.Arguments[i], context)
+				} else {
+					actual = c.checkExpression(argument)
+				}
+			default:
+				actual = c.checkExpression(argument)
+			}
 			_, isCall := argument.(*ast.CallExpr)
 			if actual.Kind == MultiValue && isCall && len(call.Arguments) == 1 && !call.Expanded {
 				actuals[i] = actual
 			} else {
 				actuals[i] = c.singleValue(actual, argument.GetSpan())
+				// Untyped constants must still wait for typed arguments/callbacks;
+				// choosing a contextual type must not change numeric precedence.
+				values := []Type{actuals[i]}
+				constant := c.genericNumericArguments([]ast.Expression{argument}, values)[0]
+				if formal.Kind == TypeParameter && untypedNumericRank(constant) != 0 {
+					if _, own := contexts[formal.GoType]; own {
+						continue
+					}
+				}
+				_ = c.inferNativeTypeArguments(formal, actuals[i], contexts)
 			}
 		}
 	}

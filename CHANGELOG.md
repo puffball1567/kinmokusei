@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Use explicit generic arguments and preceding typed arguments to contextualize
+  fresh array/object literals, including nested, fixed-array and variadic forms.
+  Preserve existing shared-text storage restrictions, constant/callback inference
+  and argument evaluation order (#137).
+
 - Add explicit Linux/macOS compiler version selection with `keika use vX.Y.Z`,
   including downgrades, checked local-cache reuse and `--offline`. Preserve a
   separate `keika-use` management command so pre-management compilers cannot
