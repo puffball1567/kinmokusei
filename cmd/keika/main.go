@@ -16,7 +16,12 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/project"
 )
 
-func main() { os.Exit(run(os.Args[1:])) }
+func main() {
+	if filepath.Base(os.Args[0]) == "keika-use" {
+		os.Exit(runUse(os.Args[1:]))
+	}
+	os.Exit(run(os.Args[1:]))
+}
 
 func run(args []string) int {
 	if len(args) == 0 {
@@ -33,6 +38,8 @@ func run(args []string) int {
 		return runNew(args[1:])
 	case "update":
 		return runUpdate(args[1:])
+	case "use":
+		return runUse(args[1:])
 	case "build":
 		return runBuild(args[1:])
 	case "run":
@@ -891,5 +898,5 @@ func lockedTargetForSources(paths []string) (project.BuildTarget, bool, error) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s <version|new|update|check|build|run|emit-go|emit-c-abi|ffi|abi|interop|lsp|install|deps|target> [options] <source%s>...\n", product.CommandName, product.SourceExtension)
+	fmt.Fprintf(os.Stderr, "usage: %s <version|new|update|use|check|build|run|emit-go|emit-c-abi|ffi|abi|interop|lsp|install|deps|target> [options] <source%s>...\n", product.CommandName, product.SourceExtension)
 }

@@ -88,6 +88,21 @@ func (u updater) install(ctx context.Context, options Options, version, base str
 	// Exclusively reserve a new version directory. Never overwrite a user's
 	// existing installation, symlink or partially managed release.
 	if err := os.Mkdir(final, 0o755); err != nil {
+		if os.IsExist(err) {
+			info, statErr := os.Lstat(final)
+			if statErr == nil && info.IsDir() {
+				if cacheErr := validateReceipt(final, version, u.goos, u.goarch); cacheErr == nil {
+					installed := filepath.Join(final, "keika")
+					if err := u.verify(ctx, installed, version); err != nil {
+						return "", err
+					}
+					if err := u.switchLauncher(ctx, launcher, installed, original); err != nil {
+						return "", err
+					}
+					return installed, nil
+				}
+			}
+		}
 		return "", fmt.Errorf("cannot reserve release directory %s: %w", final, err)
 	}
 	committed := false
@@ -101,6 +116,28 @@ func (u updater) install(ctx context.Context, options Options, version, base str
 		return "", err
 	}
 	defer os.RemoveAll(staging)
+	bundle, err := u.downloadBundle(ctx, staging, version, base, archive, sums)
+	if err != nil {
+		return "", err
+	}
+	entries, err := os.ReadDir(bundle)
+	if err != nil {
+		return "", err
+	}
+	for _, entry := range entries {
+		if err := u.rename(filepath.Join(bundle, entry.Name()), filepath.Join(final, entry.Name())); err != nil {
+			return "", err
+		}
+	}
+	installed := filepath.Join(final, "keika")
+	if err := u.switchLauncher(ctx, launcher, installed, original); err != nil {
+		return "", err
+	}
+	committed = true
+	return installed, nil
+}
+
+func (u updater) downloadBundle(ctx context.Context, staging, version, base string, archive, sums asset) (string, error) {
 	var contents strings.Builder
 	if err := u.download(ctx, sums.URL, &contents, maxMetadataBytes); err != nil {
 		return "", err
@@ -134,38 +171,34 @@ func (u updater) install(ctx context.Context, options Options, version, base str
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	entries, err := os.ReadDir(bundle)
-	if err != nil {
+	if err := writeReceipt(bundle, version, u.goos, u.goarch); err != nil {
 		return "", err
 	}
-	for _, entry := range entries {
-		if err := u.rename(filepath.Join(bundle, entry.Name()), filepath.Join(final, entry.Name())); err != nil {
-			return "", err
-		}
-	}
-	installed := filepath.Join(final, "keika")
+	return bundle, nil
+}
+
+func (u updater) switchLauncher(ctx context.Context, launcher, installed string, original os.FileInfo) error {
 	switchDirectory, err := os.MkdirTemp(filepath.Dir(launcher), ".keika-switch-")
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer os.RemoveAll(switchDirectory)
 	link := filepath.Join(switchDirectory, "keika")
 	if err := os.Symlink(installed, link); err != nil {
-		return "", err
+		return err
 	}
 	now, err := os.Lstat(launcher)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if !os.SameFile(original, now) || original.Size() != now.Size() || !original.ModTime().Equal(now.ModTime()) {
-		return "", fmt.Errorf("compiler launcher changed during the update")
+		return fmt.Errorf("compiler launcher changed during the update")
 	}
 	if err := ctx.Err(); err != nil {
-		return "", err
+		return err
 	}
 	if err := u.rename(link, launcher); err != nil {
-		return "", fmt.Errorf("cannot switch compiler launcher (check permissions): %w", err)
+		return fmt.Errorf("cannot switch compiler launcher (check permissions): %w", err)
 	}
-	committed = true
-	return installed, nil
+	return nil
 }

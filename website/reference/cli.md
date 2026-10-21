@@ -42,12 +42,27 @@ compiler is left unchanged. Untagged development builds require an explicit
 version for replacement. Help exits with status 0, malformed arguments with 2,
 and download/validation/installation failures with 1.
 
-Only this explicit command contacts the compiler release service; normal
+Only explicit compiler-management commands contact the release service; normal
 compilation never checks for compiler updates. The updater verifies SHA-256,
 archive paths, bundled license materials and the downloaded compiler version
 before atomically switching the invoked launcher. It does not update the Go
 toolchain, VSIX or dependency graph. Windows supports checking but not automatic
 replacement yet. See [installation and update details](../learn/installation#update-the-compiler).
+
+### Version selection (development after v0.4.9)
+
+| Command | Purpose |
+| --- | --- |
+| `keika use [--offline] vX.Y.Z` | Select an exact stable compiler, allowing downgrades |
+| `keika-use [--offline] vX.Y.Z` | Select again independently of the active compiler's command support |
+
+These commands are not included in v0.4.9. Automatic selection supports
+Linux/macOS. Verified cache hits require no network; `--offline` rejects a
+cache miss. Non-cached selections use official Release verification. Existing
+unmanaged bundles must match the entire official archive before adoption.
+Changed managed bundles, invalid layouts and unrelated companion files are
+rejected without replacement. `update` still rejects explicit downgrades.
+See [switching versions](../learn/installation#switch-compiler-versions).
 
 ## Core input and output behavior
 
