@@ -33,6 +33,10 @@ func main(){if len(os.Args)!=2||os.Args[1]!="version"{fmt.Fprintln(os.Stderr,"le
 	for _, version := range []string{"0.4.8", "0.4.9"} {
 		directory := filepath.Join(bin, "keika-releases", version)
 		writeFixtureBundle(t, directory)
+		// Newer Go toolchains refuse to replace a non-object placeholder.
+		if err := os.Remove(filepath.Join(directory, "keika")); err != nil {
+			t.Fatal(err)
+		}
 		// Real released compilers embed their version, independent of whether
 		// os.Executable reports an invoked symlink (Darwin) or its target (Linux).
 		if output, err := exec.Command("go", "build", "-ldflags=-X main.version=v"+version, "-o", filepath.Join(directory, "keika"), source).CombinedOutput(); err != nil {
