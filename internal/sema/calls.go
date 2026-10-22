@@ -40,7 +40,14 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			return c.checkGoChannelClose(expr)
 		}
 		if !c.hasCallBinding(name.Name, name.Span) {
+			for _, definition := range ast.ObservationBuiltins() {
+				if name.Name == definition.Name {
+					return c.checkObservationBuiltin(expr, definition)
+				}
+			}
 			switch name.Name {
+			case "jsonSnapshot":
+				return c.checkJSONSnapshotBuiltin(expr)
 			case "decoratorValue":
 				return c.checkDecoratorValueBuiltin(expr, false)
 			case "decoratorValueAs":

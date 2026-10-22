@@ -104,11 +104,28 @@ and NaN; no data-copy adapter is inserted.
 
 The contract requires the resolved package function and its exact signature,
 not its source spelling. Namespace and named import aliases are supported.
-Unknown function values, same-named source functions/methods, `reflect.ValueOf`,
-JSON and formatting APIs receive no exemption. Nested expressions still undergo
+Unknown function values, same-named source functions/methods, `reflect.ValueOf`
+and unclassified APIs receive no exemption. Nested expressions still undergo
 all ordinary checks. Use a source wrapper that directly calls `DeepEqual` rather
 than storing it in an unclassified function value. See the
 [comparison example](../guide/go-interop#read-only-comparison).
+
+Development builds separately recognize direct `fmt.Sprintf(string, ...any)
+calls. Unlike `DeepEqual`, this audited operation invokes formatting callbacks;
+ordinary effect invalidation remains enabled. It returns only raw text and
+does not expose the arguments through its result. The exception does not extend
+to `fmt.Errorf`, whose `%w` result can retain an error, or arbitrary writers.
+Identity/signature checks and rejection of unsafe nested expressions remain
+unchanged.
+
+For generic reflection, compiler-owned `inspect*` operations expose only scalar
+observations. For generic JSON encoding, `jsonSnapshot` returns bytes and a
+text-only error instead of an error containing a writable reflection value.
+Neither feature grants a general `any` escape or weakens decoding/assertion
+checks. Open-ended error extraction uses concrete typed callbacks rather than
+unproven `*T` assertions or writable Go calls. These development APIs and the
+required library adaptations are documented together in
+[safe generic Go adapters](../guide/safe-go-adapters).
 
 For `encoding/json` decoder targets, use a raw DTO with `bstring` fields, then
 validate text before constructing the domain model. Native struct pointers with

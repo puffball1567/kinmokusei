@@ -95,8 +95,10 @@ collections. Its direct-call safety contract is recognized since v0.4.9:
 This prints `true false`. No unsafe permission or finite scalar constraint is
 required. Namespace and named import aliases work too. Keep the direct call
 inside your source wrapper: storing the Go function in an unclassified function
-value does not carry this contract. Other reflective, formatting and JSON APIs
-retain their ordinary checks; see the [exact contract](../reference/go-interop).
+value does not carry this contract. Other APIs retain their ordinary checks
+unless explicitly covered by a separate audited contract. Development builds
+also provide [safe observations, deferred formatting, JSON snapshots and typed
+error adapters](./safe-go-adapters); see the [exact contracts](../reference/go-interop).
 
 ## What the boundary preserves
 
