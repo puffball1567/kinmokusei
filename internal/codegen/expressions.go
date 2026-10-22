@@ -78,6 +78,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	case *kinmokuseiAST.PropagateExpr:
 		return nil, fmt.Errorf("result propagation was not lowered from its statement context")
 	case *kinmokuseiAST.CallExpr:
+		if value, handled, err := generateObservationCall(expr); handled {
+			return value, err
+		}
 		if expr.Builtin == kinmokuseiAST.DecodeUTF8Call {
 			if expr.ConversionType == nil || len(expr.Arguments) != 1 {
 				return nil, fmt.Errorf("UTF-8 conversion has invalid checked shape")

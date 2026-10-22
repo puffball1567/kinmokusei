@@ -330,7 +330,16 @@ func (s *Server) sourceSignature(program *ast.Program, path string, context call
 }
 
 func builtinSignature(name string) (ast.CallableSignature, bool) {
+	for _, definition := range ast.ObservationBuiltins() {
+		if name == definition.Name {
+			if definition.Arity == 2 {
+				return ast.CallableSignature{ParameterNames: []string{"a", "b"}, ParameterTypes: []string{"A", "B"}, Result: definition.Result}, true
+			}
+			return ast.CallableSignature{ParameterNames: []string{"value"}, ParameterTypes: []string{"T"}, Result: definition.Result}, true
+		}
+	}
 	signatures := map[string]ast.CallableSignature{
+		"jsonSnapshot":   {ParameterNames: []string{"value", "prefix?", "indent?"}, ParameterTypes: []string{"T", "bstring", "bstring"}, Result: "Result<byte[]>"},
 		"len":            {ParameterNames: []string{"value"}, ParameterTypes: []string{"collection"}, Result: "int"},
 		"cap":            {ParameterNames: []string{"value"}, ParameterTypes: []string{"capacity collection"}, Result: "int"},
 		"append":         {ParameterNames: []string{"destination", "values"}, ParameterTypes: []string{"T[]", "T"}, Result: "T[]", Variadic: true},

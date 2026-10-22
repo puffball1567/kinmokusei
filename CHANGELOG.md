@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add scalar-only `inspect*` operations for generic dynamic type/kind, typed nil,
+  runtime comparability, identity/value equality, floating-point and raw string
+  observations without exposing reflection capabilities. Add a separate audited
+  direct `fmt.Sprintf` contract preserving deferred formatting callbacks. Add
+  `jsonSnapshot` for generic values with independent byte output and text-only
+  errors that cannot expose writable input aliases. Document and execute a typed
+  error-extraction adapter, including custom `As` mutations on false (#138).
+
 - Use explicit generic arguments and preceding typed arguments to contextualize
   fresh array/object literals, including nested, fixed-array and variadic forms.
   Preserve existing shared-text storage restrictions, constant/callback inference

@@ -15,6 +15,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function f<T>(v:T):boolean{return inspectNil(v)||inspectComparable(v)&&inspectEqual(v,v);}`,
+	`function f<A,B>(a:A,b:B):boolean{return inspectSameType(a,b);}function g<T>(v:T):bstring{return inspectTypeName(v)+inspectKind(v)+inspectString(v);}`,
+	`function f<T>(v:T):float{return inspectFloat(v);}function g<T>(v:T):Result<byte[]>{return jsonSnapshot(v,"","  ");}`,
+	`import go fmt from "fmt";function f<T>(v:T):bstring{return fmt.Sprintf("%#v",v);}`,
+	`import go reflect from "reflect";function f<T>(v:T):bstring{return inspectString(reflect.ValueOf(v));}`,
 	`function f<T>(v:T):void{}function main():void{f<bstring[]>(["a"]);f<bstring[][]>([["b"]]);}`,
 	`function f<T>(a:T,b:T):void{}function main():void{const raw:bstring[]=["a"];f(raw,["b"]);}`,
 	`function f<T>(v:T):void{}function main():void{const verified:string[]=["a"];f<bstring[]>(verified);}`,

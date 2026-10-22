@@ -41,6 +41,8 @@ type Program struct {
 	UsesExceptions       bool
 	UsesDecoratorContext bool
 	UsesUTF8             bool
+	UsesObservation      bool
+	UsesJSONSnapshot     bool
 }
 
 // NativeTypeMethodSet keeps callable expressions separate from constants in
@@ -940,6 +942,15 @@ const (
 	DecoratorValueCall
 	DecoratorValueAsCall
 	DecodeUTF8Call
+	InspectTypeNameCall
+	InspectSameTypeCall
+	InspectKindCall
+	InspectNilCall
+	InspectComparableCall
+	InspectEqualCall
+	InspectFloatCall
+	InspectStringCall
+	JSONSnapshotCall
 )
 
 type ArrowExpr struct {
