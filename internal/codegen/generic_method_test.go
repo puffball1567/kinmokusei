@@ -39,11 +39,13 @@ function direct(value: string): string {
 		"func BoxPair[U any, T any](left U, right T) struct",
 		"func HolderEcho[U any, T any](this Holder[T], value U) U",
 		"func HolderUpdate[U Integer, T any](this *Holder[T], value T, marker U) U",
-		"var kept = BoxKeep[int](box, 1)",
-		"var pair = BoxPair[int](2, kept)",
-		"HolderUpdate[int8](&holder, pair.Right, int8(3))",
-		"return HolderEcho(holder, pair.Right)",
-		"return BoxKeep[int](NewBox[string](value), 1)",
+		"var kept = __kinmokuseiNativeBoxKeep[int](",
+		"var pair = __kinmokuseiNativeBoxPair[int](",
+		"__kinmokuseiNativeHolderUpdate[int8](",
+		"&holder, pair.Right, int8(3))",
+		"return __kinmokuseiNativeHolderEcho(",
+		"holder, pair.Right)",
+		"__kinmokuseiNativeNewBox[string](",
 	} {
 		if !strings.Contains(generated, expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
@@ -68,8 +70,8 @@ function use(child: Child<string>): string { return child.echo("ok"); }
 `))
 	for _, expected := range []string{
 		"func BaseEcho[U any, T any](this *Base[T], value U) U",
-		"return BaseEcho(__kinmokuseiUpcastMiddleToBase[W](&this.Middle), value)",
-		`return BaseEcho(__kinmokuseiUpcastChildToBase[string](child), "ok")`,
+		"return __kinmokuseiNativeBaseEcho(__kinmokuseiContractU, __kinmokuseiUpcastMiddleToBase[W](&this.Middle), value)",
+		`__kinmokuseiUpcastChildToBase[string](child), "ok")`,
 	} {
 		if !strings.Contains(generated, expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)

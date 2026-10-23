@@ -156,6 +156,16 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	if decoratorInit != nil {
 		file.Decls = append(file.Decls, decoratorInit)
 	}
+	needsContracts := false
+	goast.Inspect(file, func(node goast.Node) bool {
+		if name, ok := node.(*goast.Ident); ok && (name.Name == "__kinmokuseiSourceContract" || name.Name == "__kinmokuseiKnownContracts") {
+			needsContracts = true
+		}
+		return true
+	})
+	if needsContracts {
+		file.Decls = append(file.Decls, nativeContractRuntimeDeclarations()...)
+	}
 	set := token.NewFileSet()
 	var output bytes.Buffer
 	if err := format.Node(&output, set, file); err != nil {

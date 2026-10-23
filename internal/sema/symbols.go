@@ -91,6 +91,7 @@ type classSymbol struct {
 }
 
 type structSymbol struct {
+	declaration     *ast.StructDecl
 	fields          map[string]fieldSymbol
 	methods         map[string]methodSymbol
 	typeInfo        Type

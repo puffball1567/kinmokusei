@@ -50,7 +50,7 @@ public function advance(this: *Status): Status {
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"type Status int", "StatusPending", "StatusRunning", "StatusComplete", "StatusFailed", "StatusRetrying", "type Tiny int8", "type WireCode uint16", "genericIdentity[Status](value)"} {
+	for _, want := range []string{"type Status int", "StatusPending", "StatusRunning", "StatusComplete", "StatusFailed", "StatusRetrying", "type Tiny int8", "type WireCode uint16", "__kinmokuseiNativegenericIdentity[Status]("} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go missing %q:\n%s", want, generated)
 		}

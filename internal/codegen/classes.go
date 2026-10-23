@@ -62,9 +62,15 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			projectionSpec.TypeParams = &goast.FieldList{List: typeParameterFields}
 		}
 		declarations = append(declarations, &goast.GenDecl{Tok: token.TYPE, Specs: []goast.Spec{projectionSpec}})
+		if len(class.TypeParameters) != 0 {
+			projectionSpec.Type.(*goast.InterfaceType).Methods.List = append(projectionSpec.Type.(*goast.InterfaceType).Methods.List, &goast.Field{Names: []*goast.Ident{goast.NewIdent(classContractMethod(class.Name))}, Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: contractArrayType(len(class.TypeParameters))}}}}})
+		}
 	}
 
 	fields := make([]*goast.Field, 0, len(class.Fields)+2)
+	if len(class.TypeParameters) != 0 {
+		fields = append(fields, &goast.Field{Names: []*goast.Ident{goast.NewIdent(classContractField(class.Name))}, Type: contractArrayType(len(class.TypeParameters))})
+	}
 	if class.Base != nil {
 		fields = append(fields, &goast.Field{Type: goClassType(*class.Base)})
 	}
@@ -119,6 +125,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: classPointer}}}},
 			Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("this")}}}},
 		})
+		if len(class.TypeParameters) != 0 {
+			declarations = append(declarations, &goast.FuncDecl{Recv: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}, Name: goast.NewIdent(classContractMethod(class.Name)), Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: contractArrayType(len(class.TypeParameters))}}}}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(classContractField(class.Name))}}}}}})
+		}
 	}
 	for ancestorIndex, ancestor := range class.Ancestors {
 		ancestorRef := kinmokuseiAST.TypeRef{Name: ancestor}
@@ -151,6 +160,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		if len(typeParameterFields) != 0 {
 			checkedType.TypeParams = &goast.FieldList{List: typeParameterFields}
+			checkedType.Params.List = append(checkedType.Params.List, &goast.Field{Names: []*goast.Ident{goast.NewIdent("contracts")}, Type: &goast.StarExpr{X: contractArrayType(len(class.TypeParameters))}})
 		}
 		checkedBody := &goast.BlockStmt{List: []goast.Stmt{
 			&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent("value"), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("nil"), goast.NewIdent("false")}}}}},
@@ -160,12 +170,14 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			X:    &goast.SelectorExpr{X: goast.NewIdent("value"), Sel: goast.NewIdent(classRootName())},
 			Type: projectionType,
 		}
+		projectionBody := &goast.BlockStmt{}
+		if len(class.TypeParameters) != 0 {
+			projectionBody.List = append(projectionBody.List, classContractGuard(class.Name))
+		}
+		projectionBody.List = append(projectionBody.List, &goast.ReturnStmt{Results: []goast.Expr{&goast.CallExpr{Fun: &goast.SelectorExpr{X: goast.NewIdent("projected"), Sel: goast.NewIdent(classProjectionMethodName(class.Name))}}, goast.NewIdent("true")}})
 		checkedBody.List = append(checkedBody.List, &goast.IfStmt{
 			Init: &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("projected"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{projectionAssertion}},
-			Cond: goast.NewIdent("ok"), Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{
-				&goast.CallExpr{Fun: &goast.SelectorExpr{X: goast.NewIdent("projected"), Sel: goast.NewIdent(classProjectionMethodName(class.Name))}},
-				goast.NewIdent("true"),
-			}}}},
+			Cond: goast.NewIdent("ok"), Body: projectionBody,
 		})
 		checkedBody.List = append(checkedBody.List, &goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("nil"), goast.NewIdent("false")}})
 		declarations = append(declarations, &goast.FuncDecl{
@@ -178,13 +190,18 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		if len(typeParameterFields) != 0 {
 			mustType.TypeParams = &goast.FieldList{List: typeParameterFields}
+			mustType.Params.List = append(mustType.Params.List, &goast.Field{Names: []*goast.Ident{goast.NewIdent("contracts")}, Type: &goast.StarExpr{X: contractArrayType(len(class.TypeParameters))}})
 		}
 		downcastCallee := indexedGoType(goast.NewIdent(downcastName(ancestor, class.Name)), typeRefsForTypeParameters(class.TypeParameters))
+		downcastArguments := []goast.Expr{goast.NewIdent("value")}
+		if len(class.TypeParameters) != 0 {
+			downcastArguments = append(downcastArguments, goast.NewIdent("contracts"))
+		}
 		declarations = append(declarations, &goast.FuncDecl{
 			Name: goast.NewIdent(mustDowncastName(ancestor, class.Name)),
 			Type: mustType,
 			Body: &goast.BlockStmt{List: []goast.Stmt{
-				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("result"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.CallExpr{Fun: downcastCallee, Args: []goast.Expr{goast.NewIdent("value")}}}},
+				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("result"), goast.NewIdent("ok")}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.CallExpr{Fun: downcastCallee, Args: downcastArguments}}},
 				&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: goast.NewIdent("ok")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{&goast.BasicLit{Kind: token.STRING, Value: strconv.Quote("cannot downcast " + ancestor + " to " + class.Name)}}}}}}},
 				&goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("result")}},
 			}},
@@ -207,6 +224,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 
 	constructorType := &goast.FuncType{Params: &goast.FieldList{}}
 	initializerType := &goast.FuncType{Params: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}}
+	initializerType.Params.List = append(initializerType.Params.List, contractParameters(class.TypeParameters)...)
 	if len(typeParameterFields) != 0 {
 		initializerType.TypeParams = &goast.FieldList{List: typeParameterFields}
 	}
@@ -222,6 +240,13 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		initializerType.Params.List = append(initializerType.Params.List, goParameterField(parameter))
 	}
 	initializerBody := &goast.BlockStmt{}
+	if len(class.TypeParameters) != 0 {
+		values := make([]goast.Expr, len(class.TypeParameters))
+		for i, parameter := range class.TypeParameters {
+			values[i] = goast.NewIdent(nativeContractName(parameter.Name))
+		}
+		initializerBody.List = append(initializerBody.List, &goast.AssignStmt{Lhs: []goast.Expr{&goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(classContractField(class.Name))}}, Tok: token.ASSIGN, Rhs: []goast.Expr{&goast.CompositeLit{Type: contractArrayType(len(values)), Elts: values}}})
+	}
 	constructorStatements := []kinmokuseiAST.Statement(nil)
 	if class.Constructor != nil {
 		constructorStatements = class.Constructor.Body.Statements
@@ -241,7 +266,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			}
 		}
 		if baseCall == nil {
-			baseCall = &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent(initializerName(class.Base.Name)), Args: []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(class.Base.Name)}}}}}
+			arguments := []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(class.Base.Name)}}}
+			arguments = append(arguments, nativeContractExpressions(class.BaseContracts)...)
+			baseCall = &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent(initializerName(class.Base.Name)), Args: arguments}}
 		}
 		initializerBody.List = append(initializerBody.List, baseCall)
 	}
@@ -270,6 +297,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		})
 	}
 	if len(fieldBody.List) != 0 {
+		fieldBody.List = append(classContractLocals(class.Name, class.TypeParameters, "this"), fieldBody.List...)
 		// A separate lexical scope prevents constructor parameters from
 		// shadowing module bindings used by field initializers.
 		fieldType := &goast.FuncType{Params: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}}
@@ -319,6 +347,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		Rhs: []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.CompositeLit{Type: classType}}},
 	})
 	initializerArguments := []goast.Expr{goast.NewIdent("this")}
+	for _, parameter := range class.TypeParameters {
+		initializerArguments = append(initializerArguments, goast.NewIdent(nativeContractName(parameter.Name)))
+	}
 	for _, name := range factoryParameterNames {
 		initializerArguments = append(initializerArguments, goast.NewIdent(name))
 	}
@@ -329,9 +360,9 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 	constructorBody.List = append(constructorBody.List, &goast.ExprStmt{X: initializerCall})
 	constructorBody.List = append(constructorBody.List, &goast.ReturnStmt{Results: []goast.Expr{goast.NewIdent("this")}})
 	if !class.Abstract {
-		declarations = append(declarations, &goast.FuncDecl{
+		declarations = append(declarations, nativeGenericDeclarations(&goast.FuncDecl{
 			Name: goast.NewIdent("New" + class.Name), Type: constructorType, Body: constructorBody,
-		})
+		}, class.TypeParameters)...)
 	}
 
 	for _, method := range class.Methods {
@@ -357,7 +388,8 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 			if err != nil {
 				return nil, err
 			}
-			declarations = append(declarations, generated)
+			generated.Body.List = append(classContractLocals(class.Name, class.TypeParameters, "this"), generated.Body.List...)
+			declarations = append(declarations, nativeGenericDeclarations(generated, method.TypeParameters)...)
 			continue
 		}
 		generated := &goast.FuncDecl{Name: goast.NewIdent(goName(name)), Type: methodType, Body: body}
@@ -374,6 +406,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 				generated.Type.TypeParams = &goast.FieldList{List: staticTypeParameters}
 			}
 		} else {
+			generated.Body.List = append(classContractLocals(class.Name, class.TypeParameters, "this"), generated.Body.List...)
 			generated.Recv = &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("this")}, Type: classPointer}}}
 			if method.Virtual || method.Override {
 				generated.Name = goast.NewIdent(virtualSlotName(method.VirtualOwner, name))
@@ -382,7 +415,12 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 				}
 			}
 		}
-		declarations = append(declarations, generated)
+		if method.Static && method.Accessor == "" {
+			parameters := append(append([]kinmokuseiAST.TypeParameter(nil), method.TypeParameters...), class.TypeParameters...)
+			declarations = append(declarations, nativeGenericDeclarations(generated, parameters)...)
+		} else {
+			declarations = append(declarations, generated)
+		}
 	}
 	return declarations, nil
 }
@@ -497,11 +535,15 @@ func generateConversionWrapper(name, implementation string, source, target kinmo
 		functionType.TypeParams = &goast.FieldList{List: typeParameters}
 	}
 	callee := indexedGoType(goast.NewIdent(implementation), typeRefsForTypeParameters(parameters))
+	arguments := []goast.Expr{goast.NewIdent("value")}
+	if len(parameters) != 0 && (name == publicDowncastName(source.Name, target.Name) || name == publicMustDowncastName(source.Name, target.Name)) {
+		arguments = append(arguments, goast.NewIdent("nil"))
+	}
 	return &goast.FuncDecl{
 		Name: goast.NewIdent(name),
 		Type: functionType,
 		Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{&goast.CallExpr{
-			Fun: callee, Args: []goast.Expr{goast.NewIdent("value")},
+			Fun: callee, Args: arguments,
 		}}}}},
 	}
 }

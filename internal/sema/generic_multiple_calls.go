@@ -52,6 +52,7 @@ func (c *Checker) checkNativeGenericMultipleCall(call *ast.CallExpr, name string
 		return Type{Kind: Invalid}
 	}
 	parameters := make([]Type, len(callable.Parameters))
+	call.NativeContractArguments = nativeContracts(arguments)
 	for i, parameter := range callable.Parameters {
 		parameters[i] = substituteNativeTypeParameters(parameter, bindings)
 	}
@@ -59,11 +60,9 @@ func (c *Checker) checkNativeGenericMultipleCall(call *ast.CallExpr, name string
 	instantiated := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: callable.Variadic, Result: &result}
 	c.recordCallSignature(call, instantiated)
 	c.checkMultipleCallArguments(call, name, instantiated, values)
-	if member, ok := call.Callee.(*ast.MemberExpr); ok && member.GenericMethod {
-		call.MultipleArgumentCount = len(values.Results)
-		ref := typeRefFromType(result, call.Span)
-		call.MultipleArgumentResult = &ref
-	}
+	call.MultipleArgumentCount = len(values.Results)
+	ref := typeRefFromType(result, call.Span)
+	call.MultipleArgumentResult = &ref
 	call.ResolvedTypeArguments = make([]ast.TypeRef, len(arguments))
 	for i, argument := range arguments {
 		call.ResolvedTypeArguments[i] = typeRefFromType(argument, call.Span)

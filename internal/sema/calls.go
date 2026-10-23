@@ -312,6 +312,7 @@ func (c *Checker) checkSuperConstructorCall(expr *ast.CallExpr) Type {
 	}
 	c.checkConstructorArguments(expr.Arguments, expr.Expanded, parameters, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
 	expr.SuperConstructor = true
+	expr.NativeContractArguments = nativeContracts(class.baseType.TypeArguments)
 	expr.SuperBase = class.base
 	return builtins["void"]
 }

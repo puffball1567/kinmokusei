@@ -116,6 +116,23 @@ be unwrapped this way. A newline before `!` starts a prefix operation instead.
 
 `as? Type` performs a checked Go-interface or class downcast and returns value plus `boolean`. `as! Type` is forced and panics on failure. Both evaluate the source once.
 
+Native generic class downcasts check the source type arguments, not just their
+generated Go storage. `Box<bstring>` is not `Box<string>`, even when the raw
+bytes happen to be valid UTF-8. The same distinction applies inside arrays,
+other generic arguments, and nullable types. A matching native construction can
+round-trip through its base class; a mismatched checked cast returns `false`,
+and a mismatched forced cast panics. Downcasting never validates or converts
+the contents of a box.
+
+Native calls carry private contract information through generic functions and
+constructors. Public Go function and method signatures remain unchanged, but a
+direct Go call supplies no proof of native-only qualifiers. Boxes constructed
+through that path, or generic arguments erased by an ordinary Go method or
+interface call, cannot subsequently establish a native generic downcast when
+its source contract is unknown. Use a Kinmokusei factory to construct boxes
+that must later be recovered by native checked downcasts. Public Go conversion
+helpers retain Go projection behavior; they are not native contract validators.
+
 Type-name calls such as `int64(value)` or `UserID(text)` are explicit conversions and follow representability, identity, and Go convertibility rules for the source/target pair.
 
 ## Result propagation

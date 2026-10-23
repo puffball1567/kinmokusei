@@ -163,8 +163,10 @@ type Parameter struct {
 }
 
 type TypeParameter struct {
-	Name     string
-	NameSpan source.Span
+	// InferredComparable retains receiver constraints on lowered free helpers.
+	InferredComparable bool
+	Name               string
+	NameSpan           source.Span
 	// Constraint is currently populated for explicit native constraints such
 	// as `T extends comparable`. Keeping the source type here lets later
 	// constraints grow without changing every generic declaration node.
@@ -244,6 +246,10 @@ type ConstructorDecl struct {
 
 type MethodDecl struct {
 	Decorators []*Decorator
+	// ReceiverContractParameters use semantic binder names (which may differ
+	// from the spelling of an external receiver's Go type parameters).
+	ReceiverContractParameters []TypeParameter
+	ReceiverTypeParameters     []TypeParameter
 	// Accessor is "get" or "set" for class properties; Name remains the source name.
 	Accessor       string
 	Name           string
@@ -286,6 +292,7 @@ type ClassDecl struct {
 	TypeParameters []TypeParameter
 	Final          bool
 	Base           *TypeRef
+	BaseContracts  []NativeContract
 	Implements     []TypeRef
 	Fields         []FieldDecl
 	Constructor    *ConstructorDecl
@@ -821,12 +828,13 @@ func (e *BinaryExpr) GetSpan() source.Span { return e.Span }
 // Checked assertions produce (value, boolean); unchecked assertions panic on
 // failure with the same runtime semantics as a Go type assertion.
 type GoTypeAssertionExpr struct {
-	Value         Expression
-	Type          TypeRef
-	Checked       bool
-	ClassDowncast bool
-	SourceClass   string
-	Span          source.Span
+	NativeContractArguments []NativeContract
+	Value                   Expression
+	Type                    TypeRef
+	Checked                 bool
+	ClassDowncast           bool
+	SourceClass             string
+	Span                    source.Span
 }
 
 func (*GoTypeAssertionExpr) expression()            {}
@@ -873,7 +881,8 @@ type CallExpr struct {
 	TypeArguments []TypeRef
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
 	// structural interface inference cannot recover them from a method set.
-	ResolvedTypeArguments []TypeRef
+	ResolvedTypeArguments   []TypeRef
+	NativeContractArguments []NativeContract
 	// MultipleArgumentCount records sole-call result expansion for capture lowering.
 	MultipleArgumentCount  int
 	MultipleArgumentResult *TypeRef
@@ -1029,7 +1038,13 @@ type MemberExpr struct {
 	VirtualOwner           string
 
 	// MethodExpressionReceiver is a checked native type, not a runtime value.
-	MethodExpressionReceiver *TypeRef
+	MethodExpressionReceiver    *TypeRef
+	ReceiverContractArguments   []NativeContract
+	ReceiverContractTypes       []TypeRef
+	ReceiverContractHelper      string
+	ReceiverContractType        *TypeRef
+	ReceiverContractReceiver    *TypeRef
+	ReceiverContractDereference bool
 
 	// GenericMethod marks an instance method that must lower to a top-level Go
 	// helper because Go methods cannot declare their own type parameters.
@@ -1045,6 +1060,7 @@ func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
 type IndexExpr struct {
+	NativeContractArguments []NativeContract
 	// TypeArguments retains a possible explicit instantiation. For ambiguous
 	// f[T] syntax, Index retains the ordinary index until checking resolves f.
 	TypeArguments []TypeRef
@@ -1074,13 +1090,14 @@ func (*SliceExpr) expression()            {}
 func (e *SliceExpr) GetSpan() source.Span { return e.Span }
 
 type NewExpr struct {
-	ClassName           string
-	ClassNameSpan       source.Span
-	ResolvedDeclaration source.Span
-	TypeArguments       []TypeRef
-	Arguments           []Expression
-	Expanded            bool
-	Span                source.Span
+	NativeContractArguments []NativeContract
+	ClassName               string
+	ClassNameSpan           source.Span
+	ResolvedDeclaration     source.Span
+	TypeArguments           []TypeRef
+	Arguments               []Expression
+	Expanded                bool
+	Span                    source.Span
 }
 
 func (*NewExpr) expression()            {}
