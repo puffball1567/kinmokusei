@@ -2,7 +2,7 @@
 
 Compiler-managed, source-written input adapters for reading fresh raw DTOs,
 constructing checked native values, and publishing only after successful
-validation. These are development APIs after v0.4.9.
+validation. Available since v0.4.10.
 
 See the [input adapter guide](../../website/guide/input-adapters.md) for the
 boundary and aliasing contract, and the

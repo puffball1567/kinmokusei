@@ -31,13 +31,13 @@ Download the archive and `SHA256SUMS` from the [latest GitHub release](https://g
 
 Verify only the downloaded archive: `SHA256SUMS` also lists other platforms and
 the editor extension, which need not be present locally. The commands below
-use v0.4.9; set `release_version` to the tag's numeric version if installing a
+use v0.4.10; set `release_version` to the tag's numeric version if installing a
 different release. Choose the archive matching your OS and architecture.
 
 ::: code-group
 
 ```sh [Linux]
-release_version=0.4.9
+release_version=0.4.10
 release_archive="keika_${release_version}_linux_amd64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | sha256sum -c - || exit 1
 tar -xzf "$release_archive"
@@ -46,7 +46,7 @@ install -m 0755 "keika_${release_version}_linux_amd64/keika" ~/.local/bin/keika
 ```
 
 ```sh [macOS]
-release_version=0.4.9
+release_version=0.4.10
 release_archive="keika_${release_version}_darwin_arm64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | shasum -a 256 -c - || exit 1
 tar -xzf "$release_archive"
@@ -55,7 +55,7 @@ install -m 0755 "keika_${release_version}_darwin_arm64/keika" ~/.local/bin/keika
 ```
 
 ```powershell [Windows PowerShell]
-$release_version = "0.4.9"
+$release_version = "0.4.10"
 $release_archive = "keika_${release_version}_windows_amd64.zip"
 $checksum_lines = @(Get-Content .\SHA256SUMS | Where-Object { ($_ -split '\s+', 2)[1] -eq $release_archive })
 if ($checksum_lines.Count -ne 1) { throw "Expected one checksum for $release_archive" }
@@ -139,9 +139,9 @@ manifest or lock. Install the matching VSIX separately after updating.
 
 ## Switch compiler versions
 
-::: info Development builds after v0.4.9
-The following commands are not included in v0.4.9. Build a subsequent development
-checkout to try them before the next release.
+::: info Available since v0.4.10
+Update to v0.4.10 or later once to enable `keika use` and its independent
+`keika-use` companion. Older compilers do not provide these commands.
 :::
 
 On Linux/macOS, select an exact official stable version, including an older one:
@@ -149,7 +149,7 @@ On Linux/macOS, select an exact official stable version, including an older one:
 ```sh
 keika use v0.4.8
 keika version
-keika-use v0.4.9
+keika-use v0.4.10
 keika version
 ```
 

@@ -49,14 +49,14 @@ before atomically switching the invoked launcher. It does not update the Go
 toolchain, VSIX or dependency graph. Windows supports checking but not automatic
 replacement yet. See [installation and update details](../learn/installation#update-the-compiler).
 
-### Version selection (development after v0.4.9)
+### Version selection (since v0.4.10)
 
 | Command | Purpose |
 | --- | --- |
 | `keika use [--offline] vX.Y.Z` | Select an exact stable compiler, allowing downgrades |
 | `keika-use [--offline] vX.Y.Z` | Select again independently of the active compiler's command support |
 
-These commands are not included in v0.4.9. Automatic selection supports
+These commands require v0.4.10 or later. Automatic selection supports
 Linux/macOS. Verified cache hits require no network; `--offline` rejects a
 cache miss. Non-cached selections use official Release verification. Existing
 unmanaged bundles must match the entire official archive before adoption.

@@ -7,7 +7,7 @@ description: Public API reference for compiler-managed Kinmokusei HTTP and check
 
 `kinmokusei/*` is reserved for compiler-managed source modules. The implemented
 modules are the exact paths `kinmokusei/http` (since v0.2.0) and
-`kinmokusei/input` (development after v0.4.9). Unknown,
+`kinmokusei/input` (since v0.4.10). Unknown,
 differently cased, traversal-like, or otherwise noncanonical reserved paths are
 rejected.
 
