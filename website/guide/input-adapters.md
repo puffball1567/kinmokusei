@@ -5,8 +5,8 @@ description: Stage raw input, construct checked native values, and publish only 
 
 # Safe input decoding and binding
 
-::: info Development API
-`kinmokusei/input` is a development addition after v0.4.9.
+::: info Available since v0.4.10
+`kinmokusei/input` requires v0.4.10 or later.
 :::
 
 Reusable JSON, query, URI and form binders cannot send an arbitrary writable

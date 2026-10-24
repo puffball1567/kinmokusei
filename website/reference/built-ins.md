@@ -7,7 +7,9 @@ description: Signatures and runtime contracts for numeric, collection, result, c
 
 Compiler built-ins have dedicated type rules and lower directly to predictable Go constructs. Most collection names can be shadowed by visible user declarations; `goChannel` and `closeGoChannel` are reserved.
 
-## Safe observations (development)
+## Safe observations
+
+Available since v0.4.10.
 
 These operations accept native generic values and verified-text storage without
 returning `reflect.Value`, `reflect.Type`, pointers or writable aliases. They do
@@ -40,7 +42,9 @@ by visible source declarations, just like `len`.
 As with other compiler built-ins, wrap an operation in an ordinary function
 before launching it with `go`.
 
-## JSON snapshots (development)
+## JSON snapshots
+
+Available since v0.4.10.
 
 ```ts
 function snapshot<T>(value: T): Result<byte[]> {

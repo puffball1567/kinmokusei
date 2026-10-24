@@ -5,9 +5,9 @@ description: Observe, format, snapshot and extract errors from generic values wi
 
 # Safe generic Go adapters
 
-::: info Development APIs
+::: info Available since v0.4.10
 The observations, snapshot bridge and direct `fmt.Sprintf` contract on this page
-are development changes after v0.4.9, not APIs available in that release.
+require v0.4.10 or later.
 :::
 
 Generic assertion and diagnostic libraries need to work with user records, not
@@ -36,7 +36,7 @@ remain different. NaN remains unequal to itself and positive/negative zero
 compare equal, as in Go. A same-value matcher can additionally use
 `inspectFloat` with `math.IsNaN` and `math.Signbit` for its chosen semantics.
 `inspectString` reads raw string contents without invoking user formatting
-methods. See the [complete operation table](../reference/built-ins#safe-observations-development).
+methods. See the [complete operation table](../reference/built-ins#safe-observations).
 
 These functions never return a reflective view. Do not replace them with an
 unrestricted `reflect.ValueOf` wrapper; such a wrapper would expose writable
@@ -103,7 +103,7 @@ construction and publication pipeline across generic framework binders.
 
 Encoding may invoke custom methods; it is not a pure operation. Prefix/indent,
 bytes, error and callback behavior are specified in the
-[snapshot reference](../reference/built-ins#json-snapshots-development).
+[snapshot reference](../reference/built-ins#json-snapshots).
 
 ## Supply a concrete error extraction adapter
 

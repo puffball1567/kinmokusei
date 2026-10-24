@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-10-25
+
+- Preserve native source contracts in generic class downcasts, including
+  `string` versus `bstring`, nested collections and nullable arguments. Keep
+  same-contract native round trips, nominal hierarchy identity and public Go
+  signatures; reject mismatched or unknown native proofs instead of accepting
+  erased Go storage as validation (#140).
+
 - Add the source-written `kinmokusei/input` module with `decodeInput` and
   `bindInput`: concretely typed raw readers, checked construction, and
   publication only after successful validation. Retain opaque Go boundary
