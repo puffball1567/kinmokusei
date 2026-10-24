@@ -55,6 +55,7 @@ const sidebar = [
     items: [
       { text: "Go interoperability", link: "/guide/go-interop" },
       { text: "Safe generic Go adapters", link: "/guide/safe-go-adapters" },
+      { text: "Safe input decoding", link: "/guide/input-adapters" },
       { text: "HTTP applications", link: "/guide/http" },
       { text: "Testing applications", link: "/guide/testing" },
       { text: "C ABI & FFI", link: "/guide/c-ffi" },

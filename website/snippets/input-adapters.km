@@ -1,0 +1,32 @@
+import { bindInput } from "kinmokusei/input";
+import go json from "encoding/json";
+import go errors from "errors";
+import go fmt from "fmt";
+
+alias Bytes = byte[];
+struct RawInput { public name: bstring; }
+class User { constructor(public name: string) {} }
+
+function readInput(payload: byte[]): Result<RawInput> {
+  let raw = RawInput { name: b"" };
+  const err = json.Unmarshal(payload, &raw);
+  if (err != nil) { return fail(err); }
+  return ok(raw);
+}
+
+function constructUser(raw: RawInput): Result<User> {
+  const name = string(raw.name)?;
+  if (name == "") { return fail(errors.New("name is required")); }
+  return ok(new User(name));
+}
+
+function main(): void {
+  let current = new User("original");
+  const [err] = bindInput(
+    () => { return readInput(Bytes(b"{\"name\":\"Alice\"}")); },
+    constructUser,
+    (next: User) => { current = next; },
+  );
+  if (err != nil) { fmt.Println(err); return; }
+  fmt.Println(current.name);
+}
