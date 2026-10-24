@@ -31,13 +31,13 @@ Download the archive and `SHA256SUMS` from the [latest GitHub release](https://g
 
 Verify only the downloaded archive: `SHA256SUMS` also lists other platforms and
 the editor extension, which need not be present locally. The commands below
-use v0.4.9; set `release_version` to the tag's numeric version if installing a
+use v0.4.10; set `release_version` to the tag's numeric version if installing a
 different release. Choose the archive matching your OS and architecture.
 
 ::: code-group
 
 ```sh [Linux]
-release_version=0.4.9
+release_version=0.4.10
 release_archive="keika_${release_version}_linux_amd64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | sha256sum -c - || exit 1
 tar -xzf "$release_archive"
@@ -46,7 +46,7 @@ install -m 0755 "keika_${release_version}_linux_amd64/keika" ~/.local/bin/keika
 ```
 
 ```sh [macOS]
-release_version=0.4.9
+release_version=0.4.10
 release_archive="keika_${release_version}_darwin_arm64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | shasum -a 256 -c - || exit 1
 tar -xzf "$release_archive"
@@ -55,7 +55,7 @@ install -m 0755 "keika_${release_version}_darwin_arm64/keika" ~/.local/bin/keika
 ```
 
 ```powershell [Windows PowerShell]
-$release_version = "0.4.9"
+$release_version = "0.4.10"
 $release_archive = "keika_${release_version}_windows_amd64.zip"
 $checksum_lines = @(Get-Content .\SHA256SUMS | Where-Object { ($_ -split '\s+', 2)[1] -eq $release_archive })
 if ($checksum_lines.Count -ne 1) { throw "Expected one checksum for $release_archive" }
@@ -136,6 +136,52 @@ target directory produces an error instead of risking another installation.
 
 Self-update does not change your Go toolchain, editor extension, project
 manifest or lock. Install the matching VSIX separately after updating.
+
+## Switch compiler versions
+
+::: info Available since v0.4.10
+Update to v0.4.10 or later once to enable `keika use` and its independent
+`keika-use` companion. Older compilers do not provide these commands.
+:::
+
+On Linux/macOS, select an exact official stable version, including an older one:
+
+```sh
+keika use v0.4.8
+keika version
+keika-use v0.4.10
+keika version
+```
+
+The first selection saves an independent management executable and creates
+`keika-use` beside your existing launcher. Use this companion command to switch
+again if the selected older compiler has no `use` command. The success message
+prints its exact path. The selected compiler, not the manager, handles normal
+compilation; there is no wrapper process on build/run paths.
+Selecting a version from a newer compiler that supports `use` also refreshes
+the management snapshot. Invoking the independent companion reuses its existing
+snapshot; it is not a separate automatically updating package manager.
+
+An uncached version is fetched from the official Release, using the same HTTPS,
+checksum, archive, notice and executable-version checks as `update`. A complete
+local bundle recorded by the new updater is checked against its file-hash receipt
+and reused without network access. Force cache-only operation with:
+
+```sh
+keika-use --offline v0.4.8
+```
+
+An older installation without a receipt is adopted only after all bundle files
+match a freshly verified official archive. A missing cache under `--offline`, a
+changed bundle, a symlink inside the bundle, a target mismatch or an unrelated
+`keika-use` file is an error, not permission to overwrite it. Local receipts detect
+accidental changes; they are not publisher signatures or protection against a
+user with write access to the entire installation.
+
+Switching is explicit and atomic, shares the update lock, preserves old releases
+and bundled notices, and never changes `PATH`, the Go toolchain, the VSIX or
+project files. Only stable tags in `vX.Y.Z` form are accepted. `keika update`
+remains upgrade-only. Windows users select a release archive manually.
 
 ## Install the editor extension
 

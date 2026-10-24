@@ -95,8 +95,10 @@ collections. Its direct-call safety contract is recognized since v0.4.9:
 This prints `true false`. No unsafe permission or finite scalar constraint is
 required. Namespace and named import aliases work too. Keep the direct call
 inside your source wrapper: storing the Go function in an unclassified function
-value does not carry this contract. Other reflective, formatting and JSON APIs
-retain their ordinary checks; see the [exact contract](../reference/go-interop).
+value does not carry this contract. Other APIs retain their ordinary checks
+unless explicitly covered by a separate audited contract. Since v0.4.10 the
+compiler also provides [safe observations, deferred formatting, JSON snapshots and typed
+error adapters](./safe-go-adapters); see the [exact contracts](../reference/go-interop).
 
 ## What the boundary preserves
 
@@ -109,10 +111,11 @@ The compiler reads actual Go export/type data and preserves:
 - generic functions, named types, methods, constraints, and explicit/inferred type arguments;
 - channels and direction, `select`, `defer`, and goroutine calls.
 
-Development builds also support fully instantiated generic function values;
+Fully instantiated Go generic function values are supported since v0.4.7;
 see [instantiated function values](./functions-and-generics#instantiated-function-values).
 These use the same Go type constraints and raw-text boundary as generic calls,
-without adding runtime wrappers.
+without adding runtime wrappers to those Go function values. Native generic
+function values carry source-contract metadata for checked native downcasts.
 
 Imported type identity remains qualified:
 

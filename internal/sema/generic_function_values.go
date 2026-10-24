@@ -59,6 +59,7 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 			return invalid
 		}
 		instantiated = substituteNativeTypeParameters(callable, bindings)
+		expr.NativeContractArguments = nativeContracts(arguments)
 		instantiated.Generic, instantiated.TypeParameters, instantiated.GoType = false, nil, nil
 	} else {
 		signature, ok := callable.GoType.(*gotypes.Signature)

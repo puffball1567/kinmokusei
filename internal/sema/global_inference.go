@@ -94,4 +94,6 @@ func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.usesTasks = c.usesTasks || dependency.usesTasks
 	c.usesExceptions = c.usesExceptions || dependency.usesExceptions
 	c.usesUTF8 = c.usesUTF8 || dependency.usesUTF8
+	c.usesObservation = c.usesObservation || dependency.usesObservation
+	c.usesJSONSnapshot = c.usesJSONSnapshot || dependency.usesJSONSnapshot
 }

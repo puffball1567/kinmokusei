@@ -15,6 +15,16 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class Base{}class Box<T> extends Base{constructor(public value:T){}}function box<T>(v:T):Base{return new Box<T>(v);}function match<T>(v:Base):boolean{const [_,ok]=v as? Box<T>;return ok;}function f():boolean{return match<string>(box<bstring>(b"\xff"));}`,
+	`struct Box<T>{public value:T;private function map():T{return this.value;}public function read():T{return this.map();}}function f():bstring{const value=Box<bstring>{value:b"\xff"};const read=Box<bstring>.read;return read(value);}`,
+	`function f<T>(v:T):boolean{return inspectNil(v)||inspectComparable(v)&&inspectEqual(v,v);}`,
+	`function f<A,B>(a:A,b:B):boolean{return inspectSameType(a,b);}function g<T>(v:T):bstring{return inspectTypeName(v)+inspectKind(v)+inspectString(v);}`,
+	`function f<T>(v:T):float{return inspectFloat(v);}function g<T>(v:T):Result<byte[]>{return jsonSnapshot(v,"","  ");}`,
+	`import go fmt from "fmt";function f<T>(v:T):bstring{return fmt.Sprintf("%#v",v);}`,
+	`import go reflect from "reflect";function f<T>(v:T):bstring{return inspectString(reflect.ValueOf(v));}`,
+	`function f<T>(v:T):void{}function main():void{f<bstring[]>(["a"]);f<bstring[][]>([["b"]]);}`,
+	`function f<T>(a:T,b:T):void{}function main():void{const raw:bstring[]=["a"];f(raw,["b"]);}`,
+	`function f<T>(v:T):void{}function main():void{const verified:string[]=["a"];f<bstring[]>(verified);}`,
 	`import go {DeepEqual as eq} from "reflect";function same<T>(a:T,b:T):boolean{return eq(a,b);}`,
 	`import go r from "reflect";function f(v:string[]):boolean{return r.DeepEqual(r.ValueOf(v),r.ValueOf(v));}`,
 	`interface I{function read():int;}class C implements I{public function read():int{return 1;}}function f(v:C|null):I|null{return v;}`,

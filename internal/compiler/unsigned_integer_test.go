@@ -53,7 +53,7 @@ function aliasCollection(values: uint8[], lookup: Map<uint8, int32>, key: byte):
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
 	text := string(generated)
-	for _, want := range []string{"type Word uint", "func maximum64() uint64", "func maximumMachine() uint", "uint16(value)", "uint(value)", "bits.RotateLeft64(value, amount)", "genericIdentity[uint](value)", "value += 2", "value--", "value <<= 1"} {
+	for _, want := range []string{"type Word uint", "func maximum64() uint64", "func maximumMachine() uint", "uint16(value)", "uint(value)", "bits.RotateLeft64(value, amount)", "__kinmokuseiNativegenericIdentity[uint](", "value += 2", "value--", "value <<= 1"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("generated unsigned Go does not contain %q:\n%s", want, generated)
 		}

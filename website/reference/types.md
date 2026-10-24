@@ -226,6 +226,19 @@ intersections are checked rather than approximated.
 
 Generic named types require explicit full instantiation. Function and generic
 method calls can infer arguments or accept a partial/full explicit prefix.
+Known type arguments and preceding typed arguments contextualize fresh array
+and object literals, including nested literals and variadic arguments:
+
+```km
+function accept<T>(values: T[]): void {}
+accept<bstring>(["a", "b"]);
+```
+
+This constructs new raw-text storage; it does not reinterpret an existing
+`string[]` as `bstring[]`. Existing arrays retain their element contracts, even
+when nested inside a fresh literal. Untyped scalar constants still defer to
+typed arguments during inference, and argument evaluation stays in source order.
+
 Generic classes support inherited state, virtual dispatch, abstract contracts,
 and static methods. Static fields/accessors remain shared across instantiations
 and cannot refer to class type parameters. Generic aliases expand transparently;

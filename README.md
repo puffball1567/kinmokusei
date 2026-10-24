@@ -106,10 +106,11 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
-v0.4.9 supports safe direct `reflect.DeepEqual` calls with unconstrained generics
-and verified-text containers, and fixes null preservation when converting a
-nullable class to a nullable interface. Other opaque Go API checks remain in place.
-See the [v0.4.9 release summary](website/project/releases.md#v049-highlights).
+v0.4.10 preserves native contracts in generic class downcasts, adds generic
+observations and JSON snapshots, and provides staged input construction through
+`kinmokusei/input`. It also improves fresh generic literals and adds exact
+compiler version switching with `keika use`. Opaque Go API checks remain in place.
+See the [v0.4.10 release summary](website/project/releases.md#v0410-highlights).
 
 Compiler self-update and the scalar-union, initialization-order, generated-name
 and dependency-list corrections released in v0.4.8 remain available.

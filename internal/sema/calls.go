@@ -40,7 +40,14 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			return c.checkGoChannelClose(expr)
 		}
 		if !c.hasCallBinding(name.Name, name.Span) {
+			for _, definition := range ast.ObservationBuiltins() {
+				if name.Name == definition.Name {
+					return c.checkObservationBuiltin(expr, definition)
+				}
+			}
 			switch name.Name {
+			case "jsonSnapshot":
+				return c.checkJSONSnapshotBuiltin(expr)
 			case "decoratorValue":
 				return c.checkDecoratorValueBuiltin(expr, false)
 			case "decoratorValueAs":
@@ -305,6 +312,7 @@ func (c *Checker) checkSuperConstructorCall(expr *ast.CallExpr) Type {
 	}
 	c.checkConstructorArguments(expr.Arguments, expr.Expanded, parameters, base.constructorVariadic, fmt.Sprintf("base constructor %q", class.base), expr.Span)
 	expr.SuperConstructor = true
+	expr.NativeContractArguments = nativeContracts(class.baseType.TypeArguments)
 	expr.SuperBase = class.base
 	return builtins["void"]
 }

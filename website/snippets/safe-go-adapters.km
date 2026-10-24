@@ -1,0 +1,18 @@
+import go fmt from "fmt";
+
+function render<T>(value: T): bstring {
+  return fmt.Sprintf("%s", value);
+}
+
+function snapshot<T>(value: T): Result<byte[]> {
+  return jsonSnapshot(value);
+}
+
+function main(): void {
+  const values: string[] = ["a", "b"];
+  fmt.Println(inspectKind(values), inspectNil(values), inspectComparable(values));
+  fmt.Println(render(values));
+  const [encoded, err] = snapshot(values);
+  if (err != nil) { fmt.Println(err); return; }
+  fmt.Println(bstring(encoded));
+}

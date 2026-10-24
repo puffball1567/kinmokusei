@@ -194,6 +194,10 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, name := range []string{"len", "cap", "append", "copy", "delete", "clear", "min", "max", "complex", "real", "imag", "make", "makeSlice", "makeMap", "copyArray", "viewArray", "goChannel", "closeGoChannel", "ok", "fail", "decoratorValue", "decoratorValueAs"} {
 		add(completionItem{Label: name, Kind: 3, Detail: "compiler built-in", SortText: "2_" + name})
 	}
+	for _, definition := range ast.ObservationBuiltins() {
+		add(completionItem{Label: definition.Name, Kind: 3, Detail: "compiler built-in: " + definition.Result, SortText: "2_" + definition.Name})
+	}
+	add(completionItem{Label: "jsonSnapshot", Kind: 3, Detail: "compiler built-in: Result<byte[]>", SortText: "2_jsonSnapshot"})
 	for _, imported := range program.Imports {
 		if !samePath(imported.Span.Path, path) {
 			continue

@@ -257,7 +257,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 					c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
 				}
 			}
-			return c.substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeStructBindings(structure, structObject))
+			callable := c.substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeStructBindings(structure, structObject))
+			recordReceiverContracts(expr, structObject, object, callable, method)
+			return callable
 		}
 		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", structObject.Name, expr.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -302,7 +304,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 				expr.ResolvedName = method.goName
 				expr.ResolvedDeclaration = method.declarationSpan
-				return substituteNativeTypeParameters(method.typeInfo, nativeDefinedTypeBindings(symbol, nativeObject))
+				callable := substituteNativeTypeParameters(method.typeInfo, nativeDefinedTypeBindings(symbol, nativeObject))
+				recordReceiverContracts(expr, nativeObject, object, callable, method)
+				return callable
 			}
 		}
 	}
@@ -406,6 +410,7 @@ func (c *Checker) checkNew(expr *ast.NewExpr) Type {
 	expr.ResolvedDeclaration = class.declarationSpan
 	c.recordGlobalDependency(classConstructionDependency(expr.ClassName))
 	classType := c.resolveNativeClassType(ast.TypeRef{Name: expr.ClassName, GenericArguments: expr.TypeArguments, Span: expr.Span}, class)
+	expr.NativeContractArguments = nativeContracts(classType.TypeArguments)
 	parameters := class.constructor
 	if classType.Kind != Invalid {
 		bindings := nativeClassBindings(class, classType)

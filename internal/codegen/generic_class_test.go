@@ -30,17 +30,17 @@ function use(): string {
 	for _, expected := range []string{
 		"type Box[T any] struct",
 		`Value T ` + "`json:\"value\"`",
-		"func __kinmokuseiInitBox[T any](this *Box[T], value T)",
+		"func __kinmokuseiInitBox[T any](this *Box[T], __kinmokuseiContractT string, value T)",
 		"func NewBox[T any](value T) *Box[T]",
 		"func (this *Box[T]) Get() T",
 		"func (this *Box[T]) Set(value T)",
 		"func BoxMake[T any](value T) *Box[T]",
 		"type Key[K comparable] struct",
-		`var box = BoxMake("first")`,
-		"var key = NewKey[int](7)",
-		`var reader Reader[string] = NewValue[string](box.Get())`,
+		`var box = __kinmokuseiNativeBoxMake(`,
+		"var key = __kinmokuseiNativeNewKey[int](",
+		`var reader Reader[string] = __kinmokuseiNativeNewValue[string](`,
 	} {
-		if !strings.Contains(generated, expected) {
+		if !strings.Contains(strings.Join(strings.Fields(generated), " "), strings.Join(strings.Fields(expected), " ")) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
 		}
 	}
@@ -65,17 +65,17 @@ function use(value: Child<string>): Base<string> { return value; }
 		"type Child[U any] struct",
 		"Base[U]",
 		"func __kinmokuseiUpcastChildToBase[U any](value *Child[U]) *Base[U]",
-		"func __kinmokuseiDowncastBaseToChild[U any](value *Base[U]) (*Child[U], bool)",
+		"func __kinmokuseiDowncastBaseToChild[U any](value *Base[U], contracts *[1]string) (*Child[U], bool)",
 		"func UpcastChildToBase[U any](value *Child[U]) *Base[U]",
-		"func __kinmokuseiInitChild[U any](this *Child[U], value U)",
-		"__kinmokuseiInitBase(&this.Base, value)",
+		"func __kinmokuseiInitChild[U any](this *Child[U], __kinmokuseiContractU string, value U)",
+		"__kinmokuseiInitBase(&this.Base, __kinmokuseiContractU, value)",
 		"func (this *Child[U]) Read() U",
 		"return this.Base.Get()",
 		"type Concrete struct",
 		"Base[int]",
 		"return __kinmokuseiUpcastChildToBase[string](value)",
 	} {
-		if !strings.Contains(generated, expected) {
+		if !strings.Contains(strings.Join(strings.Fields(generated), " "), strings.Join(strings.Fields(expected), " ")) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
 		}
 	}
@@ -108,7 +108,7 @@ class Concrete extends Base<string> {
 		"this.__kinmokuseiBaseSelf = this",
 		"func (this *Concrete) __kinmokuseiBaseRead() string",
 	} {
-		if !strings.Contains(generated, expected) {
+		if !strings.Contains(strings.Join(strings.Fields(generated), " "), strings.Join(strings.Fields(expected), " ")) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
 		}
 	}

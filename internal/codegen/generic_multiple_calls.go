@@ -8,15 +8,9 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// A lowered generic method has an extra receiver argument, so Go cannot expand
-// the source call directly. Capture the receiver before evaluating the producer.
-func generateGenericMultipleCall(source *ast.CallExpr, call *goast.CallExpr) goast.Expr {
-	return generateCapturedMultipleCall(source, call, true)
-}
-
 // Explicit bindings also avoid a Go 1.26+ vet panic when collection built-ins
 // receive a tuple directly. The capture factory preserves go/defer timing.
-func generateCapturedMultipleCall(source *ast.CallExpr, call *goast.CallExpr, hasReceiver bool) goast.Expr {
+func generateCapturedMultipleCall(source *ast.CallExpr, call *goast.CallExpr) goast.Expr {
 	used := map[string]bool{}
 	results := functionResults(*source.MultipleArgumentResult)
 	reserve := func(node goast.Node) bool {
@@ -39,12 +33,13 @@ func generateCapturedMultipleCall(source *ast.CallExpr, call *goast.CallExpr, ha
 	}
 	var body []goast.Stmt
 	var arguments []goast.Expr
-	producer := call.Args[0]
-	if hasReceiver {
-		receiver := fresh("__multipleReceiver")
-		body = append(body, &goast.AssignStmt{Lhs: []goast.Expr{receiver}, Tok: token.DEFINE, Rhs: []goast.Expr{call.Args[0]}})
-		arguments = append(arguments, receiver)
-		producer = call.Args[1]
+	// Hidden contracts and lowered receivers precede the tuple producer. Capture
+	// all of them first, keeping the source receiver/argument evaluation order.
+	producer := call.Args[len(call.Args)-1]
+	for _, argument := range call.Args[:len(call.Args)-1] {
+		captured := fresh("__multipleReceiver")
+		body = append(body, &goast.AssignStmt{Lhs: []goast.Expr{captured}, Tok: token.DEFINE, Rhs: []goast.Expr{argument}})
+		arguments = append(arguments, captured)
 	}
 	values := make([]goast.Expr, source.MultipleArgumentCount)
 	for i := range values {

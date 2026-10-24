@@ -127,7 +127,12 @@ func targetFixture(t *testing.T, goos, goarch string) (updater, release, map[str
 
 func installedFixture(t *testing.T, versioned bool) (Options, string, string) {
 	t.Helper()
-	root := t.TempDir()
+	// Darwin's temporary directory may be reached through /var -> /private/var.
+	// Production installation paths canonicalize parents before switching.
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	name := "keika"
 	if runtime.GOOS == "windows" {
 		name += ".exe"

@@ -317,6 +317,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				activeTypeParameters[parameter.Name] = parameter.NameSpan
 			}
 			visitTypeParameters(declaration.TypeParameters)
+			visitTypeParameters(declaration.ReceiverTypeParameters)
 			visitType(&declaration.ReceiverType)
 			for i := range declaration.Parameters {
 				visitType(&declaration.Parameters[i].Type)

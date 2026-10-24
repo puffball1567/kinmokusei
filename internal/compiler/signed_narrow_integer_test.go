@@ -44,7 +44,7 @@ function collections(values: int8[], lookup: Map<int16, int8>, key: int16): int 
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"type Tiny int8", "type Small int16", "func minimum8() int8", "func maximum16() int16", "int8(value)", "genericIdentity[int16](value)"} {
+	for _, want := range []string{"type Tiny int8", "type Small int16", "func minimum8() int8", "func maximum16() int16", "int8(value)", "__kinmokuseiNativegenericIdentity[int16]("} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
 		}

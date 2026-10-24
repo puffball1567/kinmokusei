@@ -91,6 +91,7 @@ func (c *Checker) checkNativeGenericCall(expr *ast.CallExpr, callableName string
 	if !c.validateNativeTypeArguments(callable.TypeParameters, arguments, expr.TypeArguments, expr.Span, callableName) {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	expr.NativeContractArguments = nativeContracts(arguments)
 	if len(expr.TypeArguments) < len(arguments) {
 		for _, parameter := range callable.Parameters {
 			if containsNativeInterface(parameter) {
