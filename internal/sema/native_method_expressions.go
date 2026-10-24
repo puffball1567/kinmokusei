@@ -138,6 +138,13 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 	}
 	expr.MethodExpressionReceiver = &ref
 	expr.ResolvedName, expr.ResolvedDeclaration = method.goName, method.declarationSpan
+	owner := receiver
+	if owner.Kind == GoPointer && owner.Element != nil {
+		owner = *owner.Element
+	}
+	if owner.Kind != Interface {
+		recordReceiverContracts(expr, owner, receiver, method.typeInfo, method)
+	}
 	// Go's initialization dependency graph follows concrete method bodies,
 	// even for stored method expressions; interface dispatch remains indirect.
 	if receiver.Kind != Interface {

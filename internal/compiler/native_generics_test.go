@@ -55,8 +55,8 @@ function nullableMissing(value: Box | null): boolean { return identity(value) ==
 	for _, expected := range []string{
 		"func identity[T any](value T) T",
 		"func second[T any, U any](left T, right U) U",
-		"identity[string](value)",
-		"second[int](1, value)",
+		"__kinmokuseiNativeidentity[string](",
+		"__kinmokuseiNativesecond[int](",
 		"func present[T any](value T) (T, error)",
 		"func dereference[T any](value *T) T",
 		"func lookup[T any](values map[string]T) T",

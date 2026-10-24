@@ -14,7 +14,7 @@ func goTypeParameterField(parameter kinmokuseiAST.TypeParameter, inferredCompara
 	if parameter.Constraint != nil {
 		constraint = goConstraintType(*parameter.Constraint)
 	}
-	if inferredComparable {
+	if inferredComparable || parameter.InferredComparable {
 		if parameter.Constraint == nil {
 			constraint = goast.NewIdent("comparable")
 		} else if parameter.Constraint.Qualifier != "" || parameter.Constraint.Name != "comparable" {

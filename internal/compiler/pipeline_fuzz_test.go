@@ -15,6 +15,8 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class Base{}class Box<T> extends Base{constructor(public value:T){}}function box<T>(v:T):Base{return new Box<T>(v);}function match<T>(v:Base):boolean{const [_,ok]=v as? Box<T>;return ok;}function f():boolean{return match<string>(box<bstring>(b"\xff"));}`,
+	`struct Box<T>{public value:T;private function map():T{return this.value;}public function read():T{return this.map();}}function f():bstring{const value=Box<bstring>{value:b"\xff"};const read=Box<bstring>.read;return read(value);}`,
 	`function f<T>(v:T):boolean{return inspectNil(v)||inspectComparable(v)&&inspectEqual(v,v);}`,
 	`function f<A,B>(a:A,b:B):boolean{return inspectSameType(a,b);}function g<T>(v:T):bstring{return inspectTypeName(v)+inspectKind(v)+inspectString(v);}`,
 	`function f<T>(v:T):float{return inspectFloat(v);}function g<T>(v:T):Result<byte[]>{return jsonSnapshot(v,"","  ");}`,

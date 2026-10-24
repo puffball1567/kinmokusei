@@ -122,6 +122,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"native-box-contracts.test":           {implementedGoCompatibilityContracts[0]},
 	"decorator-methods.test":              {implementedGoCompatibilityContracts[102]},
 	"decorator-static-methods.test":       {implementedGoCompatibilityContracts[102]},
 	"decorator-adapters.test":             {implementedGoCompatibilityContracts[102]},

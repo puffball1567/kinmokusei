@@ -105,6 +105,8 @@ function GenericDescendantToFixed(value: string): boolean {
   return present && restored === expected && restored.get() === value;
 }
 
+function NewNullableChild(value: string): Child<string> { return new Child<string>(value, "nullable"); }
+
 function NullableRoundTrip(value: Child<string> | null): boolean {
   const base: Base<string> | null = value;
   if (base === null) { return true; }
@@ -221,7 +223,7 @@ func TestGenericInheritanceBehavior(t *testing.T) {
     if got, want := generated.IntermediateRoundTrip(value), reference.IntermediateRoundTrip(value); got != want { t.Errorf("IntermediateRoundTrip(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.WrongIntermediateArgumentsFail(value), reference.WrongIntermediateArgumentsFail(value); got != want { t.Errorf("WrongIntermediateArgumentsFail(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.GenericDescendantToFixed(value), reference.GenericDescendantToFixed(value); got != want { t.Errorf("GenericDescendantToFixed(%q) = %v, Go = %v", value, got, want) }
-    if got, want := generated.NullableRoundTrip(generated.NewChild(value, "nullable")), reference.NullableRoundTrip(reference.NewChild(value, "nullable")); got != want { t.Errorf("NullableRoundTrip(%q) = %v, Go = %v", value, got, want) }
+    if got, want := generated.NullableRoundTrip(generated.NewNullableChild(value)), reference.NullableRoundTrip(reference.NewChild(value, "nullable")); got != want { t.Errorf("NullableRoundTrip(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.CheckedFailure(value), reference.CheckedFailure(value); got != want { t.Errorf("CheckedFailure(%q) = %v, Go = %v", value, got, want) }
     if got, want := generated.ForcedValue(value), reference.ForcedValue(value); got != want { t.Errorf("ForcedValue(%q) = %q, Go = %q", value, got, want) }
     gotPanic := panicText(func() { generated.ForcedFailure(value) })

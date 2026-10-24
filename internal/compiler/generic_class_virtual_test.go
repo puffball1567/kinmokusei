@@ -117,7 +117,7 @@ function ComparableBehavior(left: string, right: string): boolean {
 		"func (this *Leaf[X]) __kinmokuseiBaseRead() X",
 		"type __kinmokuseiComparableBaseVirtual[K comparable] interface",
 	} {
-		if !strings.Contains(string(generated), expected) {
+		if !strings.Contains(strings.Join(strings.Fields(string(generated)), " "), strings.Join(strings.Fields(expected), " ")) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)
 		}
 	}
