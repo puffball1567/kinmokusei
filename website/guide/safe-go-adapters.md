@@ -98,6 +98,9 @@ are deliberately not returned. If error-type matching matters, retain an
 ordinary Go call on a separately constructed raw DTO instead. JSON decoding
 still requires raw DTO fields followed by explicit validation.
 
+Use the [checked input adapter](./input-adapters) to share the read,
+construction and publication pipeline across generic framework binders.
+
 Encoding may invoke custom methods; it is not a pure operation. Prefix/indent,
 bytes, error and callback behavior are specified in the
 [snapshot reference](../reference/built-ins#json-snapshots-development).

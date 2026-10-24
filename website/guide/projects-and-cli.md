@@ -17,7 +17,10 @@ import { User, findUser } from "./users";
 
 Each source file has its own scope. Only local declarations and explicitly imported names are visible. Transitive imports do not leak names; cycles, missing files, and duplicate bindings are diagnosed before generation.
 
-`kinmokusei/*` is reserved for compiler-managed standard modules. The implemented `kinmokusei/http` package is embedded in the compiler; unknown or noncanonical reserved paths are rejected rather than fetched.
+`kinmokusei/*` is reserved for compiler-managed standard modules. The implemented
+`kinmokusei/http` package and development `kinmokusei/input` package are embedded
+in the compiler; unknown or noncanonical reserved paths are rejected rather
+than fetched. See the [standard-module reference](../reference/standard-library).
 
 ## Project layout
 

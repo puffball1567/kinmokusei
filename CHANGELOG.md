@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add the source-written `kinmokusei/input` module with `decodeInput` and
+  `bindInput`: concretely typed raw readers, checked construction, and
+  publication only after successful validation. Retain opaque Go boundary
+  restrictions and document fresh staging, aliasing, callback side effects,
+  class/struct destinations and framework policy ownership (#141).
+
 - Add scalar-only `inspect*` operations for generic dynamic type/kind, typed nil,
   runtime comparability, identity/value equality, floating-point and raw string
   observations without exposing reflection capabilities. Add a separate audited
