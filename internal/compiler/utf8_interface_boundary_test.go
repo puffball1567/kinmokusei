@@ -86,7 +86,7 @@ function use():void{inspect(new Row<int>());}`,
 				t.Fatal(err)
 			}
 			for _, item := range diagnostics {
-				if item.Span.Path == entry && strings.Contains(item.Message, "cannot use") && strings.HasSuffix(item.Message, " as any") {
+				if item.Span.Path == entry && strings.Contains(item.Message, "cannot use") && strings.Contains(item.Message, " as any: verified UTF-8 string storage") {
 					if len(generated) != 0 {
 						t.Fatal("invalid source emitted Go")
 					}

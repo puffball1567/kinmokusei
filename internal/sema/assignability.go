@@ -27,7 +27,7 @@ func (c *Checker) requireAssignable(target, value Type, span source.Span) {
 				// upcasts or other source coercions. Require storage assignability
 				// as well as the source contract.
 				if !c.isAssignable(target.Results[index], value.Results[index]) || !assignable(target.Results[index], value.Results[index]) {
-					c.report(span, fmt.Sprintf("cannot use result %d of %s as %s", index+1, value.String(), target.Results[index].String()))
+					c.report(span, fmt.Sprintf("cannot use result %d of %s as %s", index+1, value.String(), target.Results[index].String())+c.goInterfaceTextDiagnostic(target.Results[index], value.Results[index]))
 				}
 			}
 			return
@@ -40,7 +40,7 @@ func (c *Checker) requireAssignable(target, value Type, span source.Span) {
 		return
 	}
 	if !c.isAssignable(target, value) {
-		c.report(span, fmt.Sprintf("cannot use %s as %s", value.String(), target.String()))
+		c.report(span, fmt.Sprintf("cannot use %s as %s", value.String(), target.String())+c.goInterfaceTextDiagnostic(target, value))
 	}
 }
 
