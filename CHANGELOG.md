@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Explain opaque Go interface assignment failures caused by verified UTF-8
+  string storage or an open generic type. Suggest raw `bstring` input storage
+  followed by checked construction, preserving existing boundary restrictions
+  (#99).
+
 - Add read-only `keika versions` inventory for active and retained compiler
   bundles, with receipt status, sizes and protected runtimes; add explicit
   `--remote` stable-release metadata listing with target filtering and bounded
