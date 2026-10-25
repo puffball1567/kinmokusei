@@ -68,7 +68,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			if expr.Checked {
 				name = downcastName(expr.SourceClass, expr.Type.Name)
 			}
-			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: []goast.Expr{value}}, nil
+			arguments := []goast.Expr{value}
+			if len(expr.NativeContractArguments) != 0 {
+				arguments = append(arguments, &goast.UnaryExpr{Op: token.AND, X: contractArray(expr.NativeContractArguments)})
+			}
+			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: arguments}, nil
 		}
 		return &goast.TypeAssertExpr{X: value, Type: goType(expr.Type)}, nil
 	case *kinmokuseiAST.TaskStartExpr:
@@ -78,6 +82,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	case *kinmokuseiAST.PropagateExpr:
 		return nil, fmt.Errorf("result propagation was not lowered from its statement context")
 	case *kinmokuseiAST.CallExpr:
+		if value, handled, err := generateObservationCall(expr); handled {
+			return value, err
+		}
 		if expr.Builtin == kinmokuseiAST.DecodeUTF8Call {
 			if expr.ConversionType == nil || len(expr.Arguments) != 1 {
 				return nil, fmt.Errorf("UTF-8 conversion has invalid checked shape")
@@ -93,6 +100,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		if expr.SuperConstructor {
 			args := []goast.Expr{&goast.UnaryExpr{Op: token.AND, X: &goast.SelectorExpr{X: goast.NewIdent("this"), Sel: goast.NewIdent(expr.SuperBase)}}}
+			args = append(args, nativeContractExpressions(expr.NativeContractArguments)...)
 			for _, argument := range expr.Arguments {
 				generated, err := generateExpression(argument)
 				if err != nil {
@@ -229,7 +237,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			call := &goast.CallExpr{Fun: goast.NewIdent(name), Args: args}
 			if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
-				return generateCapturedMultipleCall(expr, call, false), nil
+				return generateCapturedMultipleCall(expr, call), nil
 			}
 			if expr.Expanded {
 				call.Ellipsis = token.Pos(1)
@@ -253,6 +261,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				if member.GenericReceiverAddress {
 					genericReceiver = &goast.UnaryExpr{Op: token.AND, X: genericReceiver}
 				}
+				if member.ReceiverContractDereference {
+					genericReceiver = &goast.StarExpr{X: genericReceiver}
+				}
 			}
 			if member.GenericReceiverUpcast != "" {
 				genericReceiver = &goast.CallExpr{
@@ -270,6 +281,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				name.Name = goTypeName(name.Name)
 			}
 		}
+		if len(expr.NativeContractArguments) != 0 {
+			if name, ok := callee.(*goast.Ident); ok {
+				name.Name = nativeImplementationName(name.Name)
+			}
+		}
 		if expr.ConversionType == nil {
 			typeArguments := expr.TypeArguments
 			if len(expr.ResolvedTypeArguments) != 0 {
@@ -277,8 +293,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			callee = indexedGoType(callee, typeArguments)
 		}
-		args := make([]goast.Expr, 0, len(expr.Arguments)+1)
+		args := nativeContractExpressions(expr.NativeContractArguments)
 		if genericReceiver != nil {
+			if member, ok := expr.Callee.(*kinmokuseiAST.MemberExpr); ok {
+				args = append(args, nativeContractExpressions(member.ReceiverContractArguments)...)
+			}
 			args = append(args, genericReceiver)
 		}
 		for _, arg := range expr.Arguments {
@@ -289,11 +308,8 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			args = append(args, generated)
 		}
 		call := &goast.CallExpr{Fun: callee, Args: args}
-		if genericReceiver != nil && expr.MultipleArgumentCount > 0 {
-			return generateGenericMultipleCall(expr, call), nil
-		}
 		if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
-			return generateCapturedMultipleCall(expr, call, false), nil
+			return generateCapturedMultipleCall(expr, call), nil
 		}
 		if expr.Expanded {
 			call.Ellipsis = token.Pos(1)
@@ -390,6 +406,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.CompositeLit{Type: goType(expr.Type), Elts: fields}, nil
 	case *kinmokuseiAST.MemberExpr:
+		if expr.ReceiverContractHelper != "" && !expr.GenericMethod {
+			return generateReceiverContractValue(expr)
+		}
 		if expr.MethodExpressionReceiver != nil {
 			return &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}, nil
 		}
@@ -428,6 +447,12 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			return nil, err
 		}
 		if expr.Instantiated {
+			if len(expr.NativeContractArguments) != 0 {
+				if name, ok := object.(*goast.Ident); ok {
+					name.Name = nativeBindingName(name.Name)
+				}
+				return &goast.CallExpr{Fun: indexedGoType(object, expr.TypeArguments), Args: nativeContractExpressions(expr.NativeContractArguments)}, nil
+			}
 			return indexedGoType(object, expr.TypeArguments), nil
 		}
 		index, err := generateExpression(expr.Index)
@@ -469,7 +494,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.SliceExpr{X: object, Low: low, High: high, Max: max, Slice3: expr.Full}, nil
 	case *kinmokuseiAST.NewExpr:
-		args := make([]goast.Expr, 0, len(expr.Arguments))
+		args := nativeContractExpressions(expr.NativeContractArguments)
 		for _, argument := range expr.Arguments {
 			generated, err := generateExpression(argument)
 			if err != nil {
@@ -477,7 +502,11 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			args = append(args, generated)
 		}
-		call := &goast.CallExpr{Fun: indexedGoType(goast.NewIdent("New"+expr.ClassName), expr.TypeArguments), Args: args}
+		name := "New" + expr.ClassName
+		if len(expr.NativeContractArguments) != 0 {
+			name = nativeImplementationName(name)
+		}
+		call := &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.TypeArguments), Args: args}
 		if expr.Expanded {
 			call.Ellipsis = token.Pos(1)
 		}

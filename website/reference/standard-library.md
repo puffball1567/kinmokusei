@@ -1,14 +1,51 @@
 ---
 title: Standard modules
-description: Public API reference for compiler-managed Kinmokusei modules, beginning with kinmokusei/http.
+description: Public API reference for compiler-managed Kinmokusei HTTP and checked input modules.
 ---
 
 # Standard modules
 
 `kinmokusei/*` is reserved for compiler-managed source modules. The implemented
-module is the exact path `kinmokusei/http`, available since v0.2.0. Unknown,
+modules are the exact paths `kinmokusei/http` (since v0.2.0) and
+`kinmokusei/input` (since v0.4.10). Unknown,
 differently cased, traversal-like, or otherwise noncanonical reserved paths are
 rejected.
+
+## `kinmokusei/input` API
+
+```ts
+import { decodeInput, bindInput } from "kinmokusei/input";
+```
+
+```text
+function decodeInput<Raw, Value>(
+  read: () => Result<Raw>,
+  construct: (raw: Raw) => Result<Value>,
+): Result<Value>;
+
+function bindInput<Raw, Value>(
+  read: () => Result<Raw>,
+  construct: (raw: Raw) => Result<Value>,
+  publish: (value: Value) => void,
+): Result<void>;
+```
+
+`decodeInput` calls `read` once and, only on success, calls `construct` once.
+`bindInput` additionally invokes `publish` once after construction succeeds.
+Errors stop later stages and are returned unchanged. Panics propagate; callback
+side effects are not rolled back. `Result<void>` is handled as one error, not a
+value/error pair: use `const [err] = bindInput(...)` for explicit handling,
+or `bindInput(...)?` to propagate it from a Result-returning function.
+
+Supply a concrete, fresh raw DTO reader and a checked native constructor.
+Neither function exposes an unconstrained writable destination to Go or
+automatically validates, deep-copies or decodes a type. Struct, class, nullable
+and collection results keep their ordinary checked construction and assignment
+semantics. No extra runtime is required: these functions ship as embedded
+Kinmokusei source.
+
+The [input adapter guide](../guide/input-adapters) gives the complete boundary,
+aliasing and framework-policy contract and an executable example.
 
 ## `kinmokusei/http` API
 

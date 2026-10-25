@@ -28,13 +28,17 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 		if err != nil {
 			return nil, err
 		}
-		return []goast.Decl{&goast.FuncDecl{Name: goast.NewIdent(goName(decl.Name)), Type: fnType, Body: body}}, nil
+		return nativeGenericDeclarations(&goast.FuncDecl{Name: goast.NewIdent(goName(decl.Name)), Type: fnType, Body: body}, decl.TypeParameters), nil
 	case *kinmokuseiAST.MethodDecl:
 		generated, err := generateNativeStructMethod(decl, decl.ReceiverName, goType(decl.ReceiverType))
 		if err != nil {
 			return nil, err
 		}
-		return []goast.Decl{generated}, nil
+		receiver := decl.ReceiverType
+		if receiver.Pointee != nil {
+			receiver = *receiver.Pointee
+		}
+		return nativeReceiverDeclarations(generated, receiver.Name, decl.ReceiverTypeParameters, decl.ReceiverContractParameters), nil
 	case *kinmokuseiAST.VariableDecl:
 		value, err := generateExpression(decl.Value)
 		if err != nil {
@@ -97,14 +101,15 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 				if err != nil {
 					return nil, err
 				}
-				declarations = append(declarations, generated)
+				proofs := append(append([]kinmokuseiAST.TypeParameter(nil), method.TypeParameters...), method.ReceiverContractParameters...)
+				declarations = append(declarations, nativeGenericDeclarations(generated, proofs)...)
 				continue
 			}
 			generated, err := generateNativeStructMethod(method, "this", receiver)
 			if err != nil {
 				return nil, err
 			}
-			declarations = append(declarations, generated)
+			declarations = append(declarations, nativeReceiverDeclarations(generated, decl.Name, decl.TypeParameters, method.ReceiverContractParameters)...)
 		}
 		return declarations, nil
 	case *kinmokuseiAST.TypeDecl:

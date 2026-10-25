@@ -69,6 +69,26 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		imports = append(imports, &goast.ImportSpec{Name: goast.NewIdent(utf8Alias), Path: &goast.BasicLit{Kind: token.STRING, Value: `"unicode/utf8"`}})
 		seenImports["unicode/utf8"] = true
 	}
+	// Reuse checked import aliases rather than introducing a second import of
+	// the same package. Runtime aliases use the reserved compiler namespace.
+	runtimeImport := func(path, fallback string) string {
+		for _, spec := range imports {
+			imported := spec.(*goast.ImportSpec)
+			if imported.Path.Value == fmt.Sprintf("%q", path) {
+				return imported.Name.Name
+			}
+		}
+		imports = append(imports, &goast.ImportSpec{Name: goast.NewIdent(fallback), Path: &goast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("%q", path)}})
+		seenImports[path] = true
+		return fallback
+	}
+	observationAlias, snapshotAlias := "", ""
+	if program.UsesObservation {
+		observationAlias = runtimeImport("reflect", "__kinmokuseiReflect")
+	}
+	if program.UsesJSONSnapshot {
+		snapshotAlias = runtimeImport("encoding/json", "__kinmokuseiJSON")
+	}
 	// Constant length expressions no longer occur in the generated types.
 	// Retain their packages' initialization without an unused namespace alias.
 	for _, imported := range program.Imports {
@@ -98,6 +118,20 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		}
 		file.Decls = append(file.Decls, declarations...)
 	}
+	if program.UsesObservation {
+		declarations, err := observationRuntimeDeclarations(observationAlias)
+		if err != nil {
+			return nil, nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
+	}
+	if program.UsesJSONSnapshot {
+		declarations, err := jsonSnapshotRuntimeDeclarations(snapshotAlias)
+		if err != nil {
+			return nil, nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
+	}
 	if program.UsesExceptions {
 		runtimeDeclarations, err := exceptionRuntimeDeclarations()
 		if err != nil {
@@ -121,6 +155,16 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	}
 	if decoratorInit != nil {
 		file.Decls = append(file.Decls, decoratorInit)
+	}
+	needsContracts := false
+	goast.Inspect(file, func(node goast.Node) bool {
+		if name, ok := node.(*goast.Ident); ok && (name.Name == "__kinmokuseiSourceContract" || name.Name == "__kinmokuseiKnownContracts") {
+			needsContracts = true
+		}
+		return true
+	})
+	if needsContracts {
+		file.Decls = append(file.Decls, nativeContractRuntimeDeclarations()...)
 	}
 	set := token.NewFileSet()
 	var output bytes.Buffer

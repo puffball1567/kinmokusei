@@ -1,0 +1,22 @@
+// Decode only into fresh raw storage in read. Construct validates raw fields
+// and returns a new native value; neither callback receives the destination.
+export function decodeInput<Raw, Value>(
+  read: () => Result<Raw>,
+  construct: (raw: Raw) => Result<Value>,
+): Result<Value> {
+  const raw = read()?;
+  return construct(raw);
+}
+
+// Publish once, only after both stages succeed. A publication callback supports
+// native class references as well as structs, without an opaque writable *T.
+// Callbacks keep ordinary side effects; captured/global state is not rolled back.
+export function bindInput<Raw, Value>(
+  read: () => Result<Raw>,
+  construct: (raw: Raw) => Result<Value>,
+  publish: (value: Value) => void,
+): Result<void> {
+  const value = decodeInput(read, construct)?;
+  publish(value);
+  return ok();
+}

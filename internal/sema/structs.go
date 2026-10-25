@@ -20,6 +20,7 @@ func (c *Checker) declareStruct(decl *ast.StructDecl) {
 		}
 		c.structs[decl.Name] = symbol
 	}
+	symbol.declaration = decl
 	c.pushTypeParameterScope(symbol.typeParamScope)
 	defer c.popTypeParameterScope()
 	for i := range decl.Fields {
@@ -584,6 +585,12 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 		}
 	}
 	receiver := valueReceiver
+	method.ReceiverContractParameters = receiverContractParameters(valueReceiver.TypeArguments)
+	if method.External {
+		if symbol := c.structs[structName]; symbol != nil {
+			method.ReceiverTypeParameters = receiverTypeParameters(method.TypeParameters, symbol.declaration.TypeParameters, valueReceiver.TypeArguments)
+		}
+	}
 	if method.PointerReceiver {
 		receiver = Type{Kind: GoPointer, Name: "*" + structName, Element: &valueReceiver}
 	}
@@ -630,6 +637,8 @@ func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, ty
 		return
 	}
 	receiver := valueReceiver
+	method.ReceiverContractParameters = receiverContractParameters(valueReceiver.TypeArguments)
+	method.ReceiverTypeParameters = receiverTypeParameters(method.TypeParameters, symbol.declaration.TypeParameters, valueReceiver.TypeArguments)
 	if method.PointerReceiver {
 		pointerType := gotypes.NewPointer(valueReceiver.GoType)
 		receiver = Type{Kind: GoPointer, Name: "*" + typeName, Element: &valueReceiver, GoType: pointerType}

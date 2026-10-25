@@ -39,6 +39,7 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		expr.ClassDowncast = true
+		expr.NativeContractArguments = nativeContracts(asserted.TypeArguments)
 		expr.SourceClass = source.Name
 		if !expr.Checked {
 			return asserted

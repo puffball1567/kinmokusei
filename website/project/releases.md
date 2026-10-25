@@ -36,6 +36,45 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.10 highlights
+
+Use matching v0.4.10 compiler and editor artifacts.
+
+- Generic native class downcasts preserve source contracts rather than relying
+  only on erased Go type identity. `Box<bstring>` does not become `Box<string>`;
+  nested, nullable and nominal arguments remain distinct (#140).
+- Safe scalar `inspect*` observations, audited direct `fmt.Sprintf`, generic
+  `jsonSnapshot` encoding with text-only errors, and typed error-extraction
+  adapters improve reusable generic libraries without exposing reflection
+  capabilities (#138).
+- `kinmokusei/input` supplies staged raw reading, checked native construction
+  and success-only publication for JSON/query/URI/form adapters. Framework
+  policies remain explicit; callback side effects are not rolled back (#141).
+- Fresh generic literals use explicit and preceding typed arguments as context
+  while existing shared text storage remains invariant (#137).
+- Linux/macOS `keika use` and independent `keika-use` select exact stable
+  versions, including downgrades, with verified cache reuse and `--offline`.
+
+### Migrating from v0.4.9
+
+Update with `keika update --version v0.4.10` on supported Linux/macOS
+installations, or install the release archive manually. Install the matching
+VSIX separately. Libraries using these additions should require
+`min-kinmokusei = "0.4.10"`.
+
+Native generic checked casts now reject mismatched or unknown source proofs;
+forced casts panic. A direct generic Go entry point does not establish native
+text/nullability contracts. Use a Kinmokusei factory when a value must later
+round-trip through a native downcast; public Go projection helpers are not
+native validators.
+
+Generic JSON input still needs a concrete raw reader and checked constructor;
+the new module does not authorize unclassified writable `*T` boundaries.
+Snapshot errors preserve text rather than reflection-bearing error identity
+or unwrap chains. Review [generic Go adapters](../guide/safe-go-adapters),
+[input staging](../guide/input-adapters), [version switching](../learn/installation#switch-compiler-versions)
+and the [v0.4.10 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.10).
+
 ## v0.4.9 highlights
 
 Use matching v0.4.9 compiler and editor artifacts.

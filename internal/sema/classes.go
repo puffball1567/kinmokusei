@@ -125,6 +125,7 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 			baseBindings := nativeClassBindings(base, baseType)
 			symbol.base = decl.Base.Name
 			symbol.baseType = baseType
+			decl.BaseContracts = nativeContracts(baseType.TypeArguments)
 			symbol.ancestors = append([]string{decl.Base.Name}, base.ancestors...)
 			symbol.ancestorTypes = append(symbol.ancestorTypes, baseType)
 			for _, ancestorType := range base.ancestorTypes {

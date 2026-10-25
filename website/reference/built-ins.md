@@ -7,6 +7,72 @@ description: Signatures and runtime contracts for numeric, collection, result, c
 
 Compiler built-ins have dedicated type rules and lower directly to predictable Go constructs. Most collection names can be shadowed by visible user declarations; `goChannel` and `closeGoChannel` are reserved.
 
+## Safe observations
+
+Available since v0.4.10.
+
+These operations accept native generic values and verified-text storage without
+returning `reflect.Value`, `reflect.Type`, pointers or writable aliases. They do
+not call input methods. They are observations of the generated Go value, not
+proof of a source type's UTF-8 or nullability contracts.
+
+| Form | Result and behavior |
+| --- | --- |
+| `inspectTypeName(value)` | `bstring`: dynamic Go type label, or `b"<nil>"` for a nil interface |
+| `inspectSameType(a, b)` | `boolean`: exact dynamic Go type identity, including nil interfaces |
+| `inspectKind(value)` | `bstring`: Go reflection kind, such as `b"ptr"`, `b"slice"`, `b"string"` or `b"invalid"` |
+| `inspectNil(value)` | `boolean`: true for nil interfaces and typed nil pointers/maps/slices/channels/functions; false for non-nil-capable kinds |
+| `inspectComparable(value)` | `boolean`: reflection's runtime comparability, including interface contents; false for a nil interface |
+| `inspectEqual(a, b)` | `boolean`: `reflect.Value.Equal` semantics, not deep equality; panics for same-type non-comparable operands |
+| `inspectFloat(value)` | `float`: `reflect.Value.Float` semantics for float32/float64; other kinds panic |
+| `inspectString(value)` | `bstring`: `reflect.Value.String`, without calling `String`/`GoString`; nonstrings get reflection's descriptive label |
+
+Type labels are diagnostic text, not unique identities: use `inspectSameType`
+for identity. `string` and `bstring` share a Go representation, so neither type
+observation authorizes a conversion between their storage contracts. Equality
+retains pointer identity and IEEE NaN/signed-zero behavior; use `inspectFloat`
+with the usual math operations when deliberately distinguishing signed zero.
+Use `reflect.DeepEqual` when deep comparison is intended.
+
+Arguments evaluate once, left to right. No explicit type arguments or spread
+arguments are accepted. Results must be used or explicitly discarded with `_`.
+Tasks must be awaited and Result values consumed before inspection. Nested
+opaque calls retain their ordinary safety checks. These names can be shadowed
+by visible source declarations, just like `len`.
+As with other compiler built-ins, wrap an operation in an ordinary function
+before launching it with `go`.
+
+## JSON snapshots
+
+Available since v0.4.10.
+
+```ts
+function snapshot<T>(value: T): Result<byte[]> {
+  return jsonSnapshot(value, "", "  ");
+}
+```
+
+`jsonSnapshot(value)` uses `encoding/json.Marshal`.
+`jsonSnapshot(value, prefix, indent)` uses `MarshalIndent`; prefix and indent
+are `bstring` parameters and must be supplied together. Native generic records
+and verified-text containers are accepted. Normal Go JSON rules apply to fields,
+tags, custom marshalers, unsupported values, cycles and invalid raw UTF-8.
+The result is independent mutable bytes, not verified text.
+
+This is an explicit serialization bridge, **not** an exemption for direct Go
+JSON calls. On failure it evaluates the original error's `Error()` once and
+returns a text-only error. The message is preserved; error identity, concrete
+type and `Unwrap`/`errors.As` chains are intentionally not preserved. In
+particular, `json.UnsupportedValueError.Value` must not leak a writable alias
+back into verified storage. Panics are not converted to Result failures.
+
+Custom marshalers, text marshalers, zero-value predicates and error renderers
+may run checked application code and mutate state. Nullable field facts are
+invalidated just as for an effectful call. The bridge provides neither purity
+nor synchronization: callers must prevent concurrent mutation during encoding.
+Consume the Result normally with `?`, split binding, forwarding, or an explicit
+intentional discard. See [generic Go adapters](../guide/safe-go-adapters).
+
 ## Text conversions (since v0.4.6)
 
 | Form | Result |

@@ -122,6 +122,8 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"input-adapters.test":                 {implementedGoCompatibilityContracts[0]},
+	"native-box-contracts.test":           {implementedGoCompatibilityContracts[0]},
 	"decorator-methods.test":              {implementedGoCompatibilityContracts[102]},
 	"decorator-static-methods.test":       {implementedGoCompatibilityContracts[102]},
 	"decorator-adapters.test":             {implementedGoCompatibilityContracts[102]},
@@ -175,6 +177,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"recursive-loop-arrows.test":          {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"result-function-values.test":         {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[16]},
 	"generic-callbacks.test":              {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
+	"generic-literal-context.test":        {implementedGoCompatibilityContracts[0]},
 	"generic-callback-return.test":        {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2]},
 	"source-exports.test":                 {implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[4]},
 	"module-main.test":                    {implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[4]},
@@ -193,6 +196,10 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"text-unions.test":                    {implementedGoCompatibilityContracts[0]},
 	"nullable-interfaces.test":            {implementedGoCompatibilityContracts[0]},
 	"readonly-comparison.test":            {implementedGoCompatibilityContracts[0]},
+	"scalar-observations.test":            {implementedGoCompatibilityContracts[0]},
+	"safe-rendering.test":                 {implementedGoCompatibilityContracts[0]},
+	"safe-json-snapshot.test":             {implementedGoCompatibilityContracts[0]},
+	"error-extraction-adapter.test":       {implementedGoCompatibilityContracts[0]},
 	"generated.test":                      {implementedGoCompatibilityContracts[1]},
 	"generated.class.test":                {implementedGoCompatibilityContracts[2]},
 	"generated.interface.test":            {implementedGoCompatibilityContracts[3]},

@@ -37,7 +37,7 @@ function Run():int{calls=0;const p=new Picker();const a=first(pair);const b=firs
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, expected := range []string{"measure[int](marked)", "measure[int](func()", "MeterMeasure[int](meter, marked)"} {
+	for _, expected := range []string{"__kinmokuseiNativemeasure[int](", ", marked)", ", func()", "__kinmokuseiNativeMeterMeasure[int](", ", meter, marked)"} {
 		if !strings.Contains(string(generated), expected) {
 			t.Fatalf("callback interface result must retain %q:\n%s", expected, generated)
 		}

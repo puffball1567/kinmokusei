@@ -75,9 +75,9 @@ function Present(value: string): Result<string> {
 		"func BoxChoose[T any](primary T, fallback T, first bool) *Box[T]",
 		"func BoxPresent[T any](value T) (*Box[T], error)",
 		"func EntryMake[K comparable, V any](key K, value V) *Entry[K, V]",
-		"return BoxMake(value)",
-		"var angle = BoxMake[string](value)",
-		"var entry = EntryMake[string](key, value)",
+		"return __kinmokuseiNativeBoxMake(__kinmokuseiContractT, value)",
+		"var angle = __kinmokuseiNativeBoxMake[string](",
+		"var entry = __kinmokuseiNativeEntryMake[string](",
 	} {
 		if !strings.Contains(string(generated), expected) {
 			t.Errorf("generated Go does not contain %q:\n%s", expected, generated)

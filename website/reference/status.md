@@ -20,11 +20,11 @@ Since v0.4.1, [external Kinmokusei packages](/guide/external-packages) support t
 
 ## Release availability
 
-The current compiler/editor release is v0.4.9. It recognizes safe direct
-`reflect.DeepEqual` calls for unconstrained generic values and verified-text
-containers, and preserves null when converting nullable classes to nullable
-interfaces. Other opaque Go API protections remain in place.
-See [v0.4.9 highlights](../project/releases#v049-highlights) for upgrade notes.
+The current compiler/editor release is v0.4.10. It preserves source contracts
+in generic class downcasts and adds safe generic observations, JSON snapshots,
+typed input staging through `kinmokusei/input`, fresh generic literal context
+and exact compiler version switching. Opaque Go API protections remain in place.
+See [v0.4.10 highlights](../project/releases#v0410-highlights) for upgrade notes.
 
 Compiler self-update and the scalar-union, object-order and generated-name
 corrections released in v0.4.8 remain available.

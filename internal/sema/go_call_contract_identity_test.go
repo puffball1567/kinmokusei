@@ -85,3 +85,38 @@ func TestNamedGoCallContractCacheIsBounded(t *testing.T) {
 		}
 	}
 }
+
+func TestSprintfCallContractRequiresExactSignature(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name, path, source string
+		want               bool
+	}{
+		{"exact", "fmt", `func Sprintf(format string,a ...any)string{return ""}`, true},
+		{"other package", "example.test/fmt", `func Sprintf(format string,a ...any)string{return ""}`, false},
+		{"variable", "fmt", `var Sprintf func(string,...any)string`, false},
+		{"nonvariadic", "fmt", `func Sprintf(format string,a []any)string{return ""}`, false},
+		{"wrong prefix", "fmt", `func Sprintf(format any,a ...any)string{return ""}`, false},
+		{"wrong elements", "fmt", `func Sprintf(format string,a ...string)string{return ""}`, false},
+		{"wrong result", "fmt", `func Sprintf(format string,a ...any)any{return nil}`, false},
+		{"extra result", "fmt", `func Sprintf(format string,a ...any)(string,error){return "",nil}`, false},
+		{"generic", "fmt", `func Sprintf[T any](format string,a ...any)string{return ""}`, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			set := token.NewFileSet()
+			file, err := goparser.ParseFile(set, "contract.go", "package fmt\n"+test.source, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pkg, err := (&gotypes.Config{}).Check(test.path, set, []*goast.File{file}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			function, _ := pkg.Scope().Lookup("Sprintf").(*gotypes.Func)
+			contract, ok := trustedGoCallContract(function)
+			if ok != test.want || ok && (!contract.variadic || contract.borrowedStart != 1) {
+				t.Fatalf("contract=%#v matched=%v want=%v", contract, ok, test.want)
+			}
+		})
+	}
+}

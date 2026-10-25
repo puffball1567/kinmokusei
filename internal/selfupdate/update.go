@@ -28,6 +28,7 @@ type Result struct {
 	Available      bool
 	ExecutablePath string
 	RequireVersion bool
+	ManagerPath    string
 }
 
 type updater struct {

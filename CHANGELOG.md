@@ -11,6 +11,39 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-10-25
+
+- Preserve native source contracts in generic class downcasts, including
+  `string` versus `bstring`, nested collections and nullable arguments. Keep
+  same-contract native round trips, nominal hierarchy identity and public Go
+  signatures; reject mismatched or unknown native proofs instead of accepting
+  erased Go storage as validation (#140).
+
+- Add the source-written `kinmokusei/input` module with `decodeInput` and
+  `bindInput`: concretely typed raw readers, checked construction, and
+  publication only after successful validation. Retain opaque Go boundary
+  restrictions and document fresh staging, aliasing, callback side effects,
+  class/struct destinations and framework policy ownership (#141).
+
+- Add scalar-only `inspect*` operations for generic dynamic type/kind, typed nil,
+  runtime comparability, identity/value equality, floating-point and raw string
+  observations without exposing reflection capabilities. Add a separate audited
+  direct `fmt.Sprintf` contract preserving deferred formatting callbacks. Add
+  `jsonSnapshot` for generic values with independent byte output and text-only
+  errors that cannot expose writable input aliases. Document and execute a typed
+  error-extraction adapter, including custom `As` mutations on false (#138).
+
+- Use explicit generic arguments and preceding typed arguments to contextualize
+  fresh array/object literals, including nested, fixed-array and variadic forms.
+  Preserve existing shared-text storage restrictions, constant/callback inference
+  and argument evaluation order (#137).
+
+- Add explicit Linux/macOS compiler version selection with `keika use vX.Y.Z`,
+  including downgrades, checked local-cache reuse and `--offline`. Preserve a
+  separate `keika-use` management command so pre-management compilers cannot
+  strand the installation. Retain official download, checksum, archive, license
+  and executable-version checks; reject changed caches and unrelated files.
+
 ## [0.4.9] - 2026-10-21
 
 - Recognize audited, direct Go call contracts for `reflect.DeepEqual`, allowing
