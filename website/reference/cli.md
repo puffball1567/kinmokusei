@@ -64,6 +64,37 @@ Changed managed bundles, invalid layouts and unrelated companion files are
 rejected without replacement. `update` still rejects explicit downgrades.
 See [switching versions](../learn/installation#switch-compiler-versions).
 
+### Version inventory (development after v0.4.10)
+
+| Command | Purpose |
+| --- | --- |
+| `keika versions` / `keika versions list` | List retained bundles in the invoked installation, newest first |
+| `keika versions [list] --remote` | Fetch official stable release candidates with archive/checksum metadata for this OS/architecture |
+| `keika-use versions [list] [--remote]` | Use the independent manager's inventory support after selecting an older compiler |
+
+These additions are not included in v0.4.10. Development `use` also accepts the
+numeric spelling `keika use 0.4.10`, normalized to the canonical `v0.4.10` tag.
+
+Local listing is read-only and never accesses the network, runs a cached
+compiler, creates a lock/helper or switches versions. It shows bundle bytes,
+the active compiler, protected running/manager files, and `managed`, `unmanaged`
+or `invalid` receipt/inventory status. An unmanaged bundle has no receipt;
+invalid means validation failed, not permission to delete or repair it.
+Only this installation's retained cache is scanned, not arbitrary manual
+compiler copies elsewhere. Concurrent switches can change the observed state.
+Local inventory follows the Linux/macOS managed-installation layout.
+
+Only `--remote` requests release metadata. Drafts/prereleases, noncanonical tags
+and releases without the target archive and `SHA256SUMS` are excluded. Results
+are paginated, deduplicated and sorted by numeric version; errors do not return
+an incomplete listing. The listing does not download or verify archive contents.
+`use`/`update` still perform full checksum, archive, license and executable checks;
+older incompatible bundles may require manual installation. Windows can list
+its downloadable archives but still installs them manually.
+
+An existing `keika-use` companion needs an inventory-capable management snapshot.
+Run `keika use` from the newer compiler to refresh it before downgrading.
+
 ## Core input and output behavior
 
 | Command | Standard input/output | Files written |

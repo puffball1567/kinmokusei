@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add read-only `keika versions` inventory for active and retained compiler
+  bundles, with receipt status, sizes and protected runtimes; add explicit
+  `--remote` stable-release metadata listing with target filtering and bounded
+  pagination. Support independent `keika-use versions` after downgrade, and
+  numeric `keika use X.Y.Z` spelling without weakening installation checks.
+
 ## [0.4.10] - 2026-10-25
 
 - Preserve native source contracts in generic class downcasts, including

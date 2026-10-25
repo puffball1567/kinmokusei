@@ -183,6 +183,29 @@ and bundled notices, and never changes `PATH`, the Go toolchain, the VSIX or
 project files. Only stable tags in `vX.Y.Z` form are accepted. `keika update`
 remains upgrade-only. Windows users select a release archive manually.
 
+### List retained and published versions (development)
+
+The following inventory commands are development additions after v0.4.10:
+
+```sh
+keika versions
+keika versions --remote
+keika-use versions
+```
+
+The first and third commands inspect only this installation's retained bundles,
+including inactive versions, without network access or execution of cached
+compilers. `active` identifies the selected compiler; receipt/inventory status
+distinguishes managed, unmanaged and invalid bundles. These labels do not
+automatically repair or remove files. Other manually installed copies are not
+discovered by a whole-system search.
+
+`--remote` explicitly fetches the official stable release candidates for the
+current platform. It does not install them; archive verification still happens
+when selecting a version. The development compiler also accepts
+`keika use 0.4.10` as shorthand for `keika use v0.4.10`.
+See the [CLI inventory contract](../reference/cli#version-inventory-development-after-v0410).
+
 ## Install the editor extension
 
 The matching `.vsix` is attached to each GitHub release. In Visual Studio Code, run **Extensions: Install from VSIX**, select the downloaded file, and ensure `keika` is visible on the editor process's `PATH`.
