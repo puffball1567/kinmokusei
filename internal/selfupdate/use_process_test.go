@@ -61,6 +61,12 @@ func main(){if len(os.Args)!=2||os.Args[1]!="version"{fmt.Fprintln(os.Stderr,"le
 		t.Fatal(output)
 	}
 	helper := filepath.Join(bin, "keika-use")
+	if output := invoke(helper, "versions"); !strings.Contains(output, "v0.4.8\t") || !strings.Contains(output, "managed, active, protected") || !strings.Contains(output, "v0.4.9\t") {
+		t.Fatalf("independent manager inventory: %s", output)
+	}
+	if output := invoke(launcher, "version"); strings.TrimSpace(output) != "keika v0.4.8" {
+		t.Fatal("listing switched the active compiler", output)
+	}
 	if output := invoke(helper, "--offline", "v0.4.9"); !strings.Contains(output, "Using keika v0.4.9") {
 		t.Fatal(output)
 	}

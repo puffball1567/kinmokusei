@@ -22,6 +22,7 @@ func TestUseCommand(t *testing.T) {
 		{[]string{"--unknown"}, 2, false, "flag provided but not defined"},
 		{[]string{"v0.4.8", "extra"}, 2, false, "Usage: keika use"},
 		{[]string{"v0.4.8"}, 0, true, "Using keika v0.4.8"},
+		{[]string{"0.4.8"}, 0, true, "Using keika v0.4.8"},
 		{[]string{"--offline", "v0.4.8"}, 0, true, "Switch again, including from older compilers: manager vX.Y.Z"},
 	} {
 		called := false

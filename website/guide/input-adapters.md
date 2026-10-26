@@ -14,6 +14,14 @@ Reusable JSON, query, URI and form binders cannot send an arbitrary writable
 a decoder can partially modify it before reporting an error. Checking the
 destination only after a successful Go return is therefore insufficient.
 
+Since v0.4.11, an error such as `cannot use *Config as
+any` explains that an opaque Go interface could expose verified UTF-8 string
+storage to unvalidated writes or calls. For an open `*T`, the compiler cannot
+prove that the hidden storage excludes verified text. This is a storage-contract
+restriction: pointers to concrete raw DTOs containing `bstring` or numeric
+fields remain supported. Use checked construction below rather than casting
+the destination to `any`.
+
 The supported adapter separates three steps:
 
 1. Read into **fresh raw DTO storage** at a concretely typed Go call site.

@@ -31,13 +31,13 @@ Download the archive and `SHA256SUMS` from the [latest GitHub release](https://g
 
 Verify only the downloaded archive: `SHA256SUMS` also lists other platforms and
 the editor extension, which need not be present locally. The commands below
-use v0.4.10; set `release_version` to the tag's numeric version if installing a
+use v0.4.11; set `release_version` to the tag's numeric version if installing a
 different release. Choose the archive matching your OS and architecture.
 
 ::: code-group
 
 ```sh [Linux]
-release_version=0.4.10
+release_version=0.4.11
 release_archive="keika_${release_version}_linux_amd64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | sha256sum -c - || exit 1
 tar -xzf "$release_archive"
@@ -46,7 +46,7 @@ install -m 0755 "keika_${release_version}_linux_amd64/keika" ~/.local/bin/keika
 ```
 
 ```sh [macOS]
-release_version=0.4.10
+release_version=0.4.11
 release_archive="keika_${release_version}_darwin_arm64.tar.gz"
 awk -v archive="$release_archive" '$2 == archive { print }' SHA256SUMS | shasum -a 256 -c - || exit 1
 tar -xzf "$release_archive"
@@ -55,7 +55,7 @@ install -m 0755 "keika_${release_version}_darwin_arm64/keika" ~/.local/bin/keika
 ```
 
 ```powershell [Windows PowerShell]
-$release_version = "0.4.10"
+$release_version = "0.4.11"
 $release_archive = "keika_${release_version}_windows_amd64.zip"
 $checksum_lines = @(Get-Content .\SHA256SUMS | Where-Object { ($_ -split '\s+', 2)[1] -eq $release_archive })
 if ($checksum_lines.Count -ne 1) { throw "Expected one checksum for $release_archive" }
@@ -182,6 +182,29 @@ Switching is explicit and atomic, shares the update lock, preserves old releases
 and bundled notices, and never changes `PATH`, the Go toolchain, the VSIX or
 project files. Only stable tags in `vX.Y.Z` form are accepted. `keika update`
 remains upgrade-only. Windows users select a release archive manually.
+
+### List retained and published versions
+
+The following inventory commands require v0.4.11 or later:
+
+```sh
+keika versions
+keika versions --remote
+keika-use versions
+```
+
+The first and third commands inspect only this installation's retained bundles,
+including inactive versions, without network access or execution of cached
+compilers. `active` identifies the selected compiler; receipt/inventory status
+distinguishes managed, unmanaged and invalid bundles. These labels do not
+automatically repair or remove files. Other manually installed copies are not
+discovered by a whole-system search.
+
+`--remote` explicitly fetches the official stable release candidates for the
+current platform. It does not install them; archive verification still happens
+when selecting a version. The compiler also accepts
+`keika use 0.4.11` as shorthand for `keika use v0.4.11`.
+See the [CLI inventory contract](../reference/cli#version-inventory-since-v0411).
 
 ## Install the editor extension
 

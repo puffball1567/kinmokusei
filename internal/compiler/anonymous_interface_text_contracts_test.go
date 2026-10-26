@@ -31,7 +31,7 @@ func TestAnonymousInterfaceHiddenTextStorageRejected(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, d := range diagnostics {
-				if d.Span.Path == entry && strings.Contains(d.Message, "cannot use") && strings.HasSuffix(d.Message, " as any") {
+				if d.Span.Path == entry && strings.Contains(d.Message, "cannot use") && strings.Contains(d.Message, " as any:") && strings.Contains(d.Message, "verified UTF-8 string") && strings.Contains(d.Message, "bstring/raw input storage") {
 					if len(generated) != 0 {
 						t.Fatal("invalid source emitted Go")
 					}

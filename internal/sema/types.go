@@ -676,6 +676,12 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 }
 
 func isNilable(t Type) bool {
+	if t.Kind == TypeParameter {
+		// A parameter's underlying interface describes its constraint, not a
+		// nil-capable runtime interface value. Nil must be assignable to every
+		// member of the type set, including mixed reference-shaped unions.
+		return t.GoType != nil && gotypes.AssignableTo(gotypes.Typ[gotypes.UntypedNil], t.GoType)
+	}
 	if t.Kind == GoPointer || t.Kind == GoChannel || t.Kind == Array || t.Kind == Map || t.Kind == Function || t.Kind == Class || t.Kind == Interface || t.Kind == GoInterface {
 		return true
 	}
