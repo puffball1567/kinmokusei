@@ -44,7 +44,7 @@ func TestRejectsInvalidNonNullAssertions(t *testing.T) {
 		"nil":                     `function f(): void { nil!; }`,
 		"null":                    `function f(): void { null!; }`,
 		"struct":                  `struct Item { public x: int; } function f(value: Item): Item { return value!; }`,
-		"unconstrained parameter": `function f<T>(value: T | null): T { return value!; }`,
+		"unconstrained parameter": `function f<T>(value: T): T { return value!; }`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

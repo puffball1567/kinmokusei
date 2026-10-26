@@ -253,6 +253,23 @@ classes, pointers, slices, maps, channels and interfaces. The union does not
 allocate a wrapper. Scalars, fixed arrays, native structs, structural objects,
 `void` and `Result` cannot be nullable directly.
 
+In development versions after v0.4.10, a type parameter also needs a constraint
+that guarantees a nil representation for every member of its type set:
+
+```ts
+constraint Pointer = ~*int;
+function orElse<T extends Pointer>(value: T | null, fallback: T): T {
+  if (value === null) { return fallback; }
+  return value;
+}
+```
+
+An unconstrained `T | null`, or a bound mixing pointers and scalar values, is
+rejected at the declaration even if the function is never called. `*T | null`
+and `T[] | null` still work with unconstrained element types because the
+container itself has a nil representation. Use an explicit presence/result
+representation when arbitrary scalar or struct values may be absent.
+
 The compiler tracks maybe-null, definitely-null, and non-null facts separately from declared types. Facts join by guarantees across reachable flow and are invalidated by writes or effect boundaries that may change storage.
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.

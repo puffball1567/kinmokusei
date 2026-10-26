@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Reject `T | null` at the source declaration unless the type parameter's
+  constraint guarantees a nil representation. Keep nil-capable unions and
+  generic pointer/slice containers supported, and share the same rule with
+  postfix non-null assertions (#114).
+
 - Explain opaque Go interface assignment failures caused by verified UTF-8
   string storage or an open generic type. Suggest raw `bstring` input storage
   followed by checked construction, preserving existing boundary restrictions

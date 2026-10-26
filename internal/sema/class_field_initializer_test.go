@@ -9,7 +9,7 @@ func TestClassFieldInitializerSemanticMatrix(t *testing.T) {
 	for _, test := range []struct{ name, input, want string }{
 		{"implicit constructor", `class Leaf {} class Holder { public leaf: Leaf = new Leaf(); }`, ""},
 		{"constructor branch", `class Leaf {} class Holder { public leaf: Leaf = new Leaf(); constructor(flag: boolean) { if (flag) { this.leaf = new Leaf(); } } }`, ""},
-		{"generic collections", `class Box<T> { public values: T[] = []; public value: T | null = null; }`, ""},
+		{"generic collections", `class Box<T> { public values: T[] = []; public value: *T | null = null; }`, ""},
 		{"generic conversion", `constraint Number = ~int | ~int8; class Box<T extends Number> { public value: T = T(1); }`, ""},
 		{"module scope", `const value = 3; class Box { public number: int = value; constructor(value: string) {} }`, ""},
 		{"static method", `class Box { public number: int = Box.initial(); private static function initial(): int { return 2; } }`, ""},
