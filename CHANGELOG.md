@@ -11,6 +11,8 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-10-26
+
 - Reject `T | null` at the source declaration unless the type parameter's
   constraint guarantees a nil representation. Keep nil-capable unions and
   generic pointer/slice containers supported, and share the same rule with

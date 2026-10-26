@@ -253,7 +253,7 @@ classes, pointers, slices, maps, channels and interfaces. The union does not
 allocate a wrapper. Scalars, fixed arrays, native structs, structural objects,
 `void` and `Result` cannot be nullable directly.
 
-In development versions after v0.4.10, a type parameter also needs a constraint
+Since v0.4.11, a type parameter also needs a constraint
 that guarantees a nil representation for every member of its type set:
 
 ```ts

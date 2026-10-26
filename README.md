@@ -106,6 +106,11 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
+v0.4.11 adds local and official compiler version lists, numeric version selection,
+clearer verified-text boundary diagnostics and declaration-time checks for
+nullable type parameters. See the
+[v0.4.11 release summary](website/project/releases.md#v0411-highlights).
+
 v0.4.10 preserves native contracts in generic class downcasts, adds generic
 observations and JSON snapshots, and provides staged input construction through
 `kinmokusei/input`. It also improves fresh generic literals and adds exact

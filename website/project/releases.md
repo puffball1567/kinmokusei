@@ -36,6 +36,39 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.11 highlights
+
+Use matching v0.4.11 compiler and editor artifacts.
+
+- `keika versions` lists retained compiler bundles, including inactive versions,
+  without network access or execution. `keika versions --remote` explicitly
+  lists official stable release candidates for the current platform.
+- `keika use X.Y.Z` also accepts the numeric version spelling. The independent
+  `keika-use versions` command keeps inventory available after a downgrade.
+- Opaque Go interface errors explain verified UTF-8 storage restrictions and
+  recommend raw input DTOs followed by checked construction (#99).
+- `T | null` is rejected at its declaration unless the constraint guarantees
+  a nil representation. Valid nil-capable unions and generic pointer/slice
+  containers remain supported (#114).
+
+### Migrating from v0.4.10
+
+Use `keika update --version v0.4.11` on supported Linux/macOS installations,
+or install the release archive manually, then install the matching VSIX.
+Run `keika use v0.4.11` from the newer compiler to refresh an existing management
+snapshot before downgrading if you want to retain `keika-use versions` support.
+
+Unconstrained nullable parameters previously passed checking but could fail
+generated-Go validation. Add an appropriate nil-capable constraint, use a
+pointer/collection container, or represent presence explicitly for arbitrary
+scalar and struct types. No nullable wrapper is introduced. Libraries relying
+on these additions should declare `min-kinmokusei = "0.4.11"`.
+
+See [version inventory](../reference/cli#version-inventory-since-v0411),
+[nullable types](../reference/types#nullability),
+[input staging](../guide/input-adapters) and the
+[v0.4.11 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.11).
+
 ## v0.4.10 highlights
 
 Use matching v0.4.10 compiler and editor artifacts.
