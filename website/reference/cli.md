@@ -64,7 +64,7 @@ Changed managed bundles, invalid layouts and unrelated companion files are
 rejected without replacement. `update` still rejects explicit downgrades.
 See [switching versions](../learn/installation#switch-compiler-versions).
 
-### Version inventory (development after v0.4.10)
+### Version inventory (since v0.4.11)
 
 | Command | Purpose |
 | --- | --- |
@@ -72,8 +72,8 @@ See [switching versions](../learn/installation#switch-compiler-versions).
 | `keika versions [list] --remote` | Fetch official stable release candidates with archive/checksum metadata for this OS/architecture |
 | `keika-use versions [list] [--remote]` | Use the independent manager's inventory support after selecting an older compiler |
 
-These additions are not included in v0.4.10. Development `use` also accepts the
-numeric spelling `keika use 0.4.10`, normalized to the canonical `v0.4.10` tag.
+These commands require v0.4.11 or later. `use` also accepts the numeric spelling
+`keika use 0.4.11`, normalized to the canonical `v0.4.11` tag.
 
 Local listing is read-only and never accesses the network, runs a cached
 compiler, creates a lock/helper or switches versions. It shows bundle bytes,
