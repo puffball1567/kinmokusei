@@ -338,6 +338,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"interface-inheritance-linked.test":   {implementedGoCompatibilityContracts[85]},
 	"type-parameter-conversion.test":      {implementedGoCompatibilityContracts[86]},
 	"iterator-range.test":                 {implementedGoCompatibilityContracts[87]},
+	"iterator-exception-control.test":     {implementedGoCompatibilityContracts[56], implementedGoCompatibilityContracts[87]},
 	"class-field-initializer.test":        {implementedGoCompatibilityContracts[88]},
 	"ordered-fields.test":                 {implementedGoCompatibilityContracts[88]},
 	"inherited-fields.test":               {implementedGoCompatibilityContracts[88]},
