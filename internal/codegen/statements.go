@@ -260,6 +260,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			return nil, err
 		}
 		result := &goast.RangeStmt{X: source, Body: body}
+		if helper := iteratorControlName(stmt.Kind); helper != "" {
+			result.X = &goast.CallExpr{Fun: goast.NewIdent(helper), Args: []goast.Expr{source}}
+		}
 		for index := len(stmt.Bindings) - 1; index >= 0; index-- {
 			binding := stmt.Bindings[index]
 			if binding.Name == "_" || !binding.Assigned || binding.Used {

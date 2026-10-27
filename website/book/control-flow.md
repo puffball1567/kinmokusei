@@ -105,6 +105,13 @@ continue. A zero-value iterator uses `for (const _ of ticks) { ... }`.
 Collection-shaped generic bounds also support range when all permitted types
 agree on the required range behavior.
 
+In development builds after v0.4.11, loop-body returns and Result propagation
+cross iterator cleanup and return from the enclosing source function, including
+when the iterator has its own try/catch/finally. A typed exception from the loop
+body leaves the iterator before matching a handler surrounding the loop. The
+iterator's cleanup still executes. Calling the same callback directly, outside
+range iteration, retains ordinary function-call exception handling.
+
 ## Value switch
 
 ```ts

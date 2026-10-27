@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve caller returns, Result propagation and typed exceptions across
+  function iterators with their own try/catch/finally blocks. Isolate nested
+  iterator control signals while retaining cleanup order, multiple results,
+  ordinary Go panic identity, legacy `panic(nil)` and `Goexit` behavior. Keep
+  direct Go ranges for programs without language exceptions (#112).
+
 ## [0.4.11] - 2026-10-26
 
 - Reject `T | null` at the source declaration unless the type parameter's

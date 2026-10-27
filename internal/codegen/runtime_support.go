@@ -36,6 +36,7 @@ func (value __kinmokuseiThrown) Error() string {
 	return value.err.Error()
 }
 type __kinmokuseiReturn struct { value any; err error }
+func (__kinmokuseiReturn) __kinmokuseiReturnControl() {}
 func __kinmokuseiReturnValue[T any](value any) T {
 	if value == nil { var zero T; return zero }
 	return value.(T)
