@@ -384,6 +384,14 @@ its own helpers. Argument order and types do not change, and callback input
 errors still report the parameter's original manifest name. Public type and
 function names remain subject to the reserved-name checks above.
 
+Generated C and Go helper namespaces are checked before emission, including
+callback release/state names, POD and tagged-union conversions, registration
+helpers and thread-affine raw wrappers. A collision reports the generated
+identifier and the manifest entries responsible rather than leaving an invalid
+binding for the C/Go compiler. Explicit native types and symbols cannot be
+redefined by an emitted helper. Similar suffixes, repeated references to a native
+symbol and separate C/Go namespaces remain valid when they do not collide.
+
 Keep opaque handles and callback registrations as pointers. Their constructors
 record the original object's identity, and every use checks that identity
 before locking or touching C state. A Go value copy such as `copy := *image`

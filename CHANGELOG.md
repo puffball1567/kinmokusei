@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Reject incoming FFI manifests whose derived C/Go helper identifiers collide,
+  naming the conflicting manifest entries before writing output. Check callback
+  release/state, POD/union conversion, registration, affine wrapper and native
+  symbol namespaces while preserving valid neighboring names and aliases (#97).
+
 - Preserve caller returns, Result propagation and typed exceptions across
   function iterators with their own try/catch/finally blocks. Isolate nested
   iterator control signals while retaining cleanup order, multiple results,
