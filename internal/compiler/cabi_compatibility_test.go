@@ -109,8 +109,9 @@ func TestCompareCABIManifestsRejectsInvalidMatrix(t *testing.T) {
 	}{
 		{"empty", nil, "invalid baseline"},
 		{"malformed", []byte(`{"schemaVersion":`), "invalid baseline"},
-		{"unknown field", bytes.Replace(valid, []byte(`"schemaVersion": 1`), []byte(`"schemaVersion": 1, "unknown": true`), 1), "unknown field"},
-		{"unsupported schema", bytes.Replace(valid, []byte(`"schemaVersion": 1`), []byte(`"schemaVersion": 2`), 1), "schema version 2"},
+		{"unknown field", bytes.Replace(valid, []byte(`"schemaVersion": 2`), []byte(`"schemaVersion": 2, "unknown": true`), 1), "unknown field"},
+		{"unsupported schema", bytes.Replace(valid, []byte(`"schemaVersion": 2`), []byte(`"schemaVersion": 3`), 1), "schema version 3"},
+		{"legacy schema", []byte(`{"schemaVersion":1,"gatewayVersion":{"major":1,"minor":0},"fingerprint":"sha256:old","status":{"ok":0,"panic":1,"invalidArgument":2},"functions":[]}`), "regenerate it from the original baseline sources"},
 		{"tampered fingerprint", bytes.Replace(valid, []byte("sha256:"), []byte("sha256:x"), 1), "manifest fingerprint"},
 		{"trailing JSON", append(append([]byte(nil), valid...), []byte(` {}`)...), "multiple JSON values"},
 		{"duplicate symbol", rewriteCABIManifestForTest(t, valid, func(manifest *cabiCompatibilityManifest) {

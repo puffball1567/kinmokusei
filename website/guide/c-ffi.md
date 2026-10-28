@@ -64,6 +64,19 @@ keika abi check --baseline ./previous/kinmokusei_abi.json library.km
 
 Declaration order and source aliases do not affect the canonical fingerprint. Prefer adding a symbol over changing a published signature.
 
+Development after v0.4.11 emits outgoing manifest schema 2. It fingerprints
+semantic parameter/result types and exact enum member values as well as C
+transport types. Renumbering or removing a member, changing `boolean` to `byte`,
+or replacing an enum with an integer is breaking even if both use the same C
+type. Adding a member while retaining existing values is compatible. Reordering
+members with explicit unchanged values is an exact match; reordering implicit
+members can change their values and is breaking.
+
+Schema 1 baselines are rejected because they lack semantic type information.
+Use the new compiler to run `emit-c-abi` on the **original baseline sources**
+before comparing against the updated sources. The C signatures and incoming
+FFI schema 1 are unchanged.
+
 ## Generate an incoming binding
 
 ```sh

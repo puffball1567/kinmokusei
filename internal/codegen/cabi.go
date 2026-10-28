@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/cabi"
 	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
@@ -20,7 +21,7 @@ type cabiScalar struct {
 }
 
 const (
-	cabiManifestSchemaVersion = 1
+	cabiManifestSchemaVersion = cabi.SchemaVersion
 	cabiGatewayVersionMajor   = 1
 	cabiGatewayVersionMinor   = 0
 )
@@ -32,38 +33,11 @@ type CABIOutput struct {
 	Fingerprint string
 }
 
-type cabiManifestVersion struct {
-	Major int `json:"major"`
-	Minor int `json:"minor"`
-}
-
-type cabiManifestStatus struct {
-	OK              int32 `json:"ok"`
-	Panic           int32 `json:"panic"`
-	InvalidArgument int32 `json:"invalidArgument"`
-}
-
-type cabiManifestFunction struct {
-	Symbol          string   `json:"symbol"`
-	Parameters      []string `json:"parameters"`
-	Result          string   `json:"result"`
-	ResultTransport string   `json:"resultTransport"`
-}
-
-type cabiFingerprintInput struct {
-	SchemaVersion  int                    `json:"schemaVersion"`
-	GatewayVersion cabiManifestVersion    `json:"gatewayVersion"`
-	Status         cabiManifestStatus     `json:"status"`
-	Functions      []cabiManifestFunction `json:"functions"`
-}
-
-type cabiManifest struct {
-	SchemaVersion  int                    `json:"schemaVersion"`
-	GatewayVersion cabiManifestVersion    `json:"gatewayVersion"`
-	Fingerprint    string                 `json:"fingerprint"`
-	Status         cabiManifestStatus     `json:"status"`
-	Functions      []cabiManifestFunction `json:"functions"`
-}
+type cabiManifestVersion = cabi.Version
+type cabiManifestStatus = cabi.Status
+type cabiManifestFunction = cabi.Function
+type cabiFingerprintInput = cabi.FingerprintInput
+type cabiManifest = cabi.Manifest
 
 // GenerateCABI emits the cgo export gateway and a stable, toolchain-neutral C
 // header for explicitly exported Kinmokusei functions. Semantic checking must
@@ -114,12 +88,14 @@ func generateCABIManifest(program *kinmokuseiAST.Program, exports []kinmokuseiAS
 	functions := make([]cabiManifestFunction, len(exports))
 	for index, export := range exports {
 		parameters := make([]string, len(export.Parameters))
+		parameterTypes := make([]cabi.Type, len(export.Parameters))
 		for parameterIndex, parameter := range export.Parameters {
 			mapped, ok := mapProgramCABIType(program, parameter.Type, false)
 			if !ok {
 				return nil, "", fmt.Errorf("C ABI export %q has unsupported parameter type %q", export.Symbol, parameter.Type.Name)
 			}
 			parameters[parameterIndex] = mapped.cType
+			parameterTypes[parameterIndex] = cabiSemanticType(program, parameter.Type, mapped)
 		}
 		result, ok := mapProgramCABIType(program, export.ReturnType, true)
 		if !ok {
@@ -133,6 +109,7 @@ func generateCABIManifest(program *kinmokuseiAST.Program, exports []kinmokuseiAS
 		}
 		functions[index] = cabiManifestFunction{
 			Symbol: export.Symbol, Parameters: parameters, Result: resultType, ResultTransport: transport,
+			ParameterTypes: parameterTypes, ResultType: cabiSemanticType(program, export.ReturnType, result),
 		}
 	}
 	version := cabiManifestVersion{Major: cabiGatewayVersionMajor, Minor: cabiGatewayVersionMinor}

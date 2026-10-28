@@ -9,11 +9,14 @@ import (
 	"io"
 	"slices"
 	"sort"
+
+	"github.com/puffball1567/kinmokusei/internal/cabi"
 )
 
 type CABICompatibility struct {
 	ExactFingerprint bool
 	Additions        []string
+	TypeAdditions    []string
 	BreakingChanges  []string
 }
 
@@ -21,38 +24,11 @@ func (result CABICompatibility) Compatible() bool {
 	return len(result.BreakingChanges) == 0
 }
 
-type cabiCompatibilityVersion struct {
-	Major int `json:"major"`
-	Minor int `json:"minor"`
-}
-
-type cabiCompatibilityStatus struct {
-	OK              int32 `json:"ok"`
-	Panic           int32 `json:"panic"`
-	InvalidArgument int32 `json:"invalidArgument"`
-}
-
-type cabiCompatibilityFunction struct {
-	Symbol          string   `json:"symbol"`
-	Parameters      []string `json:"parameters"`
-	Result          string   `json:"result"`
-	ResultTransport string   `json:"resultTransport"`
-}
-
-type cabiCompatibilityManifest struct {
-	SchemaVersion  int                         `json:"schemaVersion"`
-	GatewayVersion cabiCompatibilityVersion    `json:"gatewayVersion"`
-	Fingerprint    string                      `json:"fingerprint"`
-	Status         cabiCompatibilityStatus     `json:"status"`
-	Functions      []cabiCompatibilityFunction `json:"functions"`
-}
-
-type cabiCompatibilityFingerprintInput struct {
-	SchemaVersion  int                         `json:"schemaVersion"`
-	GatewayVersion cabiCompatibilityVersion    `json:"gatewayVersion"`
-	Status         cabiCompatibilityStatus     `json:"status"`
-	Functions      []cabiCompatibilityFunction `json:"functions"`
-}
+type cabiCompatibilityVersion = cabi.Version
+type cabiCompatibilityStatus = cabi.Status
+type cabiCompatibilityFunction = cabi.Function
+type cabiCompatibilityManifest = cabi.Manifest
+type cabiCompatibilityFingerprintInput = cabi.FingerprintInput
 
 // CompareCABIManifests verifies both manifests before classifying exact,
 // additive, and breaking ABI changes. Additions are compatible; removal or a
@@ -93,7 +69,12 @@ func CompareCABIManifests(baselineData, currentData []byte) (CABICompatibility, 
 		}
 		if !sameCABIFunction(function, candidate) {
 			result.BreakingChanges = append(result.BreakingChanges, fmt.Sprintf("changed signature of C ABI symbol %q", function.Symbol))
+			continue
 		}
+		for index, parameter := range function.ParameterTypes {
+			compareCABIType(&result, fmt.Sprintf("C ABI symbol %q parameter %d", function.Symbol, index+1), parameter, candidate.ParameterTypes[index])
+		}
+		compareCABIType(&result, fmt.Sprintf("C ABI symbol %q result", function.Symbol), function.ResultType, candidate.ResultType)
 	}
 	for _, function := range current.Functions {
 		if !baselineFunctions[function.Symbol] {
@@ -101,6 +82,7 @@ func CompareCABIManifests(baselineData, currentData []byte) (CABICompatibility, 
 		}
 	}
 	sort.Strings(result.Additions)
+	sort.Strings(result.TypeAdditions)
 	sort.Strings(result.BreakingChanges)
 	return result, nil
 }
@@ -122,8 +104,11 @@ func parseCABICompatibilityManifest(label string, data []byte) (cabiCompatibilit
 		}
 		return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI manifest: trailing data: %w", label, err)
 	}
-	if manifest.SchemaVersion != 1 {
-		return cabiCompatibilityManifest{}, fmt.Errorf("unsupported %s C ABI manifest schema version %d; expected 1", label, manifest.SchemaVersion)
+	if manifest.SchemaVersion == 1 {
+		return cabiCompatibilityManifest{}, fmt.Errorf("%s C ABI manifest schema 1 lacks semantic type contracts; regenerate it from the original baseline sources with emit-c-abi before comparing", label)
+	}
+	if manifest.SchemaVersion != cabi.SchemaVersion {
+		return cabiCompatibilityManifest{}, fmt.Errorf("unsupported %s C ABI manifest schema version %d; expected %d", label, manifest.SchemaVersion, cabi.SchemaVersion)
 	}
 	if manifest.GatewayVersion.Major < 1 || manifest.GatewayVersion.Minor < 0 {
 		return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI gateway version %d.%d", label, manifest.GatewayVersion.Major, manifest.GatewayVersion.Minor)
@@ -137,6 +122,9 @@ func parseCABICompatibilityManifest(label string, data []byte) (cabiCompatibilit
 			return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI manifest: functions must have unique symbols in ascending order", label)
 		}
 		previous = function.Symbol
+		if err := validateCABIFunctionTypes(function); err != nil {
+			return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI symbol %q: %w", label, function.Symbol, err)
+		}
 	}
 	canonical, err := json.Marshal(cabiCompatibilityFingerprintInput{
 		SchemaVersion: manifest.SchemaVersion, GatewayVersion: manifest.GatewayVersion, Status: manifest.Status, Functions: manifest.Functions,

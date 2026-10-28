@@ -158,6 +158,12 @@ Review the actual terms and separately linked native/system libraries. `run`,
 
 `emit-c-abi` writes `generated.go`, `generated_cabi.go`, `kinmokusei_abi.h`, and `kinmokusei_abi.json`. ABI check succeeds for an identical fingerprint or additive symbols and reports breaking changes to standard error.
 
+Development after v0.4.11 writes outgoing manifest schema 2, including semantic
+types and exact enum member values. ABI check also accepts additive enum members,
+and rejects changed/removed member values or same-transport semantic changes.
+Schema 1 baselines must be regenerated from the original baseline sources;
+see [Detect ABI breaks](../guide/c-ffi#detect-abi-breaks).
+
 ## Dependencies and projects
 
 ### Project creation

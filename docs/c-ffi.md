@@ -114,6 +114,32 @@ compiler-specific C enum layout. C callers must use the numeric values defined
 by the Kinmokusei enum; unknown representable values are transported without
 implicit validation, matching Go named-integer behavior.
 
+### Outgoing ABI comparison metadata
+
+Development after v0.4.11 writes outgoing manifest **schema 2**. The C header
+and gateway still use the same fixed-width transport and status/out convention.
+Each function also records `parameterTypes` and `resultType`, whose `kind` is
+`boolean`, `integer`, `float`, `enum`, or `void`. Enum contracts contain a
+name-sorted `members` array with each member's name and exact, resolved decimal
+integer value as a JSON string, including the full `uint64` range. These
+contracts participate in the fingerprint.
+
+`keika abi check` reports changed/removed enum members and semantic type changes
+such as `boolean` to `byte`, or an enum to its underlying integer, as breaking
+even when the C signature stays identical. Adding members without changing
+existing members is compatible and reported separately from added functions.
+Member/declaration order, equivalent constant expressions, byte/float aliases,
+and private enum type names do not affect the fingerprint. Unused enums are not
+part of the boundary. The header does not declare enum constants; C callers use
+the member values recorded in the manifest.
+
+Schema 1 baselines do not contain this information and cannot prove semantic
+compatibility. The checker rejects them with a migration diagnostic. Regenerate
+the baseline using the new compiler **from the original baseline sources**, then
+compare that schema 2 manifest against the new sources. Regenerating from the
+new sources would replace the contract being checked. This outgoing format
+change does not change the incoming FFI schema 1 format.
+
 Rejected from the initial stable boundary:
 
 - Machine-width C `long`, Go/Kinmokusei `int`/`uint`, Nim `int`, and native

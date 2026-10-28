@@ -753,8 +753,13 @@ func runABI(args []string) int {
 	}
 	if compatibility.ExactFingerprint {
 		fmt.Fprintf(os.Stdout, "C ABI compatible: exact fingerprint %s\n", artifacts.Fingerprint)
-	} else {
+	} else if len(compatibility.Additions) != 0 {
 		fmt.Fprintf(os.Stdout, "C ABI compatible: added symbols %s\n", strings.Join(compatibility.Additions, ", "))
+	} else if len(compatibility.TypeAdditions) == 0 {
+		fmt.Fprintln(os.Stdout, "C ABI compatible: updated contract metadata")
+	}
+	if len(compatibility.TypeAdditions) != 0 {
+		fmt.Fprintf(os.Stdout, "C ABI compatible: added enum members %s\n", strings.Join(compatibility.TypeAdditions, ", "))
 	}
 	return 0
 }
