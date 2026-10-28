@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Include semantic parameter/result types and exact enum member values in
+  outgoing C ABI schema 2 manifests and fingerprints. Detect enum renumbering,
+  removal and same-transport semantic changes (including boolean/byte); accept
+  unchanged aliases, reordered declarations and additive enum members. Legacy
+  schema 1 baselines must be regenerated from their original sources (#96).
+
 - Reject incoming FFI manifests whose derived C/Go helper identifiers collide,
   naming the conflicting manifest entries before writing output. Check callback
   release/state, POD/union conversion, registration, affine wrapper and native

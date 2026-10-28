@@ -41,6 +41,12 @@ Exact generated helper names are compiler-owned except where the docs explicitly
 
 Gateways use status/out conventions, panic containment, explicit ASCII symbols, canonical manifests, fingerprints, and compatibility checks.
 
+Development after v0.4.11 uses outgoing manifest schema 2 to compare semantic
+types and enum member values. Enum renumbering/removal and same-transport
+semantic changes are breaking; preserving existing values while adding members
+is compatible. Legacy schema 1 baselines require regeneration from their
+original sources. See [Detect ABI breaks](../guide/c-ffi#detect-abi-breaks).
+
 ## Incoming C FFI schema 1
 
 The published v0.4.4 surface includes fixed/C-width scalars, borrowed/copying

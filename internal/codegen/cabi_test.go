@@ -192,7 +192,7 @@ export c("kinmokusei_zebra") function zebra(value: int64): void {}
 	if err := json.Unmarshal(first.Manifest, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.SchemaVersion != 1 || manifest.GatewayVersion != (cabiManifestVersion{Major: 1, Minor: 0}) || manifest.Fingerprint != first.Fingerprint {
+	if manifest.SchemaVersion != 2 || manifest.GatewayVersion != (cabiManifestVersion{Major: 1, Minor: 0}) || manifest.Fingerprint != first.Fingerprint {
 		t.Fatalf("manifest metadata=%#v fingerprint=%q", manifest, first.Fingerprint)
 	}
 	canonical, err := json.Marshal(cabiFingerprintInput{
