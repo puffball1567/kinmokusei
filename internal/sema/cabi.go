@@ -2,10 +2,10 @@ package sema
 
 import (
 	"fmt"
-	gotoken "go/token"
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/cabi"
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
@@ -28,12 +28,8 @@ func (c *Checker) checkCABIExports(program *ast.Program) {
 			c.report(export.NameSpan, "generic functions cannot be exported through the C ABI")
 		}
 		symbol := export.Symbol
-		if !validCABIIdentifier(symbol) {
-			c.report(export.SymbolSpan, fmt.Sprintf("C ABI symbol %q must start with an ASCII letter and contain only ASCII letters, digits, or '_'", symbol))
-		} else if gotoken.Lookup(symbol).IsKeyword() {
-			c.report(export.SymbolSpan, fmt.Sprintf("C ABI symbol %q is a Go keyword and cannot be generated", symbol))
-		} else if symbol == "main" || symbol == "init" {
-			c.report(export.SymbolSpan, fmt.Sprintf("C ABI symbol %q is reserved by the generated Go package", symbol))
+		if err := cabi.ValidateSymbol(symbol); err != nil {
+			c.report(export.SymbolSpan, err.Error())
 		}
 		if previous, exists := symbols[symbol]; exists {
 			c.report(export.SymbolSpan, fmt.Sprintf("duplicate C ABI symbol %q (first declared at %d:%d)", symbol, previous.Start.Line, previous.Start.Column))
@@ -110,22 +106,6 @@ func (c *Checker) checkCABIExports(program *ast.Program) {
 			}, false)
 		}
 	}
-}
-
-func validCABIIdentifier(name string) bool {
-	if len(name) == 0 || !isASCIIAlpha(name[0]) {
-		return false
-	}
-	for index := 1; index < len(name); index++ {
-		if !isASCIIAlpha(name[index]) && (name[index] < '0' || name[index] > '9') && name[index] != '_' {
-			return false
-		}
-	}
-	return true
-}
-
-func isASCIIAlpha(value byte) bool {
-	return value >= 'A' && value <= 'Z' || value >= 'a' && value <= 'z'
 }
 
 func (c *Checker) isCABITypeRef(ref ast.TypeRef, allowVoid bool) bool {

@@ -117,6 +117,9 @@ func TestCompareCABIManifestsRejectsInvalidMatrix(t *testing.T) {
 		{"duplicate symbol", rewriteCABIManifestForTest(t, valid, func(manifest *cabiCompatibilityManifest) {
 			manifest.Functions = append(manifest.Functions, manifest.Functions[0])
 		}), "unique symbols"},
+		{"reserved symbol", rewriteCABIManifestForTest(t, valid, func(manifest *cabiCompatibilityManifest) {
+			manifest.Functions[0].Symbol = "malloc"
+		}), `C ABI symbol "malloc"`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

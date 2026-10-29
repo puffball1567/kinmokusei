@@ -74,6 +74,25 @@ The compiler generates:
 - A SHA-256 ABI fingerprint.
 - Compatibility diagnostics against a baseline manifest.
 
+Development after v0.4.11 validates outgoing names against the shared Go/C/C++
+boundary before producing files. Symbols start with an ASCII letter and then
+contain ASCII letters, digits or underscores. The checker rejects Go
+keywords/predeclared names, C/C++ keywords, known standard header/libc/cgo
+declarations, `KINMOKUSEI_*`, `x_cgo_*`, `crosscall2`, and names containing a
+double underscore. For example, export `kinmokusei_open` rather than `malloc`,
+`double`, `GoString` or `recover`. Use a library-specific prefix for collisions
+with other native libraries; arbitrary external declarations are not known to
+the compiler.
+
+`Exception` and `NewException` are reserved when the generated exception runtime
+is present. With outgoing exports, top-level declarations also cannot use the
+implicit cgo import names `C`, `unsafe`, `syscall` or `_cgopackage`. Imports in
+other generated files retain their own alias scope. Internal gateway locals use
+the existing reserved `__kinmokusei` prefix, so user functions such as
+`outResult`, `arg0`, or a const arrow named `arg1` can be exported safely. Public
+C signatures, status codes and fingerprints of valid unchanged contracts are
+unaffected by this local naming fix.
+
 Generated C functions return an `int32_t` status. Non-void values are written through a final out parameter. Status values are:
 
 - `0`: success.

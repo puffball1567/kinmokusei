@@ -121,6 +121,9 @@ func parseCABICompatibilityManifest(label string, data []byte) (cabiCompatibilit
 		if index != 0 && function.Symbol <= previous {
 			return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI manifest: functions must have unique symbols in ascending order", label)
 		}
+		if err := cabi.ValidateSymbol(function.Symbol); err != nil {
+			return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI manifest: %w", label, err)
+		}
 		previous = function.Symbol
 		if err := validateCABIFunctionTypes(function); err != nil {
 			return cabiCompatibilityManifest{}, fmt.Errorf("invalid %s C ABI symbol %q: %w", label, function.Symbol, err)

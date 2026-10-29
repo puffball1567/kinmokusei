@@ -22,7 +22,7 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the Task runtime", name))
 			return
 		}
-		if c.usesExceptions && (name == "__kinmokuseiException" || name == "__kinmokuseiThrown" || name == "__kinmokuseiReturn" || name == "__kinmokuseiReturnValue" || name == "__kinmokuseiInitException" || name == "__kinmokuseiExceptionFromError" || name == "NewException") {
+		if c.usesExceptions && (name == "__kinmokuseiException" || name == "__kinmokuseiThrown" || name == "__kinmokuseiReturn" || name == "__kinmokuseiReturnValue" || name == "__kinmokuseiInitException" || name == "__kinmokuseiExceptionFromError" || name == "NewException" || name == "Exception") {
 			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the exception runtime", name))
 			return
 		}
@@ -194,6 +194,15 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 				receiver = *receiver.Pointee
 			}
 			claimStructMember(receiver.Name, declaration.GoName, declaration.Span)
+		}
+	}
+	if len(program.CABIExports) != 0 {
+		// cgo imports these names in other generated Go files. Reject only
+		// package declarations here; imports in separate files can coexist.
+		for _, name := range []string{"C", "unsafe", "syscall", "_cgopackage"} {
+			if span, exists := declared[name]; exists {
+				c.report(span, fmt.Sprintf("generated Go name %q is reserved by the cgo gateway", name))
+			}
 		}
 	}
 	for _, export := range program.CABIExports {

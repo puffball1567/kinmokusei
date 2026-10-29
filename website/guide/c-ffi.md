@@ -50,6 +50,21 @@ Panics never cross the C boundary. An out value is unspecified on failure.
 
 The generated header also publishes `KINMOKUSEI_ABI_GATEWAY_VERSION_MAJOR`, `KINMOKUSEI_ABI_GATEWAY_VERSION_MINOR`, and `KINMOKUSEI_ABI_FINGERPRINT`. Generated ABI metadata therefore uses the `KINMOKUSEI_ABI_*` namespace; public example symbols use the lowercase `kinmokusei_*` prefix.
 
+Development after v0.4.11 checks outgoing names before writing files. Symbols
+must begin with an ASCII letter and contain only ASCII letters, digits and
+underscores. C/C++ keywords, Go keywords/predeclared identifiers, known standard
+header/libc/cgo names (such as `int32_t`, `malloc` and `GoString`), the uppercase
+`KINMOKUSEI_` namespace, and names containing `__` are rejected. Exception
+runtime names are reserved when that runtime is used. Use a library-specific
+prefix to avoid collisions with other linked libraries, which the compiler
+cannot discover automatically.
+
+Source function names can still be ordinary names such as `outResult` or
+`arg0`: gateway locals use compiler-reserved names. Packages with outgoing
+exports cannot declare top-level `C`, `unsafe`, `syscall` or `_cgopackage`
+because cgo imports those names. Go import aliases in separate generated files
+remain allowed.
+
 ## Stable outgoing types
 
 The boundary accepts `boolean`, fixed-width signed/unsigned integers, `byte`/`uint8`, `float32`, float aliases, `void` results, and native enums whose ultimate underlying type is fixed-width.

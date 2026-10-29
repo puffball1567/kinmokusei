@@ -41,6 +41,11 @@ Exact generated helper names are compiler-owned except where the docs explicitly
 
 Gateways use status/out conventions, panic containment, explicit ASCII symbols, canonical manifests, fingerprints, and compatibility checks.
 
+Development after v0.4.11 rejects names that conflict with C/C++ keywords,
+Go predeclared names, known standard/cgo declarations or compiler metadata
+before file output. Source names such as `outResult` and `arg0` remain usable;
+see [Export a C ABI](../guide/c-ffi#export-a-c-abi) for naming restrictions.
+
 Development after v0.4.11 uses outgoing manifest schema 2 to compare semantic
 types and enum member values. Enum renumbering/removal and same-transport
 semantic changes are breaking; preserving existing values while adding members

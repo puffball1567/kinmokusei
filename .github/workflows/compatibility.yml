@@ -234,7 +234,7 @@ jobs:
       - name: Verify the C compiler is executable
         run: cc --version
       - name: Run every executable C ABI and incoming FFI test
-        run: go test -timeout 30m -count=1 -run '^(TestCABISharedLibraryCompileAndCCallerMatrix|TestIncomingCFFI.*)$' ./internal/compiler
+        run: go test -timeout 30m -count=1 -run '^(TestCABISharedLibraryCompileAndCCallerMatrix|TestCABIGatewayNameHygiene|TestIncomingCFFI.*)$' ./internal/compiler
 
   benchmarks:
     name: Compiler and codegen benchmarks
