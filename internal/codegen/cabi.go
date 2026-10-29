@@ -47,6 +47,14 @@ func GenerateCABI(program *kinmokuseiAST.Program) (CABIOutput, error) {
 	if len(exports) == 0 {
 		return CABIOutput{}, fmt.Errorf("program does not declare any C ABI exports")
 	}
+	for _, export := range exports {
+		if err := cabi.ValidateSymbol(export.Symbol); err != nil {
+			return CABIOutput{}, err
+		}
+		if program.UsesExceptions && (export.Symbol == "Exception" || export.Symbol == "NewException") {
+			return CABIOutput{}, fmt.Errorf("C ABI symbol %q is reserved by the exception runtime", export.Symbol)
+		}
+	}
 	manifest, fingerprint, err := generateCABIManifest(program, exports)
 	if err != nil {
 		return CABIOutput{}, err
@@ -169,17 +177,17 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, program *kinmokusei
 		if index != 0 {
 			goSource.WriteString(", ")
 		}
-		fmt.Fprintf(goSource, "arg%d %s", index, mapped.cgoType)
+		fmt.Fprintf(goSource, "__kinmokuseiArg%d %s", index, mapped.cgoType)
 	}
 	if resultType.goType != "void" {
 		if len(parameterTypes) != 0 {
 			goSource.WriteString(", ")
 		}
-		goSource.WriteString("outResult *" + resultType.cgoType)
+		goSource.WriteString("__kinmokuseiOutResult *" + resultType.cgoType)
 	}
 	goSource.WriteString(") (__kinmokuseiStatus C.int32_t) {\n")
 	if resultType.goType != "void" {
-		goSource.WriteString("\tif outResult == nil {\n\t\treturn C.int32_t(2)\n\t}\n")
+		goSource.WriteString("\tif __kinmokuseiOutResult == nil {\n\t\treturn C.int32_t(2)\n\t}\n")
 	}
 	// A nil recovered value may still mean panic(nil) under Go's legacy
 	// compatibility setting. Install recovery after boundary validation so an
@@ -194,17 +202,17 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, program *kinmokusei
 			goSource.WriteString(", ")
 		}
 		if mapped.goType == "bool" {
-			fmt.Fprintf(goSource, "arg%d != 0", index)
+			fmt.Fprintf(goSource, "__kinmokuseiArg%d != 0", index)
 		} else {
-			fmt.Fprintf(goSource, "%s(arg%d)", mapped.goType, index)
+			fmt.Fprintf(goSource, "%s(__kinmokuseiArg%d)", mapped.goType, index)
 		}
 	}
 	goSource.WriteString(")\n")
 	if resultType.goType != "void" {
 		if resultType.goType == "bool" {
-			goSource.WriteString("\t*outResult = C.uint8_t(0)\n\tif __kinmokuseiResult {\n\t\t*outResult = C.uint8_t(1)\n\t}\n")
+			goSource.WriteString("\t*__kinmokuseiOutResult = C.uint8_t(0)\n\tif __kinmokuseiResult {\n\t\t*__kinmokuseiOutResult = C.uint8_t(1)\n\t}\n")
 		} else {
-			goSource.WriteString("\t*outResult = " + resultType.cgoType + "(__kinmokuseiResult)\n")
+			goSource.WriteString("\t*__kinmokuseiOutResult = " + resultType.cgoType + "(__kinmokuseiResult)\n")
 		}
 	}
 	goSource.WriteString("\t__kinmokuseiCompleted = true\n\treturn C.int32_t(0)\n}\n\n")

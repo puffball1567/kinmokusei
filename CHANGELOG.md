@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Reject outgoing C ABI names that collide with C/C++ keywords, Go predeclared
+  identifiers, standard header/cgo declarations or compiler metadata. Check
+  exception-runtime and implicit cgo-import collisions before output, and
+  isolate gateway locals so source functions named `outResult` or `arg0` remain
+  usable. Verify generated gateways from both C and C++ callers (#95).
+
 - Include semantic parameter/result types and exact enum member values in
   outgoing C ABI schema 2 manifests and fingerprints. Detect enum renumbering,
   removal and same-transport semantic changes (including boolean/byte); accept

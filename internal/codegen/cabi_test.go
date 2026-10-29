@@ -42,11 +42,11 @@ export c("kinmokusei_not") function logicalNot(value: boolean): boolean { return
 `)
 	for _, want := range []string{
 		"//export kinmokusei_ping", "func kinmokusei_ping() (__kinmokuseiStatus C.int32_t)",
-		"//export kinmokusei_scalar", "arg0 C.uint8_t", "arg1 C.int32_t", "arg2 C.int64_t", "arg3 C.float", "arg4 C.double", "arg5 C.uint16_t", "arg6 C.uint32_t", "arg7 C.uint64_t",
-		"outResult *C.uint64_t", "if outResult == nil", "value := recover()", "value != nil || !__kinmokuseiCompleted", "__kinmokuseiCompleted = true", "__kinmokuseiStatus = C.int32_t(1)",
-		"__kinmokuseiResult := scalar(byte(arg0), int32(arg1), int64(arg2), float32(arg3), float64(arg4), uint16(arg5), uint32(arg6), uint64(arg7))",
-		"//export kinmokusei_not", "func kinmokusei_not(arg0 C.uint8_t, outResult *C.uint8_t)", "__kinmokuseiResult := logicalNot(arg0 != 0)",
-		"*outResult = C.uint8_t(0)", "if __kinmokuseiResult", "*outResult = C.uint8_t(1)",
+		"//export kinmokusei_scalar", "__kinmokuseiArg0 C.uint8_t", "__kinmokuseiArg1 C.int32_t", "__kinmokuseiArg2 C.int64_t", "__kinmokuseiArg3 C.float", "__kinmokuseiArg4 C.double", "__kinmokuseiArg5 C.uint16_t", "__kinmokuseiArg6 C.uint32_t", "__kinmokuseiArg7 C.uint64_t",
+		"__kinmokuseiOutResult *C.uint64_t", "if __kinmokuseiOutResult == nil", "value := recover()", "value != nil || !__kinmokuseiCompleted", "__kinmokuseiCompleted = true", "__kinmokuseiStatus = C.int32_t(1)",
+		"__kinmokuseiResult := scalar(byte(__kinmokuseiArg0), int32(__kinmokuseiArg1), int64(__kinmokuseiArg2), float32(__kinmokuseiArg3), float64(__kinmokuseiArg4), uint16(__kinmokuseiArg5), uint32(__kinmokuseiArg6), uint64(__kinmokuseiArg7))",
+		"//export kinmokusei_not", "func kinmokusei_not(__kinmokuseiArg0 C.uint8_t, __kinmokuseiOutResult *C.uint8_t)", "__kinmokuseiResult := logicalNot(__kinmokuseiArg0 != 0)",
+		"*__kinmokuseiOutResult = C.uint8_t(0)", "if __kinmokuseiResult", "*__kinmokuseiOutResult = C.uint8_t(1)",
 		"func main() {}",
 	} {
 		if !strings.Contains(string(output.Gateway), want) {
@@ -77,12 +77,12 @@ export c("kinmokusei_level") function level(value: Level): Level { return value;
 export c("kinmokusei_code") function code(value: Code): Code { return value; }
 `)
 	for _, want := range []string{
-		"func kinmokusei_level(arg0 C.int16_t, outResult *C.int16_t)",
-		"__kinmokuseiResult := level(Level(arg0))",
-		"*outResult = C.int16_t(__kinmokuseiResult)",
-		"func kinmokusei_code(arg0 C.uint32_t, outResult *C.uint32_t)",
-		"__kinmokuseiResult := code(Code(arg0))",
-		"*outResult = C.uint32_t(__kinmokuseiResult)",
+		"func kinmokusei_level(__kinmokuseiArg0 C.int16_t, __kinmokuseiOutResult *C.int16_t)",
+		"__kinmokuseiResult := level(Level(__kinmokuseiArg0))",
+		"*__kinmokuseiOutResult = C.int16_t(__kinmokuseiResult)",
+		"func kinmokusei_code(__kinmokuseiArg0 C.uint32_t, __kinmokuseiOutResult *C.uint32_t)",
+		"__kinmokuseiResult := code(Code(__kinmokuseiArg0))",
+		"*__kinmokuseiOutResult = C.uint32_t(__kinmokuseiResult)",
 	} {
 		if !strings.Contains(string(output.Gateway), want) {
 			t.Errorf("enum wrapper missing %q:\n%s", want, output.Gateway)
@@ -119,9 +119,9 @@ export c(
 `)
 	for _, want := range []string{
 		"//export kinmokusei_add",
-		"__kinmokuseiResult := add(int32(arg0), int32(arg1))",
+		"__kinmokuseiResult := add(int32(__kinmokuseiArg0), int32(__kinmokuseiArg1))",
 		"//export kinmokusei_sub",
-		"__kinmokuseiResult := sub(int32(arg0), int32(arg1))",
+		"__kinmokuseiResult := sub(int32(__kinmokuseiArg0), int32(__kinmokuseiArg1))",
 	} {
 		if !strings.Contains(string(output.Gateway), want) {
 			t.Errorf("gateway missing %q:\n%s", want, output.Gateway)
