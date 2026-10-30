@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Diagnose excessive syntax nesting before it can overflow compiler or LSP
+  stacks. Bound recursive parsing and iteratively validate syntax-tree depth,
+  including long operator/member/type chains; keep the editor responsive and
+  allow normal checking/navigation after the file is edited (#104).
+
 - Reject outgoing C ABI names that collide with C/C++ keywords, Go predeclared
   identifiers, standard header/cgo declarations or compiler metadata. Check
   exception-runtime and implicit cgo-import collisions before output, and

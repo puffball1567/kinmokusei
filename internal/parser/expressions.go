@@ -5,7 +5,13 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
-func (p *Parser) parseExpression() ast.Expression { return p.parseBinary(1) }
+func (p *Parser) parseExpression() ast.Expression {
+	if !p.enterNesting() {
+		return nil
+	}
+	defer p.leaveNesting()
+	return p.parseBinary(1)
+}
 
 func (p *Parser) parseExpressionBeforeBlock() ast.Expression {
 	previous := p.disallowUnqualifiedComposite
@@ -79,6 +85,10 @@ func (p *Parser) parseTypeAssertion() ast.Expression {
 }
 
 func (p *Parser) parsePrefix() ast.Expression {
+	if !p.enterNesting() {
+		return nil
+	}
+	defer p.leaveNesting()
 	if p.match(token.Go) {
 		start := p.previous()
 		value := p.parsePrefix()

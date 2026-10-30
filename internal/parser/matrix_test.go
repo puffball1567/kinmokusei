@@ -195,6 +195,14 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	for _, seed := range []string{
+		"const x=" + strings.Repeat("!", 1000) + "true;",
+		"const x=" + strings.Repeat("[", 1000),
+		"const x=a" + strings.Repeat(".b", 1000) + ";",
+		"alias X=int" + strings.Repeat("[]", 1000) + ";",
+	} {
+		f.Add(seed)
+	}
 	f.Add(`import { First as Local, Second, Third as Third } from "./library";`)
 	f.Add(`import go { Println as println, Sprint as text } from "fmt";`)
 	f.Add(`import go { Println as } from "fmt";`)

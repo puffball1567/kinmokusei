@@ -7,6 +7,11 @@ description: Searchable declaration, expression, and statement forms implemented
 
 This page indexes implemented forms. Detailed semantic rules live in the linked guide and type/reference pages.
 
+Development after v0.4.11 bounds recursive syntax and syntax-tree depth.
+Extremely deep expressions, types or control flow produce a positioned
+[nesting diagnostic](./diagnostics#excessive-syntax-nesting). Large files with
+many shallow declarations/statements remain supported.
+
 ## Lexical conventions
 
 Source is UTF-8 and files use `.km`. Identifiers are case-sensitive and may contain Unicode letters; generated public Go names are checked for collisions after normalization. Keywords such as `function`, `class`, `go`, `null`, and `select` cannot be declaration names.
