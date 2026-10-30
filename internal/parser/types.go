@@ -48,6 +48,10 @@ func (p *Parser) parseType() (ast.TypeRef, bool) {
 }
 
 func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
+	if !p.enterNesting() {
+		return ast.TypeRef{}, false
+	}
+	defer p.leaveNesting()
 	if p.match(token.Interface) {
 		start := p.previous()
 		if _, ok := p.expect(token.LeftBrace, "expected '{' after anonymous interface"); !ok {

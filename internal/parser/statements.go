@@ -107,6 +107,10 @@ func (p *Parser) parseBlock() *ast.BlockStmt {
 }
 
 func (p *Parser) parseStatement() ast.Statement {
+	if !p.enterNesting() {
+		return nil
+	}
+	defer p.leaveNesting()
 	switch {
 	case p.match(token.Const):
 		if p.at(token.LeftBracket) {
@@ -269,6 +273,10 @@ func (p *Parser) parseReturn(start token.Token) ast.Statement {
 }
 
 func (p *Parser) parseIf(start token.Token) ast.Statement {
+	if !p.enterNesting() {
+		return nil
+	}
+	defer p.leaveNesting()
 	if _, ok := p.expect(token.LeftParen, "expected '(' after 'if'"); !ok {
 		p.synchronizeStatement()
 		return nil

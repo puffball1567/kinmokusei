@@ -16,6 +16,9 @@ type Parser struct {
 	diagnostics                  []diagnostic.Diagnostic
 	disallowUnqualifiedComposite bool
 	disallowCompositeBeforeBlock bool
+	nesting                      int
+	nestingExceeded              bool
+	nestingToken                 token.Token
 }
 
 func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
@@ -48,6 +51,16 @@ func Parse(tokens []token.Token) (*ast.Program, []diagnostic.Diagnostic) {
 		}
 	}
 	program.Decorators = p.decorators
+	if !p.nestingExceeded {
+		if span, exceeded := excessiveSyntaxDepth(program); exceeded {
+			p.exceedNesting(span)
+		}
+	}
+	if p.nestingExceeded {
+		// Linking and editor visitors also inspect recovered programs. Do not
+		// hand them a partial tree that exceeds their recursion budget.
+		return &ast.Program{}, p.diagnostics
+	}
 	return program, p.diagnostics
 }
 
@@ -133,6 +146,9 @@ func (p *Parser) atNext(kind token.Kind) bool {
 }
 
 func (p *Parser) peek() token.Token {
+	if p.nestingExceeded {
+		return p.nestingToken
+	}
 	if len(p.tokens) == 0 {
 		return token.Token{Kind: token.EOF}
 	}
@@ -174,6 +190,11 @@ func (p *Parser) checkpoint() parserCheckpoint {
 }
 
 func (p *Parser) restore(checkpoint parserCheckpoint) {
+	if p.nestingExceeded {
+		// Speculation must not erase a resource-limit diagnostic or resume
+		// parsing the rest of an input that already exceeded the budget.
+		return
+	}
 	for i := len(p.tokenEdits) - 1; i >= checkpoint.edits; i-- {
 		edit := p.tokenEdits[i]
 		p.tokens[edit.index] = edit.original
@@ -186,6 +207,9 @@ func (p *Parser) restore(checkpoint parserCheckpoint) {
 }
 
 func (p *Parser) report(tok token.Token, message string) {
+	if p.nestingExceeded {
+		return
+	}
 	if tok.Kind == token.EOF {
 		message += " before end of file"
 	}

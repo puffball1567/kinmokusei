@@ -6,6 +6,7 @@ import (
 	"go/importer"
 	goparser "go/parser"
 	"go/token"
+	"strings"
 	"testing"
 
 	"github.com/puffball1567/kinmokusei/internal/codegen"
@@ -361,6 +362,13 @@ func TestCompilePipelineProperties(t *testing.T) {
 }
 
 func FuzzCompilePipelineNeverPanics(f *testing.F) {
+	for _, seed := range []string{
+		"const x=" + strings.Repeat("!", 1000) + "true;",
+		"const x=0" + strings.Repeat("+1", 1000) + ";",
+		"alias X=int" + strings.Repeat("[]", 1000) + ";",
+	} {
+		f.Add(seed)
+	}
 	for _, seed := range pipelineFuzzSeeds {
 		f.Add(seed)
 	}
