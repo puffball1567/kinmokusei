@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Accept hyphenated prerelease and complete pseudo-versions consistently in
+  dependency commands, manifests, locks and package caches. Use Go's version
+  parser/comparator; reject malformed or noncanonical pinned identities and
+  module-major mismatches before mutation. Preserve full SemVer project metadata
+  and bundle notices for the pinned Go version-handling dependency (#90).
+
 - Diagnose excessive syntax nesting before it can overflow compiler or LSP
   stacks. Bound recursive parsing and iteratively validate syntax-tree depth,
   including long operator/member/type chains; keep the editor responsive and

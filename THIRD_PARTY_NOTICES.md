@@ -14,9 +14,17 @@ permission and disclaimer text. These supplements are attribution material, not
 a bundled compiler. Collection is conservative at package level: some retained
 code may have been removed by the linker.
 
-The release verification regenerates these materials from the build toolchain
-and compares their bytes with every archive. New non-standard Go dependencies
-require a separate licensing review before packaging can proceed.
+The compiler also uses the Go project's `golang.org/x/mod v0.23.0` packages
+`module`, `semver` and `internal/lazyregexp` for version handling. Their original
+BSD-3-Clause `LICENSE` and `PATENTS` texts are retained under
+`third_party/golang.org_x_mod/` in the source tree and copied into
+`licenses/modules/golang.org/x/mod@v0.23.0/` in CLI archives. Complete selected
+source files are retained as `.txt` supplements to preserve per-file notices.
+
+Release verification regenerates these materials from the build toolchain and
+pinned module and compares their bytes with every archive. The reviewed module
+version, package set and notice hashes are checked before packaging. Other
+non-standard Go dependencies still require a separate licensing review.
 
 `keika build -o app` writes the executable and an adjacent
 `app-licenses/` directory. Distribute that entire directory with the executable.

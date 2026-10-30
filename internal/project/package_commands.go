@@ -189,7 +189,7 @@ func UpdateSourcePackages(root, selected string, offline bool) error {
 		if err := json.Unmarshal(output, &info); err != nil {
 			return err
 		}
-		if info.Path != module || !goModuleVersionPattern.MatchString(info.Version) {
+		if info.Path != module || validateDependencyVersion(module, info.Version) != nil {
 			return fmt.Errorf("invalid latest version for %s", module)
 		}
 		manifest.Packages[module] = info.Version

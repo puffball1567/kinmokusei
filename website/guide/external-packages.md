@@ -5,6 +5,12 @@ description: Define, acquire, lock, replace, and consume source packages through
 
 # Use external Kinmokusei packages
 
+Development after v0.4.11 supports complete prerelease versions with hyphenated
+identifiers, such as `keika deps add example.com/lib@v1.0.0-rc-1`. The package's
+`[project] version` is `1.0.0-rc-1`. Fixed dependency identities use canonical
+Go module versions; see [version rules](../reference/project-files#dependencies-and-replacements)
+for metadata, pseudo-versions and major suffixes.
+
 This feature is available since v0.4.1. Source
 packages use ordinary imports; Go packages continue to use `import go`.
 Both are checked and compiled into the application's Go output.
