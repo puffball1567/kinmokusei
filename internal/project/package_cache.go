@@ -95,10 +95,10 @@ func validatePackageRequest(module, version string) error {
 	if err := validateModulePath(module); err != nil {
 		return err
 	}
-	if !canonicalPackageSubpath(module) || !goModuleVersionPattern.MatchString(version) {
+	if !canonicalPackageSubpath(module) {
 		return fmt.Errorf("invalid package request %q@%q", module, version)
 	}
-	return nil
+	return validateDependencyVersion(module, version)
 }
 
 func hashSourcePackage(root string) (string, error) {
