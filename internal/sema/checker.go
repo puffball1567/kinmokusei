@@ -47,6 +47,7 @@ type Checker struct {
 	callableScopeBases         []int
 	capturedWrites             []map[source.Span]source.Span
 	loopFlowContexts           []loopFlowContext
+	loopCheckMemos             map[ast.Statement]loopCheckMemo
 	breakFlowContexts          []breakFlowContext
 	suppressFlowEffects        int
 	memberFlow                 map[memberFlowKey]memberFlowState

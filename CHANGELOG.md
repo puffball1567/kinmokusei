@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Reuse completed nested-loop checks when their full entry state is unchanged,
+  preserving null-flow diagnostics and avoiding repeated inner fixed-point
+  solving for ordinary while/for/range loops. Keep independent callable caches
+  and ordinary checks for intermediate exception, label, inference or escaping
+  control/capture effects; add timed resource and runtime regressions (#105).
+
 - Accept hyphenated prerelease and complete pseudo-versions consistently in
   dependency commands, manifests, locks and package caches. Use Go's version
   parser/comparator; reject malformed or noncanonical pinned identities and

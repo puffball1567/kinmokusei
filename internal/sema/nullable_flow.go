@@ -312,6 +312,11 @@ func (c *Checker) mergeValueScopes(entry []map[string]valueSymbol, continuing ..
 }
 
 func (c *Checker) checkLoopFixedPoint(statement ast.Statement, entry nullableFlowSnapshot, checkIteration func() (nullableFlowSnapshot, bool)) {
+	reused, complete := c.memoizeLoopCheck(statement, entry)
+	if reused {
+		return
+	}
+	defer complete()
 	c.pushBranchFlowTarget(statement, true)
 	defer c.popBranchFlowTarget()
 	header := nullableFlowSnapshot{scopes: cloneValueScopes(entry.scopes), members: cloneMemberFlow(entry.members)}

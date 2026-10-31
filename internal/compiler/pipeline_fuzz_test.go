@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class Item{public value:int=1;}function f(b:boolean,q:Item):int{let p:Item|null=q;while(b){p=q;while(b){p=null;}}if(p!==null){return p.value;}return 0;}`,
+	`function f(b:boolean,q:*int):void{let p:*int|null=q!;for(;b;){p=q!;for(;b;){p=null;}}}`,
+	`class Item{public value:int=1;}function f(b:boolean,q:Item):int{let p:Item|null=q;while(b){p=q;while(b){p=null;}}return p.value;}`,
 	`class Base{}class Box<T> extends Base{constructor(public value:T){}}function box<T>(v:T):Base{return new Box<T>(v);}function match<T>(v:Base):boolean{const [_,ok]=v as? Box<T>;return ok;}function f():boolean{return match<string>(box<bstring>(b"\xff"));}`,
 	`struct Box<T>{public value:T;private function map():T{return this.value;}public function read():T{return this.map();}}function f():bstring{const value=Box<bstring>{value:b"\xff"};const read=Box<bstring>.read;return read(value);}`,
 	`function f<T>(v:T):boolean{return inspectNil(v)||inspectComparable(v)&&inspectEqual(v,v);}`,
