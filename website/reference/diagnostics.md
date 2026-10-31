@@ -81,6 +81,13 @@ named pieces. The compiler discards the affected file's partial tree after a
 depth failure; fixing the document restores normal diagnostics and navigation
 without restarting the LSP.
 
+The limit also prevents deeply nested array literals from building a full
+inferred type at every nesting level. Inputs beyond the limit are rejected
+before type checking, including empty nested arrays. This bounds the expensive
+type-inference work; it does not make inference for arbitrarily deep arrays
+supported. The compiler still reads and tokenizes the source, so the total work
+and memory required also depend on the file size.
+
 ## Exit status
 
 | Status | Check meaning |
