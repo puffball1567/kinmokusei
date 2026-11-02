@@ -155,7 +155,7 @@ func commitManifestAndLock(manifest Manifest, offline bool) error {
 	if err != nil {
 		return err
 	}
-	contents, err := RenderManifest(manifest)
+	contents, err := renderManifestChanges(manifest)
 	if err != nil {
 		return err
 	}

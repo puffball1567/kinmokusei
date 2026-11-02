@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve manifest comments, table/key order, spacing and LF/CRLF line endings
+  during dependency installation, addition, updates and removal. Edit only
+  changed entries, retain removed entries' inline comments as standalone notes,
+  and keep unchanged files byte-identical. Validate the edited model before
+  writing and preserve exact rollback on resolution failure (#91).
+
 - Reuse completed nested-loop checks when their full entry state is unchanged,
   preserving null-flow diagnostics and avoiding repeated inner fixed-point
   solving for ordinary while/for/range loops. Keep independent callable caches
