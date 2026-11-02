@@ -378,7 +378,11 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if stmt.Kind == kinmokuseiAST.GoCall {
 			return &goast.GoStmt{Call: call}, nil
 		}
-		return &goast.DeferStmt{Call: call}, nil
+		source, ok := stmt.Value.(*kinmokuseiAST.CallExpr)
+		if !ok {
+			return nil, fmt.Errorf("defer at %v does not contain a source call", stmt.Span.Start)
+		}
+		return markSourceDefer(source, call), nil
 	case *kinmokuseiAST.DetachStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {

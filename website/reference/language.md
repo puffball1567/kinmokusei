@@ -279,6 +279,13 @@ defer call();
 
 Conditions are parenthesized and must be `boolean`. `if`, `while`, `for`, `switch`, `select`, and `try` own braced bodies; a label instead prefixes one following statement as `name: statement`.
 
+`defer call();` evaluates the callee and arguments immediately and invokes the
+saved call when the enclosing function exits. Calls run in reverse registration
+order, including those registered inside `try`, `catch`, `finally` or loops.
+Leaving those blocks does not run their source defers. Each nested function or
+arrow owns its own defers; `finally` still runs when its exception block exits.
+See the [executable example](../examples/control-flow-boundaries#defer-inside-exception-blocks).
+
 Value switch cases accept comma-separated expressions. Cases stop after the first match unless the final statement is explicit `fallthrough;`; fallthrough is not available in a type switch.
 
 An untyped subject defaults before its cases are checked (`int` for integer

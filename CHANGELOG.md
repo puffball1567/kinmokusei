@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Keep source `defer` calls inside `try`, `catch` and `finally` pending until
+  their enclosing function exits, in reverse registration order alongside its
+  other defers. Preserve eager operand evaluation, generic/private Go argument
+  types, variadics, return values, panic/recover and Goexit behavior; bound
+  stack depth for loop registrations. Also preserve legacy `panic(nil)` through
+  exception and return-control boundaries (#110).
+
 - Diagnose unbounded generic instantiation cycles during checking and editor
   analysis, using Go's rules on the actual lowering. Cover functions, methods,
   classes and type declarations, including inferred and indirect calls; retain

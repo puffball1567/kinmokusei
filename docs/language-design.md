@@ -1531,6 +1531,14 @@ values carry this marker, so independently generated packages can interoperate
 without importing a compiler runtime. A Go type opts into catch behavior only
 by implementing that explicit marker.
 
+Source `defer` is function-scoped, including inside `try`, `catch` and
+`finally`. The callee and arguments are saved at registration; all defers owned
+by one function run in reverse registration order after its final `finally`
+has completed. A nested function/arrow owns separate registrations. Synthetic
+Go functions used for exception handling do not shorten a source defer's
+lifetime. Ordinary `panic` values (including legacy `panic(nil)`) and Goexit
+retain Go unwinding behavior.
+
 Publishable Go output exposes `Exception`, `NewException`, generated exception
 classes and constructors, their `Error()` methods, and the ordinary public class
 upcast/downcast helpers. Exception transport and return-unwinding helpers remain
@@ -1740,7 +1748,7 @@ const [value, open] = <-channel;
 closeGoChannel(channel);
 ```
 
-Directional `GoChannel<T>`, `GoSendChannel<T>`, and `GoReceiveChannel<T>` types preserve Go direction rules. `select`, channel range, raw `go` call statements, and `defer` lower directly to Go.
+Directional `GoChannel<T>`, `GoSendChannel<T>`, and `GoReceiveChannel<T>` types preserve Go direction rules. `select`, channel range and raw `go` call statements lower directly to Go. `defer` retains Go's function lifetime, including when exception lowering introduces intermediate functions.
 
 Structured task expressions retain a result:
 

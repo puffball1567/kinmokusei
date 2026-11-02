@@ -122,6 +122,9 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"defer-private.test":                  {implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[31]},
+	"defer-unwind.test":                   {implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[56]},
+	"defer-exception-scope.test":          {implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[56]},
 	"nested-loops.test":                   {implementedGoCompatibilityContracts[14]},
 	"input-adapters.test":                 {implementedGoCompatibilityContracts[0]},
 	"native-box-contracts.test":           {implementedGoCompatibilityContracts[0]},

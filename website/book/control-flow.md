@@ -221,6 +221,11 @@ defer resource.Close();
 
 `defer` requires a function or method call. Its target and arguments evaluate when the defer statement executes; the call runs when the surrounding function exits, using Go-compatible last-in-first-out order. A deferred call does not replace structured `finally` when cleanup belongs to a specific try/catch region.
 
+A defer inside `try`, `catch`, `finally` or a loop still belongs to that
+surrounding function. Nested functions and arrows have their own defer lifetime.
+The [exception-block example](../examples/control-flow-boundaries#defer-inside-exception-blocks)
+shows the difference between leaving a block and returning from a function.
+
 ## `try`, `catch`, and `finally`
 
 ```ts
