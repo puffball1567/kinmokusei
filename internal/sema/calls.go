@@ -322,6 +322,20 @@ func (c *Checker) recordCallSignature(expr *ast.CallExpr, callable Type) {
 		return
 	}
 	expr.GenericCall = expr.GenericCall || callable.Generic
+	if c.deferCaptureCall == expr && !callable.Generic {
+		ref := typeRefFromType(callable, expr.Span)
+		expr.DeferSignature = &ref
+		for i, argument := range expr.Arguments {
+			if !c.hasDeferredShift(argument) {
+				continue
+			}
+			if expr.CaptureArgumentTypes == nil {
+				expr.CaptureArgumentTypes = make([]ast.TypeRef, len(expr.Arguments))
+			}
+			parameter := genericArgumentParameter(callable, expr, i)
+			expr.CaptureArgumentTypes[i] = typeRefFromType(parameter, expr.Span)
+		}
+	}
 	if c.taskLaunchCall == expr && !callable.Generic {
 		expr.CaptureArgumentTypes = make([]ast.TypeRef, len(expr.Arguments))
 		for i := range expr.Arguments {

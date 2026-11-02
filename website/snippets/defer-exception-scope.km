@@ -1,0 +1,16 @@
+import go fmt from "fmt";
+
+function work(): void {
+  try {
+    defer fmt.Print("deferred");
+    fmt.Print("body ");
+  } finally {
+    fmt.Print("finally ");
+  }
+  fmt.Print("after ");
+}
+
+function main(): void {
+  work();
+  fmt.Println();
+}

@@ -61,6 +61,7 @@ type Checker struct {
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
 	taskLaunchCall             *ast.CallExpr
+	deferCaptureCall           *ast.CallExpr
 	directCallCallee           ast.Expression
 	typeParameterScopes        []map[string]Type
 	deferredParameterBounds    map[*gotypes.TypeParam]bool
@@ -528,7 +529,12 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			return
 		}
 		diagnosticCount := len(c.diagnostics)
+		previousDefer := c.deferCaptureCall
+		if stmt.Kind == ast.DeferCall {
+			c.deferCaptureCall = call
+		}
 		value := c.checkExpression(call)
+		c.deferCaptureCall = previousDefer
 		if name := unusedBuiltinResult(call); name != "" && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
 			keyword := "defer"
 			if stmt.Kind == ast.GoCall {

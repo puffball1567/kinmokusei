@@ -887,8 +887,11 @@ type CallExpr struct {
 	MultipleArgumentCount  int
 	MultipleArgumentResult *TypeRef
 	GenericCall            bool      // Generic functions cannot be captured uninstantiated.
-	CaptureArgumentTypes   []TypeRef // Contextual types for eager Task argument capture.
-	Arguments              []Expression
+	CaptureArgumentTypes   []TypeRef // Contextual types for Task captures and deferred runtime shifts.
+	// DeferSignature provides call-context types for runtime shifts captured by
+	// function-scoped defer lowering. It is metadata, never a source annotation.
+	DeferSignature *TypeRef
+	Arguments      []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments   []bool

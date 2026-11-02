@@ -343,6 +343,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
 			}
 		}
+		body.List = append([]goast.Stmt{sourceCallableMarker()}, body.List...)
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
 	case *kinmokuseiAST.ArrayLiteralExpr:
 		elements := make([]goast.Expr, 0, len(expr.Elements))

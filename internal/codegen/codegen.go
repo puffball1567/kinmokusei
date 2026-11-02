@@ -195,6 +195,11 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	if needsContracts {
 		file.Decls = append(file.Decls, nativeContractRuntimeDeclarations()...)
 	}
+	deferDeclarations, err := lowerSourceDefers(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, deferDeclarations...)
 	set := token.NewFileSet()
 	var output bytes.Buffer
 	if err := format.Node(&output, set, file); err != nil {

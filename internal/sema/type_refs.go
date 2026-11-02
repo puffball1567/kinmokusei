@@ -105,6 +105,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for i := range expression.CaptureArgumentTypes {
 				visitType(&expression.CaptureArgumentTypes[i])
 			}
+			if expression.DeferSignature != nil {
+				visitType(expression.DeferSignature)
+			}
 			visitType(expression.MultipleArgumentResult)
 			for i := range expression.ResolvedTypeArguments {
 				visitType(&expression.ResolvedTypeArguments[i])
