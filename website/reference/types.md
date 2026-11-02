@@ -304,6 +304,14 @@ Go-owned mutable storage. See [assertions](./operators#assertions-and-conversion
 
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 
+Loop checks include facts arriving from later iterations; a proof valid only
+on the first iteration does not make an access safe. Development after v0.4.11
+reuses completed checks for ordinary nested loops when the full entry state is
+unchanged. Diagnostics and exit facts are preserved. Paths requiring intermediate
+exception, label, inferred-callable or escaping control/capture effects retain
+ordinary checking, so this optimization is not a general complexity bound for
+all possible flow graphs.
+
 <<< ../snippets-invalid/null-proof-invalidated.km{ts}
 
 ## Result and Task

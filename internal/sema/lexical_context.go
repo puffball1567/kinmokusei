@@ -1,6 +1,9 @@
 package sema
 
-import "github.com/puffball1567/kinmokusei/internal/source"
+import (
+	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
+)
 
 // Nullable facts, loop exits and reachability belong to the body being checked,
 // not the body that happens to construct its closure. In particular, an arrow
@@ -9,6 +12,7 @@ import "github.com/puffball1567/kinmokusei/internal/source"
 // from receiver/type-parameter access, which closures deliberately retain.
 type callableFlowState struct {
 	loopFlowContexts    []loopFlowContext
+	loopCheckMemos      map[ast.Statement]loopCheckMemo
 	breakFlowContexts   []breakFlowContext
 	suppressFlowEffects int
 	memberFlow          map[memberFlowKey]memberFlowState
@@ -18,10 +22,12 @@ type callableFlowState struct {
 func (c *Checker) enterCallableFlow() callableFlowState {
 	previous := callableFlowState{
 		loopFlowContexts: c.loopFlowContexts, breakFlowContexts: c.breakFlowContexts,
+		loopCheckMemos:      c.loopCheckMemos,
 		suppressFlowEffects: c.suppressFlowEffects,
 		memberFlow:          c.memberFlow, memberTypes: c.memberTypes,
 	}
 	c.loopFlowContexts, c.breakFlowContexts = nil, nil
+	c.loopCheckMemos = nil
 	c.suppressFlowEffects = 0
 	c.memberFlow = map[memberFlowKey]memberFlowState{}
 	c.memberTypes = map[memberFlowKey]Type{}
@@ -30,6 +36,7 @@ func (c *Checker) enterCallableFlow() callableFlowState {
 
 func (c *Checker) leaveCallableFlow(previous callableFlowState) {
 	c.loopFlowContexts, c.breakFlowContexts = previous.loopFlowContexts, previous.breakFlowContexts
+	c.loopCheckMemos = previous.loopCheckMemos
 	c.suppressFlowEffects = previous.suppressFlowEffects
 	c.memberFlow, c.memberTypes = previous.memberFlow, previous.memberTypes
 }
