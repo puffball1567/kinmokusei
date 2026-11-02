@@ -111,6 +111,26 @@ Empty collections, `nil`, and `null` need an expected or explicit type when no e
 
 Go values use `go/types` assignability, addressability, method-set, and constraint rules where possible.
 
+### Recursive generic instantiations
+
+Development after v0.4.11 diagnoses unbounded generic instantiation during
+`keika check`, including checks in the editor. For example, this does not reach
+Go emission:
+
+<<< ../snippets-invalid/generic-instantiation-cycle.km{ts}
+
+The type argument would grow through `T`, `T[]`, `T[][]`, and so on. The same
+rule applies across mutually recursive functions, generic methods, and type
+declarations such as `class Node<T> { public next: Node<T[]> | null = null; }`.
+The diagnostic identifies a recursive source use, rather than a generated Go
+line. Correcting the source clears the editor diagnostic.
+
+Recursion that reuses the same arguments or a finite set of arguments is
+allowed, including type-parameter permutations. Transparent aliases are checked
+after their Go 1.23 expansion, so an unused, erased alias argument does not
+create a false cycle. This restriction concerns compile-time type expansion;
+ordinary runtime recursion still needs an appropriate stopping condition.
+
 An incompatible initialized binding is rejected at its declaration:
 
 <<< ../snippets-invalid/type-mismatch.km{ts}

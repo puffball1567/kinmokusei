@@ -16,6 +16,10 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`function grow<T>(x:T):void{grow<T[]>([x]);}`,
+	`class C<T>{public next:C<T[]>|null=null;}`,
+	`class C{public function grow<T>(x:T):void{this.grow<T[]>([x]);}}`,
+	`alias Drop<T>=int;class C<T>{public value:Drop<C<T[]>>=0;}`,
 	`class Item{public value:int=1;}function f(b:boolean,q:Item):int{let p:Item|null=q;while(b){p=q;while(b){p=null;}}if(p!==null){return p.value;}return 0;}`,
 	`function f(b:boolean,q:*int):void{let p:*int|null=q!;for(;b;){p=q!;for(;b;){p=null;}}}`,
 	`class Item{public value:int=1;}function f(b:boolean,q:Item):int{let p:Item|null=q;while(b){p=q;while(b){p=null;}}return p.value;}`,
@@ -326,6 +330,13 @@ func compilePipelinePropertyWithPolicy(input string, policy sema.GoInteropPolicy
 	}
 	goImporter := importer.Default()
 	if diagnostics := sema.CheckScopedWithGoImporterAndPolicy(program, nil, goImporter, policy); len(diagnostics) != 0 {
+		return nil, false, nil
+	}
+	checked := Result{Program: program, goImporter: goImporter, goSizes: policy.Sizes}
+	if err := checked.checkInstantiationCycles(); err != nil {
+		return nil, false, err
+	}
+	if len(checked.Diagnostics) != 0 {
 		return nil, false, nil
 	}
 	first, err := codegen.GenerateWithTarget(program, "fuzzpkg", goImporter, policy.Sizes)

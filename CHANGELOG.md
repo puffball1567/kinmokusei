@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Diagnose unbounded generic instantiation cycles during checking and editor
+  analysis, using Go's rules on the actual lowering. Cover functions, methods,
+  classes and type declarations, including inferred and indirect calls; retain
+  finite recursion, permutations and erased aliases. Point to original source
+  uses and reject emission before replacing existing outputs (#108).
+
 - Preserve manifest comments, table/key order, spacing and LF/CRLF line endings
   during dependency installation, addition, updates and removal. Edit only
   changed entries, retain removed entries' inline comments as standalone notes,
