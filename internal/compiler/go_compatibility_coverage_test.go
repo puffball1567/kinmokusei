@@ -122,6 +122,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"nested-loops.test":                   {implementedGoCompatibilityContracts[14]},
 	"input-adapters.test":                 {implementedGoCompatibilityContracts[0]},
 	"native-box-contracts.test":           {implementedGoCompatibilityContracts[0]},
 	"decorator-methods.test":              {implementedGoCompatibilityContracts[102]},
