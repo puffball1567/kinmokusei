@@ -1,0 +1,3 @@
+function grow<T>(value: T): void {
+  grow<T[]>([value]);
+}
