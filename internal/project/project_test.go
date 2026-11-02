@@ -811,8 +811,12 @@ go-version = "1.23"
 		t.Fatal(err)
 	}
 	contents, err = os.ReadFile(filepath.Join(root, product.ProjectFileName))
-	if err != nil || strings.Contains(string(contents), "go.dependencies") || strings.Contains(string(contents), "go.replacements") {
+	if err != nil || strings.Contains(string(contents), `"example.com/library"`) || !strings.Contains(string(contents), "[go.dependencies]") || !strings.Contains(string(contents), "[go.replacements]") || !strings.HasPrefix(string(contents), manifestText) {
 		t.Fatalf("removed manifest err=%v:\n%s", err, contents)
+	}
+	removed, err := ReadManifest(root)
+	if err != nil || len(removed.Dependencies) != 0 || len(removed.Replacements) != 0 {
+		t.Fatalf("removed entries remain in manifest: %v %v %v", removed.Dependencies, removed.Replacements, err)
 	}
 	if err = RemoveDependency(root, "example.com/library", true); err == nil || !strings.Contains(err.Error(), "is not declared") {
 		t.Fatalf("missing remove err = %v", err)

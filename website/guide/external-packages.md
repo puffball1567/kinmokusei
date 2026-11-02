@@ -121,6 +121,12 @@ dependency and writes it under `[dependencies]`. Modules without that declaratio
 retain the existing Go dependency behavior. `keika install --go-module` remains
 the explicit Go-only command.
 
+Development after v0.4.11 keeps your manifest comments and formatting during
+dependency changes, including short import aliases and local replacements.
+Updating a pin preserves its inline comment; removing it keeps that comment as
+a standalone note. See the [project-file reference](../reference/project-files)
+for the editing rules.
+
 Use the declared module path in source:
 
 ```ts

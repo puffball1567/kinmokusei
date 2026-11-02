@@ -11,6 +11,18 @@ The manifest accepts the sections and quoted string values documented here,
 not every TOML feature. For example, write `cgo = "enabled"`, not a Boolean,
 and write build tags as one comma-separated string, not a TOML array.
 
+Development after v0.4.11 preserves manifest comments and existing layout when
+`install`, `deps add`, `deps update`, or `deps remove` changes dependencies.
+Only affected values/entries are edited; unrelated table/key order, spacing,
+string spelling, and LF/CRLF line endings remain intact. New entries use a
+stable order, and missing tables are appended. An inline comment on a removed
+entry becomes a standalone comment; empty tables and their comments remain.
+An unchanged manifest stays byte-identical. Adding a line after a final line
+without a newline necessarily inserts a line break.
+
+The resulting manifest and lock are committed together; dependency-resolution
+failure restores the original files, including their comments and formatting.
+
 ## Complete example
 
 ```toml
