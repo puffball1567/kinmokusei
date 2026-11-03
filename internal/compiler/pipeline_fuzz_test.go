@@ -16,6 +16,10 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class User{}function f():void{const xs=makeSlice<User>(1);}`,
+	`class User{}function f(xs:User[],n:int):User[]{return xs[:n];}`,
+	`class User{}struct Row<T>{public v:T;}function f():void{const xs=makeSlice<Row<User|null>>(1);clear(xs);}`,
+	`constraint Slice<E>=~E[];function f<E,T extends Slice<E>>(xs:T,n:int):T{return xs[:n];}`,
 	`class User{}function f():User{return nil;}`,
 	`class User{}constraint Users=User;function f<T extends Users>():T{return T(nil);}`,
 	`alias Callback=()=>int;function f(v:Callback|null):int{if(v===null){return 0;}return v();}`,

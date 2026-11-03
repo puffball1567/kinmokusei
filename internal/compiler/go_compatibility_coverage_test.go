@@ -122,6 +122,8 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"initialized-private.test":            {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[31]},
+	"initialized-slices.test":             {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[13]},
 	"source-order-private.test":           {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[31]},
 	"source-order.test":                   {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[13]},
 	"defer-private.test":                  {implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[31]},

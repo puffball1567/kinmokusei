@@ -195,6 +195,31 @@ Generated code preserves the corresponding Go zero value: numeric zero, `false`,
 | Missing map key | Returns the value type's zero value; checked lookup also returns `false` |
 | Closed channel receive | Returns the element zero value; checked receive also returns `false` |
 
+Development builds require a safe element zero value for nonempty `makeSlice`
+and slice `make`, and for slice `clear`. Numbers, booleans, text, `T | null`,
+slices, maps and channels have valid zeros. Native structs, structural objects
+and fixed arrays require safe zeros in every stored field/element; a zero-length
+array contains no elements. All alternatives of a generic bound must qualify;
+an unconstrained `T` does not provide this guarantee. Imported Go implementation
+state remains a platform boundary rather than a checked native field contract.
+
+A non-null class, pointer, interface or function cannot be zero-initialized:
+
+<<< ../snippets-invalid/slice-non-null-zero.km{ts}
+
+Use `makeSlice<User | null>(count)` when empty slots are intended. Otherwise,
+use `makeSlice<User>(0, capacity)` and append initialized users. The empty
+allocation must have a compile-time zero length. See
+[initialized collection elements](../examples/collections#non-null-elements-and-initialization).
+
+When a slice's element zero is unsafe or unknown, slicing also checks that the
+new high bound does not exceed its current length. The check reports the source
+location and remains active inside fixed-array `len`/`cap` expressions. Three-index
+slicing can reserve capacity beyond the length, but cannot expose those slots.
+After shortening a view, keep the original longer view if you need its full range.
+Safe-zero elements retain ordinary Go reslicing up to capacity. Fixed arrays
+remain fully initialized storage and retain their ordinary slicing behavior.
+
 `null === null` without a concrete nullable context is rejected because it supplies no base type. A nullable value must be narrowed before member access, indexing, slicing, calling, dereference, or channel operations that require a concrete non-null receiver.
 
 ## Comparability

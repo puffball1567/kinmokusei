@@ -206,6 +206,8 @@ func (c *Checker) checkCollectionClear(expr *ast.CallExpr) Type {
 		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
 		if value.Kind != Invalid && !isClearCollection(value) {
 			c.report(argument.GetSpan(), fmt.Sprintf("clear requires a slice or map, got %s", value.String()))
+		} else if value.Kind != Invalid && !c.clearPreservesZeroSafety(value, argument.GetSpan()) {
+			c.report(argument.GetSpan(), "clear cannot replace non-null slice elements with zero values; use nullable elements or shorten the slice instead")
 		}
 	}
 	return builtins["void"]
@@ -228,6 +230,7 @@ func (c *Checker) checkMakeSlice(expr *ast.CallExpr) Type {
 		c.report(expr.TypeArguments[0].Span, fmt.Sprintf("type %s cannot be used as a slice element", element.String()))
 	}
 	c.checkMakeSizeArguments(expr, "makeSlice", 1, 2)
+	c.checkZeroSliceAllocation("makeSlice", expr, element, c.zeroValueSafe(element))
 	if len(expr.Arguments) >= 2 {
 		length, lengthOK := c.integerContextValue(expr.Arguments[0])
 		capacity, capacityOK := c.integerContextValue(expr.Arguments[1])

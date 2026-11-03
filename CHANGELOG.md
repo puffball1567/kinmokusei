@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Prevent slice allocation, clearing and reslicing from exposing invalid zero
+  values as non-null references (#117). Check nested structs/arrays and every
+  generic constraint alternative; allow empty reserved slices and initialized
+  appends. Require nullable elements when zero-initializing references, and
+  reject reslicing past the current length for elements without a safe zero.
+  Preserve Go bounds panics, integer widths, aliases, named/private Go types,
+  source locations and checks inside fixed-array `len`/`cap` operands.
+
 - Reject raw `nil` assignments and conversions to non-null source classes,
   interfaces and function signatures, including aliases, defined function types
   and generic constraints (#117). Use `T | null` and `null` for absence. Keep

@@ -1,0 +1,5 @@
+class User {
+  public name: string = "Aki";
+}
+
+const users = makeSlice<User>(2);

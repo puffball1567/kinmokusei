@@ -527,6 +527,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiSliceUTF8"), Args: []goast.Expr{object, unsigned(low), unsigned(high), goast.NewIdent(strconv.FormatBool(expr.High != nil))}}, nil
 		}
+		if expr.InitializedOnly {
+			return generateInitializedSlice(expr, object, low, high, max), nil
+		}
 		return &goast.SliceExpr{X: object, Low: low, High: high, Max: max, Slice3: expr.Full}, nil
 	case *kinmokuseiAST.NewExpr:
 		args := nativeContractExpressions(expr.NativeContractArguments)

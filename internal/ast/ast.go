@@ -1083,6 +1083,7 @@ func (*IndexExpr) expression()            {}
 func (e *IndexExpr) GetSpan() source.Span { return e.Span }
 
 type SliceExpr struct {
+	InitializedOnly   bool // Slicing must not expose zeroed capacity as non-null elements.
 	FixedArrayStorage bool
 	UTF8              bool // Preserve text validity by checking UTF-8 byte boundaries.
 	Object            Expression

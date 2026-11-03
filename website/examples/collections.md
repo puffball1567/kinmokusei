@@ -102,6 +102,32 @@ capacity; elements beyond its length remain untouched. Clearing a map removes
 every entry, including NaN keys. Nil maps/slices are safe. Deletion checks the
 key's type, source nullability and numeric constant range at compile time.
 
+Development builds require safe zero values for cleared slice elements, including
+every slice alternative in a generic bound. Map alternatives can always be
+cleared: removal does not create a zero payload. Clearing a non-null class slice
+is rejected:
+
+<<< ../snippets-invalid/clear-non-null-slice.km{ts}
+
+## Non-null elements and initialization
+
+Use nullable elements for initially empty slots, or append initialized values to
+an empty reserved slice. This works with arbitrary generic element types:
+
+<<< ../snippets/initialized-slices.km{ts}
+
+This prints `2 Aki`, `3 true`, and `1 2`. `filled` copies its supplied value;
+for a class, both slots refer to the same supplied instance. Construct inside
+the loop when each slot needs a separate instance.
+
+`makeSlice<User>(count)` with a nonzero or unknown length is rejected. A
+nullable element or a finite bound containing only safe-zero types permits
+zero initialization; the generic allocation example uses a numeric bound.
+Reslicing a non-null element slice past its current length panics, even when
+capacity is available. The same rule covers structs/arrays containing non-null
+references and unconstrained generic elements. Ordinary bounds checks still use
+Go's integer and panic behavior. Nullable-element slices can extend to capacity.
+
 ## Generic append and copy
 
 Since v0.4.0, a slice constraint also supports `append` and `copy`.

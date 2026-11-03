@@ -51,6 +51,9 @@ func (c *Checker) checkMakeCollection(expr *ast.CallExpr) Type {
 	}
 	expr.MakeSliceTarget = slice
 	if slice {
+		if element, ok := c.sliceElementType(target, expr.Span); ok {
+			c.checkZeroSliceAllocation("make", expr, element, c.sliceElementsZeroSafe(target, expr.Span))
+		}
 		expr.Signature = &ast.CallableSignature{ParameterNames: []string{"length", "capacity?"}, ParameterTypes: []string{"int", "int"}, Result: target.String()}
 	} else {
 		expr.Signature = &ast.CallableSignature{ParameterNames: []string{"capacity?"}, ParameterTypes: []string{"int"}, Result: target.String()}

@@ -10,7 +10,7 @@ func TestGenericCollectionMutation(t *testing.T) {
 	for _, test := range []struct{ name, source, want string }{
 		{"clear slices", `constraint C=~int[]|~string[];function f<T extends C>(v:T):void{clear(v);}`, ""},
 		{"clear mixed", `constraint C=~int[]|~Map<string,int>|~Map<int,string>;function f<T extends C>(v:T):void{clear(v);}`, ""},
-		{"clear dependent", `constraint C<E>=~E[]|~Map<string,E>;function f<E,T extends C<E>>(v:T):void{clear(v);}`, ""},
+		{"clear dependent", `constraint C<E>=~E[]|~Map<string,E>;function f<E,T extends C<E>>(v:T):void{clear(v);}`, "zero value"},
 		{"clear scalar", `constraint C=~int[]|~int;function f<T extends C>(v:T):void{clear(v);}`, "clear requires"},
 		{"clear array", `constraint C=~int[]|~[3]int;function f<T extends C>(v:T):void{clear(v);}`, "clear requires"},
 		{"clear channel", `constraint C=~GoChannel<int>;function f<T extends C>(v:T):void{clear(v);}`, "clear requires"},

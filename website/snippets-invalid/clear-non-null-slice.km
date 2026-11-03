@@ -1,0 +1,8 @@
+class User {
+  public name: string = "Aki";
+}
+
+function main(): void {
+  const users = [new User()];
+  clear(users);
+}
