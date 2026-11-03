@@ -326,11 +326,12 @@ Narrowing applies to stable bindings and member paths only while the proof remai
 
 Loop checks include facts arriving from later iterations; a proof valid only
 on the first iteration does not make an access safe. Development after v0.4.11
-reuses completed checks for ordinary nested loops when the full entry state is
-unchanged. Diagnostics and exit facts are preserved. Paths requiring intermediate
-exception, label, inferred-callable or escaping control/capture effects retain
-ordinary checking, so this optimization is not a general complexity bound for
-all possible flow graphs.
+reuses completed nested-loop checks when their full entry state and enclosing
+analysis context are unchanged. This includes exception handlers, inferred
+arrows, constructors, field initializers, labels and captured writes. Diagnostics,
+intermediate exceptional paths and Task ownership checks are preserved; a cache
+hit never treats a first-iteration proof as valid on later iterations. Checking
+cost still depends on source size and the number of distinct flow states.
 
 <<< ../snippets-invalid/null-proof-invalidated.km{ts}
 

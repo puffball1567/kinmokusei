@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class Item{public n:int=1;}function f(b:boolean,q:Item):void{const run=()=>{let p:Item|null=q;try{while(b){p=q;while(b){p=null;if(b){return 1;}}}}catch(_:Exception){}finally{}return 0;};run();}`,
+	`class Item{}function work():int{return 7;}function f(b:boolean,q:Item):int{const task=go work();let p:Item|null=q;try{while(b){p=q;while(b){p=null;if(b){return 1;}}}}finally{const n=await task;}return 0;}`,
+	`class Item{}function f(b:boolean,q:Item):void{let p:Item|null=q;outer:while(b){const run=():void=>{while(b){p=q;while(b){p=null;}}};if(b){continue outer;}}}`,
 	`function grow<T>(x:T):void{grow<T[]>([x]);}`,
 	`class C<T>{public next:C<T[]>|null=null;}`,
 	`class C{public function grow<T>(x:T):void{this.grow<T[]>([x]);}}`,
