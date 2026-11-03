@@ -8,6 +8,9 @@ func (c *Checker) conversionPreservesSourceContract(target, value Type) bool {
 	if value.Kind == Nullable {
 		return false
 	}
+	if value.Kind == Nil && c.requiresNativeNonNull(target, nil) {
+		return false
+	}
 	return c.sourceStorageContractsMatch(target, value)
 }
 

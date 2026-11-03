@@ -90,9 +90,9 @@ function identityAfterUpcast(): boolean {
   return first === second;
 }
 function nilAfterUpcast(): boolean {
-  const dog: GuideDog = nil;
-  const animal: Animal = dog;
-  return animal === nil;
+  const dog: GuideDog | null = null;
+  const animal: Animal | null = dog;
+  return animal === null;
 }
 function nullableAfterUpcast(dog: GuideDog | null): boolean {
   const animal: Animal | null = dog;
@@ -101,7 +101,7 @@ function nullableAfterUpcast(dog: GuideDog | null): boolean {
 function animalValue(): Animal { return new Animal("plain"); }
 function dogValue(): Animal { return new Dog("Pochi", "wan"); }
 function guideValue(): Animal { return new GuideDog("Nana"); }
-function nilAnimalValue(): Animal { const value: Animal = nil; return value; }
+function nilAnimalValue(): Animal | null { return null; }
 function checkedGuide(value: Animal): string {
   const [guide, ok] = value as? GuideDog;
   if (!ok) { return "none"; }

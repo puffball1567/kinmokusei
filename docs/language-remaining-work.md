@@ -77,9 +77,14 @@ linked aliases, named types, callbacks and typed-nil Go interfaces have runtime
 comparison coverage in `non_null_assertions_test.go`. Nullable `unsafe.Pointer`
 assignment follows the same conservative storage rule as ordinary Go pointers.
 
+Development builds reject raw `nil` assignments and conversions to non-null
+source classes, interfaces and function signatures, including aliases, native
+defined function types and generic bounds. `native_raw_nil_test.go` covers
+these restrictions and the retained raw Go pointer/collection/callback rules;
+compiler and LSP tests preserve source diagnostics and nullable edit recovery.
+
 This is still partial progress on #117. Optional chaining, null coalescing,
-non-null boundary checks, raw-nil restrictions and recursive zero-safety rules
-remain unimplemented.
+non-null boundary checks and recursive zero-safety rules remain unimplemented.
 The zero-safety audit must cover map/receive/assertion success checks,
 `makeSlice`, reslicing and `clear`, including nested structs and generic types.
 

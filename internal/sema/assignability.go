@@ -87,10 +87,13 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	if value.Kind == Nullable || value.Kind == Null || target.Kind == Null {
 		return value.Kind == Null && target.Kind == Null
 	}
+	if value.Kind == Nil {
+		return assignable(target, value) && !c.requiresNativeNonNull(target, nil)
+	}
 	if isSourceAnonymousInterface(target) {
 		// Structural source contracts apply to values as well as generic bounds.
 		// Go assignability alone would erase string/nullability in method results.
-		return value.Kind == Nil || c.nativeSourceInterfaceArgumentSatisfies(target, value)
+		return c.nativeSourceInterfaceArgumentSatisfies(target, value)
 	}
 	if target.Kind != TypeParameter && !exactType(target, value) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		return false

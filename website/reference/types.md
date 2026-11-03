@@ -294,6 +294,25 @@ The compiler tracks maybe-null, definitely-null, and non-null facts separately f
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.
 
+Development builds reject raw `nil` assignments and conversions to non-null
+source classes, native interfaces, source anonymous method contracts and source
+function signatures. Aliases, native defined function types and generic bounds
+retain that rule. For example, this is rejected:
+
+<<< ../snippets-invalid/native-raw-nil.km{ts}
+
+Migrate `const user: User = nil` to `const user: User | null = null`, then
+narrow the value before use. For callbacks, declare an alias such as
+`alias Callback = () => int` and use `Callback | null`. Defensive `nil`
+comparisons remain permitted; a nil-backed representation alone does not make
+raw `nil` a valid initializer for a non-null source reference.
+
+Raw pointers, slices, maps and channels retain Go nil storage. Imported Go
+interfaces and callback types, including aliases of those types, also retain
+Go's raw nil rules. This change rejects explicit native nil construction; it
+does not yet add automatic boundary assertions or close every zero-value
+entry point described above.
+
 A raw Go pointer, interface or function type does not imply that its value is
 non-nil. Assigning one to an explicit `T | null` local or field preserves the
 nullable state; check it against `null` before access. Aliases and generic named
