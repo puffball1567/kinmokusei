@@ -126,7 +126,7 @@ func TestGeneratedGoSyntaxMatrix(t *testing.T) {
 		{
 			"raw Go channel direction send and receive",
 			`function relay(input: GoReceiveChannel<int>, output: GoSendChannel<int>, bidirectional: GoChannel<int>): int { output <- <-input + 1; bidirectional <- 2; <-bidirectional; return <-bidirectional; }`,
-			[]string{"input <-chan int", "output chan<- int", "bidirectional chan int", "output <- <-input + 1", "<-bidirectional", "return <-bidirectional"},
+			[]string{"input <-chan int", "output chan<- int", "bidirectional chan int", "__kinmokuseiEvalValue(output) <- <-input + 1", "<-bidirectional", "return <-bidirectional"},
 		},
 		{
 			"raw Go channel creation close and checked receive",

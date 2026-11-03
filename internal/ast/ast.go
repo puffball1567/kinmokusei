@@ -877,6 +877,7 @@ func (*AwaitExpr) expression()            {}
 func (e *AwaitExpr) GetSpan() source.Span { return e.Span }
 
 type CallExpr struct {
+	StaticCallee  bool // A declaration/package function cannot be rebound by an argument.
 	Callee        Expression
 	TypeArguments []TypeRef
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
@@ -1063,6 +1064,8 @@ func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
 type IndexExpr struct {
+	FixedArrayStorage       bool // Preserve addressable array storage rather than copying it.
+	MapIndex                bool // Preserve map key context while capturing assignment targets.
 	NativeContractArguments []NativeContract
 	// TypeArguments retains a possible explicit instantiation. For ambiguous
 	// f[T] syntax, Index retains the ordinary index until checking resolves f.
@@ -1080,13 +1083,14 @@ func (*IndexExpr) expression()            {}
 func (e *IndexExpr) GetSpan() source.Span { return e.Span }
 
 type SliceExpr struct {
-	UTF8   bool // Preserve text validity by checking UTF-8 byte boundaries.
-	Object Expression
-	Low    Expression
-	High   Expression
-	Max    Expression
-	Full   bool
-	Span   source.Span
+	FixedArrayStorage bool
+	UTF8              bool // Preserve text validity by checking UTF-8 byte boundaries.
+	Object            Expression
+	Low               Expression
+	High              Expression
+	Max               Expression
+	Full              bool
+	Span              source.Span
 }
 
 func (*SliceExpr) expression()            {}

@@ -169,7 +169,7 @@ function sortSequence(): void { sort.Sort(new Sequence(1)); }
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"var _ sort.Interface = &Sequence{}", "io.Copy(io.Discard, strings.NewReader", "var reader io.Reader = nil", "sort.Sort(NewSequence(1))"} {
+	for _, want := range []string{"var _ sort.Interface = &Sequence{}", "io.Copy(__kinmokuseiEvalValue(io.Discard), strings.NewReader", "var reader io.Reader = nil", "sort.Sort(NewSequence(1))"} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
 		}

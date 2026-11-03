@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`let x=1;function bump():int{x=10;return 5;}function pair(a:int,b:int):int{return a*100+b;}function f():int{return pair(x,bump())+x+bump();}`,
+	`function f():int[]{let i=0;const a=[1,2];const rhs=():int=>{i=1;return 9;};a[i]+=rhs();return a;}`,
+	`function pair(a:byte,b:int):int{return int(a)*100+b;}function count():int{return 0;}function later():int{return 5;}function f():int{return pair(1<<count(),later());}`,
 	`class Item{public n:int=1;}function f(b:boolean,q:Item):void{const run=()=>{let p:Item|null=q;try{while(b){p=q;while(b){p=null;if(b){return 1;}}}}catch(_:Exception){}finally{}return 0;};run();}`,
 	`class Item{}function work():int{return 7;}function f(b:boolean,q:Item):int{const task=go work();let p:Item|null=q;try{while(b){p=q;while(b){p=null;if(b){return 1;}}}}finally{const n=await task;}return 0;}`,
 	`class Item{}function f(b:boolean,q:Item):void{let p:Item|null=q;outer:while(b){const run=():void=>{while(b){p=q;while(b){p=null;}}};if(b){continue outer;}}}`,

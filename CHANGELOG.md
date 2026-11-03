@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Read earlier values before later calls or channel receives can change them
+  (#111). Preserve callee/receiver, argument, binary-operand, literal-field,
+  multiple-return and slice-bound order; freeze assignment targets and compound
+  update values before evaluating their right-hand sides. Retain fixed-array
+  storage, short-circuiting, contextual constants and private Go argument types.
+
 - Reuse nested-loop checks across exception handlers, inferred arrows,
   constructors/field initializers, labels and escaping branch/capture effects.
   Replay intermediate-flow and return/Task obligations independently of earlier

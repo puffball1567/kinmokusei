@@ -146,6 +146,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			}
 			result.Results = append(result.Results, value)
 		}
+		if stmt.Value != nil {
+			orderExpressionList(append([]kinmokuseiAST.Expression{stmt.Value}, stmt.AdditionalValues...), result.Results)
+		}
 		return result, nil
 	case *kinmokuseiAST.ThrowStmt:
 		if stmt.Bare {
@@ -203,7 +206,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &goast.AssignStmt{Lhs: []goast.Expr{target}, Tok: goAssignmentToken(stmt.Operator), Rhs: []goast.Expr{value}}, nil
+		return generateOrderedAssignment(stmt, target, value)
 	case *kinmokuseiAST.IncDecStmt:
 		if member, ok := stmt.Target.(*kinmokuseiAST.MemberExpr); ok && member.Property {
 			return generatePropertyAssignment(member, stmt.Operator, nil)
@@ -404,6 +407,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
 			return nil, err
+		}
+		if evaluationMayHaveEffects(stmt.Value) {
+			channel = snapshotOrderedValue(stmt.Channel, channel)
 		}
 		return &goast.SendStmt{Chan: channel, Value: value}, nil
 	default:

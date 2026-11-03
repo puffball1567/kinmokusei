@@ -200,6 +200,11 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		return nil, nil, err
 	}
 	file.Decls = append(file.Decls, deferDeclarations...)
+	evaluationDeclarations, err := evaluationRuntimeDeclarations(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, evaluationDeclarations...)
 	set := token.NewFileSet()
 	var output bytes.Buffer
 	if err := format.Node(&output, set, file); err != nil {
