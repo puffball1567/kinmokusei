@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class User{}function f():User{return nil;}`,
+	`class User{}constraint Users=User;function f<T extends Users>():T{return T(nil);}`,
+	`alias Callback=()=>int;function f(v:Callback|null):int{if(v===null){return 0;}return v();}`,
 	`let x=1;function bump():int{x=10;return 5;}function pair(a:int,b:int):int{return a*100+b;}function f():int{return pair(x,bump())+x+bump();}`,
 	`function f():int[]{let i=0;const a=[1,2];const rhs=():int=>{i=1;return 9;};a[i]+=rhs();return a;}`,
 	`function pair(a:byte,b:int):int{return int(a)*100+b;}function count():int{return 0;}function later():int{return 5;}function f():int{return pair(1<<count(),later());}`,

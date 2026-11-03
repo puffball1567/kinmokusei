@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Reject raw `nil` assignments and conversions to non-null source classes,
+  interfaces and function signatures, including aliases, defined function types
+  and generic constraints (#117). Use `T | null` and `null` for absence. Keep
+  defensive nil comparisons and raw Go pointer, collection, interface and
+  callback boundaries; this does not yet close other zero-value entry points.
+
 - Read earlier values before later calls or channel receives can change them
   (#111). Preserve callee/receiver, argument, binary-operand, literal-field,
   multiple-return and slice-bound order; freeze assignment targets and compound

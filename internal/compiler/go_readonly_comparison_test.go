@@ -18,6 +18,7 @@ export function same<T>(a:T,b:T):boolean{return reflection.DeepEqual(a,b);}
 import go {DeepEqual as equal} from "reflect";
 import go r from "reflect";
 import go math from "math";
+alias Callback=(v:string)=>void;
 struct Row{public text:string;public parts:Map<string,string[]>;}
 struct Node{public text:string;public next:*Node;}
 let callbacks:int=0;
@@ -40,7 +41,7 @@ export function Run():(boolean[],int,int){
  let third=Node{text:"other",next:nil};third.next=&third;
  const pointer:*Node=nil;
  const c=new C("x");const d=new C("x");
- const callback=(v:string):void=>{callbacks++;};const missing:(v:string)=>void=nil;
+ const callback=(v:string):void=>{callbacks++;};const missing:Callback|null=null;
  const task=go r.DeepEqual(a,b);const concurrent=await task;
  deferred(a);
  const nan=math.NaN();
