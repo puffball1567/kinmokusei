@@ -51,6 +51,9 @@ func generatePropertyAssignment(member *ast.MemberExpr, operator string, value a
 		}
 	}
 	if operator == "" || operator == "=" {
+		if receiver != nil && evaluationMayHaveEffects(value) {
+			receiver = evaluatedValue(receiver)
+		}
 		return &goast.ExprStmt{X: propertyCall(receiver, propertyAccessorName(member, true), rhs)}, nil
 	}
 	// A zero-argument closure is also a valid for-post statement. Fresh names

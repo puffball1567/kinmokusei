@@ -127,6 +127,17 @@ The observable order is:
 
 This also applies when calls lower through generated adapters, virtual dispatch, `Result`, or Go interop. More broadly, selectors, index targets, map lookups, assertions, range sources, switch subjects, and task-start arguments are not duplicated by lowering: source evaluation order remains the contract.
 
+An earlier argument or binary operand is read before a later call can change
+it. Assignment targets are also determined before the right-hand side runs:
+
+<<< ../snippets/evaluation-order.km{ts}
+
+This prints `105`, `6`, and `9 2`. `changeIndex()` changes `index` to `1`, but
+the assignment has already selected `values[0]`. Compound updates likewise
+save the selected value before evaluating the right-hand side. A fixed-array
+index or slice retains the original array's storage; a slice retains its
+previous slice header and continues to share its backing array.
+
 ## Generic calls
 
 Type arguments may be inferred or supplied explicitly:

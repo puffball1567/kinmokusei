@@ -451,6 +451,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 	switch collection := underlying.(type) {
 	case *gotypes.Array:
 		c.checkSequenceIndex(expr.Index, index, collection.Len(), "array")
+		expr.FixedArrayStorage = c.isAddressableExpression(expr.Object)
 		expr.Addressable = c.isAddressableExpression(expr.Object)
 		expr.Assignable = expr.Addressable
 		return c.checkedIndexResult(expr, c.fixedArrayElementType(collection, object, expr.Span), checked, false)
@@ -484,6 +485,7 @@ func (c *Checker) checkIndex(expr *ast.IndexExpr, checked bool) Type {
 }
 
 func (c *Checker) checkedIndexResult(expr *ast.IndexExpr, element Type, checked, mapIndex bool) Type {
+	expr.MapIndex = mapIndex
 	if !checked {
 		return element
 	}
@@ -572,6 +574,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		if !c.isAddressableExpression(expr.Object) {
 			c.report(expr.Object.GetSpan(), fmt.Sprintf("slicing fixed array %s requires an addressable operand", object.String()))
 		}
+		expr.FixedArrayStorage = true
 		fixedLength = collection.Len()
 		element := c.fixedArrayElementType(collection, object, expr.Span)
 		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
