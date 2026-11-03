@@ -83,10 +83,16 @@ defined function types and generic bounds. `native_raw_nil_test.go` covers
 these restrictions and the retained raw Go pointer/collection/callback rules;
 compiler and LSP tests preserve source diagnostics and nullable edit recovery.
 
-This is still partial progress on #117. Optional chaining, null coalescing,
-non-null boundary checks and recursive zero-safety rules remain unimplemented.
-The zero-safety audit must cover map/receive/assertion success checks,
-`makeSlice`, reslicing and `clear`, including nested structs and generic types.
+Development builds apply recursive zero-safety to slice `make`/`makeSlice`,
+`clear` and reslicing, including canonical struct fields, fixed arrays, source
+nullable generic arguments and every alternative of a bound. Empty reserved
+slices and initialized appends remain supported; unsafe-zero slices cannot
+reslice beyond their current length. Runtime comparisons cover aliases,
+integer widths, private Go types and fixed-array len/cap check retention.
+
+This is still partial progress on #117. Optional chaining, null coalescing and
+non-null boundary checks remain unimplemented. Zero-safety still needs to cover
+map lookup, channel receive and checked-assertion success proofs.
 
 ### Go compatibility areas
 

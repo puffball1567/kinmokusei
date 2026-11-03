@@ -1,9 +1,10 @@
 import go { Println } from "fmt"
 
 constraint Slice<E> = ~E[]
+constraint Number = ~int | ~int32 | ~int64
 type Numbers = distinct int[]
 
-function allocate<E, T extends Slice<E>>(length: int, capacity: int): T {
+function allocate<E extends Number, T extends Slice<E>>(length: int, capacity: int): T {
   return make[T](length, capacity)
 }
 

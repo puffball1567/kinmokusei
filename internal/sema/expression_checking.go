@@ -497,6 +497,7 @@ func (c *Checker) checkedIndexResult(expr *ast.IndexExpr, element Type, checked,
 }
 
 func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
+	expr.InitializedOnly = false
 	object := c.singleValue(c.checkExpression(expr.Object), expr.Object.GetSpan())
 	if object.Kind == Nullable {
 		c.report(expr.Object.GetSpan(), fmt.Sprintf("nullable value %s must be checked against null before slicing", object.String()))
@@ -533,6 +534,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		return resultType
 	}
 	if object.Kind == Array {
+		expr.InitializedOnly = !c.sliceElementsZeroSafe(resultType, expr.Span)
 		c.checkSliceConstantBounds(expr, -1, "fixed array")
 		return resultType
 	}
@@ -581,6 +583,7 @@ func (c *Checker) checkSlice(expr *ast.SliceExpr) Type {
 		return Type{Kind: Array, Name: "array", Element: &element}
 	case *gotypes.Slice:
 		c.checkSliceConstantBounds(expr, fixedLength, "fixed array")
+		expr.InitializedOnly = !c.sliceElementsZeroSafe(resultType, expr.Span)
 		return object
 	case *gotypes.Basic:
 		if collection.Info()&gotypes.IsString != 0 {

@@ -22,7 +22,8 @@ export constraint Slice<E>=native.Slice<E>;
 export constraint Mapping<V>=~Map<string,V>;
 export constraint Sending<E>=~GoChannel<E>|~GoSendChannel<E>;
 export constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;
-export function allocate<E,T extends Slice<E>>(n:int,c:int):T{return make[T](n,c);}
+constraint Zero=~int;
+export function allocate<E extends Zero,T extends Slice<E>>(n:int,c:int):T{return make[T](n,c);}
 export function mapping<V,T extends Mapping<V>>(n:int):T{return make[T](n);}
 export function sending<E,T extends Sending<E>>(n:int):T{return make[T](n);}
 export function receiving<E,T extends Receiving<E>>(n:int):T{return make[T](n);}
@@ -32,13 +33,13 @@ export function receiving<E,T extends Receiving<E>>(n:int):T{return make[T](n);}
 import go native from "collection-make.test/native";
 type Numbers=distinct int[];
 type Lookup=distinct Map<string,int>;
-class Allocator<E>{public function make<T extends Slice<E>>(n:int):T{return make[T](n);}}
+class Allocator<E>{public function make<T extends Slice<E>>(n:int,value:E):T{let xs=make<T>(0,n);for(const _ of n){xs=append(xs,value);}return xs;}}
 class Item{constructor(public value:int){}}
 alias Maybe=Item|null;
 export function Slices():int[]{const a=allocate<int,Numbers>(2,4);a[0]=7;const b=make[native.Numbers](2.0,4.0);b[1]=8;const zero=make[Numbers](0);let present=0;if(zero!==nil){present=1;}return [a[0],len(a),cap(a),b[1],present];}
 export function Maps():int[]{const a=mapping<int,Lookup>(2);a["x"]=9;const b=make[native.Lookup]();b["y"]=8;return [a["x"],b["y"],len(a),len(b)];}
 export function Channels():int[]{const ch=make[native.Channel](2);ch<-7;const value=<-ch;const send=sending<int,GoSendChannel<int>>(2);send<-1;closeGoChannel(send);const recv=receiving<int,GoReceiveChannel<int>>(3);const empty=make[GoChannel<int>]();closeGoChannel(empty);const [zero,open]=<-empty;let flag=0;if(open){flag=1;}return [value,len(send),cap(send),cap(recv),zero,flag];}
-export function Objects():int[]{const values=new Allocator<Maybe>().make<Maybe[]>(2);let empty=0;if(values[0]===null){empty=1;}values[1]=new Item(4);const value=values[1];if(value!==null){return [empty,value.value];}return [empty,0];}
+export function Objects():int[]{const values=new Allocator<Maybe>().make<Maybe[]>(2,null);let empty=0;if(values[0]===null){empty=1;}values[1]=new Item(4);const value=values[1];if(value!==null){return [empty,value.value];}return [empty,0];}
 export function Ordered():int[]{let order=0;const size=(digit:int,n:int):int=>{order=order*10+digit;return n;};const values=make[Numbers](size(1,2),size(2,4));return [order,len(values),cap(values)];}
 export function SliceLength(n:int,c:int):int{return len(make[Numbers](n,c));}
 export function Channel(n:int):int{return cap(make[GoChannel<int>](n));}

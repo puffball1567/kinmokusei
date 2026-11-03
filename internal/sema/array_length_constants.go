@@ -59,7 +59,7 @@ func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
 	case *ast.IndexExpr:
 		return arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Index)
 	case *ast.SliceExpr:
-		return arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Low) && arrayLengthOperandUnevaluated(expr.High) && arrayLengthOperandUnevaluated(expr.Max)
+		return !expr.InitializedOnly && !expr.UTF8 && arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Low) && arrayLengthOperandUnevaluated(expr.High) && arrayLengthOperandUnevaluated(expr.Max)
 	case *ast.GoTypeAssertionExpr:
 		return !expr.ClassDowncast && arrayLengthOperandUnevaluated(expr.Value)
 	case *ast.CallExpr:
