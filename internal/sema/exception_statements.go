@@ -32,6 +32,7 @@ func (c *Checker) checkTryStatement(stmt *ast.TryStmt) {
 
 	seenCatchTypes := []Type{}
 	for _, clause := range stmt.Catches {
+		clause.MatchingClasses = nil
 		catchType := c.resolveType(clause.Type)
 		if catchType.Kind != Invalid && !c.isAssignable(builtins["error"], catchType) {
 			c.report(clause.Type.Span, fmt.Sprintf("catch binding type must implement error, got %s", catchType.String()))

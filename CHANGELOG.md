@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Reuse nested-loop checks across exception handlers, inferred arrows,
+  constructors/field initializers, labels and escaping branch/capture effects.
+  Replay intermediate-flow and return/Task obligations independently of earlier
+  paths, preserve diagnostics and capture causes, and keep cached obligations
+  immutable when finally consumes tasks. Cover 12/24/40 levels across while,
+  for and range loops; replace rather than accumulate catch metadata on repeated
+  checks (#105).
+
 - Keep source `defer` calls inside `try`, `catch` and `finally` pending until
   their enclosing function exits, in reverse registration order alongside its
   other defers. Preserve eager operand evaluation, generic/private Go argument
