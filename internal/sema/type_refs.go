@@ -95,6 +95,8 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(expression.Value)
 			visitType(&expression.ValueType)
 		case *ast.BinaryExpr:
+			visitType(expression.CoalesceType)
+			visitExpression(expression.CoalesceLeftValue)
 			visitExpression(expression.Left)
 			visitExpression(expression.Right)
 		case *ast.GoTypeAssertionExpr:

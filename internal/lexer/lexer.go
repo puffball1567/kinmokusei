@@ -214,6 +214,9 @@ func (l *Lexer) next() token.Token {
 		return l.makeToken(token.Tilde, start)
 	case '?':
 		l.advance()
+		if l.match('?') {
+			return l.makeToken(token.Coalesce, start)
+		}
 		return l.makeToken(token.Question, start)
 	case '|':
 		l.advance()

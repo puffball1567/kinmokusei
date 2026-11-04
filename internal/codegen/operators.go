@@ -104,7 +104,7 @@ func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	case *kinmokuseiAST.UnaryExpr:
 		return expr.Operator != kinmokuseiAST.NonNullOperator && isGoConstant(expr.Operand)
 	case *kinmokuseiAST.BinaryExpr:
-		return isGoConstant(expr.Left) && isGoConstant(expr.Right)
+		return expr.Operator != "??" && isGoConstant(expr.Left) && isGoConstant(expr.Right)
 	case *kinmokuseiAST.CallExpr:
 		if expr.GoConstant {
 			return true

@@ -42,6 +42,9 @@ func (p *Parser) parseBinary(minPrecedence int) ast.Expression {
 			p.report(p.peek(), "expected expression after operator")
 			return left
 		}
+		if op.Kind == token.Coalesce && (ungroupedLogical(left) || ungroupedLogical(right)) {
+			p.report(op, "parenthesize expressions when mixing ?? with && or ||")
+		}
 		left = &ast.BinaryExpr{Left: left, Operator: op.Lexeme, Right: right, Span: left.GetSpan().Merge(right.GetSpan())}
 	}
 	return left
@@ -313,7 +316,7 @@ func (p *Parser) tryParseBracketTypeArguments() ([]ast.TypeRef, bool) {
 
 func typeApplicationBoundary(kind token.Kind) bool {
 	switch kind {
-	case token.EOF, token.Semicolon, token.Comma, token.RightParen, token.RightBracket, token.RightBrace, token.Dot, token.LeftBracket, token.As, token.Equal, token.StrictEqual, token.NotEqual, token.StrictUnequal, token.And, token.Or:
+	case token.EOF, token.Semicolon, token.Comma, token.RightParen, token.RightBracket, token.RightBrace, token.Dot, token.LeftBracket, token.As, token.Equal, token.StrictEqual, token.NotEqual, token.StrictUnequal, token.And, token.Or, token.Coalesce:
 		return true
 	default:
 		return false
@@ -427,6 +430,9 @@ func (p *Parser) parsePrimary() ast.Expression {
 		// Parentheses do not need a dedicated AST node, but preserve their full span
 		// when the expression is later used as the callee of a call.
 		_ = start.Span.Merge(end.Span)
+		if binary, ok := expr.(*ast.BinaryExpr); ok {
+			binary.Parenthesized = true
+		}
 		return expr
 	case token.LeftBracket:
 		return p.parseArrayLiteral()
@@ -576,19 +582,26 @@ func (p *Parser) parseNew() ast.Expression {
 
 func binaryPrecedence(kind token.Kind) int {
 	switch kind {
-	case token.Or:
+	case token.Coalesce:
 		return 1
-	case token.And:
+	case token.Or:
 		return 2
-	case token.Equal, token.StrictEqual, token.NotEqual, token.StrictUnequal:
+	case token.And:
 		return 3
-	case token.Less, token.LessEqual, token.Greater, token.GreaterEqual:
+	case token.Equal, token.StrictEqual, token.NotEqual, token.StrictUnequal:
 		return 4
-	case token.Plus, token.Minus, token.Pipe, token.Caret:
+	case token.Less, token.LessEqual, token.Greater, token.GreaterEqual:
 		return 5
-	case token.Star, token.Slash, token.Percent, token.ShiftLeft, token.ShiftRight, token.Ampersand, token.AndNot:
+	case token.Plus, token.Minus, token.Pipe, token.Caret:
 		return 6
+	case token.Star, token.Slash, token.Percent, token.ShiftLeft, token.ShiftRight, token.Ampersand, token.AndNot:
+		return 7
 	default:
 		return 0
 	}
+}
+
+func ungroupedLogical(expression ast.Expression) bool {
+	binary, ok := expression.(*ast.BinaryExpr)
+	return ok && !binary.Parenthesized && (binary.Operator == "&&" || binary.Operator == "||")
 }

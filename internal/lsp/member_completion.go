@@ -39,6 +39,9 @@ func assertedCompletionReceiverAt(program *ast.Program, path, text string, dot i
 	// Use token identity rather than proximity so a distant assertion cannot
 	// supply a type for an unrelated receiver. Whitespace/comments are allowed.
 	tokens, _ := lexer.Lex(path, text[:dot])
+	if len(tokens) >= 4 && tokens[len(tokens)-2].Kind == token.RightParen {
+		return coalescedCompletionReceiverAt(program, path, dot, tokens[:len(tokens)-1])
+	}
 	if len(tokens) < 2 || tokens[len(tokens)-2].Kind != token.Bang {
 		return completionReceiver{}, false
 	}
@@ -51,6 +54,58 @@ func assertedCompletionReceiverAt(program *ast.Program, path, text string, dot i
 		}
 	})
 	return completionReceiver{typeRef: asserted, owner: enclosingMemberOwner(program, path, dot)}, asserted.IsSpecified()
+}
+
+// Match a parenthesized receiver's tokens exactly. An earlier ?? elsewhere in
+// the function must not supply completion for an unrelated expression.
+func coalescedCompletionReceiverAt(program *ast.Program, path string, dot int, tokens []token.Token) (completionReceiver, bool) {
+	depth, start := 0, -1
+	for i := len(tokens) - 1; i >= 0; i-- {
+		switch tokens[i].Kind {
+		case token.RightParen:
+			depth++
+		case token.LeftParen:
+			depth--
+			if depth == 0 {
+				start = i
+			}
+		}
+		if start >= 0 {
+			break
+		}
+	}
+	if start < 0 {
+		return completionReceiver{}, false
+	}
+	if start > 0 {
+		switch tokens[start-1].Kind {
+		case token.Identifier, token.RightParen, token.RightBracket, token.Bang, token.Greater:
+			return completionReceiver{}, false // Call arguments are not the receiver.
+		}
+	}
+	first, last := start+1, len(tokens)-2
+	var ref ast.TypeRef
+	visitProgramExpressions(program, func(expression ast.Expression) {
+		binary, ok := expression.(*ast.BinaryExpr)
+		if !ok || binary.Operator != "??" || binary.CoalesceType == nil || !samePath(binary.Span.Path, path) {
+			return
+		}
+		// Grouping parentheses are not retained in the expression's span.
+		for i := first; i <= last && tokens[i].Span.Start.Offset < binary.Span.Start.Offset; i++ {
+			if tokens[i].Kind != token.LeftParen {
+				return
+			}
+		}
+		for i := last; i >= first && tokens[i].Span.End.Offset > binary.Span.End.Offset; i-- {
+			if tokens[i].Kind != token.RightParen {
+				return
+			}
+		}
+		if first <= last && binary.Span.Start.Offset >= tokens[first].Span.Start.Offset && binary.Span.End.Offset <= tokens[last].Span.End.Offset {
+			ref = *binary.CoalesceType
+		}
+	})
+	return completionReceiver{typeRef: ref, owner: enclosingMemberOwner(program, path, dot)}, ref.IsSpecified()
 }
 
 func completionReceiverAt(program *ast.Program, path string, offset int, qualifier string) (completionReceiver, bool) {
@@ -247,6 +302,10 @@ func variableType(program *ast.Program, variable *ast.VariableDecl) (ast.TypeRef
 
 func expressionCompletionType(program *ast.Program, expression ast.Expression) (ast.TypeRef, bool) {
 	switch expression := expression.(type) {
+	case *ast.BinaryExpr:
+		if expression.CoalesceType != nil {
+			return *expression.CoalesceType, true
+		}
 	case *ast.UnaryExpr:
 		if expression.Operator == ast.NonNullOperator {
 			return expression.AssertionType, expression.AssertionType.IsSpecified()

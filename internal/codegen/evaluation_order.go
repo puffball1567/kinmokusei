@@ -62,6 +62,9 @@ func hasContextualShift(expression ast.Expression) bool {
 	}
 	switch expr := expression.(type) {
 	case *ast.BinaryExpr:
+		if expr.Operator == "??" {
+			return false
+		}
 		return (expr.Operator == "<<" || expr.Operator == ">>") && isGoConstant(expr.Left) || hasContextualShift(expr.Left) || hasContextualShift(expr.Right)
 	case *ast.UnaryExpr:
 		return expr.Operator != "&" && expr.Operator != "*" && expr.Operator != ast.NonNullOperator && hasContextualShift(expr.Operand)
@@ -97,6 +100,9 @@ func evaluationMayHaveEffects(expression ast.Expression) bool {
 	case *ast.UnaryExpr:
 		return expr.Operator == "<-" || expr.Operator == ast.NonNullOperator || evaluationMayHaveEffects(expr.Operand)
 	case *ast.BinaryExpr:
+		if expr.Operator == "??" {
+			return true
+		}
 		return evaluationMayHaveEffects(expr.Left) || evaluationMayHaveEffects(expr.Right)
 	case *ast.MemberExpr:
 		return expr.Property || evaluationMayHaveEffects(expr.Object)

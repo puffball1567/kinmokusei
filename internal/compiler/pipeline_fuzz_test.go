@@ -16,6 +16,12 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=1;}function f(v:C|null):int{return (v??new C()).n;}`,
+	`function f(n:uint):byte{return null??(1<<n);}`,
+	`function f(v:int[]|null):int[]{return v??[];}`,
+	`alias F=(n:int)=>int;function f(v:F|null):int{return (v??((n)=>n+1))(2);}`,
+	`class C{}const value:C|null=null??null;`,
+	`const bad=null??true||false;`,
 	`class User{}function f():void{const xs=makeSlice<User>(1);}`,
 	`class User{}function f(xs:User[],n:int):User[]{return xs[:n];}`,
 	`class User{}struct Row<T>{public v:T;}function f():void{const xs=makeSlice<Row<User|null>>(1);clear(xs);}`,

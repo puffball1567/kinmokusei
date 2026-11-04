@@ -16,6 +16,9 @@ func TestMemberCompletionEditingExistingName(t *testing.T) {
 	}
 	for _, test := range []struct{ name, input, want, hidden string }{
 		{"source", `class Box{constructor(public value:int){}}function run(box:Box):int{return box.va|lue;}`, "value", ""},
+		{"coalesced local", `class Box{constructor(public value:int){}}function run(box:Box|null):int{const chosen=box??new Box(3);return chosen.va|lue;}`, "value", ""},
+		{"coalesced expression", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return (box??new Box(3)).va|lue;}`, "value", ""},
+		{"coalesced private filtering", `class Box{private value:int=1;public valid:int=2;}function run(box:Box|null):int{const chosen=box??new Box();return chosen.va|lid;}`, "valid", "value"},
 		{"asserted source", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return box!.va|lue;}`, "value", ""},
 		{"asserted source empty", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return box!.|}`, "value", ""},
 		{"asserted selector whitespace", `class Box{constructor(public value:int){}}function run(box:Box|null):int{return box! /* snapshot */ . va|lue;}`, "value", ""},

@@ -90,8 +90,15 @@ slices and initialized appends remain supported; unsafe-zero slices cannot
 reslice beyond their current length. Runtime comparisons cover aliases,
 integer widths, private Go types and fixed-array len/cap check retention.
 
-This is still partial progress on #117. Optional chaining, null coalescing and
-non-null boundary checks remain unimplemented. Zero-safety still needs to cover
+Development builds support lazy `??` for nullable and raw nil-capable values,
+including class/interface conversions, generics, contextual literal fallbacks,
+conditional Task/flow checks and editor navigation. The operand is evaluated
+once; a nil interface differs from an interface holding a typed nil pointer.
+Private Go result storage works with static zero-argument fallback functions
+or explicit public result contexts; other unnameable signatures are rejected.
+
+This is still partial progress on #117. Optional chaining and non-null boundary
+checks remain unimplemented. Zero-safety still needs to cover
 map lookup, channel receive and checked-assertion success proofs.
 
 ### Go compatibility areas

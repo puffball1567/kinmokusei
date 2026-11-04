@@ -11,6 +11,9 @@ import (
 )
 
 func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Type {
+	if binary, ok := expr.(*ast.BinaryExpr); ok && binary.Operator == "??" {
+		return c.checkCoalesce(binary, &expected)
+	}
 	if arrow, ok := expr.(*ast.ArrowExpr); ok {
 		return c.checkArrowExpected(arrow, expected)
 	}
