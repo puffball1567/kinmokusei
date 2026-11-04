@@ -815,10 +815,15 @@ func (*UnaryExpr) expression()            {}
 func (e *UnaryExpr) GetSpan() source.Span { return e.Span }
 
 type BinaryExpr struct {
-	Left     Expression
-	Operator string
-	Right    Expression
-	Span     source.Span
+	Parenthesized     bool // Preserve explicit grouping for ?? / logical mixing checks.
+	CoalesceType      *TypeRef
+	CoalesceLeftValue Expression // Checked non-null branch conversion, using a reserved temporary.
+	CoalesceHelper    string     // A static zero-argument fallback can retain private inferred Go types.
+	CoalesceNonNull   bool       // The fallback was checked to produce a non-null value.
+	Left              Expression
+	Operator          string
+	Right             Expression
+	Span              source.Span
 }
 
 func (*BinaryExpr) expression()            {}

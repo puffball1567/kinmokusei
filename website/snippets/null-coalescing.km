@@ -1,0 +1,18 @@
+import go fmt from "fmt"
+
+class User {
+  constructor(public name: string) {}
+}
+
+function main(): void {
+  let calls = 0
+  const find = (present: boolean): User | null => {
+    calls++
+    if (present) { return new User("金木犀") }
+    return null
+  }
+  const missing = find(false) ?? new User("fallback")
+  const found = find(true) ?? find(false)!
+  fmt.Println(missing.name, calls)
+  fmt.Println(found.name)
+}

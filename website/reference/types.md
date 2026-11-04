@@ -366,6 +366,12 @@ The operand is evaluated once; an interface check concerns the interface
 itself, not a typed nil pointer it may contain. This does not validate arbitrary
 Go-owned mutable storage. See [assertions](./operators#assertions-and-conversions).
 
+Development builds also support `value ?? fallback`: the operand runs once,
+and only a nil value evaluates the fallback. A compatible non-null fallback
+gives a non-null result; a nullable fallback retains `T | null`. This does not
+narrow the original binding or inspect typed nil pointees inside Go interfaces.
+See [null coalescing](./operators#null-coalescing).
+
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 
 Loop checks include facts arriving from later iterations; a proof valid only

@@ -21,14 +21,45 @@ From lowest to highest; every binary group is left-associative:
 
 | Level | Operators | Operand summary |
 | ---: | --- | --- |
-| 1 | `\|\|` | `boolean` |
-| 2 | `&&` | `boolean` |
-| 3 | `==`, `!=`, `===`, `!==` | Compatible comparable values |
-| 4 | `<`, `<=`, `>`, `>=` | Compatible ordered values |
-| 5 | `+`, `-`, `|`, `^` | Numeric; `+` also supports compatible strings; bitwise forms require integers |
-| 6 | `*`, `/`, `%`, `<<`, `>>`, `&`, `&^` | Numeric/integer as applicable |
+| 1 | `??` | Nullable or raw nil-capable left operand; compatible fallback |
+| 2 | `\|\|` | `boolean` |
+| 3 | `&&` | `boolean` |
+| 4 | `==`, `!=`, `===`, `!==` | Compatible comparable values |
+| 5 | `<`, `<=`, `>`, `>=` | Compatible ordered values |
+| 6 | `+`, `-`, `|`, `^` | Numeric; `+` also supports compatible strings; bitwise forms require integers |
+| 7 | `*`, `/`, `%`, `<<`, `>>`, `&`, `&^` | Numeric/integer as applicable |
 
 The grouping follows the implemented Go-compatible bitwise precedence. `a + b << c` means `a + (b << c)`; `a | b + c` means `(a | b) + c`.
+
+## Null coalescing
+
+Development builds support `value ?? fallback`. The left operand runs once;
+the right operand runs only when the value is `null` or Go nil. This tests
+absence, not truthiness: zero, false and empty text are ordinary values.
+Those scalar types cannot be nullable; a literal `null ?? 0` is allowed and
+takes its result type from the fallback or an explicit destination type.
+
+<<< ../snippets/null-coalescing.km{ts}
+
+The fallback must be assignable to the left operand's non-null type, or to a
+compatible explicit destination type (for example, a base class or interface).
+A nullable fallback retains `T | null`. Choosing a non-null result does not
+narrow the original nullable binding. `Result` and `Task` are not unwrapped;
+handle them explicitly, including the requirement to consume a Task on every
+reachable path if `await` occurs in a conditional fallback.
+
+Chains group left to right. Mixing `??` with `&&` or `||` requires parentheses,
+such as `null ?? (ready || retry)`. A bare `null ?? null` needs a concrete
+nullable destination type. Go interfaces use their existing nil comparison:
+an interface containing a typed nil pointer does not select the fallback.
+
+An inferred result containing an unexported Go type is supported when the
+storage is a pointer, slice, map, channel or interface and the fallback is a
+static zero-argument function with matching storage type.
+Otherwise, supply a compatible public result type, such as an exported Go
+interface; an unnameable result is diagnosed in Kinmokusei source.
+
+<<< ../snippets-invalid/coalescing-scalar.km{ts}
 
 ## Boolean and comparison operators
 

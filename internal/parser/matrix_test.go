@@ -195,6 +195,8 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	f.Add(`const x=a??b??c;const y=a??(b||c);const z=(a??b)&&c;`)
+	f.Add(`const f=id<int>??fallback;const x=a!??b;`)
 	for _, seed := range []string{
 		"const x=" + strings.Repeat("!", 1000) + "true;",
 		"const x=" + strings.Repeat("[", 1000),

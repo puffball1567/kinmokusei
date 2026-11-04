@@ -138,6 +138,16 @@ run different code and return a different value.
 
 ## Flow facts and invalidation
 
+To replace an absent reference, development builds provide lazy `??`:
+
+<<< ../snippets/null-coalescing.km{ts}
+
+This prints `fallback 2` followed by `金木犀`. The first lookup is absent, so the fallback runs;
+the second lookup returns a user, so the fallback is skipped. The source
+binding keeps its declared nullable type. A nullable fallback keeps the result
+nullable as well. See [null coalescing](../reference/operators#null-coalescing)
+for type context and Go interface behavior.
+
 When null would be a programming error, use checked postfix `!`:
 
 <<< ../snippets/non-null-assertion.km{ts}

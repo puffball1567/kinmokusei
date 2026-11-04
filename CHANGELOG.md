@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add lazy null coalescing `value ?? fallback` for nullable and raw Go
+  references (#117). Evaluate the left side once and the fallback only when
+  nil; retain interface typed-nil behavior, class/interface conversions,
+  contextual literals, generics, Task/flow checks and editor navigation.
+  Require parentheses when mixing with `&&`/`||`. Support private Go result
+  types through static zero-argument fallbacks or explicit public type context;
+  diagnose other unnameable result types before Go generation.
+
 - Prevent slice allocation, clearing and reslicing from exposing invalid zero
   values as non-null references (#117). Check nested structs/arrays and every
   generic constraint alternative; allow empty reserved slices and initialized

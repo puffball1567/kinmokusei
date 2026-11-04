@@ -49,6 +49,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.UnaryExpr{Op: goToken(expr.Operator), X: value}, nil
 	case *kinmokuseiAST.BinaryExpr:
+		if expr.Operator == "??" {
+			return generateCoalesce(expr)
+		}
 		left, err := generateExpression(expr.Left)
 		if err != nil {
 			return nil, err

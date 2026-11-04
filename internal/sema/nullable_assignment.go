@@ -22,6 +22,8 @@ func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression)
 		return true
 	}
 	switch expression := expression.(type) {
+	case *ast.BinaryExpr:
+		return expression.Operator == "??" && expression.CoalesceNonNull
 	case *ast.ArrowExpr, *ast.ArrayLiteralExpr, *ast.ObjectLiteralExpr, *ast.GoCompositeLiteralExpr, *ast.NewExpr:
 		return true
 	case *ast.UnaryExpr:

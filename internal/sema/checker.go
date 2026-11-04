@@ -682,6 +682,9 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		}
 		return c.checkConstantOperation(expr, c.checkUnary(expr))
 	case *ast.BinaryExpr:
+		if expr.Operator == "??" {
+			return c.checkCoalesce(expr, nil)
+		}
 		if expr.Operator == "&&" || expr.Operator == "||" {
 			result, _, _ := c.checkCondition(expr)
 			return result
