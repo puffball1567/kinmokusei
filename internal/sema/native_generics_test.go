@@ -27,7 +27,7 @@ func TestNativeGenericFunctionSemanticMatrix(t *testing.T) {
 		{"pointer element inference", `struct Point { public x: int; } function dereference<T>(value: *T): T { return *value; } function use(value: *Point): Point { return dereference(value); }`},
 		{"class round trip", `class Box { constructor(public value: int) {} } function identity<T>(value: T): T { return value; } function use(value: Box): Box { return identity(value); }`},
 		{"nullable inference", `class Box {} function identity<T>(value: T): T { return value; } function use(value: Box | null): Box | null { return identity(value); }`},
-		{"map value inference", `function lookup<T>(values: Map<string, T>): T { return values["value"]; } function use(values: Map<string, int>): int { return lookup(values); }`},
+		{"map value inference", `function lookup<T>(values: Map<string, T>): T { const [value,ok]=values["value"];if(!ok){throw new Exception("missing");}return value; } function use(values: Map<string, int>): int { return lookup(values); }`},
 		{"object field inference", `function unwrap<T>(holder: { value: T }): T { return holder.value; } function use(holder: { value: string }): string { return unwrap(holder); }`},
 		{"callback inference", `function apply<T>(value: T, transform: (item: T) => T): T { return transform(value); } function use(): int { return apply(1, (value: int): int => value); }`},
 		{"generic forwarding", `function identity<T>(value: T): T { return value; } function relay<T>(value: T): T { return identity(value); } function use(): string { return relay("onsen"); }`},

@@ -37,6 +37,7 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 			c.trackResultError(binding.Name, binding.Span)
 		}
 	}
+	c.bindPresencePair(stmt.Value, value, stmt.Bindings)
 }
 
 func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
@@ -83,9 +84,13 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			}
 		}
 	}
+	c.bindPresencePair(stmt.Value, value, stmt.Bindings)
 }
 
 func (c *Checker) checkMultipleValueExpression(expression ast.Expression) Type {
+	if assertion, ok := expression.(*ast.GoTypeAssertionExpr); ok {
+		assertion.CheckedResultHandled = true
+	}
 	if receive, ok := expression.(*ast.UnaryExpr); ok && receive.Operator == "<-" {
 		return c.checkChannelReceive(receive, true)
 	}
@@ -145,6 +150,8 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 		if member.Property {
 			return target
 		}
+	} else if index, ok := expr.(*ast.IndexExpr); ok {
+		target = c.checkIndexAccess(index, false, true)
 	} else {
 		target = c.checkExpression(expr)
 	}

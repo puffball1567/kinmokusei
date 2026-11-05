@@ -15,6 +15,9 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 	if value.Kind == Invalid || asserted.Kind == Invalid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if expr.Checked && !expr.CheckedResultHandled && !c.zeroValueSafe(asserted) {
+		c.report(expr.Span, "checked assertion values without a safe zero require destructuring into [value, ok]; verify ok before using value")
+	}
 	source := value
 	if source.Kind == Nullable && source.Element != nil {
 		source = *source.Element

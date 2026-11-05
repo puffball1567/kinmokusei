@@ -165,7 +165,7 @@ function firstByte(value: string): byte { return value[0]; }
 function use(transformer: Transformer, value: int): int { return transformer.transform(value); }
 function make(factor: int): Transformer { return new Scale(factor); }
 function firstTransformer(values: Transformer[]): Transformer { return values[0]; }
-function mappedTransformer(values: Map<string, Transformer>): Transformer { return values["item"]; }
+function mappedTransformer(values: Map<string, Transformer>): Transformer { return values["item"]!; }
 function arrowInterface(): int {
   const factory = (value: int): Transformer => { return new Scale(value); };
   return factory(2).transform(3);

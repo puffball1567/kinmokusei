@@ -45,7 +45,12 @@ func TestLoopCheckMemoPreservesExitAndDiagnostics(t *testing.T) {
 func TestLoopCheckMemoRequiresCompleteEntry(t *testing.T) {
 	for name, change := range map[string]func(*Checker){
 		"nullable fact": func(c *Checker) { s := c.scopes[0]["p"]; s.typeInfo = s.declaredType; c.scopes[0]["p"] = s },
-		"escape":        func(c *Checker) { s := c.scopes[0]["p"]; s.flowEscaped = true; c.scopes[0]["p"] = s },
+		"presence fact": func(c *Checker) {
+			s := c.scopes[0]["p"]
+			s.presence = presenceFlow{required: true, checked: true}
+			c.scopes[0]["p"] = s
+		},
+		"escape": func(c *Checker) { s := c.scopes[0]["p"]; s.flowEscaped = true; c.scopes[0]["p"] = s },
 		"cause": func(c *Checker) {
 			s := c.scopes[0]["p"]
 			s.flowInvalidationCause = "another cause"

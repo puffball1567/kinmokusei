@@ -32,7 +32,7 @@ func TestResultFunctionValuesPipeline(t *testing.T) {
 		`function apply<T>(f:()=>Result<T>):Result<T>{return f();}function run():Result<int>{return apply(():Result<int>=>{return ok(42);});}`,
 		`alias Load=()=>Result<int>;function run():Result<int>{const values:Load[]=[()=>{return ok(42);}];return values[0]();}`,
 		`alias Load=()=>Result<int>;function run():Result<int>{const values:[1]Load=[()=>{return ok(42);}];return values[0]();}`,
-		`alias Load=()=>Result<int>;function run():Result<int>{const values=makeMap<bstring,Load>();values["x"]=()=>{return ok(42);};return values["x"]();}`,
+		`alias Load=()=>Result<int>;function run():Result<int>{const values=makeMap<bstring,Load>();values["x"]=()=>{return ok(42);};return values["x"]!();}`,
 		`struct S{load:()=>Result<int>;}function run():Result<int>{const s=S{load:()=>{return ok(42);}};return s.load();}`,
 		`function run():Result<int>{const s:{load:()=>Result<int>}={load:()=>{return ok(42);}};return s.load();}`,
 		`class C{public load:()=>Result<int>=()=>{return ok(42);};}function run():Result<int>{return new C().load();}`,

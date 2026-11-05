@@ -43,7 +43,7 @@ export function NamedCall(n:int):Result<int>{const f:Named<int>=(value)=>{return
 export function Callbacks(n:int):Result<int>{
   const fs:Load[]=[Factory(10),Factory(20)];
   const values=makeMap<bstring,Load>();values["first"]=fs[0];
-  const a=values["first"](n)?;const b=fs[1](n)?;return ok(a+b);
+  const a=values["first"]!(n)?;const b=fs[1](n)?;return ok(a+b);
 }
 export function GoBoundary(n:int):Result<int>{
   const f:Load=api.Factory(10);

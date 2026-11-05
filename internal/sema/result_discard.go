@@ -13,6 +13,9 @@ const resultUsageMessage = "Result values must be consumed with ?, explicitly sp
 // Blank bindings do not introduce storage or predeclared arrow symbols.
 // They still type-check and evaluate their initializer, including its effects.
 func (c *Checker) checkDiscard(expression *ast.Expression, annotation ast.TypeRef, propagation bool) int {
+	if assertion, ok := (*expression).(*ast.GoTypeAssertionExpr); ok {
+		assertion.CheckedResultHandled = true
+	}
 	expected := Type{Kind: Invalid, Name: "<inferred>"}
 	if annotation.IsSpecified() {
 		expected = c.resolveType(annotation)
@@ -20,6 +23,8 @@ func (c *Checker) checkDiscard(expression *ast.Expression, annotation ast.TypeRe
 	var value Type
 	if expr, ok := (*expression).(*ast.PropagateExpr); ok && propagation {
 		value = c.checkPropagateExpression(expr)
+	} else if index, ok := (*expression).(*ast.IndexExpr); ok && !annotation.IsSpecified() {
+		value = c.checkIndexAccess(index, false, true)
 	} else {
 		value = c.checkExpressionExpectedSlot(expression, expected)
 	}

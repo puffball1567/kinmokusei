@@ -192,7 +192,7 @@ Generated code preserves the corresponding Go zero value: numeric zero, `false`,
 | --- | --- |
 | `null` | Checked absence for a declared `T \| null` |
 | `nil` | Raw Go nil at nil-capable low-level boundaries |
-| Missing map key | Returns the value type's zero value; checked lookup also returns `false` |
+| Missing map key | Safe-zero values retain Go zeros; development builds preserve reference absence and require checked lookup for unsafe value payloads |
 | Closed channel receive | Returns the element zero value; checked receive also returns `false` |
 
 Development builds require a safe element zero value for nonempty `makeSlice`
@@ -219,6 +219,35 @@ slicing can reserve capacity beyond the length, but cannot expose those slots.
 After shortening a view, keep the original longer view if you need its full range.
 Safe-zero elements retain ordinary Go reslicing up to capacity. Fixed arrays
 remain fully initialized storage and retain their ordinary slicing behavior.
+
+Development builds type a one-value map read as `T | null` when `T` has a nil
+representation and its zero would violate a non-null contract: classes,
+pointers, interfaces and functions. Use a null guard, `??`, or an explicit `!`.
+The stored element type is unchanged: `Map<int, User>` still accepts only a
+non-null `User` on writes. Safe Go zeros (including scalar zeros and nil
+slices/maps/channels) retain their ordinary one-value behavior.
+
+An unsafe struct/array or unconstrained `T` cannot represent absence as null;
+use `[value, ok]`. For ordinary checked map, channel and `as?` bindings whose
+payload zero is unsafe or unknown, the checker rejects any use of the payload
+before its matching flag proves success. A flag cannot prove that an explicitly
+nullable stored value is non-null; check that independently.
+
+<<< ../snippets/map-absence.km{ts}
+
+Use the original local flag in `if (ok)`, `if (!ok)` with an early exit, a
+boolean comparison or short-circuit expression. Reassigning the flag/payload or
+letting mutable storage escape can invalidate the relation. Copying a boolean
+does not copy a proof. Copy a verified payload into a stable local before
+capturing it; direct assignment of an unverified unsafe payload to global
+storage is rejected. Safe-zero payloads do not require a presence check.
+
+<<< ../snippets-invalid/map-value-without-guard.km{ts}
+
+These checks preserve raw Go boundaries: a successful lookup can still contain
+a nil raw Go pointer/interface explicitly stored by Go. Success proves presence,
+not the behavior of foreign implementations. Single-value and select receives
+are separate from the ordinary checked-binding rule described here.
 
 `null === null` without a concrete nullable context is rejected because it supplies no base type. A nullable value must be narrowed before member access, indexing, slicing, calling, dereference, or channel operations that require a concrete non-null receiver.
 

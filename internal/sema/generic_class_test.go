@@ -17,7 +17,7 @@ func TestGenericClassSemanticSuccessMatrix(t *testing.T) {
 		},
 		{
 			"comparable constraint and map",
-			`class Lookup<K extends comparable, V> { constructor(public values: Map<K, V>) {} public function get(key: K): V { return this.values[key]; } } function use(values: Map<string, int>): int { return new Lookup<string, int>(values).get("answer"); }`,
+			`class Lookup<K extends comparable, V> { constructor(public values: Map<K, V>) {} public function get(key: K): V { const [value,ok]=this.values[key];if(!ok){throw new Exception("missing");}return value; } } function use(values: Map<string, int>): int { return new Lookup<string, int>(values).get("answer"); }`,
 		},
 		{
 			"generic interface implementation",

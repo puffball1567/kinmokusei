@@ -147,6 +147,11 @@ be unwrapped this way. A newline before `!` starts a prefix operation instead.
 
 `as? Type` performs a checked Go-interface or class downcast and returns value plus `boolean`. `as! Type` is forced and panics on failure. Both evaluate the source once.
 
+Development builds require `[value, ok]` and a successful flag check before
+using an unsafe-zero checked assertion payload. Forwarding the unchecked pair
+directly through a function return or argument list is rejected; split it and
+handle failure explicitly. Whole-result `_` discard remains explicit discard.
+
 Native generic class downcasts check the source type arguments, not just their
 generated Go storage. `Box<bstring>` is not `Box<string>`, even when the raw
 bytes happen to be valid UTF-8. The same distinction applies inside arrays,

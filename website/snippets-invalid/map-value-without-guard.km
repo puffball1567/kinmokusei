@@ -1,0 +1,6 @@
+class User { public name: string = "guest" }
+
+function unsafeLookup(users: Map<string, User>): string {
+  const [user, found] = users["missing"]
+  return user.name
+}

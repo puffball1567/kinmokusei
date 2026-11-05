@@ -234,6 +234,7 @@ func (c *Checker) lookupValue(name string, span source.Span) (Type, bool) {
 func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool) {
 	for i := len(c.scopes) - 1; i >= 0; i-- {
 		if symbol, ok := c.scopes[i][name]; ok {
+			c.checkPresenceRead(name, symbol, span)
 			symbol = resolveLocalArrowType(symbol)
 			c.recordLocalArrowReference(symbol, name, span)
 			if !c.inArrayLength && symbol.declaration != nil {

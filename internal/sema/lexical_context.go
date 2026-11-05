@@ -71,6 +71,12 @@ func (c *Checker) enterClosureLexical() closureLexicalContext {
 	c.scopes = cloneValueScopes(context.outerFlow.scopes)
 	for _, scope := range c.scopes {
 		for name, symbol := range scope {
+			if !symbol.constant {
+				symbol.presence.checked = false
+				symbol.presence.guard = source.Span{}
+				symbol.presence.payload = source.Span{}
+				scope[name] = symbol
+			}
 			// A mutable capture may change between closure creation and invocation.
 			if !symbol.constant && symbol.declaredType.Kind == Nullable {
 				symbol.typeInfo = symbol.declaredType

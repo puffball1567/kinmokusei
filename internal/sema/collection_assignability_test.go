@@ -23,7 +23,7 @@ func TestConstrainedClassCollectionAssignment(t *testing.T) {
 		{"array length", `constraint S=~[3]Item;function f<T extends S>(v:T):[2]Item{return v;}`, false},
 		{"channel direction", `constraint S=~GoReceiveChannel<Item>;function f<T extends S>(v:T):GoChannel<Item>{return v;}`, false},
 		{"receive class", `function f(v:GoReceiveChannel<Item>):Item{return <-v;}`, true},
-		{"checked receive class", `function f(v:GoReceiveChannel<Item>):Item{const [value,ok]=<-v;return value;}`, true},
+		{"checked receive class", `function f(v:GoReceiveChannel<Item>):Item{const [value,ok]=<-v;if(!ok){throw new Exception("closed");}return value;}`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(checkSource(t, declarations+tc.body), "\n")
