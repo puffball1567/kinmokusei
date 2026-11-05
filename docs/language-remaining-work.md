@@ -97,9 +97,19 @@ once; a nil interface differs from an interface holding a typed nil pointer.
 Private Go result storage works with static zero-argument fallback functions
 or explicit public result contexts; other unnameable signatures are rejected.
 
+Development builds preserve missing-key absence in one-value map reads.
+Unsafe-zero references produce nullable results; unsafe structs/arrays and
+unknown generic elements require checked bindings. Normal checked map,
+receive and assertion bindings require the matching success flag before using
+unsafe-zero payloads. The relation follows declaration identities, assignments,
+joins, loop fixed points and captures; boolean aliases do not transfer proofs.
+Checked assertions cannot forward an unchecked unsafe payload through a result
+list. Constrained map alternatives must agree on key/value source contracts.
+
 This is still partial progress on #117. Optional chaining and non-null boundary
-checks remain unimplemented. Zero-safety still needs to cover
-map lookup, channel receive and checked-assertion success proofs.
+checks remain unimplemented. Single-value channel receives and select receive
+bindings still need zero-value/presence handling; richer absence fallbacks and
+additional guard forms remain follow-up work.
 
 ### Go compatibility areas
 

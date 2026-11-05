@@ -11,6 +11,16 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve absence in map reads (#117). A one-value lookup of a class,
+  pointer, interface or function without a safe zero returns a nullable value;
+  unsafe struct/array and unconstrained generic payloads require a checked
+  lookup. Keep map writes and valid Go scalar/container zeros unchanged.
+  Require the matching success flag before using unsafe-zero payloads from
+  checked map lookup, receive or type assertions. Track reassignment, branches,
+  loops, captures and escapes; prevent unchecked assertion-result forwarding.
+  Reject constrained map alternatives with incompatible source contracts.
+  Update existing examples to check presence or use an explicit `!`/`??`.
+
 - Add lazy null coalescing `value ?? fallback` for nullable and raw Go
   references (#117). Evaluate the left side once and the fallback only when
   nil; retain interface typed-nil behavior, class/interface conversions,

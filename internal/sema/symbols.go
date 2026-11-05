@@ -36,6 +36,7 @@ type valueSymbol struct {
 	typeSwitchCase        *ast.TypeSwitchCase
 	catchClause           *ast.CatchClause
 	taskState             uint8
+	presence              presenceFlow
 }
 
 const (

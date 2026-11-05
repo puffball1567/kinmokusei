@@ -80,6 +80,19 @@ hello 5
 
 Missing and nil maps return the value type's zero value plus `false`. Map iteration order is unspecified; this example never depends on it.
 
+Development builds preserve absence for non-null reference elements. A
+`Map<int, User>` read has type `User | null`, while writing still requires a
+`User`. Choose a fallback with `??` or check a snapshot against null. For an
+unsafe struct/array or an unconstrained generic element, use `[value, ok]`:
+
+<<< ../snippets/map-absence.km{ts}
+
+This prints `guest`, `7`, and `fallback`. The checked generic helper returns
+its fallback on a missing key, and only reads the payload after `ok` succeeds.
+Safe-zero scalar/container values keep Go's ordinary zero behavior. When using
+a constrained map, every alternative must agree on key/value types and source
+nullability. See [zero values and absence](../reference/types#zero-values-and-absence).
+
 Both array-conversion forms panic if the source is shorter than `N`. The view also carries ordinary pointer aliasing: keep it only while shared mutation is intentional and the backing storage remains valid.
 
 ## Generic clearing and deletion

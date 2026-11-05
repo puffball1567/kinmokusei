@@ -15,7 +15,7 @@ func TestNamedCollectionElementContracts(t *testing.T) {
 		{"map value range", `type S<T>=distinct Map<int,T>;function f(v:S<Maybe>):*int{for(const item of v){return item;}return nil;}`},
 		{"channel range", `type S<T>=distinct GoChannel<T>;function f(v:S<Maybe>):*int{for(const item of v){return item;}return nil;}`},
 		{"channel receive", `type S<T>=distinct GoChannel<T>;function f(v:S<Maybe>):*int{return <-v;}`},
-		{"channel checked receive", `type S<T>=distinct GoChannel<T>;function f(v:S<Maybe>):*int{const [item,open]=<-v;return item;}`},
+		{"channel checked receive", `type S<T>=distinct GoChannel<T>;function f(v:S<Maybe>):*int{const [item,open]=<-v;if(!open){throw new Exception("closed");}return item;}`},
 		{"select receive", `type S<T>=distinct GoChannel<T>;function f(v:S<Maybe>):*int{select{case const [item,open]=<-v{return item;}default{return nil;}}}`},
 		{"iterator range", `type S<T>=distinct (emit:(item:T)=>boolean)=>void;function f(v:S<Maybe>):*int{for(const item of v){return item;}return nil;}`},
 		{"nested defined range", `type S<T>=distinct T[];type W<T>=distinct S<T>;function f(v:W<Maybe>):*int{for(const item of v){return item;}return nil;}`},

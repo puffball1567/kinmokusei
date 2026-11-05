@@ -16,6 +16,10 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=1;}function f(m:Map<int,C>):int{return (m[0]??new C()).n;}`,
+	`class C{public n:int=1;}function f(m:Map<int,C>):int{const [v,ok]=m[0];if(ok){return v.n;}return 0;}`,
+	`class C{public n:int=1;}function f(m:Map<int,C>,b:boolean):int{let [v,ok]=m[0];if(!ok){return 0;}while(b){const n=v.n;[v,ok]=m[1];}return 0;}`,
+	`class C{}struct Row{public v:C;}function f(m:Map<int,Row>):Row{const [v,ok]=m[0];if(!ok){throw new Exception("missing");}return v;}`,
 	`class C{public n:int=1;}function f(v:C|null):int{return (v??new C()).n;}`,
 	`function f(n:uint):byte{return null??(1<<n);}`,
 	`function f(v:int[]|null):int[]{return v??[];}`,

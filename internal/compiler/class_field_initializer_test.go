@@ -66,14 +66,14 @@ const seed = 99;
 function booleanInt(value: boolean): int { if (value) { return 1; } return 0; }
 function Order(): int[] {
   reset(); const value = new Grand(); const base: Base = value;
-  const [again, ok] = base as? Grand;
+  const [again, ok] = base as? Grand; if(!ok){throw new Exception("bad cast");}
   return [log(), value.first, value.named, value.second, value.third, base.kind(), booleanInt(ok), booleanInt(again === value)];
 }
 function Independent(value: int): int[] {
   const first = new Bucket<int>(); const second = new Bucket<int>();
   first.items = append(first.items, value); first.leaf.value = value;
   const nested = new Nested<int>(); nested.items = append(nested.items, [value]);
-  const owner = new Owner(); const [small, ok] = owner.leaf as? Small;
+  const owner = new Owner(); const [small, ok] = owner.leaf as? Small; if(!ok){throw new Exception("bad cast");}
   return [len(first.items), len(second.items), first.leaf.value, second.leaf.value, first.callback(value), nested.items[0][0], booleanInt(ok), small.value, int(new Counter<int8>().value), new PrivateDefaults().read()];
 }
 function PanicTrace(base: boolean): int { reset(); try { if (base) { const value = new Unreached(); } else { const value = new Broken(); } } catch (failure: Exception) {} return log(); }

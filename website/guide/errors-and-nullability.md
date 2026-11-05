@@ -138,6 +138,17 @@ run different code and return a different value.
 
 ## Flow facts and invalidation
 
+Development builds require presence checks for unsafe-zero payloads from
+ordinary `[value, ok]` map lookups, channel receives and `as?` assertions:
+
+<<< ../snippets/map-absence.km{ts}
+
+Check the matching local flag before reading, calling, returning or copying the
+payload. `if (!ok) { return fallback; }` is a useful early-exit form. Resetting
+the flag, using a copied/stale flag, or capturing mutable storage does not
+establish success. Nullable payloads still need a separate null guard even
+when the key exists. See [zero values and absence](../reference/types#zero-values-and-absence).
+
 To replace an absent reference, development builds provide lazy `??`:
 
 <<< ../snippets/null-coalescing.km{ts}

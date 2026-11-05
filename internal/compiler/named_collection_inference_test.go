@@ -25,7 +25,7 @@ type Ref=distinct *int;
 type Channel=distinct GoChannel<int>;
 function first<T>(v:T[]):T{return v[0];}
 function named<T>(v:Values<T>):T{return v[0];}
-function read<K extends comparable,V>(v:Map<K,V>,key:K):V{return v[key];}
+function read<K extends comparable,V>(v:Map<K,V>,key:K):V{const [value,ok]=v[key];if(!ok){throw new Exception("missing");}return value;}
 function array<T>(v:[2]T):T{return v[1];}
 function deref<T>(v:*T):T{return *v;}
 function receive<T>(v:GoChannel<T>):T{return <-v;}
@@ -55,7 +55,7 @@ export function Classes():int{
   const pair:[2]Item=[item,item];const ch=goChannel<Item>(2);ch<-item;ch<-item;
   const fromChannel=<-classChannel(ch);classSlice(values)[0].value=22;
   const [checked,ok]=<-classChannel(ch);if(!ok){return -1;}
-  return classFirst(values).value+classMap(m)["x"].value+classArray(pair)[1].value+fromChannel.value+checked.value;
+  return classFirst(values).value+classMap(m)["x"]!.value+classArray(pair)[1].value+fromChannel.value+checked.value;
 }
 constraint Slice<E>=~E[];
 constraint Mapping<K extends comparable,V>=~Map<K,V>;

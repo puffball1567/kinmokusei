@@ -36,7 +36,7 @@ function replace<E,S extends Slices<E>>(xs:S,value:E):S{xs[0]=value;return xs;}
 function imported<E,S extends contracts.Slice<E>>(xs:S):E{return xs[0];}
 function named<E,S extends Exact<E>>(xs:S):E{return xs[0];}
 function array<E,A extends Array<E>>(xs:A,value:E):E{xs[0]=value;return xs[0];}
-function mapping<E,M extends Mapping<E>>(xs:M,value:E):E{xs["key"]=value;return xs["key"];}
+function mapping<E,M extends Mapping<E>>(xs:M,value:E):E{xs["key"]=value;const [item,ok]=xs["key"];if(!ok){throw new Exception("missing");}return item;}
 export function Values():int[]{const xs:Named<int>=Named<int>([3,4]);const changed=replace(xs,8);const pair:[2]int=[1,2];const value=array(pair,7);const map=makeMap<bstring,int>();const mapped=mapping(map,9);return [xs[0],changed[0],named(xs),imported<int,Named<int>>(xs),pair[0],value,mapped,map["key"]];}
 class Item{constructor(public value:int){}}
 alias Maybe=Item|null;

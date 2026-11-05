@@ -837,6 +837,7 @@ type GoTypeAssertionExpr struct {
 	Value                   Expression
 	Type                    TypeRef
 	Checked                 bool
+	CheckedResultHandled    bool // Split binding or explicit whole-result discard.
 	ClassDowncast           bool
 	SourceClass             string
 	Span                    source.Span
