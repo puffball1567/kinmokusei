@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate non-null source function contracts at Go type assertions (#117).
+  A typed nil function no longer passes `as?` for a non-null source signature;
+  `as!` reports a source-located panic at the assertion boundary. Preserve
+  nullable targets and imported Go function types, including aliases, defined
+  types and constrained generic assertions. Retain checks in fixed-array
+  `len`/`cap` operands and single evaluation through `try`/`finally`.
+
 - Preserve absence in single-value channel receives and `select` (#117).
   Unsafe-zero references become nullable; unsafe record/array and unknown
   generic payloads require checked receive. Require the matching `open` proof

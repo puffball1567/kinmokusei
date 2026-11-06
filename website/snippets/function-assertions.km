@@ -1,0 +1,23 @@
+import go fmt from "fmt";
+import go reflect from "reflect";
+
+alias Callback = () => int;
+
+function main(): void {
+  const prototype: Callback = () => 7;
+  const boxed = reflect.Zero(reflect.TypeOf(prototype)).Interface();
+
+  const [callback, ok] = boxed as? Callback;
+  if (ok) {
+    fmt.Println(callback());
+  } else {
+    fmt.Println("absent callback");
+  }
+
+  const [nullable, matched] = boxed as? Callback | null;
+  fmt.Println(matched, nullable === null);
+
+  const present: Callback = () => 7;
+  const checked = reflect.ValueOf(present).Interface() as! Callback;
+  fmt.Println(checked());
+}

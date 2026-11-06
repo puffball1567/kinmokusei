@@ -97,6 +97,7 @@ func TestArrayLengthOperandClassification(t *testing.T) {
 		{"assertion", &ast.GoTypeAssertionExpr{Value: value}, true},
 		{"assertion call", &ast.GoTypeAssertionExpr{Value: call}, false},
 		{"class downcast helper", &ast.GoTypeAssertionExpr{Value: value, ClassDowncast: true}, false},
+		{"non-null assertion helper", &ast.GoTypeAssertionExpr{Value: value, NonNull: true}, false},
 		{"conversion", &ast.CallExpr{Conversion: true, Arguments: []ast.Expression{value}}, true},
 		{"conversion call", &ast.CallExpr{Conversion: true, Arguments: []ast.Expression{call}}, false},
 		{"array", &ast.ArrayLiteralExpr{Elements: []ast.Expression{value}}, true},

@@ -80,7 +80,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: arguments}, nil
 		}
-		return &goast.TypeAssertExpr{X: value, Type: goType(expr.Type)}, nil
+		return generateGoTypeAssertion(expr, value), nil
 	case *kinmokuseiAST.TaskStartExpr:
 		return generateTaskStart(expr)
 	case *kinmokuseiAST.AwaitExpr:

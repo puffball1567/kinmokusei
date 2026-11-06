@@ -61,7 +61,7 @@ func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
 	case *ast.SliceExpr:
 		return !expr.InitializedOnly && !expr.UTF8 && arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Low) && arrayLengthOperandUnevaluated(expr.High) && arrayLengthOperandUnevaluated(expr.Max)
 	case *ast.GoTypeAssertionExpr:
-		return !expr.ClassDowncast && arrayLengthOperandUnevaluated(expr.Value)
+		return !expr.ClassDowncast && !expr.NonNull && arrayLengthOperandUnevaluated(expr.Value)
 	case *ast.CallExpr:
 		if expr.GoConstant {
 			// Only nested constant len/cap reset Go's enclosing call scan.

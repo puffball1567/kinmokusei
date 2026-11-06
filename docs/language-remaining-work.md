@@ -114,7 +114,15 @@ writes; field/index/pointer/property targets are supported without running
 unselected target expressions. Layout intrinsics still inspect unevaluated
 storage, while nested callable bodies retain ordinary checks.
 
-This is still partial progress on #117. Optional chaining and non-null boundary
+Development builds validate the reference itself when a Go type assertion
+targets a non-null source function signature, including aliases, native defined
+types and nil-capable generic constraints. Checked assertions reject typed nil
+functions; forced assertions report a source-located panic. Nullable targets
+and imported Go function types retain Go assertion behavior. Constraints mixing
+source non-null references and non-nil-capable values require a concrete target.
+Independent runtime coverage is in `assertion_non_null_test.go`.
+
+This is still partial progress on #117. Optional chaining and broader non-null boundary
 checks remain unimplemented; richer absence fallbacks and additional guard forms
 remain follow-up work.
 

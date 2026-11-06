@@ -26,6 +26,7 @@ func TestRejectsRawNilInNativeNonNullReferences(t *testing.T) {
 		"defined function":    `type Callback=distinct ()=>int;const f:Callback=nil;`,
 		"class constraint":    `class User{}constraint Users=User;function f<T extends Users>():T{return nil;}`,
 		"function constraint": `constraint Callback=()=>int;function f<T extends Callback>():T{return nil;}`,
+		"defined fn bound":    `type Callback=distinct ()=>int;constraint Callbacks=Callback;function f<T extends Callbacks>():T{return nil;}`,
 		"function argument":   `function f(callback:()=>int):void{}function main():void{f(nil);}`,
 		"for function":        `function main():void{for(let i:(v:int)=>int=nil;i===nil;){break;}}`,
 		"for interface":       `function main():void{for(let i:interface{read():int;}=nil;i===nil;){break;}}`,
