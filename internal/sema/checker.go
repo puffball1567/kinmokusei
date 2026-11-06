@@ -50,6 +50,7 @@ type Checker struct {
 	loopCheckMemos             map[ast.Statement]loopCheckMemo
 	breakFlowContexts          []breakFlowContext
 	suppressFlowEffects        int
+	unevaluatedDepth           int // Layout intrinsics inspect types without reading values.
 	memberFlow                 map[memberFlowKey]memberFlowState
 	memberTypes                map[memberFlowKey]Type
 	usesTasks                  bool
@@ -389,6 +390,10 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.BlockStmt:
 		c.checkBlock(stmt, true)
 	case *ast.ExpressionStmt:
+		if receive, ok := stmt.Value.(*ast.UnaryExpr); ok && receive.Operator == "<-" {
+			c.checkChannelReceiveAccess(receive, false, true)
+			return
+		}
 		if propagated, ok := stmt.Value.(*ast.PropagateExpr); ok {
 			value := c.checkPropagateExpression(propagated)
 			if value.Kind != Invalid && value.Kind != Void {

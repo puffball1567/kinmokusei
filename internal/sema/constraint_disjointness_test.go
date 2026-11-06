@@ -10,7 +10,7 @@ func TestParameterConstraintDisjointIntersections(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct{ name, input, want string }{
 		{"slice array", `constraint A<E>=~E[]|~[2]E;constraint B<E>=~E[]|~[3]E;constraint C<E>=A<E>&B<E>;function first<E,T extends C<E>>(xs:T):E{return xs[0];}function use(xs:int[]):int{return first(xs);}`, ""},
-		{"channel directions", `constraint S<E>=~GoChannel<E>|~GoSendChannel<E>;constraint R<E>=~GoChannel<E>|~GoReceiveChannel<E>;constraint C<E>=S<E>&R<E>;function relay<E,T extends C<E>>(ch:T,x:E):E{ch<-x;return <-ch;}`, ""},
+		{"channel directions", `constraint S<E>=~GoChannel<E>|~GoSendChannel<E>;constraint R<E>=~GoChannel<E>|~GoReceiveChannel<E>;constraint C<E>=S<E>&R<E>;function relay<E,T extends C<E>>(ch:T,x:E):E{ch<-x;const [value,open]=<-ch;if(!open){throw new Exception("closed");}return value;}`, ""},
 		{"named exact", `type A<E>=distinct E[];type B<E>=distinct E[];constraint X<E>=A<E>|B<E>;constraint Y<E>=A<E>;constraint Z<E>=X<E>&Y<E>;function first<E,T extends Z<E>>(xs:T):E{return xs[0];}`, ""},
 		{"named argument shapes", `type A<E>=distinct E[];constraint X<E>=A<E[]>|A<[2]E>;constraint Z<E>=X<E>&A<E[]>;`, ""},
 		{"named underlying overlap", `type A<E>=distinct E[];constraint X<E>=A<E>|~[2]E;constraint Z<E>=X<E>&~E[];function first<E,T extends Z<E>>(xs:T):E{return xs[0];}`, ""},

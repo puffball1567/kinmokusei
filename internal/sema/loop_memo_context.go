@@ -12,6 +12,7 @@ import (
 // join accumulated before this loop is not an input to its transfer function.
 type loopMemoContext struct {
 	suppressed, loops, breaks, initializerDepth int
+	unevaluated                                 int
 	writes, memberWrites                        int
 	constructor, initializer, static, inferred  bool
 	available                                   map[string]bool
@@ -31,7 +32,8 @@ type loopExceptionInput struct {
 func (c *Checker) loopMemoContext() loopMemoContext {
 	context := loopMemoContext{
 		suppressed: c.suppressFlowEffects, loops: len(c.loopFlowContexts), breaks: len(c.breakFlowContexts),
-		writes: len(c.capturedWrites), memberWrites: len(c.capturedMemberWrites),
+		unevaluated: c.unevaluatedDepth,
+		writes:      len(c.capturedWrites), memberWrites: len(c.capturedMemberWrites),
 		constructor: c.inConstructor, initializer: c.inFieldInitializer, static: c.fieldInitializerStatic, initializerDepth: c.fieldInitializerArrowDepth,
 		inferred: c.arrowReturns != nil, available: maps.Clone(c.fieldInitializerAvailable), targets: slices.Clone(c.branchFlowTargets),
 		labels: cloneTaskLabels(c.taskLabelFlows), bases: slices.Clone(c.callableScopeBases),

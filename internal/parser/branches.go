@@ -272,12 +272,16 @@ func (p *Parser) selectAssignmentTargets(value ast.Expression) ([]ast.Expression
 			p.report(p.peek(), "checked select receive requires two targets")
 		}
 		for _, target := range array.Elements {
-			identifier, valid := target.(*ast.IdentifierExpr)
-			if !valid {
-				p.report(p.peek(), "checked select receive targets must be names")
-				return nil, false
+			switch target := target.(type) {
+			case *ast.IdentifierExpr, *ast.MemberExpr, *ast.IndexExpr:
+				continue
+			case *ast.UnaryExpr:
+				if target.Operator == "*" {
+					continue
+				}
 			}
-			_ = identifier
+			p.report(p.peek(), "invalid select receive assignment target")
+			return nil, false
 		}
 		return array.Elements, true
 	}

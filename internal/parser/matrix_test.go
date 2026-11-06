@@ -195,6 +195,7 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
+	f.Add(`function f(ch:GoChannel<int>):void{select{case [xs[0],*flag]=<-ch{}}}`)
 	f.Add(`const x=a??b??c;const y=a??(b||c);const z=(a??b)&&c;`)
 	f.Add(`const f=id<int>??fallback;const x=a!??b;`)
 	for _, seed := range []string{

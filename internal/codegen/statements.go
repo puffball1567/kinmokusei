@@ -434,61 +434,6 @@ func generateValueSwitchCase(clause *kinmokuseiAST.ValueSwitchCase) (*goast.Case
 	return generated, nil
 }
 
-func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, error) {
-	generated := &goast.CommClause{}
-	if clause.Kind == kinmokuseiAST.SelectSend {
-		channel, err := generateExpression(clause.Channel)
-		if err != nil {
-			return nil, err
-		}
-		value, err := generateExpression(clause.Value)
-		if err != nil {
-			return nil, err
-		}
-		generated.Comm = &goast.SendStmt{Chan: channel, Value: value}
-	} else if clause.Kind == kinmokuseiAST.SelectReceive {
-		channel, err := generateExpression(clause.Channel)
-		if err != nil {
-			return nil, err
-		}
-		receive := &goast.UnaryExpr{Op: token.ARROW, X: channel}
-		if clause.Declare {
-			targets := make([]goast.Expr, len(clause.Bindings))
-			used := false
-			for i, binding := range clause.Bindings {
-				name := "_"
-				if binding.Name != "_" && binding.Used {
-					name = goName(binding.Name)
-					used = true
-				}
-				targets[i] = goast.NewIdent(name)
-			}
-			if used {
-				generated.Comm = &goast.AssignStmt{Lhs: targets, Tok: token.DEFINE, Rhs: []goast.Expr{receive}}
-			} else {
-				generated.Comm = &goast.ExprStmt{X: receive}
-			}
-		} else if len(clause.Targets) != 0 {
-			targets := make([]goast.Expr, len(clause.Targets))
-			for i, target := range clause.Targets {
-				targets[i], err = generateExpression(target)
-				if err != nil {
-					return nil, err
-				}
-			}
-			generated.Comm = &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{receive}}
-		} else {
-			generated.Comm = &goast.ExprStmt{X: receive}
-		}
-	}
-	body, err := generateBlock(clause.Body)
-	if err != nil {
-		return nil, err
-	}
-	generated.Body = body.List
-	return generated, nil
-}
-
 func generateTypeSwitchCase(clause *kinmokuseiAST.TypeSwitchCase, guardName string) (*goast.CaseClause, error) {
 	generated := &goast.CaseClause{}
 	if clause.Nil {

@@ -30,6 +30,17 @@ closeGoChannel(channel);
 
 `GoChannel<T>`, `GoSendChannel<T>`, and `GoReceiveChannel<T>` preserve Go direction rules. Send, receive, checked receive, close, and channel range keep Go blocking, nil, closed-channel, and panic behavior.
 
+Development builds preserve absence in the source type. Receiving a class,
+pointer, interface or function without a safe zero gives `T | null`; use a null
+guard, `??`, or an explicit `(<-channel)!`. For unsafe records/arrays or an
+unconstrained generic element, use a checked pair and verify `open` first:
+
+<<< ../snippets/channel-absence.km{ts}
+
+This prints `guest` and `7`. Safe scalar/container zeros retain Go behavior.
+Range stops at close without yielding a final zero. A bare receive or `_`
+discard can wait for a value without exposing its payload.
+
 ## Select
 
 ```ts

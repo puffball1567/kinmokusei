@@ -28,7 +28,7 @@ function named<T>(v:Values<T>):T{return v[0];}
 function read<K extends comparable,V>(v:Map<K,V>,key:K):V{const [value,ok]=v[key];if(!ok){throw new Exception("missing");}return value;}
 function array<T>(v:[2]T):T{return v[1];}
 function deref<T>(v:*T):T{return *v;}
-function receive<T>(v:GoChannel<T>):T{return <-v;}
+function receive<T>(v:GoChannel<T>):T{const [value,open]=<-v;if(!open){throw new Exception("closed");}return value;}
 function transform<T>(v:T[],f:(v:T)=>T):T{return f(v[0]);}
 class Reader{public function first<T>(v:T[]):T{return v[0];}}
 class Item{constructor(public value:int){}}
@@ -53,7 +53,7 @@ export function ChannelOps():int{
 export function Classes():int{
   const item=new Item(21);const values:Item[]=[item];const m=makeMap<string,Item>();m["x"]=item;
   const pair:[2]Item=[item,item];const ch=goChannel<Item>(2);ch<-item;ch<-item;
-  const fromChannel=<-classChannel(ch);classSlice(values)[0].value=22;
+  const fromChannel=(<-classChannel(ch))!;classSlice(values)[0].value=22;
   const [checked,ok]=<-classChannel(ch);if(!ok){return -1;}
   return classFirst(values).value+classMap(m)["x"]!.value+classArray(pair)[1].value+fromChannel.value+checked.value;
 }
@@ -64,7 +64,7 @@ constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;
 function forwardSlice<E,S extends Slice<E>>(v:S):E{return first(v);}
 function forwardMap<K extends comparable,V,M extends Mapping<K,V>>(v:M,key:K):V{return read(v,key);}
 function forwardArray<E,A extends ArrayPair<E>>(v:A):E{return array(v);}
-function readOnly<T>(v:GoReceiveChannel<T>):T{return <-v;}
+function readOnly<T>(v:GoReceiveChannel<T>):T{const [value,open]=<-v;if(!open){throw new Exception("closed");}return value;}
 function forwardChannel<E,C extends Receiving<E>>(v:C):E{return readOnly(v);}
 function forwardCallback<E,S extends Slice<E>>(v:S):E{return transform(v,(x)=>x);}
 export function Forward():int{

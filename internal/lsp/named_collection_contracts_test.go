@@ -17,6 +17,6 @@ func TestNamedCollectionElementEditor(t *testing.T) {
 		}
 	}
 	checkSourceContractDiagnostic(t,
-		"alias Maybe = *int | null; type Queue<T> = distinct GoChannel<T>;\nfunction f(q: Queue<Maybe>): *int { const value = <-q; return value; }",
+		"alias Maybe = *int | null; type Queue<T> = distinct GoChannel<T>;\nfunction f(q: Queue<Maybe>): *int { const [value,open] = <-q; if(!open){return nil;} return value; }",
 		"cannot use")
 }

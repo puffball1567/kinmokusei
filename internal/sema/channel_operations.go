@@ -59,6 +59,19 @@ func (c *Checker) checkChannelSend(stmt *ast.ChannelSendStmt) {
 }
 
 func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
+	return c.checkChannelReceiveAccess(expr, checked, false)
+}
+
+func (c *Checker) checkChannelReceiveAccess(expr *ast.UnaryExpr, checked, discard bool) Type {
+	result := func(element Type) Type {
+		if checked {
+			return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
+		}
+		if discard {
+			return element
+		}
+		return c.absenceReadResult(element, "channel receive value", "open", expr.Span)
+	}
 	operand := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
 	if operand.Kind == Nullable {
 		c.report(expr.Operand.GetSpan(), fmt.Sprintf("nullable channel %s must be checked against null before receiving", operand.String()))
@@ -81,10 +94,7 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 			c.report(expr.Span, "channel receive type parameter requires only receive-capable channels with identical element types and nullability")
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
-		if checked {
-			return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
-		}
-		return element
+		return result(element)
 	}
 	channel, ok := gotypes.Unalias(goType).Underlying().(*gotypes.Chan)
 	if !ok {
@@ -104,10 +114,7 @@ func (c *Checker) checkChannelReceive(expr *ast.UnaryExpr, checked bool) Type {
 	if shape.Element != nil {
 		element = *shape.Element
 	}
-	if checked {
-		return Type{Kind: MultiValue, Name: "checked channel receive", Results: []Type{element, builtins["boolean"]}}
-	}
-	return element
+	return result(element)
 }
 
 func (c *Checker) checkGoChannelClose(expr *ast.CallExpr) Type {

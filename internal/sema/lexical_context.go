@@ -15,6 +15,7 @@ type callableFlowState struct {
 	loopCheckMemos      map[ast.Statement]loopCheckMemo
 	breakFlowContexts   []breakFlowContext
 	suppressFlowEffects int
+	unevaluatedDepth    int
 	memberFlow          map[memberFlowKey]memberFlowState
 	memberTypes         map[memberFlowKey]Type
 }
@@ -24,11 +25,13 @@ func (c *Checker) enterCallableFlow() callableFlowState {
 		loopFlowContexts: c.loopFlowContexts, breakFlowContexts: c.breakFlowContexts,
 		loopCheckMemos:      c.loopCheckMemos,
 		suppressFlowEffects: c.suppressFlowEffects,
+		unevaluatedDepth:    c.unevaluatedDepth,
 		memberFlow:          c.memberFlow, memberTypes: c.memberTypes,
 	}
 	c.loopFlowContexts, c.breakFlowContexts = nil, nil
 	c.loopCheckMemos = nil
 	c.suppressFlowEffects = 0
+	c.unevaluatedDepth = 0
 	c.memberFlow = map[memberFlowKey]memberFlowState{}
 	c.memberTypes = map[memberFlowKey]Type{}
 	return previous
@@ -38,6 +41,7 @@ func (c *Checker) leaveCallableFlow(previous callableFlowState) {
 	c.loopFlowContexts, c.breakFlowContexts = previous.loopFlowContexts, previous.breakFlowContexts
 	c.loopCheckMemos = previous.loopCheckMemos
 	c.suppressFlowEffects = previous.suppressFlowEffects
+	c.unevaluatedDepth = previous.unevaluatedDepth
 	c.memberFlow, c.memberTypes = previous.memberFlow, previous.memberTypes
 }
 

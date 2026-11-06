@@ -554,11 +554,14 @@ func collectBlockDeclarations(block *ast.BlockStmt, result *[]declarationInfo) {
 						if binding.Name == "_" {
 							continue
 						}
-						prefix := "const "
+						detail := "const " + binding.Name
 						if !clause.Constant {
-							prefix = "let "
+							detail = "let " + binding.Name
 						}
-						*result = append(*result, declarationInfo{Name: binding.Name, Detail: prefix + binding.Name, Kind: 13, Span: clause.Span, Selection: binding.Span})
+						if binding.ResolvedType.IsSpecified() {
+							detail += ": " + formatTypeRef(binding.ResolvedType)
+						}
+						*result = append(*result, declarationInfo{Name: binding.Name, Detail: detail, Kind: 13, Span: clause.Span, Selection: binding.Span})
 					}
 				}
 				collectBlockDeclarations(clause.Body, result)

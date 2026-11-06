@@ -193,7 +193,7 @@ Generated code preserves the corresponding Go zero value: numeric zero, `false`,
 | `null` | Checked absence for a declared `T \| null` |
 | `nil` | Raw Go nil at nil-capable low-level boundaries |
 | Missing map key | Safe-zero values retain Go zeros; development builds preserve reference absence and require checked lookup for unsafe value payloads |
-| Closed channel receive | Returns the element zero value; checked receive also returns `false` |
+| Closed channel receive | Safe zeros retain Go behavior; development builds preserve reference absence and require checked receive for unsafe value payloads |
 
 Development builds require a safe element zero value for nonempty `makeSlice`
 and slice `make`, and for slice `clear`. Numbers, booleans, text, `T | null`,
@@ -246,8 +246,22 @@ storage is rejected. Safe-zero payloads do not require a presence check.
 
 These checks preserve raw Go boundaries: a successful lookup can still contain
 a nil raw Go pointer/interface explicitly stored by Go. Success proves presence,
-not the behavior of foreign implementations. Single-value and select receives
-are separate from the ordinary checked-binding rule described here.
+not the behavior of foreign implementations.
+
+Development builds apply the same rule to `<-channel`: an unsafe-zero reference
+has type `T | null`, while an unsafe record/array or unknown generic element
+requires `[value, open]`. A checked `select` binding likewise requires `open`
+before an unsafe payload can be read. Nullable payloads still need a null guard
+after success. Bare receives and `_ = <-channel` discard without exposing a
+payload. Safe-zero elements and channel range retain their Go behavior; range
+does not yield a zero element after close.
+
+<<< ../snippets/channel-absence.km{ts}
+
+To require a non-null received reference, use `(<-channel)!`; for expected
+absence, use a null guard, `??`, or the checked pair. A nil raw Go channel still blocks, and
+nil select channels still disable their cases. Selected class-to-interface
+assignment preserves null rather than boxing it into a non-null interface.
 
 `null === null` without a concrete nullable context is rejected because it supplies no base type. A nullable value must be narrowed before member access, indexing, slicing, calling, dereference, or channel operations that require a concrete non-null receiver.
 

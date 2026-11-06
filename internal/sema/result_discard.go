@@ -25,6 +25,8 @@ func (c *Checker) checkDiscard(expression *ast.Expression, annotation ast.TypeRe
 		value = c.checkPropagateExpression(expr)
 	} else if index, ok := (*expression).(*ast.IndexExpr); ok && !annotation.IsSpecified() {
 		value = c.checkIndexAccess(index, false, true)
+	} else if receive, ok := (*expression).(*ast.UnaryExpr); ok && receive.Operator == "<-" && !annotation.IsSpecified() {
+		value = c.checkChannelReceiveAccess(receive, false, true)
 	} else {
 		value = c.checkExpressionExpectedSlot(expression, expected)
 	}

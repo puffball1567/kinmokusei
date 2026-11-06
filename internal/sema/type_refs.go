@@ -262,6 +262,11 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.SelectStmt:
 			for i := range statement.Cases {
 				clause := &statement.Cases[i]
+				for _, upcast := range clause.Upcasts {
+					if upcast != nil {
+						visitExpression(upcast)
+					}
+				}
 				for binding := range clause.Bindings {
 					visitType(&clause.Bindings[binding].ResolvedType)
 				}

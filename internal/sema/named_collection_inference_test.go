@@ -14,11 +14,11 @@ func TestNamedCollectionArgumentInference(t *testing.T) {
 		`type Lookup<K extends comparable,V>=distinct Map<K,V>;function read<K extends comparable,V>(v:Lookup<K,V>,k:K):V{const [value,ok]=v[k];if(!ok){throw new Exception("missing");}return value;}function run(v:Map<string,int>):int{return read(v,"x");}`,
 		`type Pair<T>=distinct [2]T;function first<T>(v:Pair<T>):T{return v[0];}function run(v:[2]int):int{return first(v);}`,
 		`type Ref<T>=distinct *T;function read<T>(v:Ref<T>):T{return *v;}function run(v:*int):int{return read(v);}`,
-		`type Channel<T>=distinct GoChannel<T>;function read<T>(v:Channel<T>):T{return <-v;}function run(v:GoChannel<int>):int{return read(v);}`,
+		`type Channel<T>=distinct GoChannel<T>;function read<T>(v:Channel<T>):T{const [value,open]=<-v;if(!open){throw new Exception("closed");}return value;}function run(v:GoChannel<int>):int{return read(v);}`,
 		`constraint Slice<E>=~E[];function first<T>(v:T[]):T{return v[0];}function run<E,S extends Slice<E>>(v:S):E{return first(v);}`,
 		`constraint Lookup<K extends comparable,V>=~Map<K,V>;function read<K extends comparable,V>(v:Map<K,V>,key:K):V{const [value,ok]=v[key];if(!ok){throw new Exception("missing");}return value;}function run<K extends comparable,V,M extends Lookup<K,V>>(v:M,key:K):V{return read(v,key);}`,
 		`constraint Pair<E>=~[2]E;function first<T>(v:[2]T):T{return v[0];}function run<E,A extends Pair<E>>(v:A):E{return first(v);}`,
-		`constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;function read<T>(v:GoReceiveChannel<T>):T{return <-v;}function run<E,C extends Receiving<E>>(v:C):E{return read(v);}`,
+		`constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;function read<T>(v:GoReceiveChannel<T>):T{const [value,open]=<-v;if(!open){throw new Exception("closed");}return value;}function run<E,C extends Receiving<E>>(v:C):E{return read(v);}`,
 		`constraint Slice<E>=~E[];function map<T>(v:T[],f:(v:T)=>T):T{return f(v[0]);}function run<E,S extends Slice<E>>(v:S):E{return map(v,(x)=>x);}`,
 		`class Item{public value:int=1;}constraint Items=~Item[];function first<T>(v:T[]):T{return v[0];}function run<S extends Items>(v:S):Item{return first(v);}`,
 	} {
@@ -39,7 +39,7 @@ func TestNamedCollectionInferenceBoundaries(t *testing.T) {
 		{"nullable elements", `alias Maybe=int[]|null;type A=distinct Maybe[];function use<T>(v:T[]):T{return v[0];}function run(v:A):int[]{return use(v);}`, "cannot use"},
 		{"ambiguous constraint", `constraint Mixed=~int[]|~string[];function use<T>(v:T[]):void{}function run<S extends Mixed>(v:S):void{use(v);}`, "cannot infer"},
 		{"constrained nullable elements", `alias Maybe=int[]|null;constraint S=~Maybe[];function first<T>(v:T[]):T{return v[0];}function run<A extends S>(v:A):int[]{return first(v);}`, "cannot use"},
-		{"constrained channel direction", `constraint Sending=~GoSendChannel<int>;function read<T>(v:GoReceiveChannel<T>):T{return <-v;}function run<C extends Sending>(v:C):int{return read(v);}`, "cannot infer"},
+		{"constrained channel direction", `constraint Sending=~GoSendChannel<int>;function read<T>(v:GoReceiveChannel<T>):T{const [value,open]=<-v;if(!open){throw new Exception("closed");}return value;}function run<C extends Sending>(v:C):int{return read(v);}`, "cannot infer"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := strings.Join(checkSource(t, tc.input), "\n")

@@ -47,4 +47,29 @@ select {
 
 Select preserves Go evaluation and channel panic/blocking behavior. It does not add cancellation automatically; select on an explicit `context.Context.Done()` channel when needed.
 
+Development builds require `open` before using a checked payload whose zero
+would violate its source contract. A one-value reference binding is nullable;
+handle it with a null guard, `??`, or `!`. Safe-zero elements keep Go behavior.
+
+Receive assignment targets are evaluated only after selection. All target
+locations are captured before writes, including field/index/pointer targets and
+property receivers. For example, a setter cannot change the array slot chosen
+for a later target:
+
+```ts
+select {
+  case [holder.value, flags[index]] = <-channel {
+    // Both target locations were chosen before holder.value's setter ran.
+  }
+}
+```
+
+Unsafe checked payloads require local payload/flag bindings so success can be
+tracked; receive into locals, verify `open`, then update other storage.
+
+<<< ../snippets-invalid/select-value-without-guard.km{ts}
+
+Conversions into nullable base classes or interfaces preserve null. See
+[zero values and absence](../reference/types#zero-values-and-absence).
+
 See [Concurrency](../guide/concurrency#select).

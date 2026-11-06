@@ -106,10 +106,17 @@ joins, loop fixed points and captures; boolean aliases do not transfer proofs.
 Checked assertions cannot forward an unchecked unsafe payload through a result
 list. Constrained map alternatives must agree on key/value source contracts.
 
+Development builds apply the same absence rules to single-value receives and
+select bindings. Checked select payloads without safe zeros require their local
+success flag. Receive assignment conversions preserve source null, including
+class inheritance and interface targets. Selected targets are evaluated before
+writes; field/index/pointer/property targets are supported without running
+unselected target expressions. Layout intrinsics still inspect unevaluated
+storage, while nested callable bodies retain ordinary checks.
+
 This is still partial progress on #117. Optional chaining and non-null boundary
-checks remain unimplemented. Single-value channel receives and select receive
-bindings still need zero-value/presence handling; richer absence fallbacks and
-additional guard forms remain follow-up work.
+checks remain unimplemented; richer absence fallbacks and additional guard forms
+remain follow-up work.
 
 ### Go compatibility areas
 
