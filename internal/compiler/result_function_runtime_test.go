@@ -65,7 +65,7 @@ class ObjectLoader{constructor(private value:int){}public function factory():()=
 export function Objects(n:int):Result<int>{
   const loader=new ObjectLoader(n);const holder=Holder{load:loader.factory()};
   const channel=goChannel<()=>Result<Hidden>>(1);channel<-holder.load;
-  const f=<-channel;const p=&f;const object=(*p)()?;return ok(object.value);
+  const f=(<-channel)!;const p=&f;const object=(*p)()?;return ok(object.value);
 }
 export function Async(n:int):Result<int>{const f=Factory(10);const task=go f(n);const result=await task?;return ok(result);}
 export function Finally(reject:boolean):int{

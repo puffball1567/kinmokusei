@@ -620,6 +620,7 @@ const (
 // either discard, declare Bindings, or assign Targets. Each Body is a distinct
 // case-local scope and never falls through to another case.
 type SelectCase struct {
+	Upcasts  []*ClassUpcastExpr // Receive-assignment conversions after selection.
 	Kind     SelectCaseKind
 	Constant bool
 	Declare  bool

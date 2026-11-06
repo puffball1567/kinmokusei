@@ -62,6 +62,7 @@ func TestLoopCheckMemoRequiresCompleteEntry(t *testing.T) {
 		"member fact":              func(c *Checker) { c.memberFlow[memberFlowKey{path: "item"}] = memberFlowState{nonNull: true} },
 		"member type":              func(c *Checker) { c.memberTypes[memberFlowKey{path: "item"}] = builtins["int"] },
 		"reachability":             func(c *Checker) { c.suppressFlowEffects++ },
+		"layout context":           func(c *Checker) { c.unevaluatedDepth++ },
 		"constructor":              func(c *Checker) { c.inConstructor = true },
 		"initializer availability": func(c *Checker) { c.fieldInitializerAvailable = map[string]bool{"field": true} },
 		"initializer depth":        func(c *Checker) { c.fieldInitializerArrowDepth++ },

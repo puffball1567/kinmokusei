@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=1;}function f(ch:GoChannel<C>):int{return ((<-ch)??new C()).n;}`,
+	`class C{public n:int=1;}function f(ch:GoChannel<C>):int{select{case const [v,open]=<-ch{if(open){return v.n;}return 0;}}}`,
+	`function f(ch:GoChannel<int>,xs:int[],flags:boolean[]):void{select{case [xs[0],flags[0]]=<-ch{}}}`,
 	`class C{public n:int=1;}function f(m:Map<int,C>):int{return (m[0]??new C()).n;}`,
 	`class C{public n:int=1;}function f(m:Map<int,C>):int{const [v,ok]=m[0];if(ok){return v.n;}return 0;}`,
 	`class C{public n:int=1;}function f(m:Map<int,C>,b:boolean):int{let [v,ok]=m[0];if(!ok){return 0;}while(b){const n=v.n;[v,ok]=m[1];}return 0;}`,

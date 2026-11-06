@@ -60,7 +60,7 @@ func (c *Checker) presenceBinding(name string) (valueSymbol, int, bool) {
 }
 
 func (c *Checker) checkPresenceRead(name string, symbol valueSymbol, span source.Span) {
-	if symbol.presence.required && !symbol.presence.checked {
+	if c.unevaluatedDepth == 0 && symbol.presence.required && !symbol.presence.checked {
 		c.report(span, fmt.Sprintf("value %q may be absent; check its corresponding ok binding before using it", name))
 	}
 }

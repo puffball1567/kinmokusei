@@ -11,6 +11,16 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve absence in single-value channel receives and `select` (#117).
+  Unsafe-zero references become nullable; unsafe record/array and unknown
+  generic payloads require checked receive. Require the matching `open` proof
+  for unsafe checked select bindings, while preserving safe Go zeros, explicit
+  discards, nil-channel blocking and range behavior. Retain null on selected
+  class/interface conversions, evaluate all selected assignment targets before
+  writes, and support checked field/index/pointer/property targets. Preserve
+  private Go types, source maps and layout intrinsics' unevaluated operands;
+  show inferred nullable select types in editor hover.
+
 - Preserve absence in map reads (#117). A one-value lookup of a class,
   pointer, interface or function without a safe zero returns a nullable value;
   unsafe struct/array and unconstrained generic payloads require a checked

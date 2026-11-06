@@ -6,7 +6,9 @@ constraint Duplex<E> = Writable<E> & Readable<E>
 
 function roundTrip<E, C extends Duplex<E>>(channel: C, value: E): E {
   channel <- value
-  return <-channel
+  const [received, open] = <-channel
+  if (!open) { throw new Exception("channel closed") }
+  return received
 }
 
 constraint Storage<E> = ~E[] | ~[2]E

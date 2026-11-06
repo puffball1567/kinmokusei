@@ -132,12 +132,8 @@ func (c *Checker) checkIndexAccess(expr *ast.IndexExpr, checked, storage bool) T
 func (c *Checker) checkedIndexResult(expr *ast.IndexExpr, element Type, checked, mapIndex bool) Type {
 	expr.MapIndex = mapIndex
 	if !checked {
-		if mapIndex && !c.zeroValueSafe(element) {
-			if isNullableBaseType(element) {
-				return Type{Kind: Nullable, Name: "nullable", Element: &element}
-			}
-			c.report(expr.Span, fmt.Sprintf("map value %s has no safe zero value; use [value, ok] and check ok before using value", element.String()))
-			return Type{Kind: Invalid, Name: "<invalid>"}
+		if mapIndex {
+			return c.absenceReadResult(element, "map value", "ok", expr.Span)
 		}
 		return element
 	}

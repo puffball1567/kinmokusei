@@ -43,6 +43,7 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 }
 
 func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
+	clause.Upcasts = nil
 	count := selectReceiveTargetCount(clause)
 	if count == 0 {
 		return
@@ -70,18 +71,35 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 			binding.ResolvedType = typeRefFromType(result, binding.Span)
 			c.declareSelectLocal(binding.Name, result, clause.Constant, clause, i, binding.Span)
 		}
+		c.bindPresencePair(&ast.UnaryExpr{Operator: "<-"}, value, clause.Bindings)
 		return
 	}
+	clause.Upcasts = make([]*ast.ClassUpcastExpr, len(clause.Targets))
+	bindings := make([]ast.Binding, len(clause.Targets))
 	for i, target := range clause.Targets {
+		bindings[i].Span = target.GetSpan()
+		if identifier, ok := target.(*ast.IdentifierExpr); ok {
+			bindings[i].Name = identifier.Name
+		}
 		if identifier, ok := target.(*ast.IdentifierExpr); ok && identifier.Name == "_" {
 			continue
 		}
 		targetType := c.checkAssignmentTarget(target)
 		if i < len(results) {
 			c.requireAssignable(targetType, results[i], target.GetSpan())
+			var slot ast.Expression = &ast.IdentifierExpr{Name: "__kinmokuseiSelectValue", Span: target.GetSpan()}
+			c.applyClassUpcast(&slot, targetType, results[i])
+			clause.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
+		}
+	}
+	// Every selected LHS is evaluated against the old storage before any of
+	// the receive results is assigned, just as in a Go parallel assignment.
+	for i, target := range clause.Targets {
+		if i < len(results) {
 			c.updateAssignmentFlow(target, results[i], nil)
 		}
 	}
+	c.bindPresencePair(&ast.UnaryExpr{Operator: "<-"}, value, bindings)
 }
 
 func (c *Checker) checkTypeSwitch(stmt *ast.TypeSwitchStmt) {
