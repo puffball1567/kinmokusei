@@ -1,0 +1,26 @@
+import go fmt from "fmt";
+
+const SUCCESS = true;
+class User {
+  constructor(public name: string) {}
+}
+
+function read(users: Map<string, User>, id: string): string {
+  const [user, ok] = users[id];
+  switch (ok) {
+    case SUCCESS { return user.name; }
+    default { return "missing"; }
+  }
+}
+
+function main(): void {
+  const users = makeMap<string, User>();
+  users["alice"] = new User("Alice");
+  fmt.Println(read(users, "alice"));
+  fmt.Println(read(users, "bob"));
+
+  const [user, ok] = users["alice"];
+  if ((ok === SUCCESS) !== false) {
+    fmt.Println(user.name);
+  }
+}

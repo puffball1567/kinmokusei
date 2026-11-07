@@ -270,7 +270,22 @@ nullable stored value is non-null; check that independently.
 <<< ../snippets/map-absence.km{ts}
 
 Use the original local flag in `if (ok)`, `if (!ok)` with an early exit, a
-boolean comparison or short-circuit expression. Reassigning the flag/payload or
+boolean comparison or short-circuit expression. Compile-time boolean constants
+and nested equality/negation preserve this relation. Boolean switches support
+`switch (ok)`, `switch (!ok)`, comparisons of the guard, and `switch (true/false)`
+with guard case expressions. A failed `case false` test can prove success for
+later labels or a default, including a default written first.
+
+<<< ../snippets/presence-guards.km{ts}
+
+<<< ../snippets/presence-guards.stdout{text}
+
+Every path entering a grouped/fallthrough body must prove success. A case
+label alone does not prove success when failure can fall through into it:
+
+<<< ../snippets-invalid/presence-fallthrough.km{ts}
+
+Reassigning the flag/payload or
 letting mutable storage escape can invalidate the relation. Copying a boolean
 does not copy a proof. Copy a verified payload into a stable local before
 capturing it; direct assignment of an unverified unsafe payload to global

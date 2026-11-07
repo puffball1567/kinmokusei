@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Recognize checked presence guards through boolean constants, negation,
+  nested equality and boolean `switch` (#117). Track matching and failed case
+  tests, grouped labels, defaults and fallthrough; require the payload's own
+  success flag and preserve invalidation after writes, capture and escape.
+  Cover map/receive/assertion payloads and generic values, with independent Go
+  execution comparisons, editor diagnostics/navigation and executable examples.
+
 - Validate explicit conversions to non-null native references (#117).
   Function aliases, defined functions, compatible generic bounds and anonymous
   source interfaces reject a nil conversion result at its source location.
