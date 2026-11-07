@@ -11,7 +11,14 @@ func (c *Checker) requiresNativeNonNull(value Type, visiting map[gotypes.Type]bo
 		value.Kind == Function && value.GoType == nil || isSourceAnonymousInterface(value) {
 		return true
 	}
-	if shape, native := c.nativeDefinedShape(value); native {
+	storage := value
+	if storage.Kind == Function && storage.GoType != nil {
+		// Early constraint terms can retain a callable shape plus the native
+		// defined type's storage. Recover its canonical source contract rather
+		// than treating that storage as an imported Go callback signature.
+		storage.Kind = GoNamed
+	}
+	if shape, native := c.nativeDefinedShape(storage); native {
 		return c.requiresNativeNonNull(shape, visiting)
 	}
 	if parameter, ok := value.GoType.(*gotypes.TypeParam); value.Kind == TypeParameter && ok {

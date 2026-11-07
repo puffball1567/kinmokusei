@@ -10,6 +10,7 @@ import (
 )
 
 func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
+	expr.NonNull = false
 	value := c.singleValue(c.checkExpression(expr.Value), expr.Value.GetSpan())
 	asserted := c.resolveType(expr.Type)
 	if value.Kind == Invalid || asserted.Kind == Invalid {
@@ -66,6 +67,13 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 	if !gotypes.AssertableTo(contract, assertedGoType) {
 		c.report(expr.Span, fmt.Sprintf("Go interface %s cannot contain asserted type %s", value.String(), asserted.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if c.requiresNativeNonNull(asserted, nil) {
+		if !isNilable(asserted) {
+			c.report(expr.Type.Span, fmt.Sprintf("cannot establish the non-null contract of assertion target %s; use a concrete target instead of a constraint mixing nil-capable and value types", asserted.String()))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		expr.NonNull = true
 	}
 	if !expr.Checked {
 		return asserted

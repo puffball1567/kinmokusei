@@ -832,13 +832,14 @@ func (e *BinaryExpr) GetSpan() source.Span { return e.Span }
 
 // GoTypeAssertionExpr keeps the two failure modes syntactically distinct.
 // Checked assertions produce (value, boolean); unchecked assertions panic on
-// failure with the same runtime semantics as a Go type assertion.
+// failure. Source non-null reference targets also reject a nil asserted value.
 type GoTypeAssertionExpr struct {
 	NativeContractArguments []NativeContract
 	Value                   Expression
 	Type                    TypeRef
 	Checked                 bool
 	CheckedResultHandled    bool // Split binding or explicit whole-result discard.
+	NonNull                 bool // A successful Go assertion must establish a source non-null contract.
 	ClassDowncast           bool
 	SourceClass             string
 	Span                    source.Span

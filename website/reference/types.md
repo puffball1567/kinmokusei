@@ -163,9 +163,20 @@ const rawAgain = string(id);
 - Enum conversion is explicit in both directions.
 - Slice and fixed array do not convert implicitly; use `copyArray` or `viewArray` for the checked supported boundary.
 - Class upcasts are implicit only along the declared inheritance chain; downcasts use `as?` or `as!`.
-- Go interface assertions use `as?`/`as!` and retain Go assertion failure behavior.
+- Go interface assertions use `as?`/`as!`. Raw Go target types retain Go assertion
+  failure behavior. When the target is a non-null source function signature,
+  `as?` also returns `false` for a typed nil function; `as!` panics at the assertion
+  with its source filename, line and column. This includes transparent aliases,
+  native defined function types and nil-capable generic constraints. Use a
+  concrete assertion target for constraints mixing non-null source references
+  with non-nil-capable value types. A nullable function target accepts a matching
+  nil function, so check that payload against `null` before calling it.
   An assertion cannot establish a UTF-8 contract: assert `bstring`, then decode
   explicitly rather than asserting `string` or a verified-text-containing type.
+
+<<< ../snippets/function-assertions.km{ts}
+
+<<< ../snippets/function-assertions.stdout{text}
 
 Conversions do not implicitly change reference ownership, recursively copy
 reference-bearing collection elements, or turn `null` into raw Go `nil`.
