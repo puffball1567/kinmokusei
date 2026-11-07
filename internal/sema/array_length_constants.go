@@ -63,6 +63,9 @@ func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
 	case *ast.GoTypeAssertionExpr:
 		return !expr.ClassDowncast && !expr.NonNull && arrayLengthOperandUnevaluated(expr.Value)
 	case *ast.CallExpr:
+		if expr.NonNullConversion {
+			return false
+		}
 		if expr.GoConstant {
 			// Only nested constant len/cap reset Go's enclosing call scan.
 			// Layout arguments (even through constant conversions/min/max)

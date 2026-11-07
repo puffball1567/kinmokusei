@@ -325,6 +325,12 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			callee = evaluatedValue(callee)
 		}
 		call := &goast.CallExpr{Fun: callee, Args: args}
+		if expr.NonNullConversion {
+			if expr.ConversionType == nil || len(args) != 1 {
+				return nil, fmt.Errorf("non-null conversion has no checked target type")
+			}
+			return generateNonNullReference(call, *expr.ConversionType, expr.Span, "non-null conversion"), nil
+		}
 		if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
 			return generateCapturedMultipleCall(expr, call), nil
 		}

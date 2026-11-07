@@ -131,6 +131,16 @@ result context; other unnameable results are diagnosed. Independent comparisons
 cover operand order, lazy defaults, conditional effects, source maps and editor
 navigation in `absence_coalescing_test.go` and its Go type fixture.
 
+Development builds validate explicit conversions to non-null native references,
+including function aliases, defined functions, nil-capable generic bounds and
+anonymous source interface contracts. The operand runs once and a nil result
+panics at the original conversion location. Raw Go target conversions and
+typed-nil interface behavior are unchanged. Conversion/assertion checks share
+lowering; runtime guards cannot be elided by fixed-array `len`/`cap`, and their
+panic ordering is retained. Checked conversions and forced source assertions
+establish nullable-flow and coalescing proofs. Independent Go comparisons are
+in `conversion_non_null_test.go`.
+
 This is still partial progress on #117. Optional chaining and broader non-null
 boundary checks remain unimplemented; additional absence and guard forms
 remain follow-up work.

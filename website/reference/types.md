@@ -160,6 +160,14 @@ const rawAgain = string(id);
   likewise uses U+FFFD. Checked byte-to-`string` decoding never does that. See
   [strings and Unicode](../book/types-and-values#strings-and-unicode).
 - Named defined types convert to/from compatible underlying types explicitly.
+- Conversions to a non-null source function signature or method-bearing
+  anonymous source interface validate the converted reference at runtime.
+  A nil result panics at the conversion's source filename, line and column.
+  The operand runs once; this includes function aliases, native defined
+  functions and compatible nil-capable generic bounds. Raw Go target types
+  retain Go conversion behavior. An interface holding a typed nil pointer
+  remains a non-nil interface. Direct `nil` and nullable source operands still
+  need the appropriate explicit guard rather than an unchecked conversion.
 - Enum conversion is explicit in both directions.
 - Slice and fixed array do not convert implicitly; use `copyArray` or `viewArray` for the checked supported boundary.
 - Class upcasts are implicit only along the declared inheritance chain; downcasts use `as?` or `as!`.
@@ -177,6 +185,18 @@ const rawAgain = string(id);
 <<< ../snippets/function-assertions.km{ts}
 
 <<< ../snippets/function-assertions.stdout{text}
+
+An explicitly checked non-null conversion or forced source assertion can
+establish a non-null local snapshot even when its declared type is nullable:
+
+<<< ../snippets/reference-conversions.km{ts}
+
+<<< ../snippets/reference-conversions.stdout{text}
+
+For an optional Go callback, bind it to a nullable source function type and
+check `null` before calling it. A raw Go target conversion supplies no proof.
+
+<<< ../snippets-invalid/nil-function-conversion.km{ts}
 
 Conversions do not implicitly change reference ownership, recursively copy
 reference-bearing collection elements, or turn `null` into raw Go `nil`.

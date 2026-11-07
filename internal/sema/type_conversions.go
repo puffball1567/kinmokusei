@@ -146,6 +146,11 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 		valueGo, valueOK = gotypes.Typ[gotypes.UntypedNil], true
 	}
 	convertible := targetOK && valueOK && gotypes.ConvertibleTo(valueGo, targetGo) && c.conversionPreservesSourceContract(target, value)
+	if convertible && c.requiresNativeNonNull(target, nil) && isNilable(target) {
+		expr.NonNullConversion = true
+		ref := typeRefFromType(target, expr.Span)
+		expr.ConversionType = &ref
+	}
 	if !convertible {
 		c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 	} else if target.IsNumeric() {

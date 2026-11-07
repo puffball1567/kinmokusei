@@ -168,6 +168,12 @@ be unwrapped this way. A newline before `!` starts a prefix operation instead.
 
 `as? Type` performs a checked Go-interface or class downcast and returns value plus `boolean`. `as! Type` is forced and panics on failure. Both evaluate the source once.
 
+Explicit conversions to non-null source function and anonymous interface
+contracts also reject a nil result at the conversion's source location.
+Checked non-null conversions and forced source assertions establish a proof
+for a nullable snapshot; raw Go conversions and raw Go assertion targets keep
+their existing nil semantics. See [explicit conversions](./types#explicit-conversions).
+
 Development builds require `[value, ok]` and a successful flag check before
 using an unsafe-zero checked assertion payload. Forwarding the unchecked pair
 directly through a function return or argument list is rejected; split it and

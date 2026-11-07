@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`alias F=()=>int;function f(raw:F):int{const checked:F|null=F(raw);return checked();}`,
+	`alias View=interface{Error():bstring;};function f(raw:error):View{return View(raw);}`,
+	`constraint F=()=>int;function f<T extends F>(v:T):T{return T(v);}`,
 	`class C{}struct Row{public v:C;}function f(m:Map<int,Row>):Row{return m[0]??Row{v:new C()};}`,
 	`function f(ch:GoChannel<int>,m:Map<int,int>):int{return ((<-ch)??9)+(m[0]??7);}`,
 	`constraint P=~int|~*int;function f<T extends P>(m:Map<int,T>,fallback:T):T{return m[0]??fallback;}`,

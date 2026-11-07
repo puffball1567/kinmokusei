@@ -1,0 +1,16 @@
+import go fmt from "fmt";
+import go http from "net/http";
+
+alias Handler = (writer: http.ResponseWriter, request: *http.Request) => void;
+
+function main(): void {
+  const raw: http.HandlerFunc = (writer, request) => {
+    fmt.Println("handled");
+  };
+  const checked: Handler | null = Handler(raw);
+  checked(nil, nil);
+
+  const absent: http.HandlerFunc = nil;
+  const optional: Handler | null = absent;
+  fmt.Println(optional === null);
+}

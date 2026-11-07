@@ -9,6 +9,7 @@ import (
 
 func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	expr.StaticCallee = false
+	expr.NonNullConversion = false
 	// Re-resolve direct callee identity on each flow-analysis pass. Contracts
 	// are not callable types and never follow mutable/unknown function values.
 	delete(c.goCallContracts, expr.Callee)
