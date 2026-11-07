@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	"go/constant"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/source"
@@ -65,25 +66,15 @@ func (c *Checker) checkPresenceRead(name string, symbol valueSymbol, span source
 	}
 }
 
-// Recognize direct success tests, boolean negation (handled by checkCondition),
-// and equality with boolean constants. Copying a flag does not copy its proof.
+// Normalize a checked condition without reevaluating its operands. Compile-time
+// constants may qualify a guard; copying a runtime flag does not copy its proof.
 func (c *Checker) applyPresenceCondition(expression ast.Expression) (bool, bool) {
-	identifier, ok := expression.(*ast.IdentifierExpr)
-	positive := true
-	if !ok {
-		binary, yes := expression.(*ast.BinaryExpr)
-		if !yes || (binary.Operator != "==" && binary.Operator != "===" && binary.Operator != "!=" && binary.Operator != "!==") {
-			return true, false
-		}
-		var literal *ast.LiteralExpr
-		identifier, literal = c.presenceComparison(binary.Left, binary.Right)
-		if identifier == nil || literal == nil {
-			return true, false
-		}
-		positive = (literal.Text == "true") == (binary.Operator == "==" || binary.Operator == "===")
+	identifier, positive := c.presenceGuard(expression)
+	if identifier == nil {
+		return positive, false
 	}
 	guard, _, found := c.presenceBinding(identifier.Name)
-	if !found || guard.presence.payload.Start.Line == 0 || guard.flowEscaped {
+	if !found || identifier.ResolvedDeclaration != guard.declarationSpan || guard.presence.payload.Start.Line == 0 || guard.flowEscaped {
 		return positive, false
 	}
 	for i, scope := range c.scopes {
@@ -97,18 +88,40 @@ func (c *Checker) applyPresenceCondition(expression ast.Expression) (bool, bool)
 	return positive, true
 }
 
-func (c *Checker) presenceComparison(left, right ast.Expression) (*ast.IdentifierExpr, *ast.LiteralExpr) {
-	if id, ok := left.(*ast.IdentifierExpr); ok {
-		if literal, yes := right.(*ast.LiteralExpr); yes && literal.Kind == ast.BooleanLiteral {
-			return id, literal
+func (c *Checker) presenceGuard(expression ast.Expression) (*ast.IdentifierExpr, bool) {
+	positive := true
+	for steps := 0; steps < 512; steps++ {
+		switch expr := expression.(type) {
+		case *ast.IdentifierExpr:
+			return expr, positive
+		case *ast.UnaryExpr:
+			if expr.Operator != "!" {
+				return nil, positive
+			}
+			positive = !positive
+			expression = expr.Operand
+		case *ast.BinaryExpr:
+			if expr.Operator != "==" && expr.Operator != "===" && expr.Operator != "!=" && expr.Operator != "!==" {
+				return nil, positive
+			}
+			info, known := c.scalarConstant(expr.Right)
+			expression = expr.Left
+			if !known || info.Value.Kind() != constant.Bool {
+				info, known = c.scalarConstant(expr.Left)
+				expression = expr.Right
+			}
+			if !known || info.Value.Kind() != constant.Bool {
+				return nil, positive
+			}
+			equality := expr.Operator == "==" || expr.Operator == "==="
+			if equality != constant.BoolVal(info.Value) {
+				positive = !positive
+			}
+		default:
+			return nil, positive
 		}
 	}
-	if id, ok := right.(*ast.IdentifierExpr); ok {
-		if literal, yes := left.(*ast.LiteralExpr); yes && literal.Kind == ast.BooleanLiteral {
-			return id, literal
-		}
-	}
-	return nil, nil
+	return nil, positive
 }
 
 func mergePresence(symbol valueSymbol, scope int, name string, branches ...[]map[string]valueSymbol) presenceFlow {

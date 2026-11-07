@@ -141,6 +141,14 @@ panic ordering is retained. Checked conversions and forced source assertions
 establish nullable-flow and coalescing proofs. Independent Go comparisons are
 in `conversion_non_null_test.go`.
 
+Development builds recognize presence checks through compile-time boolean
+constants, negation, nested equality and boolean switches. A flag or its
+comparison/negation may be matched against a constant, or a constant tag may
+match the guard in a case. Failed tests carry proofs to later cases/defaults;
+grouped labels and fallthrough merge every entry path. Declaration identity,
+mutable-state invalidation and independent nullable payload contracts remain
+required. Independent Go comparisons are in `presence_guards_test.go`.
+
 This is still partial progress on #117. Optional chaining and broader non-null
 boundary checks remain unimplemented; additional absence and guard forms
 remain follow-up work.

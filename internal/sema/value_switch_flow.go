@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	"go/constant"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -26,7 +27,29 @@ func (c *Checker) checkValueSwitchCases(stmt *ast.ValueSwitchStmt, value Type, e
 				c.report(expression.GetSpan(), fmt.Sprintf("value switch case type %s is not comparable", caseType.String()))
 			}
 			c.checkSwitchCaseConstant(expression, caseType, value, constants)
-			matches = append(matches, c.snapshotNullableFlow())
+			caseEntry := c.snapshotNullableFlow()
+			matched, failed := caseEntry, caseEntry
+			// A boolean match can establish presence on either the matching or
+			// failed path. Do not reevaluate the tag or the checked case operand.
+			if value.IsBoolean() {
+				guard := stmt.Value
+				info, known := c.scalarConstant(expression)
+				if !known || info.Value.Kind() != constant.Bool {
+					info, known = c.scalarConstant(stmt.Value)
+					guard = expression
+				}
+				if known && info.Value.Kind() == constant.Bool {
+					if positive, applied := c.applyPresenceCondition(guard); applied {
+						if positive == constant.BoolVal(info.Value) {
+							matched = c.snapshotNullableFlow()
+						} else {
+							failed = c.snapshotNullableFlow()
+						}
+					}
+				}
+			}
+			matches = append(matches, matched)
+			c.restoreNullableFlow(failed)
 		}
 		entries[index] = c.mergeNullableFlow(entry, matches...)
 	}
