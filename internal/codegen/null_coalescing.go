@@ -40,9 +40,16 @@ func generateCoalesce(source *ast.BinaryExpr) (goast.Expr, error) {
 				return nil, err
 			}
 		}
+		bindings := []goast.Expr{value}
+		condition := goast.Expr(&goast.BinaryExpr{X: value, Op: token.NEQ, Y: goast.NewIdent("nil")})
+		if source.CoalesceChecked {
+			ok := goast.NewIdent("__kinmokuseiCoalesceOK")
+			bindings = append(bindings, ok)
+			condition = ok
+		}
 		body.List = append(body.List,
-			&goast.AssignStmt{Lhs: []goast.Expr{value}, Tok: token.DEFINE, Rhs: []goast.Expr{left}},
-			&goast.IfStmt{Cond: &goast.BinaryExpr{X: value, Op: token.NEQ, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{present}}}}},
+			&goast.AssignStmt{Lhs: bindings, Tok: token.DEFINE, Rhs: []goast.Expr{left}},
+			&goast.IfStmt{Cond: condition, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{present}}}}},
 		)
 	}
 	body.List = append(body.List, &goast.ReturnStmt{Results: []goast.Expr{right}})

@@ -122,8 +122,17 @@ and imported Go function types retain Go assertion behavior. Constraints mixing
 source non-null references and non-nil-capable values require a concrete target.
 Independent runtime coverage is in `assertion_non_null_test.go`.
 
-This is still partial progress on #117. Optional chaining and broader non-null boundary
-checks remain unimplemented; richer absence fallbacks and additional guard forms
+Development builds support direct map/receive `??` fallbacks for scalar,
+record and fixed-array payloads, including uniform value-type generic bounds.
+The success flag selects the default; present zeros are preserved, and ordinary
+reference payloads keep the nil test. Open or mixed reference/value bounds
+require explicit checked bindings. Private Go values can use a public interface
+result context; other unnameable results are diagnosed. Independent comparisons
+cover operand order, lazy defaults, conditional effects, source maps and editor
+navigation in `absence_coalescing_test.go` and its Go type fixture.
+
+This is still partial progress on #117. Optional chaining and broader non-null
+boundary checks remain unimplemented; additional absence and guard forms
 remain follow-up work.
 
 ### Go compatibility areas

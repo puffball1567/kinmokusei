@@ -33,7 +33,11 @@ closeGoChannel(channel);
 Development builds preserve absence in the source type. Receiving a class,
 pointer, interface or function without a safe zero gives `T | null`; use a null
 guard, `??`, or an explicit `(<-channel)!`. For unsafe records/arrays or an
-unconstrained generic element, use a checked pair and verify `open` first:
+unconstrained generic element, use a checked pair and verify `open` first.
+A direct receive of a record/array or scalar can instead use
+`(<-channel) ?? initializedDefault`: only a closed receive selects that default,
+while a successfully received zero is retained. Unknown/mixed generic payloads
+still require the explicit checked pair.
 
 <<< ../snippets/channel-absence.km{ts}
 

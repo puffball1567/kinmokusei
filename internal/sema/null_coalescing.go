@@ -10,7 +10,8 @@ import (
 func (c *Checker) checkCoalesce(expr *ast.BinaryExpr, expected *Type) Type {
 	expr.CoalesceType, expr.CoalesceLeftValue, expr.CoalesceHelper = nil, nil, ""
 	expr.CoalesceNonNull = false
-	left := c.singleValue(c.checkExpression(expr.Left), expr.Left.GetSpan())
+	expr.CoalesceChecked = false
+	left := c.checkCoalesceOperand(expr)
 	entry := c.snapshotNullableFlow()
 	known := c.coalesceNilness(expr.Left)
 	base := left
@@ -70,7 +71,7 @@ func (c *Checker) checkCoalesce(expr *ast.BinaryExpr, expected *Type) Type {
 		c.report(expr.Right.GetSpan(), "?? requires an ordinary value; Result and Task must be handled explicitly")
 		return Type{Kind: Invalid}
 	}
-	if left.Kind != Null && left.Kind != Nil && !isNilable(baseOfNullable(left)) {
+	if !expr.CoalesceChecked && left.Kind != Null && left.Kind != Nil && !isNilable(baseOfNullable(left)) {
 		c.report(expr.Left.GetSpan(), fmt.Sprintf("left operand of ?? must be nullable or nil-capable, got %s", left.String()))
 		return Type{Kind: Invalid}
 	}
@@ -106,7 +107,9 @@ func (c *Checker) checkCoalesce(expr *ast.BinaryExpr, expected *Type) Type {
 		c.applyClassUpcast(&value, base, baseOfNullable(left))
 	}
 	expr.CoalesceLeftValue = value
-	expr.CoalesceHelper = c.coalesceStaticHelper(expr, left, right, result)
+	if !expr.CoalesceChecked {
+		expr.CoalesceHelper = c.coalesceStaticHelper(expr, left, right, result)
+	}
 	if expr.CoalesceHelper == "" && !coalesceTypeNameable(result) {
 		c.report(expr.Span, "?? result contains a private Go type; add an explicit public interface or named type context")
 		return Type{Kind: Invalid}

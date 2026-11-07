@@ -21,7 +21,7 @@ From lowest to highest; every binary group is left-associative:
 
 | Level | Operators | Operand summary |
 | ---: | --- | --- |
-| 1 | `??` | Nullable or raw nil-capable left operand; compatible fallback |
+| 1 | `??` | Nil fallback, or missing-key/closed-receive fallback for value payloads |
 | 2 | `\|\|` | `boolean` |
 | 3 | `&&` | `boolean` |
 | 4 | `==`, `!=`, `===`, `!==` | Compatible comparable values |
@@ -39,6 +39,25 @@ absence, not truthiness: zero, false and empty text are ordinary values.
 Those scalar types cannot be nullable; a literal `null ?? 0` is allowed and
 takes its result type from the fallback or an explicit destination type.
 
+For a direct map lookup `values[key]` or receive `(<-channel)` with a payload
+that has no nil representation, `??` checks the operation's success flag. The
+fallback runs only for a missing key or closed receive; present `0`, `false`,
+empty text and zero-valued records are preserved. This also lets a record or
+fixed array containing non-null references supply a valid initialized default.
+Reference payloads keep the ordinary nil test, including a present nil payload.
+The receive keeps Go blocking behavior.
+
+<<< ../snippets/absence-fallbacks.km{ts}
+
+<<< ../snippets/absence-fallbacks.stdout{text}
+
+Generic payloads need a constraint that consistently permits nil or consistently
+contains value types. For an open `T` or a reference/value mixture, use the
+explicit `[value, ok]` form and check the flag. Ordinary array/slice indexing
+does not produce a missing-key flag or intercept bounds panics.
+
+<<< ../snippets-invalid/fallback-mixed-payload.km{ts}
+
 <<< ../snippets/null-coalescing.km{ts}
 
 The fallback must be assignable to the left operand's non-null type, or to a
@@ -52,6 +71,8 @@ Chains group left to right. Mixing `??` with `&&` or `||` requires parentheses,
 such as `null ?? (ready || retry)`. A bare `null ?? null` needs a concrete
 nullable destination type. Go interfaces use their existing nil comparison:
 an interface containing a typed nil pointer does not select the fallback.
+For several value-type lookups, nest defaults explicitly:
+`first[key] ?? (second[key] ?? 0)`.
 
 An inferred result containing an unexported Go type is supported when the
 storage is a pointer, slice, map, channel or interface and the fallback is a
