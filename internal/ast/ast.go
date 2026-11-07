@@ -821,6 +821,7 @@ type BinaryExpr struct {
 	CoalesceLeftValue Expression // Checked non-null branch conversion, using a reserved temporary.
 	CoalesceHelper    string     // A static zero-argument fallback can retain private inferred Go types.
 	CoalesceNonNull   bool       // The fallback was checked to produce a non-null value.
+	CoalesceChecked   bool       // A non-nil-capable map/receive payload uses the success flag.
 	Left              Expression
 	Operator          string
 	Right             Expression

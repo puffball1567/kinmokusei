@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{}struct Row{public v:C;}function f(m:Map<int,Row>):Row{return m[0]??Row{v:new C()};}`,
+	`function f(ch:GoChannel<int>,m:Map<int,int>):int{return ((<-ch)??9)+(m[0]??7);}`,
+	`constraint P=~int|~*int;function f<T extends P>(m:Map<int,T>,fallback:T):T{return m[0]??fallback;}`,
 	`alias F=()=>int;function f(v:interface{}):int{const [callback,ok]=v as? F;if(!ok){return 0;}return callback();}`,
 	`type F=distinct ()=>int;constraint Mixed=F|int;function f<T extends Mixed>(v:interface{}):T{return v as! T;}`,
 	`constraint F=()=>int;function f<T extends F>(v:interface{}):T{return v as! T;}`,

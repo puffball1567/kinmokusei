@@ -1,0 +1,5 @@
+constraint Mixed = ~int | ~*int;
+
+function choose<T extends Mixed>(values: Map<int, T>, fallback: T): T {
+  return values[0] ?? fallback;
+}

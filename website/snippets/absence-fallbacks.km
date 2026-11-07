@@ -1,0 +1,28 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public name: string) {}
+}
+struct Row {
+  public user: User;
+}
+
+function main(): void {
+  const users = makeMap<string, Row>();
+  const row = users["missing"] ?? Row { user: new User("guest") };
+  fmt.Println(row.user.name);
+
+  const counts = makeMap<string, int>();
+  counts["zero"] = 0;
+  let defaults = 0;
+  const fallback = (): int => { defaults++; return 9; };
+  fmt.Println(counts["zero"] ?? fallback());
+  fmt.Println(counts["missing"] ?? fallback());
+  fmt.Println(defaults);
+
+  const channel = goChannel<int>(1);
+  channel <- 0;
+  closeGoChannel(channel);
+  fmt.Println((<-channel) ?? 7);
+  fmt.Println((<-channel) ?? 7);
+}

@@ -203,8 +203,8 @@ Generated code preserves the corresponding Go zero value: numeric zero, `false`,
 | --- | --- |
 | `null` | Checked absence for a declared `T \| null` |
 | `nil` | Raw Go nil at nil-capable low-level boundaries |
-| Missing map key | Safe-zero values retain Go zeros; development builds preserve reference absence and require checked lookup for unsafe value payloads |
-| Closed channel receive | Safe zeros retain Go behavior; development builds preserve reference absence and require checked receive for unsafe value payloads |
+| Missing map key | Plain safe-zero reads retain Go zeros; use checked lookup or a direct `??` default for value payloads |
+| Closed channel receive | Plain safe-zero reads retain Go behavior; use checked receive or a direct `??` default for value payloads |
 
 Development builds require a safe element zero value for nonempty `makeSlice`
 and slice `make`, and for slice `clear`. Numbers, booleans, text, `T | null`,
@@ -238,8 +238,11 @@ The stored element type is unchanged: `Map<int, User>` still accepts only a
 non-null `User` on writes. Safe Go zeros (including scalar zeros and nil
 slices/maps/channels) retain their ordinary one-value behavior.
 
-An unsafe struct/array or unconstrained `T` cannot represent absence as null;
-use `[value, ok]`. For ordinary checked map, channel and `as?` bindings whose
+For a struct/array payload, use a checked `[value, ok]` or a direct
+`values[key] ?? initializedDefault` / `(<-channel) ?? initializedDefault`.
+The latter tests success and preserves present zero values. An unconstrained
+`T` still requires a checked pair because its absence representation is unknown.
+For ordinary checked map, channel and `as?` bindings whose
 payload zero is unsafe or unknown, the checker rejects any use of the payload
 before its matching flag proves success. A flag cannot prove that an explicitly
 nullable stored value is non-null; check that independently.
@@ -421,7 +424,9 @@ itself, not a typed nil pointer it may contain. This does not validate arbitrary
 Go-owned mutable storage. See [assertions](./operators#assertions-and-conversions).
 
 Development builds also support `value ?? fallback`: the operand runs once,
-and only a nil value evaluates the fallback. A compatible non-null fallback
+and a nil value evaluates the fallback. Direct map/receive expressions with
+non-nil-capable payloads instead use the success flag to select the fallback.
+A compatible non-null fallback
 gives a non-null result; a nullable fallback retains `T | null`. This does not
 narrow the original binding or inspect typed nil pointees inside Go interfaces.
 See [null coalescing](./operators#null-coalescing).

@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add direct map/receive `??` defaults for non-nil-capable payloads (#117).
+  Use the success flag for scalars, records, fixed arrays and uniform value-type
+  constraints, preserving present zeros and evaluating defaults only on absence.
+  Keep reference payload nil semantics and ordinary one-value reads unchanged.
+  Diagnose open/mixed generic payloads and unnameable Go result types; retain
+  operand order, conditional flow/Task checks and editor result navigation.
+
 - Validate non-null source function contracts at Go type assertions (#117).
   A typed nil function no longer passes `as?` for a non-null source signature;
   `as!` reports a source-located panic at the assertion boundary. Preserve
