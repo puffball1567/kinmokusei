@@ -908,6 +908,7 @@ type CallExpr struct {
 	MakeSliceTarget        bool // make[T] has a checked slice target, not a map hint or channel capacity.
 	Expanded               bool
 	Conversion             bool
+	NonNullConversion      bool // Native reference conversion validates the resulting non-null contract.
 	GoConstant             bool // Checked calls/conversions that Go evaluates at compile time.
 	ConversionType         *TypeRef
 	DecoratorValueIdentity string

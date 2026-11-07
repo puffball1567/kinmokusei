@@ -125,6 +125,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"channel-absence-private.test":        {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[31]},
 	"channel-absence.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21]},
 	"assertion-non-null.test":             {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[27]},
+	"conversion-non-null.test":            {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[31]},
 	"map-absence-private.test":            {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[31]},
 	"map-absence.test":                    {implementedGoCompatibilityContracts[14]},
 	"coalesce-private.test":               {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[31]},

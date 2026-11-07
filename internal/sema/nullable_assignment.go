@@ -29,7 +29,9 @@ func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression)
 	case *ast.UnaryExpr:
 		return expression.Operator == "&" || expression.Operator == ast.NonNullOperator
 	case *ast.CallExpr:
-		return expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
+		return expression.NonNullConversion || expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
+	case *ast.GoTypeAssertionExpr:
+		return expression.NonNull && !expression.Checked
 	case *ast.IdentifierExpr:
 		for index := len(c.scopes) - 1; index >= 0; index-- {
 			if symbol, exists := c.scopes[index][expression.Name]; exists {

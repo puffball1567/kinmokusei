@@ -1,0 +1,5 @@
+alias Callback = () => int;
+
+function convert(): Callback {
+  return Callback(nil);
+}

@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate explicit conversions to non-null native references (#117).
+  Function aliases, defined functions, compatible generic bounds and anonymous
+  source interfaces reject a nil conversion result at its source location.
+  Preserve raw Go conversions and interface typed-nil behavior. Share runtime
+  reference checks with `!`/`as!`, retain checks in fixed-array `len`/`cap`, and
+  preserve operand/panic order. Checked conversions and forced source assertions
+  establish flow proofs for nullable snapshots and skipped `??` defaults.
+
 - Add direct map/receive `??` defaults for non-nil-capable payloads (#117).
   Use the success flag for scalars, records, fixed arrays and uniform value-type
   constraints, preserving present zeros and evaluating defaults only on absence.

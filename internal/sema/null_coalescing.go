@@ -149,7 +149,12 @@ func (c *Checker) coalesceNilness(expression ast.Expression) int {
 			}
 			return 0
 		case *ast.CallExpr:
-			if expr.Builtin == ast.MakeSliceCall || expr.Builtin == ast.MakeMapCall || expr.Builtin == ast.MakeGoChannelCall || expr.Builtin == ast.MakeCall {
+			if expr.NonNullConversion || expr.Builtin == ast.MakeSliceCall || expr.Builtin == ast.MakeMapCall || expr.Builtin == ast.MakeGoChannelCall || expr.Builtin == ast.MakeCall {
+				return 2
+			}
+			return 0
+		case *ast.GoTypeAssertionExpr:
+			if expr.NonNull && !expr.Checked {
 				return 2
 			}
 			return 0

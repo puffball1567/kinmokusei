@@ -85,6 +85,9 @@ func evaluationMayHaveEffects(expression ast.Expression) bool {
 	case *ast.ArrowExpr, *ast.IdentifierExpr, *ast.LiteralExpr, nil:
 		return false
 	case *ast.CallExpr:
+		if expr.NonNullConversion {
+			return true
+		}
 		if isGoConstant(expr) {
 			return false
 		}
