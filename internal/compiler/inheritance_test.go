@@ -102,7 +102,8 @@ function animalValue(): Animal { return new Animal("plain"); }
 function dogValue(): Animal { return new Dog("Pochi", "wan"); }
 function guideValue(): Animal { return new GuideDog("Nana"); }
 function nilAnimalValue(): Animal | null { return null; }
-function checkedGuide(value: Animal): string {
+function checkedGuide(value: Animal | null): string {
+  if (value === null) { return "none"; }
   const [guide, ok] = value as? GuideDog;
   if (!ok) { return "none"; }
   return guide.speak();

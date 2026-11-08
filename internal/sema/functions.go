@@ -17,8 +17,10 @@ func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
 	defer c.popTypeParameterScope()
 	c.pushScope()
 	previousControl := c.enterCallableControl()
-	for _, param := range decl.Parameters {
+	for i := range decl.Parameters {
+		param := &decl.Parameters[i]
 		t := c.resolveType(param.Type)
+		c.checkParameterBoundary(param, t)
 		c.rejectResultValueType(t, param.Type.Span, "parameters")
 		c.declareLocal(param.Name, t, false, nil, param.Span)
 	}
@@ -62,6 +64,7 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		}
 		c.rejectResultValueType(parameters[i], parameter.Type.Span, "parameters")
 		c.rejectTaskAPIType(parameters[i], parameter.Type.Span, "arrow parameters")
+		c.checkParameterBoundary(&expr.Parameters[i], parameters[i])
 		c.declareLocal(parameter.Name, parameters[i], false, nil, parameter.Span)
 	}
 	previousControl := c.enterCallableControl()

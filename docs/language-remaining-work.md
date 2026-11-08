@@ -149,9 +149,21 @@ grouped labels and fallthrough merge every entry path. Declaration identity,
 mutable-state invalidation and independent nullable payload contracts remain
 required. Independent Go comparisons are in `presence_guards_test.go`.
 
-This is still partial progress on #117. Optional chaining and broader non-null
-boundary checks remain unimplemented; additional absence and guard forms
-remain follow-up work.
+Development builds check named non-null source reference parameters at callable
+entry. Functions, expression/block/contextual arrows, methods, setters and
+constructors reject nil before source body effects or field/base initialization.
+Rest parameters check every element; an empty rest slice remains valid. Explicit
+blank parameters discard values. Nullable and raw Go contracts retain their nil
+semantics, including interfaces containing typed nil pointers. Generic parameter
+checks require every bound alternative to promise a nil-comparable non-null
+reference; open or mixed bounds do not establish this guarantee. Independent Go
+caller/callback comparisons cover source locations, argument order and public
+generic wrappers in `parameter_boundaries_test.go`.
+
+This is still partial progress on #117. Optional chaining, implicit Go-to-native
+storage assignments, generic bounds without a uniform reference contract and
+validation of nested fields/collection elements at Go boundaries remain
+unimplemented; additional absence and guard forms remain follow-up work.
 
 ### Go compatibility areas
 

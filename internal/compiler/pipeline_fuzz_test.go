@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{}function f(value:C,...rest:C[]):int{return len(rest);}`,
+	`alias F=()=>int;constraint Mixed=F|*int;function f<T extends Mixed>(value:T):void{}`,
+	`class C{}function f():(value:C)=>int{return (value)=>1;}`,
 	`class C{public n:int=7;}const YES=true;function f(m:Map<int,C>):int{const [v,ok]=m[0];switch(ok){case false{return 0;}default{return v.n;}}}`,
 	`class C{public n:int=7;}const YES=true;const NO=false;function f(m:Map<int,C>):int{const [v,ok]=m[0];if((ok===YES)!==NO){return v.n;}return 0;}`,
 	`class C{public n:int=7;}function f(m:Map<int,C>):int{const [v,ok]=m[0];switch(ok){case false{fallthrough;}case true{return v.n;}}return 0;}`,

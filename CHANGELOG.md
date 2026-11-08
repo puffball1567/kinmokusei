@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Check non-null source reference parameters at callable entry (#117).
+  Functions, arrows, methods, setters and constructors reject nil before source
+  body/initialization effects; rest parameters check each element. Preserve
+  nullable and raw Go contracts, typed-nil interfaces, argument evaluation order
+  and explicit blank discards. Generic checks require every constraint term to
+  promise a nil-comparable non-null reference. Cover Go callers and callbacks
+  with independent execution comparisons and source-located panic messages.
+
 - Recognize checked presence guards through boolean constants, negation,
   nested equality and boolean `switch` (#117). Track matching and failed case
   tests, grouped labels, defaults and fallthrough; require the payload's own

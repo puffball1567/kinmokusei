@@ -10,8 +10,9 @@ import (
 func TestDeferredExceptionUnwindingMatchesIndependentGo(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
-	input := `import go slices from "slices";
-export function RuntimeCase(event:(value:int)=>void,body:()=>void,oldest:()=>void,newest:()=>void,count:int):int {
+	input := `import go context from "context";
+import go slices from "slices";
+export function RuntimeCase(event:(value:int)=>void,body:()=>void,oldest:()=>void,newest:context.CancelFunc,count:int):int {
  defer oldest();
  try {
   for(let i=0;i<count;i++){defer event(i);}
@@ -92,6 +93,7 @@ func Iterator(event func(int))int{for value:=range slices.Values([]int{1,2,3}){d
 `
 	comparison := `package defers_test
 import("errors";"fmt";"reflect";"runtime";"testing";g "defer-unwind.test";r "defer-unwind.test/reference")
+func generatedRuntimeCase(event func(int),body,oldest,newest func(),count int)int{return g.RuntimeCase(event,body,oldest,newest,count)}
 func run(call func(func(int),func(),func(),func(),int)int,mode,count int)(trace []string,result int,completed bool,escaped any){
  defer func(){escaped=recover()}()
  emit:=func(i int){trace=append(trace,fmt.Sprint(i))}
@@ -102,12 +104,12 @@ func run(call func(func(int),func(),func(),func(),int)int,mode,count int)(trace 
  if mode==5{newest=nil}
  result=call(emit,body,oldest,newest,count);completed=true;return
 }
-func TestUnwind(t *testing.T){for _,n:=range []int{0,1,62,63,64,65,128,257}{for mode:=0;mode<7;mode++{gt,gv,gc,gp:=run(g.RuntimeCase,mode,n);rt,rv,rc,rp:=run(r.RuntimeCase,mode,n);if !reflect.DeepEqual(gt,rt)||gv!=rv||gc!=rc||fmt.Sprint(gp)!=fmt.Sprint(rp){t.Fatalf("mode=%d n=%d generated=%v,%v,%v,%v reference=%v,%v,%v,%v",mode,n,gt,gv,gc,gp,rt,rv,rc,rp)}}}}
-func TestGoexit(t *testing.T){for _,inDefer:=range []bool{false,true}{traces:=[][]string{};for _,call:=range []func(func(int),func(),func(),func(),int)int{g.RuntimeCase,r.RuntimeCase}{trace:=[]string{};done:=make(chan struct{});go func(){defer close(done);defer func(){if p:=recover();p!=nil{trace=append(trace,fmt.Sprint(p))}}();event:=func(i int){trace=append(trace,fmt.Sprint(i))};body:=func(){if !inDefer{runtime.Goexit()}};oldest:=func(){p:=recover();trace=append(trace,fmt.Sprintf("recover:%T:%v",p,p))};newest:=func(){if inDefer{runtime.Goexit()}};call(event,body,oldest,newest,257);trace=append(trace,"returned")}();<-done;traces=append(traces,trace)};if !reflect.DeepEqual(traces[0],traces[1]){t.Fatalf("Goexit inDefer=%v generated=%v reference=%v",inDefer,traces[0],traces[1])}}}
+func TestUnwind(t *testing.T){for _,n:=range []int{0,1,62,63,64,65,128,257}{for mode:=0;mode<7;mode++{gt,gv,gc,gp:=run(generatedRuntimeCase,mode,n);rt,rv,rc,rp:=run(r.RuntimeCase,mode,n);if !reflect.DeepEqual(gt,rt)||gv!=rv||gc!=rc||fmt.Sprint(gp)!=fmt.Sprint(rp){t.Fatalf("mode=%d n=%d generated=%v,%v,%v,%v reference=%v,%v,%v,%v",mode,n,gt,gv,gc,gp,rt,rv,rc,rp)}}}}
+func TestGoexit(t *testing.T){for _,inDefer:=range []bool{false,true}{traces:=[][]string{};for _,call:=range []func(func(int),func(),func(),func(),int)int{generatedRuntimeCase,r.RuntimeCase}{trace:=[]string{};done:=make(chan struct{});go func(){defer close(done);defer func(){if p:=recover();p!=nil{trace=append(trace,fmt.Sprint(p))}}();event:=func(i int){trace=append(trace,fmt.Sprint(i))};body:=func(){if !inDefer{runtime.Goexit()}};oldest:=func(){p:=recover();trace=append(trace,fmt.Sprintf("recover:%T:%v",p,p))};newest:=func(){if inDefer{runtime.Goexit()}};call(event,body,oldest,newest,257);trace=append(trace,"returned")}();<-done;traces=append(traces,trace)};if !reflect.DeepEqual(traces[0],traces[1]){t.Fatalf("Goexit inDefer=%v generated=%v reference=%v",inDefer,traces[0],traces[1])}}}
 func TestArguments(t *testing.T){for _,n:=range []uint{0,1,7,8,64}{traces:=[][]int{};for _,call:=range []func(func(int),func(...int),func(int,int),func(byte),uint){g.Arguments,r.Arguments}{trace:=[]int{};event:=func(i int){trace=append(trace,i)};call(event,func(v ...int){trace=append(trace,v...)},func(a,b int){event(a*10+b)},func(v byte){event(int(v))},n);traces=append(traces,trace)};if !reflect.DeepEqual(traces[0],traces[1]){t.Fatalf("arguments n=%d: %v != %v",n,traces[0],traces[1])}}}
 func TestCaptures(t *testing.T){traces:=[][]int{};for _,call:=range []func(func(int),func(int),func()int){g.Captures,r.Captures}{trace:=[]int{};i:=0;call(func(v int){trace=append(trace,v)},func(v int){trace=append(trace,v*10)},func()int{i++;trace=append(trace,100+i);return i});traces=append(traces,trace)};if !reflect.DeepEqual(traces[0],traces[1]){t.Fatal(traces)}}
 func TestMany(t *testing.T){traces:=[][]int{};for _,call:=range []func(func(int),int){g.Many,r.Many}{trace:=[]int{};call(func(i int){trace=append(trace,i);if i==9999{var pcs [1024]uintptr;if runtime.Callers(0,pcs[:])==len(pcs){t.Fatal("defer stack depth grows with registrations")}}},10000);traces=append(traces,trace)};if !reflect.DeepEqual(traces[0],traces[1]){t.Fatal("many defer order mismatch")}}
-func TestUnrecoveredIdentity(t *testing.T){token:=&struct{n int}{42};for _,n:=range []int{0,65,257}{for _,call:=range []func(func(int),func(),func(),func(),int)int{g.RuntimeCase,r.RuntimeCase}{var recovered any;completed:=false;func(){defer func(){recovered=recover()}();call(func(int){},func(){panic(token)},func(){},func(){},n);completed=true}();if recovered!=token||completed{t.Fatal("panic identity",n,recovered,completed)}}}}
+func TestUnrecoveredIdentity(t *testing.T){token:=&struct{n int}{42};for _,n:=range []int{0,65,257}{for _,call:=range []func(func(int),func(),func(),func(),int)int{generatedRuntimeCase,r.RuntimeCase}{var recovered any;completed:=false;func(){defer func(){recovered=recover()}();call(func(int){},func(){panic(token)},func(){},func(){},n);completed=true}();if recovered!=token||completed{t.Fatal("panic identity",n,recovered,completed)}}}}
 func TestBuiltins(t *testing.T){gm,rm:=map[int]int{1:1},map[int]int{1:1};gc,rc:=make(chan int),make(chan int);g.Builtins(gm,gc);r.Builtins(rm,rc);_,gok:=<-gc;_,rok:=<-rc;if !reflect.DeepEqual(gm,rm)||gok!=rok||gok{t.Fatal("builtins",gm,rm,gok,rok)}}
 func TestReturns(t *testing.T){gt,rt:=[]int{},[]int{};ge:=func(i int){gt=append(gt,i)};re:=func(i int){rt=append(rt,i)};gv,gerr:=g.Returns(ge,nil);rv,rerr:=r.Returns(re,nil);if gv!=rv||gerr!=rerr||!reflect.DeepEqual(gt,rt){t.Fatal("Result",gv,gerr,rv,rerr,gt,rt)};failure:=errors.New("failed");gv,gerr=g.Returns(ge,failure);rv,rerr=r.Returns(re,failure);if gv!=rv||gerr!=rerr||!reflect.DeepEqual(gt,rt){t.Fatal("failed Result")};if g.Override(ge)!=r.Override(re)||g.Iterator(ge)!=r.Iterator(re)||!reflect.DeepEqual(gt,rt){t.Fatal("return override/iterator",gt,rt)};go1,go2:=g.NewRecorder(ge).Run(ge);ro1,ro2:=r.NewRecorder(re).Run(re);if go1!=ro1||go2!=ro2||!reflect.DeepEqual(gt,rt){t.Fatal("constructor/method",gt,rt)}}
 `
