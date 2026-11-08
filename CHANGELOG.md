@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Ensure malformed anonymous interface members make parser recovery progress,
+  preventing an infinite diagnostic loop on invalid tokens or statement keywords.
+  Retain the compiler fuzz input as a regression case.
+
 - Check non-null source reference parameters at callable entry (#117).
   Functions, arrows, methods, setters and constructors reject nil before source
   body/initialization effects; rest parameters check each element. Preserve
