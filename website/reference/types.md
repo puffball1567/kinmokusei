@@ -345,6 +345,23 @@ Structural objects differ from native structs: their field-name/type set determi
 
 Function identity includes parameter order/types, variadic status, and result. A variadic `(prefix: int, ...values: int[]) => int` is not assignable to a function taking one ordinary `int[]` parameter.
 
+Development builds check named non-null source class, interface and function
+parameters when entering a callable, including Go calls into exported functions
+or callbacks. A nil argument panics with its source parameter's filename, line
+and column before body effects. Constructor checks precede field initialization
+and `super()`; methods, setters and expression/block arrows follow the same rule.
+Rest parameters check each element, while an empty rest slice is valid.
+
+<<< ../snippets/parameter-boundaries.km{ts}
+
+`T | null`, raw Go pointers/interfaces/function types and explicit `_` parameter
+discards retain their existing behavior. An interface containing a typed nil
+pointer is still a non-nil interface, following Go semantics. A type parameter
+receives an entry check only when every constraint alternative requires a
+nil-comparable non-null source reference. Open/mixed bounds do not prove this.
+These checks validate parameter references, not nested fields or collection
+elements; other Go-to-native storage boundaries remain under development.
+
 Interfaces are reference-bearing contracts. Kinmokusei classes name contracts explicitly with `implements`; imported Go interface connectivity is checked against the generated public method set. Value versus pointer receiver methods affect native struct method sets just as in Go. A pointer method requires addressable storage when automatic addressing is used.
 
 Source and imported Go callables may have multiple results. A matching result

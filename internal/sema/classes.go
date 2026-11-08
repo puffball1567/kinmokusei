@@ -398,8 +398,10 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.inConstructor = true
 		c.pushScope()
 		c.declareLocal("this", thisType, true, nil, decl.Constructor.Span)
-		for _, parameter := range decl.Constructor.Parameters {
+		for i := range decl.Constructor.Parameters {
+			parameter := &decl.Constructor.Parameters[i]
 			t := c.resolveType(parameter.Type)
+			c.checkParameterBoundary(parameter, t)
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 			c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 		}
@@ -428,8 +430,10 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		if !method.Static {
 			c.declareLocal("this", thisType, true, nil, method.Span)
 		}
-		for _, parameter := range method.Parameters {
+		for i := range method.Parameters {
+			parameter := &method.Parameters[i]
 			t := c.resolveType(parameter.Type)
+			c.checkParameterBoundary(parameter, t)
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 			c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 		}

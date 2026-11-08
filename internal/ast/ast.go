@@ -157,6 +157,9 @@ type Parameter struct {
 	Name       string
 	Type       TypeRef
 	Variadic   bool
+	// NonNull requests an entry check for this reference (each rest element).
+	// Semantic analysis sets this from the source contract, not its Go storage.
+	NonNull    bool
 	Visibility Visibility
 	IsField    bool
 	Span       source.Span
