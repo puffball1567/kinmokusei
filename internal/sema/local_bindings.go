@@ -37,7 +37,7 @@ func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
 	if propagated, ok := stmt.Value.(*ast.PropagateExpr); ok {
 		value = c.checkPropagateExpression(propagated)
 	} else {
-		value = c.checkExpressionExpectedSlot(&stmt.Value, declared)
+		value = c.checkStorageExpressionExpectedSlot(&stmt.Value, declared)
 	}
 	if !stmt.Type.IsSpecified() {
 		declared = c.inferredVariableType(value, stmt.Value.GetSpan())

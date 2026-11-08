@@ -160,10 +160,22 @@ reference; open or mixed bounds do not establish this guarantee. Independent Go
 caller/callback comparisons cover source locations, argument order and public
 generic wrappers in `parameter_boundaries_test.go`.
 
-This is still partial progress on #117. Optional chaining, implicit Go-to-native
-storage assignments, generic bounds without a uniform reference contract and
-validation of nested fields/collection elements at Go boundaries remain
-unimplemented; additional absence and guard forms remain follow-up work.
+Development builds check single-value transfers into non-null source reference
+storage/results. Bindings, assignments, field and explicitly typed aggregate
+initializers, per-expression return slots, `ok` payloads, non-spread append elements and
+channel sends validate unproven nil-capable references before publication. The
+check preserves the destination contract across flow rechecking and reports the
+original value expression's location. Existing call entry checks retain argument
+evaluation order. Raw Go and nullable destinations remain unchanged. Independent
+Go comparisons cover private function types, package initialization, retained old
+values after failed writes, finally ordering and fixed-array `len`/`cap` in
+`storage_boundaries_test.go`; editor tests preserve source hover/navigation.
+
+This is still partial progress on #117. Optional chaining, forwarded multiple
+results and checked multi-assignment/select payload transfers, generic bounds
+without a uniform reference contract and recursive validation of values received
+from Go remain follow-up work. The checks do not protect arbitrary mutable Go
+storage from being modified externally after validation.
 
 ### Go compatibility areas
 

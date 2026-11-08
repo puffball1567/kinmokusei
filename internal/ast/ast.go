@@ -802,8 +802,8 @@ type LiteralExpr struct {
 func (*LiteralExpr) expression()            {}
 func (e *LiteralExpr) GetSpan() source.Span { return e.Span }
 
-// NonNullOperator is distinct from prefix boolean negation. It is a checked
-// postfix operation, never a Go constant or an erased type assertion.
+// NonNullOperator is distinct from prefix boolean negation. Postfix assertions
+// and inserted storage checks are never Go constants or erased type assertions.
 const NonNullOperator = "postfix!"
 
 type UnaryExpr struct {
@@ -812,7 +812,9 @@ type UnaryExpr struct {
 	// AssertionType and AssertionSpan are populated for NonNullOperator only.
 	AssertionType TypeRef
 	AssertionSpan source.Span
-	Span          source.Span
+	// ImplicitNonNull marks a source storage-contract check inserted by sema.
+	ImplicitNonNull bool
+	Span            source.Span
 }
 
 func (*UnaryExpr) expression()            {}

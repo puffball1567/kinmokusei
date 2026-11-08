@@ -81,7 +81,7 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		if result.Kind == Result {
 			c.report(expr.ExpressionBody.GetSpan(), "Result arrow functions require a block body with an explicit return")
 		}
-		actual := c.checkExpressionExpectedSlot(&expr.ExpressionBody, result)
+		actual := c.checkStorageExpressionExpectedSlot(&expr.ExpressionBody, result)
 		if expr.ReturnType == nil && result.Kind == Invalid {
 			if actual.Kind != MultiValue {
 				actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())

@@ -339,7 +339,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.reportOrDeferTasksBeforeReturn()
 			return
 		}
-		value := c.checkExpressionExpectedSlot(&stmt.Value, c.result)
+		value := c.checkStorageExpressionExpectedSlot(&stmt.Value, c.result)
 		if c.result.Kind == Void {
 			c.report(stmt.Value.GetSpan(), "void function cannot return a value")
 		} else {
@@ -426,7 +426,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.report(stmt.Target.GetSpan(), "Task bindings cannot be reassigned")
 		}
 		if stmt.Operator == "" || stmt.Operator == "=" {
-			value := c.checkExpressionExpectedSlot(&stmt.Value, target)
+			value := c.checkStorageExpressionExpectedSlot(&stmt.Value, target)
 			c.requireAssignable(target, value, stmt.Value.GetSpan())
 			c.updateAssignmentFlow(stmt.Target, value, stmt.Value)
 		} else {

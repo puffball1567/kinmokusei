@@ -99,7 +99,7 @@ func (c *Checker) checkGlobalBinding(decl *ast.VariableDecl) {
 	} else if decl.FunctionBinding {
 		declared = c.globals[decl.Name].typeInfo
 	}
-	valueType := c.checkExpressionExpectedSlot(&decl.Value, declared)
+	valueType := c.checkStorageExpressionExpectedSlot(&decl.Value, declared)
 	if !decl.Type.IsSpecified() {
 		declared = c.inferredVariableType(valueType, decl.Value.GetSpan())
 		if !decl.Constant || !initializerEmitsConstant(decl.Value) {

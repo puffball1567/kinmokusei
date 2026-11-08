@@ -359,8 +359,9 @@ discards retain their existing behavior. An interface containing a typed nil
 pointer is still a non-nil interface, following Go semantics. A type parameter
 receives an entry check only when every constraint alternative requires a
 nil-comparable non-null source reference. Open/mixed bounds do not prove this.
-These checks validate parameter references, not nested fields or collection
-elements; other Go-to-native storage boundaries remain under development.
+These entry checks validate parameter references, not nested fields or collection
+elements. Single-value storage/result transfers also have the checks described
+under [nullability](#nullability).
 
 Interfaces are reference-bearing contracts. Kinmokusei classes name contracts explicitly with `implements`; imported Go interface connectivity is checked against the generated public method set. Value versus pointer receiver methods affect native struct method sets just as in Go. A pointer method requires addressable storage when automatic addressing is used.
 
@@ -443,9 +444,28 @@ raw `nil` a valid initializer for a non-null source reference.
 
 Raw pointers, slices, maps and channels retain Go nil storage. Imported Go
 interfaces and callback types, including aliases of those types, also retain
-Go's raw nil rules. This change rejects explicit native nil construction; it
-does not yet add automatic boundary assertions or close every zero-value
-entry point described above.
+Go's raw nil rules. Inferred Go values keep that behavior until consumed by a
+source non-null storage contract.
+
+Development builds insert a runtime reference check when an unproven nil-capable
+value is stored into a non-null source reference type. This covers explicit
+local/global bindings, assignments, field and explicitly typed aggregate
+initializers, single-value returns, each expression in a return list, `ok`
+payloads, non-spread append elements and channel sends. A nil result panics at the source
+value expression before it is published; a failed assignment retains the old
+destination value. The operand runs once, and checks survive fixed-array
+`len`/`cap` optimization. Ordinary call arguments continue to use callable entry
+checks after all arguments have been evaluated.
+
+<<< ../snippets/storage-boundaries.km{ts}
+
+Nullable destinations retain absence, and raw Go destinations retain Go nil
+behavior. Interface checks preserve Go's distinction between a nil interface and
+an interface containing a typed nil pointer. These are reference checks, not
+recursive validation of an incoming aggregate. Forwarded multiple results,
+checked multi-assignment/select transfers and generic bounds without a uniform
+non-null reference contract remain under development. External Go mutation after
+validation can still invalidate stored source contracts.
 
 A raw Go pointer, interface or function type does not imply that its value is
 non-nil. Assigning one to an explicit `T | null` local or field preserves the

@@ -85,7 +85,7 @@ func (c *Checker) checkArrayLiteralExpected(expr *ast.ArrayLiteralExpr, expected
 		c.report(expr.Span, fmt.Sprintf("fixed array literal has %d elements, expected %d", len(expr.Elements), expected.Length))
 	}
 	for index := range expr.Elements {
-		actual := c.checkExpressionExpectedSlot(&expr.Elements[index], element)
+		actual := c.checkStorageExpressionExpectedSlot(&expr.Elements[index], element)
 		c.requireAssignable(element, actual, expr.Elements[index].GetSpan())
 	}
 	c.prepareGoTypeForEmission(&element, expr.Span)
@@ -134,7 +134,7 @@ func (c *Checker) checkObjectLiteralExpected(expr *ast.ObjectLiteralExpr, expect
 			c.checkExpression(field.Value)
 			continue
 		}
-		actual := c.checkExpressionExpectedSlot(&expr.Fields[index].Value, fieldType)
+		actual := c.checkStorageExpressionExpectedSlot(&expr.Fields[index].Value, fieldType)
 		c.requireAssignable(fieldType, actual, field.Value.GetSpan())
 		c.prepareGoTypeForEmission(&fieldType, field.Span)
 		expr.ResolvedFieldTypes[index] = typeRefFromType(fieldType, field.Span)
@@ -321,7 +321,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 			expr.ResolvedFieldNames[index] = selected.goName
 			expr.Fields[index].ResolvedDeclaration = selected.declarationSpan
 			expected := substituteNativeTypeParameters(selected.typeInfo, bindings)
-			actual := c.checkExpressionExpectedSlot(&expr.Fields[index].Value, expected)
+			actual := c.checkStorageExpressionExpectedSlot(&expr.Fields[index].Value, expected)
 			c.requireAssignable(expected, actual, field.Value.GetSpan())
 		}
 		for name := range symbol.fields {
@@ -375,7 +375,7 @@ func (c *Checker) checkGoCompositeLiteral(expr *ast.GoCompositeLiteralExpr) Type
 			continue
 		}
 		inheritGoQualifier(&expected, result)
-		actual := c.checkExpressionExpectedSlot(&expr.Fields[index].Value, expected)
+		actual := c.checkStorageExpressionExpectedSlot(&expr.Fields[index].Value, expected)
 		c.requireAssignable(expected, actual, field.Value.GetSpan())
 	}
 	return result

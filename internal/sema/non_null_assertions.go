@@ -7,6 +7,14 @@ import (
 )
 
 func (c *Checker) checkNonNullAssertion(expr *ast.UnaryExpr) Type {
+	if expr.ImplicitNonNull {
+		// Flow analysis may check a lowered expression again. Keep the target
+		// source contract, rather than replacing it with the operand's Go type.
+		target := c.resolveType(expr.AssertionType)
+		actual := c.checkExpression(expr.Operand)
+		c.requireAssignable(target, actual, expr.Operand.GetSpan())
+		return target
+	}
 	value := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
 	if value.Kind == Invalid {
 		return value

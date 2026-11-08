@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Check non-null source reference contracts at single-value storage/result
+  boundaries (#117). Validate bindings, assignments, field/literal initializers,
+  explicit result slots, `ok` payloads, non-spread append elements and channel
+  sends before publishing nil. Retain raw Go/nullable semantics, source-located failures,
+  argument evaluation order and checks in fixed-array `len`/`cap`. Cover private
+  Go function types, package initialization, failed writes, `finally`, flow
+  rechecking and editor navigation with independent Go execution comparisons.
+
 - Ensure malformed anonymous interface members make parser recovery progress,
   preventing an infinite diagnostic loop on invalid tokens or statement keywords.
   Retain the compiler fuzz input as a regression case.
