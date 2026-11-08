@@ -127,7 +127,7 @@ func (c *Checker) checkCollectionAppend(expr *ast.CallExpr) Type {
 		return destination
 	}
 	for index := 1; index < len(expr.Arguments); index++ {
-		actual := c.checkExpressionExpectedSlot(&expr.Arguments[index], element)
+		actual := c.checkStorageExpressionExpectedSlot(&expr.Arguments[index], element)
 		c.requireAssignable(element, actual, expr.Arguments[index].GetSpan())
 	}
 	return destination

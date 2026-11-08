@@ -17,7 +17,7 @@ func (c *Checker) checkMultipleReturn(stmt *ast.ReturnStmt) {
 		if index < len(c.result.Results) {
 			expected = c.result.Results[index]
 		}
-		actual := c.checkExpressionExpectedSlot(slot, expected)
+		actual := c.checkStorageExpressionExpectedSlot(slot, expected)
 		// Each comma-separated expression must contribute exactly one value.
 		c.requireAssignable(expected, actual, (*slot).GetSpan())
 	}

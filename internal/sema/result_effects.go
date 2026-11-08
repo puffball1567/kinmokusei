@@ -48,7 +48,7 @@ func (c *Checker) checkResultConstructor(expr *ast.CallExpr, success bool) Type 
 			c.report(expr.Span, fmt.Sprintf("ok for %s expects %d arguments, got %d", c.result.String(), expected, len(expr.Arguments)))
 		}
 		for i, argument := range expr.Arguments {
-			actual := c.checkExpressionExpectedSlot(&expr.Arguments[i], *c.result.Element)
+			actual := c.checkStorageExpressionExpectedSlot(&expr.Arguments[i], *c.result.Element)
 			if i == 0 && expected == 1 {
 				c.requireAssignable(*c.result.Element, actual, argument.GetSpan())
 			}

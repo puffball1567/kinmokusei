@@ -31,7 +31,7 @@ func (c *Checker) checkChannelSend(stmt *ast.ChannelSendStmt) {
 			c.checkExpression(stmt.Value)
 			return
 		}
-		value := c.checkExpressionExpectedSlot(&stmt.Value, element)
+		value := c.checkStorageExpressionExpectedSlot(&stmt.Value, element)
 		c.requireAssignable(element, value, stmt.Value.GetSpan())
 		return
 	}
@@ -54,7 +54,7 @@ func (c *Checker) checkChannelSend(stmt *ast.ChannelSendStmt) {
 	if shape.Element != nil {
 		element = *shape.Element
 	}
-	value := c.checkExpressionExpectedSlot(&stmt.Value, element)
+	value := c.checkStorageExpressionExpectedSlot(&stmt.Value, element)
 	c.requireAssignable(element, value, stmt.Value.GetSpan())
 }
 
