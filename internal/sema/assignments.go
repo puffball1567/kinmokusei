@@ -44,6 +44,7 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 	value := c.checkMultipleValueExpression(stmt.Value)
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
 	stmt.Upcasts = make([]*ast.ClassUpcastExpr, len(stmt.Bindings))
+	stmt.NonNullResults = make([]*ast.TypeRef, len(stmt.Bindings))
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
 		if binding.Name == "_" {
@@ -78,6 +79,12 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			var slot ast.Expression = &ast.IdentifierExpr{Name: "_", Span: binding.Span}
 			c.applyClassUpcast(&slot, declared, results[i])
 			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
+			// Checked presence and Result payloads can legitimately contain a
+			// zero on failure; their conditional transfers are handled separately.
+			if value.Kind == MultiValue && !checkedPresenceProducer(stmt.Value) && c.needsStorageBoundary(declared, results[i], nil) {
+				ref := typeRefFromType(declared, binding.Span)
+				stmt.NonNullResults[i] = &ref
+			}
 			c.updateIdentifierFlow(binding.Name, binding.Span, results[i], nil)
 			if value.Kind == Result && i == len(results)-1 {
 				c.trackResultError(binding.Name, binding.Span)

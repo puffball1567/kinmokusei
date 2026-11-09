@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate non-null references in forwarded ordinary result lists and parallel
+  assignments (#117). Evaluate the producer once and check every required slot
+  before returning or writing any destination. Preserve typed-nil interface
+  boxing, raw/nullable results, discarded slots, duplicate targets, for-post
+  assignments and finally behavior. Keep other result-slot type mismatches
+  rejected, private Go types inferred and temporary names collision-free;
+  add independent Go comparisons, editor coverage and executable documentation.
+
 - Check non-null source reference contracts at single-value storage/result
   boundaries (#117). Validate bindings, assignments, field/literal initializers,
   explicit result slots, `ok` payloads, non-spread append elements and channel

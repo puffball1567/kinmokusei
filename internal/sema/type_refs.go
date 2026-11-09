@@ -234,6 +234,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.IncDecStmt:
 			visitExpression(statement.Target)
 		case *ast.MultiAssignmentStmt:
+			for _, boundary := range statement.NonNullResults {
+				visitType(boundary)
+			}
 			visitExpression(statement.Value)
 			for _, upcast := range statement.Upcasts {
 				if upcast != nil {

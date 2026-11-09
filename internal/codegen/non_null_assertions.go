@@ -15,6 +15,9 @@ func generateNonNullAssertion(expr *kmast.UnaryExpr) (goast.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if expr.ImplicitNonNull && len(expr.NonNullResults) != 0 {
+		return generateNonNullResults(expr, operand)
+	}
 	operation := "non-null assertion"
 	if expr.ImplicitNonNull {
 		operation = "non-null storage boundary"

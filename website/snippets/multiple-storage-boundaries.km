@@ -1,0 +1,25 @@
+import go context from "context";
+import go fmt from "fmt";
+
+alias Callback = () => void;
+
+function rawPair(): (context.CancelFunc, int) {
+  const [_, cancel] = context.WithCancel(context.Background());
+  return cancel, 7;
+}
+
+function pair(): (Callback, int) {
+  // The callback is checked before the result list is returned.
+  return rawPair();
+}
+
+function main(): void {
+  let cancel: Callback = () => {};
+  let n = 0;
+  [cancel, n] = rawPair();
+  cancel();
+
+  const [another, m] = pair();
+  another();
+  fmt.Println(n, m);
+}

@@ -544,10 +544,11 @@ func (*IncDecStmt) statement()             {}
 func (s *IncDecStmt) GetSpan() source.Span { return s.Span }
 
 type MultiAssignmentStmt struct {
-	Bindings []Binding
-	Upcasts  []*ClassUpcastExpr // Per-result source class coercions, when required.
-	Value    Expression
-	Span     source.Span
+	NonNullResults []*TypeRef // Target reference checks for ordinary result lists.
+	Bindings       []Binding
+	Upcasts        []*ClassUpcastExpr // Per-result source class coercions, when required.
+	Value          Expression
+	Span           source.Span
 }
 
 func (*MultiAssignmentStmt) statement()             {}
@@ -814,6 +815,7 @@ type UnaryExpr struct {
 	AssertionSpan source.Span
 	// ImplicitNonNull marks a source storage-contract check inserted by sema.
 	ImplicitNonNull bool
+	NonNullResults  []bool // Checked slots when an implicit boundary forwards a result list.
 	Span            source.Span
 }
 

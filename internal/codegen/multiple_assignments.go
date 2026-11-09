@@ -30,6 +30,11 @@ func generateCoercedMultiAssignment(stmt *ast.MultiAssignmentStmt, targets []goa
 			goast.Inspect(generated, reserve)
 		}
 	}
+	for _, boundary := range stmt.NonNullResults {
+		if boundary != nil {
+			goast.Inspect(goType(*boundary), reserve)
+		}
+	}
 	bindings := make([]goast.Expr, len(targets))
 	values := make([]goast.Expr, len(targets))
 	for i, target := range targets {
@@ -52,6 +57,10 @@ func generateCoercedMultiAssignment(stmt *ast.MultiAssignmentStmt, targets []goa
 			if err != nil {
 				return nil, err
 			}
+		}
+		if i < len(stmt.NonNullResults) && stmt.NonNullResults[i] != nil {
+			boundary := stmt.NonNullResults[i]
+			values[i] = generateNonNullReference(values[i], *boundary, boundary.Span, "non-null storage boundary")
 		}
 	}
 	var lhs, rhs []goast.Expr
