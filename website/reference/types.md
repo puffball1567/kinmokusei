@@ -371,6 +371,18 @@ argument to a matching call. An explicit `return first, second;` is also valid.
 Result lists cannot be stored as tuple values or mixed with additional call
 arguments. `Result<T>` remains a separate checked error effect.
 
+Development builds check non-null source references when forwarding an ordinary
+result list or assigning it to existing bindings. The producer runs once; all
+required slot checks finish before returning values or writing any destination.
+If a later slot fails, earlier assignment targets retain their old values.
+Explicit `_` assignment targets discard their results without a reference check.
+Checks preserve raw Go and nullable contracts, as well as interface boxing of
+typed nil pointers. A boolean in an ordinary function result list does not make
+another result optional: use a nullable type or an explicit checked/Result API
+when failure may produce absence.
+
+<<< ../snippets/multiple-storage-boundaries.km{ts}
+
 ## Generics
 
 Functions, class/struct methods, classes, structs, interfaces, aliases, and
@@ -462,8 +474,8 @@ checks after all arguments have been evaluated.
 Nullable destinations retain absence, and raw Go destinations retain Go nil
 behavior. Interface checks preserve Go's distinction between a nil interface and
 an interface containing a typed nil pointer. These are reference checks, not
-recursive validation of an incoming aggregate. Forwarded multiple results,
-checked multi-assignment/select transfers and generic bounds without a uniform
+recursive validation of an incoming aggregate. Checked multi-assignment/select
+payload transfers and generic bounds without a uniform
 non-null reference contract remain under development. External Go mutation after
 validation can still invalidate stored source contracts.
 

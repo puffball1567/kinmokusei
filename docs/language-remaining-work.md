@@ -171,8 +171,18 @@ Go comparisons cover private function types, package initialization, retained ol
 values after failed writes, finally ordering and fixed-array `len`/`cap` in
 `storage_boundaries_test.go`; editor tests preserve source hover/navigation.
 
-This is still partial progress on #117. Optional chaining, forwarded multiple
-results and checked multi-assignment/select payload transfers, generic bounds
+Development builds validate forwarded ordinary multiple results and ordinary
+parallel assignments per destination contract. The producer runs once and all
+required checks complete before publishing any result or writing any target.
+Typed checks preserve interface boxing of typed nil pointers. Nullable/raw Go
+results and explicitly discarded assignment slots retain their behavior. Other
+slot mismatches remain errors, including incompatible text and class storage.
+Independent comparisons cover private Go functions, qualified callback types,
+generics, temporary-name hygiene, duplicate targets, for-post clauses and finally
+in `multiple_storage_boundaries_test.go`; editor tests preserve source navigation.
+
+This is still partial progress on #117. Optional chaining, checked
+multi-assignment/select payload transfers, generic bounds
 without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go
 storage from being modified externally after validation.

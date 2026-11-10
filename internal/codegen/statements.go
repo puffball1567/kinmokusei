@@ -240,6 +240,11 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 				return generateCoercedMultiAssignment(stmt, targets, value)
 			}
 		}
+		for _, boundary := range stmt.NonNullResults {
+			if boundary != nil {
+				return generateCoercedMultiAssignment(stmt, targets, value)
+			}
+		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.WhileStmt:
 		condition, err := generateExpression(stmt.Condition)

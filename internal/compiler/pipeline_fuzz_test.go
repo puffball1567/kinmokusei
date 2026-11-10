@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,int){return nil,9;}function f():(F,int){return raw();}`,
+	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,int){return nil,9;}function f():void{let cb:F=()=>{};let n=0;[cb,n]=raw();}`,
+	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,boolean){return nil,false;}function f():(F,int){return raw();}`,
 	`import go context from "context";alias F=()=>void;function f(raw:context.CancelFunc):F{let value:F=raw;while(false){value=raw;}return value;}`,
 	`alias View=interface{Error():bstring;};function f(raw:error):View{return raw;}`,
 	`import go context from "context";alias F=()=>void;function f(raw:context.CancelFunc):int{const n=len([raw]);return n;}`,
