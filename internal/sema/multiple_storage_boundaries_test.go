@@ -49,11 +49,10 @@ function optional():(F|null,int){return raw();}
 			t.Fatalf("missing assignment checks: %#v", assignment.NonNullResults)
 		}
 		checked := program.Declarations[4].(*ast.FunctionDecl).Body.Statements[2].(*ast.MultiAssignmentStmt)
-		for _, boundary := range checked.NonNullResults {
-			if boundary != nil {
-				t.Fatal("checked failure zero was treated as an ordinary result")
-			}
+		if checked.NonNullCondition != ast.NonNullIfPresent || checked.NonNullResults[0] == nil || checked.NonNullResults[1] != nil {
+			t.Fatal("checked transfer lost its success condition")
 		}
+
 		for _, index := range []int{5, 6} {
 			value := program.Declarations[index].(*ast.FunctionDecl).Body.Statements[0].(*ast.ReturnStmt).Value
 			if _, ok := value.(*ast.CallExpr); !ok {

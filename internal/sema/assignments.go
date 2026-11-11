@@ -45,6 +45,12 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
 	stmt.Upcasts = make([]*ast.ClassUpcastExpr, len(stmt.Bindings))
 	stmt.NonNullResults = make([]*ast.TypeRef, len(stmt.Bindings))
+	stmt.NonNullCondition = ast.NonNullAlways
+	if value.Kind == Result {
+		stmt.NonNullCondition = ast.NonNullIfNoError
+	} else if checkedPresenceProducer(stmt.Value) {
+		stmt.NonNullCondition = ast.NonNullIfPresent
+	}
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
 		if binding.Name == "_" {
@@ -79,9 +85,7 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			var slot ast.Expression = &ast.IdentifierExpr{Name: "_", Span: binding.Span}
 			c.applyClassUpcast(&slot, declared, results[i])
 			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
-			// Checked presence and Result payloads can legitimately contain a
-			// zero on failure; their conditional transfers are handled separately.
-			if value.Kind == MultiValue && !checkedPresenceProducer(stmt.Value) && c.needsStorageBoundary(declared, results[i], nil) {
+			if c.needsStorageBoundary(declared, results[i], nil) {
 				ref := typeRefFromType(declared, binding.Span)
 				stmt.NonNullResults[i] = &ref
 			}

@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`alias F=()=>int;function f(m:Map<int,F>):int{let value:F=()=>3;let valid=false;[value,valid]=m[0];if(!valid){return 0;}return value();}`,
+	`alias F=()=>int;function f(ch:GoChannel<F>):int{let value:F=()=>3;let open=false;select{case [value,open]=<-ch{if(!open){return 0;}return value();}}}`,
+	`alias F=()=>int;function source():Result<F>{return ok(()=>3);}function f():void{let value:F=()=>1;[value,_]=source();}`,
 	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,int){return nil,9;}function f():(F,int){return raw();}`,
 	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,int){return nil,9;}function f():void{let cb:F=()=>{};let n=0;[cb,n]=raw();}`,
 	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,boolean){return nil,false;}function f():(F,int){return raw();}`,

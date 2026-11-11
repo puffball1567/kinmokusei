@@ -544,12 +544,23 @@ func (*IncDecStmt) statement()             {}
 func (s *IncDecStmt) GetSpan() source.Span { return s.Span }
 
 type MultiAssignmentStmt struct {
-	NonNullResults []*TypeRef // Target reference checks for ordinary result lists.
-	Bindings       []Binding
-	Upcasts        []*ClassUpcastExpr // Per-result source class coercions, when required.
-	Value          Expression
-	Span           source.Span
+	NonNullCondition NonNullCondition
+	NonNullResults   []*TypeRef // Target reference checks before publishing results.
+	Bindings         []Binding
+	Upcasts          []*ClassUpcastExpr // Per-result source class coercions, when required.
+	Value            Expression
+	Span             source.Span
 }
+
+// Checked producers expose zero payloads on failure. Their reference contract
+// applies only on success; an ordinary tuple has no implicit success flag.
+type NonNullCondition int
+
+const (
+	NonNullAlways NonNullCondition = iota
+	NonNullIfPresent
+	NonNullIfNoError
+)
 
 func (*MultiAssignmentStmt) statement()             {}
 func (s *MultiAssignmentStmt) GetSpan() source.Span { return s.Span }
@@ -624,16 +635,18 @@ const (
 // either discard, declare Bindings, or assign Targets. Each Body is a distinct
 // case-local scope and never falls through to another case.
 type SelectCase struct {
-	Upcasts  []*ClassUpcastExpr // Receive-assignment conversions after selection.
-	Kind     SelectCaseKind
-	Constant bool
-	Declare  bool
-	Bindings []Binding
-	Targets  []Expression
-	Channel  Expression
-	Value    Expression
-	Body     *BlockStmt
-	Span     source.Span
+	NonNullResults   []*TypeRef
+	NonNullCondition NonNullCondition
+	Upcasts          []*ClassUpcastExpr // Receive-assignment conversions after selection.
+	Kind             SelectCaseKind
+	Constant         bool
+	Declare          bool
+	Bindings         []Binding
+	Targets          []Expression
+	Channel          Expression
+	Value            Expression
+	Body             *BlockStmt
+	Span             source.Span
 }
 
 func (c *SelectCase) GetSpan() source.Span { return c.Span }

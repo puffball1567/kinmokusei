@@ -270,6 +270,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 						visitExpression(upcast)
 					}
 				}
+				for _, boundary := range clause.NonNullResults {
+					visitType(boundary)
+				}
 				for binding := range clause.Bindings {
 					visitType(&clause.Bindings[binding].ResolvedType)
 				}

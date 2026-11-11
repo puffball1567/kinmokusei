@@ -181,8 +181,18 @@ Independent comparisons cover private Go functions, qualified callback types,
 generics, temporary-name hygiene, duplicate targets, for-post clauses and finally
 in `multiple_storage_boundaries_test.go`; editor tests preserve source navigation.
 
-This is still partial progress on #117. Optional chaining, checked
-multi-assignment/select payload transfers, generic bounds
+Development builds validate checked assignments to existing non-null reference
+bindings using the producer's success flag. Map lookups, receives, assertions
+and selected receives check the payload on `ok`. `Result` assignments check
+it on a nil error. Discarding the flag still evaluates and uses it for the
+check. Selected receive targets are evaluated before validation, and a failed
+check prevents all writes. Independent Go comparisons cover absence, nil on
+success, typed-nil values and errors, private types, and evaluation order in
+`checked_storage_boundaries_test.go`.
+
+This is still partial progress on #117. Checks on inferred split declarations,
+`Result` forwarding and reads of unsafe failure payloads remain follow-up work.
+Optional chaining, generic bounds
 without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go
 storage from being modified externally after validation.
