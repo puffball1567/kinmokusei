@@ -118,6 +118,10 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		value, err = generateCheckedBindingValue(value, stmt.Bindings, stmt.NonNullCondition)
+		if err != nil {
+			return nil, err
+		}
 		names := make([]*goast.Ident, len(stmt.Bindings))
 		for i, binding := range stmt.Bindings {
 			names[i] = goast.NewIdent(goName(binding.Name))
@@ -484,6 +488,10 @@ func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.St
 	}
 	if declaration, ok := stmt.(*kinmokuseiAST.MultiVariableDecl); ok {
 		value, err := generateExpression(declaration.Value)
+		if err != nil {
+			return nil, err
+		}
+		value, err = generateCheckedBindingValue(value, declaration.Bindings, declaration.NonNullCondition)
 		if err != nil {
 			return nil, err
 		}

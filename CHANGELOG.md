@@ -11,6 +11,15 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate successful checked split declarations of non-null references (#117).
+  Map lookups, channel receives, assertions and `Result` splits check inferred
+  native payloads before source body effects, including for initializers and
+  selected receive declarations. Retain the captured success/error result when
+  its binding is `_` or unused. Cover Go-supplied nil, failure zeros, typed-nil
+  interfaces, generic references and editor navigation with regression tests.
+  Retain inferred Go package identity across modules with conflicting import
+  aliases, and support selected bindings that shadow their payload type name.
+
 - Validate successful checked assignments to non-null references (#117).
   Map lookups, receives, assertions and selected receives use their captured
   `ok` flag. `Result` assignments use the captured error's nil status. A nil

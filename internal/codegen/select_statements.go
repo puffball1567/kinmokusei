@@ -27,11 +27,15 @@ func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, er
 		receive := &goast.UnaryExpr{Op: token.ARROW, X: channel}
 		if clause.Declare {
 			targets := make([]goast.Expr, len(clause.Bindings))
+			checkPayload := len(clause.Bindings) == 2 && clause.Bindings[0].NonNull
 			used := false
 			for i, binding := range clause.Bindings {
 				name := "_"
-				if binding.Name != "_" && binding.Used {
+				if binding.Name != "_" && (binding.Used || binding.NonNull) {
 					name = goName(binding.Name)
+					used = true
+				} else if checkPayload && i == 1 {
+					name = "__kinmokuseiSelectPresent"
 					used = true
 				}
 				targets[i] = goast.NewIdent(name)
@@ -40,6 +44,11 @@ func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, er
 				generated.Comm = &goast.AssignStmt{Lhs: targets, Tok: token.DEFINE, Rhs: []goast.Expr{receive}}
 			} else {
 				generated.Comm = &goast.ExprStmt{X: receive}
+			}
+			if checkPayload {
+				binding := clause.Bindings[0]
+				success := referenceSuccess(clause.NonNullCondition, targets[1])
+				prefix = append(prefix, generateNonNullCheck(targets[0], binding.Span, "non-null storage boundary", success))
 			}
 		} else if len(clause.Targets) != 0 {
 			var err error
