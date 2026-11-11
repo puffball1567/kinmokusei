@@ -31,6 +31,9 @@ func referenceSuccess(condition ast.NonNullCondition, flag goast.Expr) goast.Exp
 // inferred native payload type supplies the helper's public result contract.
 // Keeping validation in the initializer also supports Go for initializers.
 func generateCheckedBindingValue(producer goast.Expr, bindings []ast.Binding, condition ast.NonNullCondition) (goast.Expr, error) {
+	if condition == ast.NonNullAlways {
+		return producer, nil
+	}
 	results := make([]ast.TypeRef, len(bindings))
 	checks := make([]bool, len(bindings))
 	needed := false
@@ -46,4 +49,18 @@ func generateCheckedBindingValue(producer goast.Expr, bindings []ast.Binding, co
 		AssertionType: ast.TypeRef{GoResults: results},
 		AssertionSpan: bindings[0].Span, NonNullResults: checks,
 	}, producer, condition)
+}
+
+// Inferred ordinary results already have their destination's exact Go type.
+// Direct checks preserve private companion result types and local type shadowing.
+func generateInferredBindingChecks(bindings []ast.Binding) []goast.Stmt {
+	var checks []goast.Stmt
+	for _, binding := range bindings {
+		if binding.NonNull {
+			checks = append(checks, generateNonNullCheck(
+				goast.NewIdent(goName(binding.Name)), binding.Span, "non-null storage boundary", nil,
+			))
+		}
+	}
+	return checks
 }

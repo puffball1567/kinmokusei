@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=7;}function source():(C,int){return new C(),0;}function f():int{const[v,n]=source();return v.n+n;}`,
+	`class C{public n:int=7;}function source():(C,int){return new C(),0;}function f():int{outer:for(let[v,n]=source();n<2;n++){if(n==0){continue outer;}return v.n;}return 0;}`,
+	`alias F=()=>int;function source():(F,F,boolean){return ()=>1,()=>2,false;}function f():void{for(const[a,b,flag]=source();false;){}}`,
 	`import go __kinmokuseiSelectPresent from "strconv";alias F=()=>int;function f(ch:GoChannel<F>):int{select{case const [v,_]=<-ch{return len(__kinmokuseiSelectPresent.Itoa(7));}}}`,
 	`class C{public n:int=7;}function f(m:Map<int,C>):int{const [v,ok]=m[0];if(!ok){return 0;}return v.n;}`,
 	`alias F=()=>int;function f(ch:GoChannel<F>):void{select{case const [v,_]=<-ch{}}}`,

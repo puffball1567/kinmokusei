@@ -383,6 +383,19 @@ when failure may produce absence.
 
 <<< ../snippets/multiple-storage-boundaries.km{ts}
 
+Ordinary multiple-result declarations also validate inferred non-null source
+references. In `const [user, count] = createUser()`, each named non-null reference
+is checked before the next source statement, including unused names. An explicit
+`_` discards its result. Private Go companion result types retain their inferred
+type identity. Nullable and raw Go reference results retain their own contracts.
+
+For an ordinary multiple-result for initializer, validation runs once before
+the first condition. Go's per-iteration variable behavior is preserved through
+post statements, captured values and labeled continue/break. A goto that restarts
+the loop repeats initialization and validation.
+
+<<< ../snippets/inferred-tuple-boundaries.km{ts}
+
 Checked assignments to existing non-null reference bindings validate the
 payload on a successful map lookup, receive or assertion. `Result`
 assignments use a nil error as the success condition. A successful nil payload

@@ -428,7 +428,7 @@ type Binding struct {
 	Name                string
 	GoMember            *MemberExpr
 	Used                bool
-	NonNull             bool // Validate an inferred checked payload on success.
+	NonNull             bool // Validate an inferred native reference on publication.
 	ResolvedDeclaration source.Span
 	ResolvedType        TypeRef
 	Span                source.Span

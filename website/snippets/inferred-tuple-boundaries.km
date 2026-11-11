@@ -1,0 +1,14 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public name: string) {}
+}
+
+function createUser(): (User, int) {
+  return new User("Alice"), 1;
+}
+
+function main(): void {
+  const [user, count] = createUser();
+  fmt.Println(user.name, count);
+}

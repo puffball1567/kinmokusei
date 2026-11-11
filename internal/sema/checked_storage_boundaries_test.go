@@ -88,6 +88,10 @@ function selected(ch: GoChannel<F>): void {
 function loop(m: Map<int, F>): void {
   for (let [value, present] = m[0]; present; present = false) {}
 }
+function tuple(): (F, F, boolean) { return () => 1, () => 2, false; }
+function inferred(): void { const [a, b, flag] = tuple(); }
+function discarded(): void { const [_, b, _] = tuple(); }
+function initial(): void { for (let [a, b, flag] = tuple(); false;) {} }
 `
 	tokens, diagnostics := lexer.Lex("split.km", input)
 	if len(diagnostics) != 0 {
@@ -127,6 +131,17 @@ function loop(m: Map<int, F>): void {
 		loop := program.Declarations[8].(*ast.FunctionDecl).Body.Statements[0].(*ast.ForStmt).Initializer.(*ast.MultiVariableDecl)
 		if loop.NonNullCondition != ast.NonNullIfPresent || !loop.Bindings[0].NonNull {
 			t.Fatalf("lost loop split contract: %#v", loop)
+		}
+		ordinary := program.Declarations[10].(*ast.FunctionDecl).Body.Statements[0].(*ast.MultiVariableDecl)
+		discarded := program.Declarations[11].(*ast.FunctionDecl).Body.Statements[0].(*ast.MultiVariableDecl)
+		initial := program.Declarations[12].(*ast.FunctionDecl).Body.Statements[0].(*ast.ForStmt).Initializer.(*ast.MultiVariableDecl)
+		for _, declaration := range []*ast.MultiVariableDecl{ordinary, initial} {
+			if declaration.NonNullCondition != ast.NonNullAlways || !declaration.Bindings[0].NonNull || !declaration.Bindings[1].NonNull || declaration.Bindings[2].NonNull {
+				t.Fatalf("lost ordinary inferred contract: %#v", declaration)
+			}
+		}
+		if discarded.Bindings[0].NonNull || !discarded.Bindings[1].NonNull || discarded.Bindings[2].NonNull {
+			t.Fatalf("lost ordinary discard contract: %#v", discarded)
 		}
 	}
 }
