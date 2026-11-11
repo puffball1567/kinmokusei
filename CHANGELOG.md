@@ -19,6 +19,7 @@ changes source/public APIs and requires the migration described below.
   interfaces, generic references and editor navigation with regression tests.
   Retain inferred Go package identity across modules with conflicting import
   aliases, and support selected bindings that shadow their payload type name.
+  Keep captured select flags from shadowing Go namespace imports.
 
 - Validate successful checked assignments to non-null references (#117).
   Map lookups, receives, assertions and selected receives use their captured

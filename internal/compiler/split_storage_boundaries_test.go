@@ -13,6 +13,7 @@ func TestSplitStorageBoundariesMatchIndependentGo(t *testing.T) {
 	path := filepath.Join(root, "split.km")
 	input := `import { Timed } from "./models";
 import go clock from "strings";
+import go __kinmokuseiSelectPresent from "strconv";
 
 export class Box {
   constructor(public n: int) {}
@@ -155,6 +156,14 @@ export function Shadow(ch: GoChannel<Box>): int {
       Hits++;
       if (!present) { return 0; }
       return Box.n;
+    }
+  }
+}
+export function Namespace(ch: GoChannel<Callback>): int {
+  select {
+    case const [value, _] = <-ch {
+      Hits++;
+      return len(__kinmokuseiSelectPresent.Itoa(7));
     }
   }
 }
@@ -370,6 +379,7 @@ func TestReceive(t *testing.T) {
 		} {
 			compare(t, func() int { test.call(channel(mode)); return 0 }, func() int { r.UnusedReceive(channel(mode), test.discard); return 0 }, true)
 		}
+		compare(t, func() int { return g.Namespace(channel(mode)) }, func() int { r.UnusedReceive(channel(mode), false); return 1 }, true)
 		var got int
 		gp := capture(func() { got = g.Generic(channel(mode), func() int { return 3 })() })
 		want := 3

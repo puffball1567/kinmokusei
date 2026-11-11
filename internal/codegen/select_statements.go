@@ -9,6 +9,7 @@ import (
 func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, error) {
 	generated := &goast.CommClause{}
 	var prefix []goast.Stmt
+	var hiddenFlag *goast.Ident
 	if clause.Kind == kinmokuseiAST.SelectSend {
 		channel, err := generateExpression(clause.Channel)
 		if err != nil {
@@ -30,15 +31,16 @@ func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, er
 			checkPayload := len(clause.Bindings) == 2 && clause.Bindings[0].NonNull
 			used := false
 			for i, binding := range clause.Bindings {
-				name := "_"
+				name := goast.NewIdent("_")
 				if binding.Name != "_" && (binding.Used || binding.NonNull) {
-					name = goName(binding.Name)
+					name.Name = goName(binding.Name)
 					used = true
 				} else if checkPayload && i == 1 {
-					name = "__kinmokuseiSelectPresent"
+					name.Name = "__kinmokuseiSelectPresent"
+					hiddenFlag = name
 					used = true
 				}
-				targets[i] = goast.NewIdent(name)
+				targets[i] = name
 			}
 			if used {
 				generated.Comm = &goast.AssignStmt{Lhs: targets, Tok: token.DEFINE, Rhs: []goast.Expr{receive}}
@@ -63,6 +65,20 @@ func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, er
 	body, err := generateBlock(clause.Body)
 	if err != nil {
 		return nil, err
+	}
+	if hiddenFlag != nil {
+		// Go namespace imports can use the compiler's temporary prefix.
+		// The communication binding must not capture references in its body.
+		used := map[string]bool{}
+		goast.Inspect(body, func(node goast.Node) bool {
+			if identifier, ok := node.(*goast.Ident); ok {
+				used[identifier.Name] = true
+			}
+			return true
+		})
+		for used[hiddenFlag.Name] {
+			hiddenFlag.Name += "_"
+		}
 	}
 	generated.Body = append(prefix, body.List...)
 	return generated, nil

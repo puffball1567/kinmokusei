@@ -16,6 +16,7 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`import go __kinmokuseiSelectPresent from "strconv";alias F=()=>int;function f(ch:GoChannel<F>):int{select{case const [v,_]=<-ch{return len(__kinmokuseiSelectPresent.Itoa(7));}}}`,
 	`class C{public n:int=7;}function f(m:Map<int,C>):int{const [v,ok]=m[0];if(!ok){return 0;}return v.n;}`,
 	`alias F=()=>int;function f(ch:GoChannel<F>):void{select{case const [v,_]=<-ch{}}}`,
 	`alias F=()=>int;function source():Result<F>{return ok(()=>3);}function f():void{for(const [v,_]=source();false;){}}`,
