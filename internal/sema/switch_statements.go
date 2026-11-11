@@ -44,6 +44,8 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 
 func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 	clause.Upcasts = nil
+	clause.NonNullResults = nil
+	clause.NonNullCondition = ast.NonNullAlways
 	count := selectReceiveTargetCount(clause)
 	if count == 0 {
 		return
@@ -75,6 +77,10 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 		return
 	}
 	clause.Upcasts = make([]*ast.ClassUpcastExpr, len(clause.Targets))
+	clause.NonNullResults = make([]*ast.TypeRef, len(clause.Targets))
+	if count == 2 {
+		clause.NonNullCondition = ast.NonNullIfPresent
+	}
 	bindings := make([]ast.Binding, len(clause.Targets))
 	for i, target := range clause.Targets {
 		bindings[i].Span = target.GetSpan()
@@ -90,6 +96,10 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 			var slot ast.Expression = &ast.IdentifierExpr{Name: "__kinmokuseiSelectValue", Span: target.GetSpan()}
 			c.applyClassUpcast(&slot, targetType, results[i])
 			clause.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
+			if c.needsStorageBoundary(targetType, results[i], nil) {
+				ref := typeRefFromType(targetType, target.GetSpan())
+				clause.NonNullResults[i] = &ref
+			}
 		}
 	}
 	// Every selected LHS is evaluated against the old storage before any of

@@ -37,10 +37,13 @@ func generateCoercedMultiAssignment(stmt *ast.MultiAssignmentStmt, targets []goa
 	}
 	bindings := make([]goast.Expr, len(targets))
 	values := make([]goast.Expr, len(targets))
+	keepFlag := hasReferenceBoundaries(stmt.NonNullResults) && stmt.NonNullCondition != ast.NonNullAlways
 	for i, target := range targets {
 		if id, ok := target.(*goast.Ident); ok && id.Name == "_" {
-			bindings[i], values[i] = goast.NewIdent("_"), nil
-			continue
+			if !keepFlag || i != len(targets)-1 {
+				bindings[i], values[i] = goast.NewIdent("_"), nil
+				continue
+			}
 		}
 		name := fmt.Sprintf("__assignmentValue%d", i)
 		for n := 0; used[name]; n++ {
@@ -49,7 +52,8 @@ func generateCoercedMultiAssignment(stmt *ast.MultiAssignmentStmt, targets []goa
 		used[name] = true
 		bindings[i] = goast.NewIdent(name)
 		values[i] = bindings[i]
-		if upcast := stmt.Upcasts[i]; upcast != nil {
+		if i < len(stmt.Upcasts) && stmt.Upcasts[i] != nil {
+			upcast := stmt.Upcasts[i]
 			copy := *upcast
 			copy.Value = &ast.IdentifierExpr{Name: name, Span: stmt.Span}
 			var err error
@@ -58,13 +62,20 @@ func generateCoercedMultiAssignment(stmt *ast.MultiAssignmentStmt, targets []goa
 				return nil, err
 			}
 		}
-		if i < len(stmt.NonNullResults) && stmt.NonNullResults[i] != nil {
-			boundary := stmt.NonNullResults[i]
-			values[i] = generateNonNullReference(values[i], *boundary, boundary.Span, "non-null storage boundary")
+	}
+	// Conditions use the captured producer flag, including when its destination
+	// is blank. Evaluate all validation expressions before the parallel writes.
+	for i, boundary := range stmt.NonNullResults {
+		if boundary != nil {
+			success := referenceSuccess(stmt.NonNullCondition, bindings[len(bindings)-1])
+			values[i] = generateNonNullReferenceWhen(values[i], *boundary, boundary.Span, "non-null storage boundary", success)
 		}
 	}
 	var lhs, rhs []goast.Expr
 	for i, value := range values {
+		if id, ok := targets[i].(*goast.Ident); ok && id.Name == "_" {
+			continue
+		}
 		if value != nil {
 			lhs = append(lhs, targets[i])
 			rhs = append(rhs, value)

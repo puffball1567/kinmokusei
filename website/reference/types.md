@@ -383,6 +383,19 @@ when failure may produce absence.
 
 <<< ../snippets/multiple-storage-boundaries.km{ts}
 
+Checked assignments to existing non-null reference bindings validate the
+payload on a successful map lookup, receive or assertion. `Result`
+assignments use a nil error as the success condition. A successful nil payload
+panics before either target is written. Failure can still supply a zero
+payload, and the matching `ok` proof is required before reading an unsafe
+zero from a checked lookup, receive or assertion. The check uses the original
+success value even when its destination is `_`.
+
+In a `select` receive assignment, the selected case evaluates its assignment
+targets before validation and performs the writes after validation.
+
+<<< ../snippets/checked-storage-boundaries.km{ts}
+
 ## Generics
 
 Functions, class/struct methods, classes, structs, interfaces, aliases, and
@@ -474,8 +487,7 @@ checks after all arguments have been evaluated.
 Nullable destinations retain absence, and raw Go destinations retain Go nil
 behavior. Interface checks preserve Go's distinction between a nil interface and
 an interface containing a typed nil pointer. These are reference checks, not
-recursive validation of an incoming aggregate. Checked multi-assignment/select
-payload transfers and generic bounds without a uniform
+recursive validation of an incoming aggregate. Generic bounds without a uniform
 non-null reference contract remain under development. External Go mutation after
 validation can still invalidate stored source contracts.
 

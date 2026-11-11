@@ -14,7 +14,7 @@ import (
 func generateSelectReceiveAssignment(clause *ast.SelectCase, receive goast.Expr) (goast.Stmt, []goast.Stmt, error) {
 	// Plain variable targets need no conversion or operand snapshots. Retain
 	// Go's native communication assignment for this common case.
-	direct := true
+	direct := !hasReferenceBoundaries(clause.NonNullResults)
 	for i, target := range clause.Targets {
 		if _, ok := target.(*ast.IdentifierExpr); !ok {
 			property, isMember := target.(*ast.MemberExpr)
@@ -38,16 +38,24 @@ func generateSelectReceiveAssignment(clause *ast.SelectCase, receive goast.Expr)
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{receive}}, nil, nil
 	}
 	bindings := make([]goast.Expr, len(clause.Targets))
-	var prepare, writes []goast.Stmt
+	keepFlag := hasReferenceBoundaries(clause.NonNullResults) && clause.NonNullCondition != ast.NonNullAlways
+	for i, source := range clause.Targets {
+		if identifier, ok := source.(*ast.IdentifierExpr); ok && identifier.Name == "_" && !(keepFlag && i == len(clause.Targets)-1) {
+			bindings[i] = goast.NewIdent("_")
+		} else {
+			bindings[i] = goast.NewIdent(fmt.Sprintf("__kinmokuseiSelectValue%d", i))
+		}
+	}
+	// The compiler reserves the temporary namespace. Only selected targets
+	// evaluate, and their addresses are captured before validation and writes.
+	var prepare, validate, writes []goast.Stmt
 	used := false
 	for i, source := range clause.Targets {
 		if identifier, ok := source.(*ast.IdentifierExpr); ok && identifier.Name == "_" {
-			bindings[i] = goast.NewIdent("_")
 			continue
 		}
 		used = true
-		name := fmt.Sprintf("__kinmokuseiSelectValue%d", i)
-		bindings[i] = goast.NewIdent(name)
+		name := bindings[i].(*goast.Ident).Name
 		value := goast.Expr(bindings[i])
 		if i < len(clause.Upcasts) && clause.Upcasts[i] != nil {
 			conversion := *clause.Upcasts[i]
@@ -57,6 +65,16 @@ func generateSelectReceiveAssignment(clause *ast.SelectCase, receive goast.Expr)
 			if err != nil {
 				return nil, nil, err
 			}
+		}
+		if i < len(clause.NonNullResults) && clause.NonNullResults[i] != nil {
+			boundary := clause.NonNullResults[i]
+			checked := goast.NewIdent(fmt.Sprintf("__kinmokuseiSelectChecked%d", i))
+			success := referenceSuccess(clause.NonNullCondition, bindings[len(bindings)-1])
+			validation := generateNonNullReferenceWhen(value, *boundary, boundary.Span, "non-null storage boundary", success)
+			validate = append(validate, &goast.AssignStmt{
+				Lhs: []goast.Expr{checked}, Tok: token.DEFINE, Rhs: []goast.Expr{validation},
+			})
+			value = checked
 		}
 		if property, ok := source.(*ast.MemberExpr); ok && property.Property {
 			receiver, err := generatePropertyReceiver(property)
@@ -91,5 +109,5 @@ func generateSelectReceiveAssignment(clause *ast.SelectCase, receive goast.Expr)
 	if !used {
 		return &goast.ExprStmt{X: receive}, nil, nil
 	}
-	return &goast.AssignStmt{Lhs: bindings, Tok: token.DEFINE, Rhs: []goast.Expr{receive}}, append(prepare, writes...), nil
+	return &goast.AssignStmt{Lhs: bindings, Tok: token.DEFINE, Rhs: []goast.Expr{receive}}, append(append(prepare, validate...), writes...), nil
 }

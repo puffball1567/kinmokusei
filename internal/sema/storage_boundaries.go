@@ -23,8 +23,11 @@ func (c *Checker) checkStorageExpressionExpectedSlot(slot *ast.Expression, expec
 }
 
 func (c *Checker) needsStorageBoundary(expected, actual Type, expression ast.Expression) bool {
+	// Extracted results can come from Go collections or callbacks. Validate
+	// their runtime references even when their declared types are native.
 	return actual.Kind != Invalid && c.requiresUniformNativeNonNull(expected, nil) &&
-		isNilable(actual) && c.isAssignable(expected, actual) && !c.assignmentProvesNonNull(actual, expression)
+		isNilable(actual) && c.isAssignable(expected, actual) &&
+		(expression == nil || !c.assignmentProvesNonNull(actual, expression))
 }
 
 func (c *Checker) checkMultipleStorageSlot(slot *ast.Expression, expected, actual Type) Type {

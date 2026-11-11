@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate successful checked assignments to non-null references (#117).
+  Map lookups, receives, assertions and selected receives use their captured
+  `ok` flag. `Result` assignments use the captured error's nil status. A nil
+  payload on success panics before any target is written, including native
+  class and interface references supplied from Go. Checks retain failure
+  zeros, typed-nil interface boxing and the evaluation order of selected
+  assignment targets, including when the success flag is discarded.
+
 - Validate non-null references in forwarded ordinary result lists and parallel
   assignments (#117). Evaluate the producer once and check every required slot
   before returning or writing any destination. Preserve typed-nil interface
