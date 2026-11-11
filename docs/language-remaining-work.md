@@ -190,8 +190,16 @@ check prevents all writes. Independent Go comparisons cover absence, nil on
 success, typed-nil values and errors, private types, and evaluation order in
 `checked_storage_boundaries_test.go`.
 
-This is still partial progress on #117. Checks on inferred split declarations,
-`Result` forwarding and reads of unsafe failure payloads remain follow-up work.
+Development builds apply successful-reference validation to inferred checked
+split declarations, including map lookups, receives, assertions and `Result`.
+Initializers capture the producer once and validate before body effects, even
+for discarded success flags, unused named payloads and for initializers.
+Selected receive declarations validate before the selected body. Generic native
+references, nullable contracts and typed-nil interface semantics have independent
+Go comparisons in `split_storage_boundaries_test.go`.
+
+This is still partial progress on #117. Checks on ordinary inferred multiple-result
+declarations, `Result` forwarding and reads of unsafe failure payloads remain follow-up work.
 Optional chaining, generic bounds
 without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go

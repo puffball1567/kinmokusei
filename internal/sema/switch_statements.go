@@ -61,16 +61,21 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 		results = []Type{c.singleValue(value, clause.Channel.GetSpan())}
 	}
 	if clause.Declare {
+		if count == 2 {
+			clause.NonNullCondition = ast.NonNullIfPresent
+		}
 		for i := range clause.Bindings {
 			binding := &clause.Bindings[i]
-			if binding.Name == "_" {
-				continue
-			}
+			binding.NonNull = false
 			result := Type{Kind: Invalid, Name: "<invalid>"}
 			if i < len(results) {
 				result = defaultLiteralType(results[i])
 			}
 			binding.ResolvedType = typeRefFromType(result, binding.Span)
+			if binding.Name == "_" {
+				continue
+			}
+			binding.NonNull = count == 2 && c.needsStorageBoundary(result, result, nil)
 			c.declareSelectLocal(binding.Name, result, clause.Constant, clause, i, binding.Span)
 		}
 		c.bindPresencePair(&ast.UnaryExpr{Operator: "<-"}, value, clause.Bindings)

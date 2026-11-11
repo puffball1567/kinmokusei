@@ -72,3 +72,61 @@ func TestCheckedStorageStillRequiresPresenceProof(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitStorageContractsSurviveRechecking(t *testing.T) {
+	t.Parallel()
+	input := `alias F = () => int;
+function source(): Result<F> { return ok(() => 3); }
+function map(m: Map<int, F>): void { const [value, present] = m[0]; }
+function result(): void { const [value, _] = source(); }
+function raw(ch: GoChannel<*int>): void { const [value, present] = <-ch; }
+function optional(ch: GoChannel<F | null>): void { const [value, present] = <-ch; }
+function discard(ch: GoChannel<F>): void { const [_, present] = <-ch; }
+function selected(ch: GoChannel<F>): void {
+  select { case const [value, _] = <-ch {} }
+}
+function loop(m: Map<int, F>): void {
+  for (let [value, present] = m[0]; present; present = false) {}
+}
+`
+	tokens, diagnostics := lexer.Lex("split.km", input)
+	if len(diagnostics) != 0 {
+		t.Fatal(diagnostics)
+	}
+	program, diagnostics := parser.Parse(tokens)
+	if len(diagnostics) != 0 {
+		t.Fatal(diagnostics)
+	}
+	for pass := 0; pass < 2; pass++ {
+		if diagnostics := CheckScopedWithGoImporterAndPolicy(program, nil, importer.Default(), GoInteropPolicy{}); len(diagnostics) != 0 {
+			t.Fatal(diagnostics)
+		}
+		for _, test := range []struct {
+			index     int
+			condition ast.NonNullCondition
+			checked   bool
+		}{
+			{2, ast.NonNullIfPresent, true},
+			{3, ast.NonNullIfNoError, true},
+			{4, ast.NonNullIfPresent, false},
+			{5, ast.NonNullIfPresent, false},
+			{6, ast.NonNullIfPresent, false},
+		} {
+			declaration := program.Declarations[test.index].(*ast.FunctionDecl).Body.Statements[0].(*ast.MultiVariableDecl)
+			if declaration.NonNullCondition != test.condition || declaration.Bindings[0].NonNull != test.checked || declaration.Bindings[1].NonNull {
+				t.Fatalf("lost split contract: %#v", declaration)
+			}
+			if !declaration.Bindings[1].ResolvedType.IsSpecified() {
+				t.Fatal("discarded flag lost its result type")
+			}
+		}
+		selected := program.Declarations[7].(*ast.FunctionDecl).Body.Statements[0].(*ast.SelectStmt).Cases[0]
+		if selected.NonNullCondition != ast.NonNullIfPresent || !selected.Bindings[0].NonNull || selected.Bindings[1].NonNull {
+			t.Fatalf("lost selected split contract: %#v", selected)
+		}
+		loop := program.Declarations[8].(*ast.FunctionDecl).Body.Statements[0].(*ast.ForStmt).Initializer.(*ast.MultiVariableDecl)
+		if loop.NonNullCondition != ast.NonNullIfPresent || !loop.Bindings[0].NonNull {
+			t.Fatalf("lost loop split contract: %#v", loop)
+		}
+	}
+}

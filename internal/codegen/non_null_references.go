@@ -19,14 +19,13 @@ func generateNonNullReference(operand goast.Expr, target ast.TypeRef, location s
 
 func generateNonNullReferenceWhen(operand goast.Expr, target ast.TypeRef, location source.Span, operation string, success goast.Expr) goast.Expr {
 	value := goast.NewIdent("value")
-	message := fmt.Sprintf("%s failed at %s:%d:%d", operation, filepath.Base(location.Path), location.Start.Line, location.Start.Column)
 	parameters := []*goast.Field{{Names: []*goast.Ident{value}, Type: goType(target)}}
 	arguments := []goast.Expr{operand}
-	var condition goast.Expr = &goast.BinaryExpr{X: value, Op: token.EQL, Y: goast.NewIdent("nil")}
+	var flag goast.Expr
 	if success != nil {
-		flag := goast.NewIdent("success")
-		parameters = append(parameters, &goast.Field{Names: []*goast.Ident{flag}, Type: goast.NewIdent("bool")})
-		condition = &goast.BinaryExpr{X: flag, Op: token.LAND, Y: condition}
+		name := goast.NewIdent("success")
+		flag = name
+		parameters = append(parameters, &goast.Field{Names: []*goast.Ident{name}, Type: goast.NewIdent("bool")})
 		arguments = append(arguments, success)
 	}
 	helper := &goast.FuncLit{
@@ -35,11 +34,21 @@ func generateNonNullReferenceWhen(operand goast.Expr, target ast.TypeRef, locati
 			Results: &goast.FieldList{List: []*goast.Field{{Type: goType(target)}}},
 		},
 		Body: &goast.BlockStmt{List: []goast.Stmt{
-			&goast.IfStmt{Cond: condition, Body: &goast.BlockStmt{List: []goast.Stmt{
-				&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral(message)}}},
-			}}},
+			generateNonNullCheck(value, location, operation, flag),
 			&goast.ReturnStmt{Results: []goast.Expr{value}},
 		}},
 	}
 	return &goast.CallExpr{Fun: helper, Args: arguments}
+}
+
+// Direct checks consume an already captured, correctly typed reference.
+func generateNonNullCheck(value goast.Expr, location source.Span, operation string, success goast.Expr) goast.Stmt {
+	var condition goast.Expr = &goast.BinaryExpr{X: value, Op: token.EQL, Y: goast.NewIdent("nil")}
+	if success != nil {
+		condition = &goast.BinaryExpr{X: success, Op: token.LAND, Y: condition}
+	}
+	message := fmt.Sprintf("%s failed at %s:%d:%d", operation, filepath.Base(location.Path), location.Start.Line, location.Start.Column)
+	return &goast.IfStmt{Cond: condition, Body: &goast.BlockStmt{List: []goast.Stmt{
+		&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral(message)}}},
+	}}}
 }

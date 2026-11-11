@@ -21,16 +21,24 @@ func isAllowedExpressionStatement(expression ast.Expression) bool {
 func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 	value := c.checkMultipleValueExpression(stmt.Value)
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
+	stmt.NonNullCondition = ast.NonNullAlways
+	if value.Kind == Result {
+		stmt.NonNullCondition = ast.NonNullIfNoError
+	} else if checkedPresenceProducer(stmt.Value) {
+		stmt.NonNullCondition = ast.NonNullIfPresent
+	}
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
-		if binding.Name == "_" {
-			continue
-		}
+		binding.NonNull = false
 		result := Type{Kind: Invalid, Name: "<invalid>"}
 		if i < len(results) {
 			result = defaultLiteralType(results[i])
 		}
 		binding.ResolvedType = typeRefFromType(result, binding.Span)
+		if binding.Name == "_" {
+			continue
+		}
+		binding.NonNull = stmt.NonNullCondition != ast.NonNullAlways && c.needsStorageBoundary(result, result, nil)
 		c.declareMultiLocal(binding.Name, result, stmt.Constant, stmt, i, binding.Span)
 		c.updateIdentifierFlow(binding.Name, binding.Span, result, nil)
 		if value.Kind == Result && i == len(results)-1 {

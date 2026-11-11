@@ -44,7 +44,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				ref.Struct = true
 				ref.ResolvedDeclaration = structure.declarationSpan
 			}
-		} else if imported := c.lookupGoPackage(ref.Span.Path, ref.Qualifier); imported != nil {
+		} else if imported := c.lookupGoTypePackage(*ref); imported != nil {
 			ref.QualifierDeclaration = imported.declaration.AliasSpan
 			if imported.declaration.ResolvedAlias != "" {
 				ref.Qualifier = imported.declaration.ResolvedAlias
@@ -622,7 +622,11 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 		for i := range t.TypeArguments {
 			arguments[i] = typeRefFromType(t.TypeArguments[i], span)
 		}
-		return ast.TypeRef{Name: name, Qualifier: t.GoQualifier, GenericArguments: arguments, Go: true, Span: span}
+		ref := ast.TypeRef{Name: name, Qualifier: t.GoQualifier, GenericArguments: arguments, Go: true, Span: span}
+		if ref.Qualifier != "" && object.Pkg() != nil {
+			ref.GoPackagePath = object.Pkg().Path()
+		}
+		return ref
 	}
 	if t.Kind == GoBasic {
 		return ast.TypeRef{Name: t.Name, Qualifier: t.GoQualifier, Go: true, Span: span}

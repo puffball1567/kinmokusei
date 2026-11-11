@@ -87,6 +87,9 @@ type Expression interface {
 }
 
 type TypeRef struct {
+	// GoPackagePath retains package identity for inferred qualified types when
+	// their new storage location belongs to a different source import scope.
+	GoPackagePath        string
 	Name                 string
 	NameSpan             source.Span
 	Qualifier            string
@@ -425,16 +428,18 @@ type Binding struct {
 	Name                string
 	GoMember            *MemberExpr
 	Used                bool
+	NonNull             bool // Validate an inferred checked payload on success.
 	ResolvedDeclaration source.Span
 	ResolvedType        TypeRef
 	Span                source.Span
 }
 
 type MultiVariableDecl struct {
-	Constant bool
-	Bindings []Binding
-	Value    Expression
-	Span     source.Span
+	Constant         bool
+	NonNullCondition NonNullCondition
+	Bindings         []Binding
+	Value            Expression
+	Span             source.Span
 }
 
 func (*MultiVariableDecl) statement()             {}

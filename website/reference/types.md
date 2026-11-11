@@ -396,6 +396,15 @@ targets before validation and performs the writes after validation.
 
 <<< ../snippets/checked-storage-boundaries.km{ts}
 
+Checked split declarations such as `const [value, ok] = values[key]` also
+validate inferred non-null source reference payloads on success. The producer
+runs once and validation finishes before the following statements, including
+when `ok` is discarded or a named payload is unused. This applies to map reads,
+receives, `as?`, `Result` splits, for initializers and select declarations.
+An explicit `_` payload discards the value. Nullable payloads can contain null.
+
+<<< ../snippets/split-storage-boundaries.km{ts}
+
 ## Generics
 
 Functions, class/struct methods, classes, structs, interfaces, aliases, and
