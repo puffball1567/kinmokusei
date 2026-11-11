@@ -71,6 +71,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 			})
 		}
 		if declaration, ok := stmt.(*kinmokuseiAST.MultiVariableDecl); ok {
+			if declaration.NonNullCondition == kinmokuseiAST.NonNullAlways {
+				result.List = append(result.List, generateInferredBindingChecks(declaration.Bindings)...)
+			}
 			for _, binding := range declaration.Bindings {
 				if binding.Name == "_" || binding.Used {
 					continue
@@ -499,7 +502,8 @@ func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.St
 		hasName := false
 		for i, binding := range declaration.Bindings {
 			name := binding.Name
-			if name != "_" && !binding.Used {
+			checked := declaration.NonNullCondition == kinmokuseiAST.NonNullAlways && binding.NonNull
+			if name != "_" && !binding.Used && !checked {
 				name = "_"
 			}
 			if name != "_" {

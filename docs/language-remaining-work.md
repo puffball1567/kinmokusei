@@ -198,8 +198,17 @@ Selected receive declarations validate before the selected body. Generic native
 references, nullable contracts and typed-nil interface semantics have independent
 Go comparisons in `split_storage_boundaries_test.go`.
 
-This is still partial progress on #117. Checks on ordinary inferred multiple-result
-declarations, `Result` forwarding and reads of unsafe failure payloads remain follow-up work.
+Development builds validate inferred non-null native references in ordinary
+multiple-result declarations before following source statements. Per-slot checks
+use the inferred storage directly, including unused named values. Private Go
+companion types remain inferred. For initializers validate once before their
+first condition, retaining Go iteration variables and labeled branch/goto
+behavior. Independent comparisons cover source locations, closure snapshots,
+multiple slots, nullable/raw values, interfaces, generics and finally behavior
+in `inferred_tuple_boundaries_test.go`.
+
+This is still partial progress on #117. `Result` forwarding and reads of unsafe
+failure payloads remain follow-up work.
 Optional chaining, generic bounds
 without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go

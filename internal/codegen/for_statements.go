@@ -38,6 +38,11 @@ func generateForStatement(stmt *ast.ForStmt) (goast.Stmt, error) {
 	if recursive {
 		return initializeRecursiveForArrow(result, variable)
 	}
+	if declaration, ok := stmt.Initializer.(*ast.MultiVariableDecl); ok && declaration.NonNullCondition == ast.NonNullAlways {
+		if checks := generateInferredBindingChecks(declaration.Bindings); len(checks) != 0 {
+			return initializeForOnce(result, checks, declaration.Span.Start.Offset), nil
+		}
+	}
 	return result, nil
 }
 
@@ -50,7 +55,6 @@ func initializeRecursiveForArrow(loop *goast.ForStmt, variable *ast.VariableDecl
 	if err != nil {
 		return nil, err
 	}
-	first := fmt.Sprintf("__kinmokusei_loop_first_%d", variable.Span.Start.Offset)
 	// Keep a short declaration in the actual Go for header: Go then creates
 	// fresh iteration variables before each post statement. Construct the arrow
 	// once, after the first iteration's storage exists but before its condition.
@@ -60,12 +64,30 @@ func initializeRecursiveForArrow(loop *goast.ForStmt, variable *ast.VariableDecl
 			Fun: &goast.ParenExpr{X: goType(variable.ResolvedType)}, Args: []goast.Expr{goast.NewIdent("nil")},
 		}},
 	}
+	// A single-variable header also avoids a Go 1.23 compiler failure when
+	// rewriting captured function variables in multi-variable declarations.
+	return initializeForOnce(loop, []goast.Stmt{assignment}, variable.Span.Start.Offset), nil
+}
+
+// Retain native Go iteration bindings while running initialization checks once
+// before the first condition, including conditions that immediately fail.
+func initializeForOnce(loop *goast.ForStmt, initialization []goast.Stmt, offset int) goast.Stmt {
+	used := map[string]bool{}
+	goast.Inspect(loop, func(node goast.Node) bool {
+		if identifier, ok := node.(*goast.Ident); ok {
+			used[identifier.Name] = true
+		}
+		return true
+	})
+	first := fmt.Sprintf("__kinmokusei_loop_first_%d", offset)
+	for used[first] {
+		first += "_"
+	}
 	prefix := []goast.Stmt{&goast.IfStmt{
 		Cond: goast.NewIdent(first),
-		Body: &goast.BlockStmt{List: []goast.Stmt{
-			assignment,
+		Body: &goast.BlockStmt{List: append(initialization,
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(first)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent("false")}},
-		}},
+		)},
 	}}
 	if loop.Cond != nil {
 		prefix = append(prefix, &goast.IfStmt{
@@ -76,12 +98,10 @@ func initializeRecursiveForArrow(loop *goast.ForStmt, variable *ast.VariableDecl
 	}
 	// Retain the source body's lexical scope, including shadowing and labels.
 	loop.Body = &goast.BlockStmt{List: append(prefix, loop.Body)}
-	// A single-variable header also avoids a Go 1.23 compiler failure when
-	// rewriting captured function variables in multi-variable declarations.
 	return &goast.BlockStmt{List: []goast.Stmt{
 		&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(first)}, Tok: token.DEFINE, Rhs: []goast.Expr{goast.NewIdent("true")}},
 		loop,
-	}}, nil
+	}}
 }
 
 func generateLabeledStatement(stmt *ast.LabeledStmt) (goast.Stmt, error) {
@@ -89,9 +109,8 @@ func generateLabeledStatement(stmt *ast.LabeledStmt) (goast.Stmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if sourceLoop, ok := stmt.Statement.(*ast.ForStmt); ok {
-		if variable, ok := sourceLoop.Initializer.(*ast.VariableDecl); ok && variable.RecursiveBinding {
-			block := generated.(*goast.BlockStmt)
+	if _, ok := stmt.Statement.(*ast.ForStmt); ok {
+		if block, wrapped := generated.(*goast.BlockStmt); wrapped {
 			loop := block.List[len(block.List)-1]
 			if stmt.LoopBranchLabel == "" {
 				block.List[len(block.List)-1] = &goast.LabeledStmt{Label: goast.NewIdent(stmt.Label), Stmt: loop}

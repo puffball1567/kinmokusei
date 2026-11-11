@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate inferred non-null native references in ordinary multiple-result
+  declarations (#117). Check each named reference before following source
+  statements, including unused bindings. For initializers validate before
+  their first condition while preserving per-iteration variables, captured
+  values, labeled branches and goto reinitialization. Keep private Go result
+  types inferred, nullable/raw contracts and explicit discards supported;
+  cover multiple slots, typed-nil interfaces, generics and editor navigation.
+
 - Validate successful checked split declarations of non-null references (#117).
   Map lookups, channel receives, assertions and `Result` splits check inferred
   native payloads before source body effects, including for initializers and

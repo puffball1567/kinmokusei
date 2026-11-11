@@ -38,7 +38,7 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 		if binding.Name == "_" {
 			continue
 		}
-		binding.NonNull = stmt.NonNullCondition != ast.NonNullAlways && c.needsStorageBoundary(result, result, nil)
+		binding.NonNull = c.needsStorageBoundary(result, result, nil)
 		c.declareMultiLocal(binding.Name, result, stmt.Constant, stmt, i, binding.Span)
 		c.updateIdentifierFlow(binding.Name, binding.Span, result, nil)
 		if value.Kind == Result && i == len(results)-1 {
