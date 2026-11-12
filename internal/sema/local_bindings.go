@@ -52,6 +52,9 @@ func (c *Checker) checkLocalBinding(stmt *ast.VariableDecl) {
 	c.rejectResultValueType(declared, stmt.Type.Span, "variables")
 	c.requireAssignable(declared, value, stmt.Value.GetSpan())
 	stmt.ResolvedType = typeRefFromType(declared, stmt.Span)
+	if propagated, ok := stmt.Value.(*ast.PropagateExpr); ok {
+		propagated.NonNull = c.needsStorageBoundary(declared, value, nil)
+	}
 	if isArrow {
 		scope := c.scopes[len(c.scopes)-1]
 		symbol := scope[stmt.Name]

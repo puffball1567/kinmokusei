@@ -207,8 +207,16 @@ behavior. Independent comparisons cover source locations, closure snapshots,
 multiple slots, nullable/raw values, interfaces, generics and finally behavior
 in `inferred_tuple_boundaries_test.go`.
 
-This is still partial progress on #117. `Result` forwarding and reads of unsafe
-failure payloads remain follow-up work.
+Development builds validate non-null native references when forwarding a
+`Result` on a nil error. Propagated `?` bindings validate after the error branch
+and destination interface boxing, including inferred and unused named bindings.
+The operand runs once. Forwarding preserves error results and their original
+payloads; propagation exits with the caller's zero payload on error. Independent
+comparisons cover typed nil, private Go callbacks, source aliases, generic
+references, Task joins and finally behavior in `result_boundaries_test.go`.
+
+This is still partial progress on #117. Reads of unsafe failure payloads remain
+follow-up work.
 Optional chaining, generic bounds
 without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go

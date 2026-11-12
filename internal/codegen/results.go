@@ -66,11 +66,7 @@ func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
 		results = append(results, errorValue)
 		return &goast.ReturnStmt{Results: results}, nil
 	case kinmokuseiAST.ResultForwardReturn:
-		value, err := generateExpression(stmt.Value)
-		if err != nil {
-			return nil, err
-		}
-		return &goast.ReturnStmt{Results: []goast.Expr{value}}, nil
+		return generateForwardedResultReturn(stmt)
 	default:
 		return nil, fmt.Errorf("unknown Result return kind %d", stmt.ResultKind)
 	}
@@ -120,26 +116,43 @@ func generateExceptionReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error)
 		}
 		return returnPanic(nil, errorValue), nil
 	case kinmokuseiAST.ResultForwardReturn:
-		value, err := generateExpression(stmt.Value)
-		if err != nil {
-			return nil, err
-		}
-		body := &goast.BlockStmt{}
-		if stmt.ResultType.Name == "void" {
-			body.List = append(body.List,
-				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("err")}, Tok: token.DEFINE, Rhs: []goast.Expr{value}},
-				returnPanic(nil, goast.NewIdent("err")),
-			)
-		} else {
-			body.List = append(body.List,
-				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("value"), goast.NewIdent("err")}, Tok: token.DEFINE, Rhs: []goast.Expr{value}},
-				returnPanic(goast.NewIdent("value"), goast.NewIdent("err")),
-			)
-		}
-		return &goast.ExprStmt{X: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: body}}}, nil
+		return generateForwardedResultReturn(stmt)
 	default:
 		return nil, fmt.Errorf("unknown Result return kind %d", stmt.ResultKind)
 	}
+}
+
+func generateForwardedResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
+	producer, err := generateExpression(stmt.Value)
+	if err != nil {
+		return nil, err
+	}
+	if !stmt.NonNullResult && !stmt.CrossesTry {
+		return &goast.ReturnStmt{Results: []goast.Expr{producer}}, nil
+	}
+	// Result forwarding requires an exact source contract. Inferred captures
+	// already have the target's storage and interface boxing, so validation
+	// can avoid spelling a type name shadowed in the source body.
+	errorValue := goast.NewIdent("err")
+	bindings := []goast.Expr{errorValue}
+	var value goast.Expr
+	if stmt.ResultType.Name != "void" {
+		value = goast.NewIdent("value")
+		bindings = append([]goast.Expr{value}, bindings...)
+	}
+	body := &goast.BlockStmt{List: []goast.Stmt{
+		&goast.AssignStmt{Lhs: bindings, Tok: token.DEFINE, Rhs: []goast.Expr{producer}},
+	}}
+	if stmt.NonNullResult {
+		success := referenceSuccess(kinmokuseiAST.NonNullIfNoError, errorValue)
+		body.List = append(body.List, generateNonNullCheck(value, stmt.Value.GetSpan(), "non-null result", success))
+	}
+	if stmt.CrossesTry {
+		body.List = append(body.List, exceptionReturnPanic(value, errorValue))
+	} else {
+		body.List = append(body.List, &goast.ReturnStmt{Results: bindings})
+	}
+	return body, nil
 }
 
 func exceptionReturnPanic(value, errValue goast.Expr) goast.Stmt {
@@ -202,6 +215,13 @@ func generatePropagationStatements(expr *kinmokuseiAST.PropagateExpr, variable *
 			Names: []*goast.Ident{goast.NewIdent(goName(variable.Name))}, Type: goType(variable.Type), Values: []goast.Expr{goast.NewIdent(valueName)},
 		}}}}
 		statements = append(statements, binding)
+	}
+	if expr.NonNull {
+		// The error branch has exited and an explicit destination has already
+		// performed interface boxing. Validate before later source statements.
+		statements = append(statements, generateNonNullCheck(
+			goast.NewIdent(goName(variable.Name)), expr.Span, "non-null storage boundary", nil,
+		))
 	}
 	return statements, nil
 }

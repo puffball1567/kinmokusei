@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate non-null native references when forwarding `Result<T>` and
+  propagating success values with `?` (#117). Forwarded results check the
+  payload on a nil error. Propagated bindings validate after error handling
+  and destination interface boxing, including inferred and unused names.
+  Cover failure payloads, typed-nil interfaces/errors, private Go callbacks,
+  generic references, Task joins, finally behavior and editor navigation.
+
 - Validate inferred non-null native references in ordinary multiple-result
   declarations (#117). Check each named reference before following source
   statements, including unused bindings. For initializers validate before

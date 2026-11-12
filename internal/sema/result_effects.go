@@ -72,6 +72,7 @@ func (c *Checker) checkResultConstructor(expr *ast.CallExpr, success bool) Type 
 }
 
 func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
+	stmt.NonNullResult = false
 	if c.result.Element == nil {
 		return
 	}
@@ -93,6 +94,7 @@ func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
 	}
 	if value.Kind == Result && exactType(c.result, value) {
 		stmt.ResultKind = ast.ResultForwardReturn
+		stmt.NonNullResult = value.Element != nil && c.needsStorageBoundary(*c.result.Element, *value.Element, nil)
 		return
 	}
 	if value.Kind == MultiValue {
@@ -105,6 +107,7 @@ func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
 }
 
 func (c *Checker) checkPropagateExpression(expr *ast.PropagateExpr) Type {
+	expr.NonNull = false
 	operand := c.checkExpression(expr.Value)
 	if c.result.Kind != Result || c.result.Element == nil {
 		c.report(expr.Span, "operator ? may only be used inside a Result-returning function")

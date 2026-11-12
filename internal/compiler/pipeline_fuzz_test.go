@@ -16,6 +16,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{}function source():Result<C>{return ok(new C());}function f():Result<C>{const C=7;return source();}`,
+	`class C{public n:int=7;}function source():Result<C>{return ok(new C());}function f():Result<C>{return source();}`,
+	`alias F=()=>int;function source():Result<F>{return ok(()=>7);}function f():Result<F>{try{return source();}finally{}}`,
+	`class C{public n:int=7;}function source():Result<C>{return ok(new C());}function f():Result<int>{const value=source()?;return ok(value.n);}`,
+	`alias F=()=>int;constraint Functions=F;function f<T extends Functions>(source:()=>Result<T>):Result<T>{const value=source()?;return ok(value);}`,
 	`class C{public n:int=7;}function source():(C,int){return new C(),0;}function f():int{const[v,n]=source();return v.n+n;}`,
 	`class C{public n:int=7;}function source():(C,int){return new C(),0;}function f():int{outer:for(let[v,n]=source();n<2;n++){if(n==0){continue outer;}return v.n;}return 0;}`,
 	`alias F=()=>int;function source():(F,F,boolean){return ()=>1,()=>2,false;}function f():void{for(const[a,b,flag]=source();false;){}}`,

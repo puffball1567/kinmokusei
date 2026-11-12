@@ -1,0 +1,27 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public name: string) {}
+}
+
+function loadUser(): Result<User> {
+  return ok(new User("Alice"));
+}
+
+function forwardUser(): Result<User> {
+  return loadUser();
+}
+
+function readName(): Result<string> {
+  const user = forwardUser()?;
+  return ok(user.name);
+}
+
+function main(): void {
+  const [name, err] = readName();
+  if (err !== nil) {
+    fmt.Println(err);
+    return;
+  }
+  fmt.Println(name);
+}
