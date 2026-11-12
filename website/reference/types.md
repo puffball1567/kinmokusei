@@ -582,6 +582,27 @@ Task results and returns crossing try/finally.
 
 <<< ../snippets/result-boundaries.km{ts}
 
+When a split `Result<T>` payload has an unsafe or unknown zero value, development
+builds require a success check before using it. Check the matching local error
+binding against `nil`; an error declared as `error | null` also supports
+`=== null`. Early returns, short-circuit conditions and switches carry this
+proof. A typed-nil pointer held inside an error interface still counts as an
+error, following Go interface equality.
+
+<<< ../snippets/result-presence.km{ts}
+
+Reading, logging or discarding the error does not prove success:
+
+<<< ../snippets-invalid/result-success-proof.km{ts}
+
+Error/boolean aliases do not transfer the proof. Reassigning the pair requires
+a fresh check; shadowing, address escape and mutable captures can invalidate
+the relation. Once checked, the payload snapshot stays valid if the error alone
+changes. Check into local bindings before assigning an unsafe-zero payload to
+global storage. Scalar, nullable and other safe-zero payloads can be read
+without this proof; ordinary error-use diagnostics still apply. These rules
+apply to source `Result<T>`, including Result-annotated callbacks.
+
 ## Decorator contexts and values
 
 Decorator context types are compiler-provided nominal contracts, not

@@ -126,6 +126,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"split-storage.test":                  {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21], implementedGoCompatibilityContracts[27]},
 	"inferred-tuples.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[29], implementedGoCompatibilityContracts[31]},
 	"result-boundaries.test":              {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[27], implementedGoCompatibilityContracts[29], implementedGoCompatibilityContracts[56]},
+	"result-presence.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[12], implementedGoCompatibilityContracts[15]},
 	"multiple-storage.test":               {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[29], implementedGoCompatibilityContracts[31], implementedGoCompatibilityContracts[56]},
 	"storage-boundaries.test":             {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[31]},
 	"parameter-boundaries.test":           {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[31]},

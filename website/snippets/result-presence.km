@@ -1,0 +1,20 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public name: string) {}
+}
+
+function loadUser(reject: boolean): Result<User> {
+  if (reject) { return fail(new Exception("not found")); }
+  return ok(new User("Alice"));
+}
+
+function readName(reject: boolean): string {
+  const [user, err] = loadUser(reject);
+  if (err !== nil) { return "anonymous"; }
+  return user.name;
+}
+
+function main(): void {
+  fmt.Println(readName(false), readName(true));
+}

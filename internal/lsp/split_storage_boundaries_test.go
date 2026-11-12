@@ -72,3 +72,11 @@ func TestResultBoundaryDiagnosticsAndNavigation(t *testing.T) {
 	good := prefix + `source()?;return ok(value.n);}`
 	checkSplitStorageNavigation(t, bad, good)
 }
+
+func TestResultPresenceDiagnosticsAndNavigation(t *testing.T) {
+	t.Parallel()
+	prefix := `class Box{public n:int=7;}function source():Result<Box>{return ok(new Box());}function f():int{const [value,err]=source();`
+	bad := prefix + `_ = err;return value.n;}`
+	good := prefix + `if(err!=nil){return 0;}return value.n;}`
+	checkSplitStorageNavigation(t, bad, good)
+}

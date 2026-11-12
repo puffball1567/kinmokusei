@@ -215,8 +215,16 @@ payloads; propagation exits with the caller's zero payload on error. Independent
 comparisons cover typed nil, private Go callbacks, source aliases, generic
 references, Task joins and finally behavior in `result_boundaries_test.go`.
 
-This is still partial progress on #117. Reads of unsafe failure payloads remain
-follow-up work.
+Development builds require a successful error check before reading a split
+`Result<T>` payload whose zero is unsafe or unknown. The matching local error
+binding must compare equal to nil (or null for nullable error storage). Branches,
+short-circuit conditions, boolean and direct error switches carry the proof;
+copies, reassignments, escapes and mutable captures cannot reuse a stale proof.
+Safe-zero and nullable payloads retain their zero contracts. Independent Go
+comparisons cover typed-nil errors, failure payloads, generic values, closures,
+loops and reassignment in `result_presence_test.go`.
+
+This is still partial progress on #117.
 Optional chaining, generic bounds
 without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go

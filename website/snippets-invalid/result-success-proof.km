@@ -1,0 +1,13 @@
+class User {
+  constructor(public name: string) {}
+}
+
+function loadUser(): Result<User> {
+  return fail(new Exception("not found"));
+}
+
+function readName(): string {
+  const [user, err] = loadUser();
+  _ = err;
+  return user.name;
+}
