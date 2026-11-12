@@ -11,6 +11,15 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Require success checks before reading unsafe-zero `Result<T>` split payloads
+  (#117). Verify the matching error binding against `nil` (or `null` for a
+  nullable error) using branches, short-circuit conditions or switches.
+  Reading, logging or discarding the error alone does not establish success.
+  Track reassignments, shadowing, captures and loop joins; keep safe-zero and
+  nullable payloads supported. Check into local bindings before assigning an
+  unsafe-zero payload to global storage. Include editor diagnostics and
+  independent Go comparisons for ordinary and typed-nil errors.
+
 - Validate non-null native references when forwarding `Result<T>` and
   propagating success values with `?` (#117). Forwarded results check the
   payload on a nil error. Propagated bindings validate after error handling

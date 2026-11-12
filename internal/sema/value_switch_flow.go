@@ -47,6 +47,15 @@ func (c *Checker) checkValueSwitchCases(stmt *ast.ValueSwitchStmt, value Type, e
 						}
 					}
 				}
+			} else if isAbsenceLiteral(expression) {
+				comparison := &ast.BinaryExpr{Operator: "==", Left: stmt.Value, Right: expression}
+				if positive, applied := c.applyPresenceCondition(comparison); applied {
+					if positive {
+						matched = c.snapshotNullableFlow()
+					} else {
+						failed = c.snapshotNullableFlow()
+					}
+				}
 			}
 			matches = append(matches, matched)
 			c.restoreNullableFlow(failed)

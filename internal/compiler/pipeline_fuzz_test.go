@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=7;}function load():Result<C>{return ok(new C());}function f():int{const[value,err]=load();if(err!=nil){return 0;}return value.n;}`,
+	`class C{public n:int=7;}function load():Result<C>{return ok(new C());}function f():int{let[value,err]=load();switch(err){default{return 0;}case nil{return value.n;}}}`,
+	`class C{public n:int=7;}function load():Result<C>{return ok(new C());}function f():int{const[value,err]=load();_=err;return value.n;}`,
 	`class C{}function source():Result<C>{return ok(new C());}function f():Result<C>{const C=7;return source();}`,
 	`class C{public n:int=7;}function source():Result<C>{return ok(new C());}function f():Result<C>{return source();}`,
 	`alias F=()=>int;function source():Result<F>{return ok(()=>7);}function f():Result<F>{try{return source();}finally{}}`,

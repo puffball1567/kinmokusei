@@ -68,6 +68,7 @@ type resultErrorUse struct {
 }
 
 // This is a binding-use check, not ownership or path-sensitive error analysis.
+// Unsafe-zero Result payload reads have separate proofs in presence_flow.go.
 // Reuse the source read flags, never the generated Go unused-local cleanup.
 // Share the map with lazy arrow checkers and validate only after all bodies.
 func (c *Checker) trackResultError(name string, span source.Span) {
