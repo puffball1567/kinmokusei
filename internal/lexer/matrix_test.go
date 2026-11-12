@@ -106,6 +106,7 @@ func TestTokenMatrix(t *testing.T) {
 		{"shift right", ">>", token.ShiftRight},
 		{"and not", "&^", token.AndNot},
 		{"question", "?", token.Question},
+		{"optional chaining", "?.", token.OptionalDot},
 		{"coalescing", "??", token.Coalesce},
 	}
 	for _, test := range tests {

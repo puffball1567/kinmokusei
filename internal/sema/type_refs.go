@@ -81,6 +81,10 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
+		case *ast.OptionalChainExpr:
+			visitExpression(expression.Object)
+			visitExpression(expression.Value)
+			visitType(&expression.ResultType)
 		case *ast.UnaryExpr:
 			visitExpression(expression.Operand)
 			visitType(&expression.AssertionType)

@@ -302,6 +302,12 @@ func variableType(program *ast.Program, variable *ast.VariableDecl) (ast.TypeRef
 
 func expressionCompletionType(program *ast.Program, expression ast.Expression) (ast.TypeRef, bool) {
 	switch expression := expression.(type) {
+	case *ast.OptionalReceiverExpr:
+		return expression.Type, expression.Type.IsSpecified()
+	case *ast.OptionalChainExpr:
+		ref := expression.ResultType
+		ref.Nullable = !expression.Checked && ref.Name != "void"
+		return ref, !expression.Checked && ref.IsSpecified()
 	case *ast.BinaryExpr:
 		if expression.CoalesceType != nil {
 			return *expression.CoalesceType, true

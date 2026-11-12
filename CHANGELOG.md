@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Add optional chaining with `?.member`, `?.[index]` and `?.(arguments)`
+  (#117). Capture each receiver once and skip the remaining unparenthesized
+  chain, arguments and indices when it is nil. Nil-capable results are nullable;
+  scalar/record results use `??`, checked split bindings or a checked postfix
+  `!`. Keep Go typed-nil interface behavior, normal bounds panics and source
+  contracts, with independent Go comparisons and editor support.
+
 - Require success checks before reading unsafe-zero `Result<T>` split payloads
   (#117). Verify the matching error binding against `nil` (or `null` for a
   nullable error) using branches, short-circuit conditions or switches.

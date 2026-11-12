@@ -225,8 +225,13 @@ comparisons cover typed-nil errors, failure payloads, generic values, closures,
 loops and reassignment in `result_presence_test.go`.
 
 This is still partial progress on #117.
-Optional chaining, generic bounds
-without a uniform reference contract and recursive validation of values received
+Development builds support optional member/index/call chains with lazy arguments
+and indices, nullable reference results, checked value results, `??` and checked
+postfix `!`. Parentheses end short-circuiting. Independent Go comparisons include
+linked declarations, nested chains, nil versus empty slices, source-located
+assertions and generated temporary-name hygiene in `optional_chaining_test.go`.
+
+Generic bounds without a uniform reference contract and recursive validation of values received
 from Go remain follow-up work. The checks do not protect arbitrary mutable Go
 storage from being modified externally after validation.
 

@@ -64,6 +64,7 @@ type Checker struct {
 	taskLaunchCall             *ast.CallExpr
 	deferCaptureCall           *ast.CallExpr
 	directCallCallee           ast.Expression
+	optionalReceiver           Type
 	typeParameterScopes        []map[string]Type
 	deferredParameterBounds    map[*gotypes.TypeParam]bool
 	pendingBoundInstances      *[]boundInstance
@@ -595,6 +596,10 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	switch expr := expr.(type) {
+	case *ast.OptionalChainExpr:
+		return c.checkOptionalChain(expr, nil)
+	case *ast.OptionalReceiverExpr:
+		return c.optionalReceiver
 	case *ast.LiteralExpr:
 		switch expr.Kind {
 		case ast.IntegerLiteral:
