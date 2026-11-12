@@ -568,6 +568,20 @@ cost still depends on source size and the number of distinct flow states.
 
 `Result<void>` lowers to one `error`; `Result<T>` lowers to `(T, error)`. `Task<Result<T>>` retains both layers: `await` joins the worker, and the following `?` propagates the operation error. Neither form is an ordinary heap wrapper visible to Go callers.
 
+Development builds validate a forwarded `Result<T>` payload when its error is
+nil and `T` requires a nil-comparable non-null source reference. The producer
+runs once. An invalid nil reports the forwarding expression's source location.
+Error results retain their payload and error values.
+
+For `const value = operation()?`, propagation first handles the error branch,
+then validates a named non-null source reference before following statements.
+An explicitly typed binding performs interface boxing before validation.
+Unused named bindings receive the check; `_` discards the payload. Raw Go and
+nullable destinations retain their own contracts. These checks also apply to
+Task results and returns crossing try/finally.
+
+<<< ../snippets/result-boundaries.km{ts}
+
 ## Decorator contexts and values
 
 Decorator context types are compiler-provided nominal contracts, not

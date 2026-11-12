@@ -462,6 +462,7 @@ type ReturnStmt struct {
 	AdditionalValues []Expression
 	ResultKind       ResultReturnKind
 	ResultType       TypeRef
+	NonNullResult    bool // Validate a forwarded Result payload on success.
 	CrossesTry       bool
 	Span             source.Span
 }
@@ -877,6 +878,7 @@ func (e *GoTypeAssertionExpr) GetSpan() source.Span { return e.Span }
 // PropagateExpr explicitly unwraps an Kinmokusei Result or a Go (T, error)
 // operation and returns the error from the enclosing Result function.
 type PropagateExpr struct {
+	NonNull    bool // Validate the destination reference after handling the error.
 	Value      Expression
 	ValueType  TypeRef
 	ResultType TypeRef

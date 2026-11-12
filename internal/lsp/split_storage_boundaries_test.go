@@ -46,7 +46,7 @@ func checkSplitStorageNavigation(t *testing.T, bad, good string) {
 		}
 		if message["id"] == float64(3) {
 			definition, ok := message["result"].(map[string]any)
-			if !ok || definition["range"].(map[string]any)["start"].(map[string]any)["character"] != float64(strings.Index(good, "value,")) {
+			if !ok || definition["range"].(map[string]any)["start"].(map[string]any)["character"] != float64(strings.Index(good, "value")) {
 				t.Fatalf("definition: %v", message)
 			}
 			definitionSeen = true
@@ -62,5 +62,13 @@ func TestInferredTupleDiagnosticsAndNavigation(t *testing.T) {
 	prefix := `class Box{public n:int=7;}function pair():(Box,int){return new Box(),0;}function f():int{const [`
 	bad := prefix + `value,n,extra]=pair();return value.n;}`
 	good := prefix + `value,n]=pair();return value.n;}`
+	checkSplitStorageNavigation(t, bad, good)
+}
+
+func TestResultBoundaryDiagnosticsAndNavigation(t *testing.T) {
+	t.Parallel()
+	prefix := `class Box{public n:int=7;}function source():Result<Box>{return ok(new Box());}function f():Result<int>{const value=`
+	bad := prefix + `source();return ok(value.n);}`
+	good := prefix + `source()?;return ok(value.n);}`
 	checkSplitStorageNavigation(t, bad, good)
 }
