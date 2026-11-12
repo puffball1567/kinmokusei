@@ -9,9 +9,16 @@ import (
 // References use the ordinary nil fallback. A value payload cannot represent
 // absence as null, so a direct map lookup/receive instead tests the success flag.
 // Check the producer once, preserving its operand effects and source contracts.
-func (c *Checker) checkCoalesceOperand(expr *ast.BinaryExpr) Type {
+func (c *Checker) checkCoalesceOperand(expr *ast.BinaryExpr, expected *Type) Type {
 	var value Type
 	switch left := expr.Left.(type) {
+	case *ast.OptionalChainExpr:
+		value = c.checkOptionalChain(left, expected)
+		if left.Checked && value.Kind == MultiValue && len(value.Results) == 2 {
+			expr.CoalesceChecked = true
+			return value.Results[0]
+		}
+		return c.singleValue(value, left.Span)
 	case *ast.IndexExpr:
 		value = c.checkIndexAccess(left, false, true)
 		if !left.MapIndex {

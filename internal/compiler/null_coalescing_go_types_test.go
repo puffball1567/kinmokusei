@@ -37,10 +37,15 @@ func FallbackReceive()<-chan hidden{return FallbackChannel()}
 func Send(p bool)chan<- hidden{return Channel(p)}
 func FallbackSend()chan<- hidden{return FallbackChannel()}
 func LoadCallback(p bool)func()*hidden{if p{return Fallback};return nil}
+type Holder struct{Child *hidden}
+func LoadHolder(p bool)*Holder{if !p{return nil};return &Holder{&hidden{3}}}
 `,
 		"entry.km": `import go native from "example.com/native";
 import go {Fallback as fallback} from "example.com/native";
 function contextual(p:boolean):native.Reader{return native.Pointer(p)??native.Fallback();}
+export function OptionalContext(p:boolean):native.Reader|null{return native.LoadHolder(p)?.Child;}
+export function OptionalFallback(p:boolean):native.Reader{return native.LoadHolder(p)?.Child??native.Fallback();}
+export function OptionalRead(p:boolean):int{return native.LoadHolder(p)?.Child.Read()??-1;}
 export function Run(p:boolean):int[]{
  native.Calls=0;
  const pointer=native.Pointer(p)??fallback();
@@ -74,6 +79,7 @@ func Run(p bool)[]int{value:=9;calls:=10;if p{value=3;calls=2};return []int{valu
 	comparison := `package coalesceprivate_test
 import("reflect";"testing";g "coalesce-private.test";r "coalesce-private.test/reference")
 func TestPrivate(t *testing.T){for _,p:=range []bool{false,true}{if got,want:=g.Run(p),r.Run(p);!reflect.DeepEqual(got,want){t.Fatalf("present=%v got=%v want=%v",p,got,want)}}}
+func TestOptionalPrivate(t *testing.T){for _,p:=range []bool{false,true}{v:=g.OptionalContext(p);if (v==nil)!=!p{t.Fatal(v)};want:=-1;fallback:=9;if p{want=3;fallback=3;if v.Read()!=3{t.Fatal(v)}};if got:=g.OptionalRead(p);got!=want{t.Fatal(got,want)};if got:=g.OptionalFallback(p).Read();got!=fallback{t.Fatal(got,fallback)}}}
 `
 	runGeneratedGoDifferentialTestInExistingModule(t, root, "coalesce-private.test", generated, reference, comparison, nil, nil)
 

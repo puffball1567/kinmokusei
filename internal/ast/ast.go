@@ -1100,6 +1100,29 @@ type MemberExpr struct {
 func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
+// OptionalChainExpr captures Object once and evaluates Value only when it is
+// non-nil. Receiver is a synthetic reference to that captured snapshot.
+type OptionalChainExpr struct {
+	Object         Expression
+	Value          Expression
+	Receiver       *OptionalReceiverExpr
+	ResultType     TypeRef
+	Checked        bool // Value uses an explicit (payload, present) representation.
+	ForwardChecked bool // A nested chain already supplies the presence flag.
+	Span           source.Span
+}
+
+func (*OptionalChainExpr) expression()            {}
+func (e *OptionalChainExpr) GetSpan() source.Span { return e.Span }
+
+type OptionalReceiverExpr struct {
+	Marker string
+	Type   TypeRef
+}
+
+func (*OptionalReceiverExpr) expression()          {}
+func (*OptionalReceiverExpr) GetSpan() source.Span { return source.Span{} }
+
 type IndexExpr struct {
 	FixedArrayStorage       bool // Preserve addressable array storage rather than copying it.
 	MapIndex                bool // Preserve map key context while capturing assignment targets.

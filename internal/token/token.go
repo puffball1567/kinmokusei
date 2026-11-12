@@ -76,6 +76,7 @@ const (
 	LeftBracket  Kind = "["
 	RightBracket Kind = "]"
 	Dot          Kind = "."
+	OptionalDot  Kind = "?."
 	Ellipsis     Kind = "..."
 	At           Kind = "@"
 

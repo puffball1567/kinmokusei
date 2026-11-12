@@ -8,6 +8,9 @@ import (
 )
 
 func isAllowedExpressionStatement(expression ast.Expression) bool {
+	if chain, ok := expression.(*ast.OptionalChainExpr); ok {
+		return isAllowedExpressionStatement(chain.Value)
+	}
 	if _, ok := expression.(*ast.CallExpr); ok {
 		return true
 	}

@@ -21,6 +21,8 @@ type presenceFlow struct {
 
 func checkedPresenceProducer(expression ast.Expression) bool {
 	switch expression := expression.(type) {
+	case *ast.OptionalChainExpr:
+		return expression.Checked
 	case *ast.IndexExpr:
 		return expression.MapIndex
 	case *ast.UnaryExpr:

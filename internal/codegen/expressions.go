@@ -12,6 +12,10 @@ import (
 
 func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
+	case *kinmokuseiAST.OptionalChainExpr:
+		return generateOptionalChain(expr)
+	case *kinmokuseiAST.OptionalReceiverExpr:
+		return goast.NewIdent(expr.Marker), nil
 	case *kinmokuseiAST.IdentifierExpr:
 		if expr.GoMember != nil {
 			return generateExpression(expr.GoMember)

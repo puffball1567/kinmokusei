@@ -98,7 +98,7 @@ func evaluationMayHaveEffects(expression ast.Expression) bool {
 			return expressionListMayHaveEffects(expr.Arguments)
 		}
 		return true
-	case *ast.NewExpr, *ast.TaskStartExpr, *ast.AwaitExpr, *ast.PropagateExpr, *ast.GoTypeAssertionExpr:
+	case *ast.OptionalChainExpr, *ast.NewExpr, *ast.TaskStartExpr, *ast.AwaitExpr, *ast.PropagateExpr, *ast.GoTypeAssertionExpr:
 		return true
 	case *ast.UnaryExpr:
 		return expr.Operator == "<-" || expr.Operator == ast.NonNullOperator || evaluationMayHaveEffects(expr.Operand)

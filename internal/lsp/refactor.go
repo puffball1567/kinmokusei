@@ -447,6 +447,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 	}
 	walkExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
+		case *ast.OptionalChainExpr:
+			walkExpression(expression.Object)
+			walkExpression(expression.Value)
 		case nil, *ast.LiteralExpr:
 		case *ast.IdentifierExpr:
 			add(expression.Span, expression.ResolvedDeclaration)

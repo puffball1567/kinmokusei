@@ -549,6 +549,30 @@ gives a non-null result; a nullable fallback retains `T | null`. This does not
 narrow the original binding or inspect typed nil pointees inside Go interfaces.
 See [null coalescing](./operators#null-coalescing).
 
+Development builds support optional chaining: `value?.member`,
+`value?.[index]` and `callback?.(arguments)`. Each optional receiver is captured
+once. When it is nil, the remaining unparenthesized chain, index expressions
+and call arguments are skipped. An existing non-nil Go interface holding a
+typed nil pointer still invokes its implementation, following Go equality.
+
+<<< ../snippets/optional-chaining.km{ts}
+
+A nil-capable result has type `T | null`. Scalar, struct and fixed-array
+results cannot represent null directly: consume the checked result with `??`,
+`const [value, present] = ...`, or checked postfix `!`. A present zero value is
+preserved. `!` panics at the assertion's source location when the chain is
+absent. Optional void calls can stand alone as statements. Result, Task and
+ordinary multiple-result calls require an explicit receiver guard and their
+normal handling.
+
+The operator protects only the receiver immediately before `?.`. For example,
+if `user.next` is nullable, use `user?.next?.name`, rather than
+`user?.next.name`. Parentheses end the short-circuited chain:
+`(user?.self()).name` requires a null check or assertion. Optional chains are
+not assignment/address targets and do not narrow the original receiver.
+
+<<< ../snippets-invalid/optional-chain-group.km{ts}
+
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 
 Loop checks include facts arriving from later iterations; a proof valid only

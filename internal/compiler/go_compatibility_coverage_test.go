@@ -122,6 +122,7 @@ var implementedGoCompatibilityContracts = []string{
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"optional-chaining.test":              {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1]},
 	"checked-storage.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21], implementedGoCompatibilityContracts[27]},
 	"split-storage.test":                  {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[20], implementedGoCompatibilityContracts[21], implementedGoCompatibilityContracts[27]},
 	"inferred-tuples.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1], implementedGoCompatibilityContracts[2], implementedGoCompatibilityContracts[29], implementedGoCompatibilityContracts[31]},

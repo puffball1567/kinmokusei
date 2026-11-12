@@ -15,6 +15,9 @@ func generateNonNullAssertion(expr *kmast.UnaryExpr) (goast.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if chain, ok := expr.Operand.(*kmast.OptionalChainExpr); ok && chain.Checked && !expr.ImplicitNonNull {
+		return generateOptionalAssertion(expr, operand), nil
+	}
 	if expr.ImplicitNonNull && len(expr.NonNullResults) != 0 {
 		return generateNonNullResults(expr, operand)
 	}

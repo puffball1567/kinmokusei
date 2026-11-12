@@ -11,7 +11,7 @@ func (c *Checker) checkCoalesce(expr *ast.BinaryExpr, expected *Type) Type {
 	expr.CoalesceType, expr.CoalesceLeftValue, expr.CoalesceHelper = nil, nil, ""
 	expr.CoalesceNonNull = false
 	expr.CoalesceChecked = false
-	left := c.checkCoalesceOperand(expr)
+	left := c.checkCoalesceOperand(expr, expected)
 	entry := c.snapshotNullableFlow()
 	known := c.coalesceNilness(expr.Left)
 	base := left

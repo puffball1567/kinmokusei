@@ -127,8 +127,20 @@ func (p *Parser) parseCall() ast.Expression {
 	if expr == nil {
 		return nil
 	}
+	return p.parseCallSuffix(expr, false)
+}
+
+func (p *Parser) parseCallSuffix(expr ast.Expression, optional bool) ast.Expression {
+	if !p.enterNesting() {
+		return expr
+	}
+	defer p.leaveNesting()
 	for {
 		switch {
+		case optional && p.at(token.Bang):
+			return expr
+		case p.at(token.OptionalDot):
+			expr = p.parseOptionalChain(expr)
 		case p.at(token.Bang) && !p.lineBreakBeforeNext():
 			operator := p.advance()
 			expr = &ast.UnaryExpr{Operator: ast.NonNullOperator, Operand: expr, AssertionSpan: operator.Span, Span: expr.GetSpan().Merge(operator.Span)}
