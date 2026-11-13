@@ -12,6 +12,16 @@ func (c *Checker) checkParameterBoundary(parameter *ast.Parameter, value Type) {
 	}
 	// A blank parameter discards its value; it cannot expose nil to the body.
 	parameter.NonNull = parameter.Name != "_" && c.requiresUniformNativeNonNull(value, nil)
+	parameter.NonNullKinds = 0
+	if parameter.Name != "_" && !parameter.NonNull && value.Kind == TypeParameter {
+		mask, ambiguous := c.mixedNonNullKinds(value)
+		if ambiguous {
+			c.report(parameter.Span, "cannot validate non-null and raw nil-capable alternatives of the same storage kind; use a concrete type or separate uniform constraints")
+		} else {
+			parameter.NonNullKinds = mask
+			c.usesNonNullKinds = c.usesNonNullKinds || mask != 0
+		}
+	}
 }
 
 // An entry check must apply to every allowed instantiation. In contrast to

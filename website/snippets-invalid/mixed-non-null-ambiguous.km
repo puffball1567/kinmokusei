@@ -1,0 +1,6 @@
+class User { public n: int = 7; }
+constraint Mixed = User | *int;
+
+function identity<T extends Mixed>(value: T): T {
+  return value;
+}

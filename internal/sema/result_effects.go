@@ -95,6 +95,9 @@ func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
 	if value.Kind == Result && exactType(c.result, value) {
 		stmt.ResultKind = ast.ResultForwardReturn
 		stmt.NonNullResult = value.Element != nil && c.needsStorageBoundary(*c.result.Element, *value.Element, nil)
+		if stmt.NonNullResult {
+			stmt.ResultType = c.boundaryTypeRef(*c.result.Element, stmt.Value.GetSpan())
+		}
 		return
 	}
 	if value.Kind == MultiValue {

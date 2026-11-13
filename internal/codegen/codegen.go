@@ -87,17 +87,26 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	// Reuse checked import aliases rather than introducing a second import of
 	// the same package. Runtime aliases use the reserved compiler namespace.
 	runtimeImport := func(path, fallback string) string {
+		aliases := map[string]bool{}
 		for _, spec := range imports {
 			imported := spec.(*goast.ImportSpec)
+			aliases[imported.Name.Name] = true
 			if imported.Path.Value == fmt.Sprintf("%q", path) {
 				return imported.Name.Name
 			}
+		}
+		for aliases[fallback] {
+			fallback += "_"
 		}
 		imports = append(imports, &goast.ImportSpec{Name: goast.NewIdent(fallback), Path: &goast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("%q", path)}})
 		seenImports[path] = true
 		return fallback
 	}
 	observationAlias, snapshotAlias := "", ""
+	nonNullAlias := ""
+	if program.UsesNonNullKinds {
+		nonNullAlias = runtimeImport("reflect", "__kinmokuseiReflect")
+	}
 	if program.UsesObservation {
 		observationAlias = runtimeImport("reflect", "__kinmokuseiReflect")
 	}
@@ -125,6 +134,13 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 			return nil, nil, err
 		}
 		file.Decls = append(file.Decls, runtimeDeclarations...)
+	}
+	if program.UsesNonNullKinds {
+		declarations, err := nonNullKindsRuntimeDeclarations(nonNullAlias)
+		if err != nil {
+			return nil, nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
 	}
 	if program.UsesUTF8 {
 		declarations, err := utf8RuntimeDeclarations(utf8Alias)

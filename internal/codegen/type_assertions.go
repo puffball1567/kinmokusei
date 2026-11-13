@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"fmt"
 	goast "go/ast"
 	"go/token"
 
@@ -25,9 +26,13 @@ func generateGoTypeAssertion(expr *ast.GoTypeAssertionExpr, operand goast.Expr) 
 	body := &goast.BlockStmt{}
 	ok := goast.NewIdent("__kinmokuseiAssertOK")
 	results.List = append(results.List, &goast.Field{Type: goast.NewIdent("bool")})
+	var valid goast.Expr = &goast.BinaryExpr{X: value, Op: token.NEQ, Y: goast.NewIdent("nil")}
+	if expr.Type.NonNullKinds != 0 {
+		valid = &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiIsNonNullKinds"), Args: []goast.Expr{value, &goast.BasicLit{Kind: token.INT, Value: fmt.Sprint(expr.Type.NonNullKinds)}}}
+	}
 	body.List = []goast.Stmt{
 		&goast.AssignStmt{Lhs: []goast.Expr{value, ok}, Tok: token.DEFINE, Rhs: []goast.Expr{assertion}},
-		&goast.ReturnStmt{Results: []goast.Expr{value, &goast.BinaryExpr{X: ok, Op: token.LAND, Y: &goast.BinaryExpr{X: value, Op: token.NEQ, Y: goast.NewIdent("nil")}}}},
+		&goast.ReturnStmt{Results: []goast.Expr{value, &goast.BinaryExpr{X: ok, Op: token.LAND, Y: valid}}},
 	}
 	helper := &goast.FuncLit{Type: &goast.FuncType{
 		Params: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{input}, Type: &goast.InterfaceType{Methods: &goast.FieldList{}}}}}, Results: results,

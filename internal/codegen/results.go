@@ -145,7 +145,7 @@ func generateForwardedResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, 
 	}}
 	if stmt.NonNullResult {
 		success := referenceSuccess(kinmokuseiAST.NonNullIfNoError, errorValue)
-		body.List = append(body.List, generateNonNullCheck(value, stmt.Value.GetSpan(), "non-null result", success))
+		body.List = append(body.List, generateTypedNonNullCheck(value, stmt.ResultType, stmt.Value.GetSpan(), "non-null result", success))
 	}
 	if stmt.CrossesTry {
 		body.List = append(body.List, exceptionReturnPanic(value, errorValue))
@@ -219,8 +219,8 @@ func generatePropagationStatements(expr *kinmokuseiAST.PropagateExpr, variable *
 	if expr.NonNull {
 		// The error branch has exited and an explicit destination has already
 		// performed interface boxing. Validate before later source statements.
-		statements = append(statements, generateNonNullCheck(
-			goast.NewIdent(goName(variable.Name)), expr.Span, "non-null storage boundary", nil,
+		statements = append(statements, generateTypedNonNullCheck(
+			goast.NewIdent(goName(variable.Name)), expr.ValueType, expr.Span, "non-null storage boundary", nil,
 		))
 	}
 	return statements, nil

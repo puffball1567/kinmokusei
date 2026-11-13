@@ -76,6 +76,9 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 				continue
 			}
 			binding.NonNull = count == 2 && c.needsStorageBoundary(result, result, nil)
+			if binding.NonNull {
+				binding.ResolvedType = c.boundaryTypeRef(result, binding.Span)
+			}
 			c.declareSelectLocal(binding.Name, result, clause.Constant, clause, i, binding.Span)
 		}
 		c.bindPresencePair(&ast.UnaryExpr{Operator: "<-"}, value, clause.Bindings)
@@ -102,7 +105,7 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 			c.applyClassUpcast(&slot, targetType, results[i])
 			clause.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
 			if c.needsStorageBoundary(targetType, results[i], nil) {
-				ref := typeRefFromType(targetType, target.GetSpan())
+				ref := c.boundaryTypeRef(targetType, target.GetSpan())
 				clause.NonNullResults[i] = &ref
 			}
 		}

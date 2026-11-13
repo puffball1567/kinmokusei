@@ -59,6 +59,7 @@ type Checker struct {
 	usesUTF8                   bool
 	usesObservation            bool
 	usesJSONSnapshot           bool
+	usesNonNullKinds           bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
 	taskLaunchCall             *ast.CallExpr
@@ -238,6 +239,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	program.UsesUTF8 = c.usesUTF8
 	program.UsesObservation = c.usesObservation
 	program.UsesJSONSnapshot = c.usesJSONSnapshot
+	program.UsesNonNullKinds = c.usesNonNullKinds
 	return c.diagnostics
 }
 

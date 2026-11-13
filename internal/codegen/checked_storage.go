@@ -57,8 +57,8 @@ func generateInferredBindingChecks(bindings []ast.Binding) []goast.Stmt {
 	var checks []goast.Stmt
 	for _, binding := range bindings {
 		if binding.NonNull {
-			checks = append(checks, generateNonNullCheck(
-				goast.NewIdent(goName(binding.Name)), binding.Span, "non-null storage boundary", nil,
+			checks = append(checks, generateTypedNonNullCheck(
+				goast.NewIdent(goName(binding.Name)), binding.ResolvedType, binding.Span, "non-null storage boundary", nil,
 			))
 		}
 	}

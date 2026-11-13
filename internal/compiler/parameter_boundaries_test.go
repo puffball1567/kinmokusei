@@ -114,7 +114,7 @@ func TestRejectBeforeBody(t *testing.T){host:=g.NewHost();record:=g.Record{};sta
  tests:=map[string]func(){
  "function":func(){g.Entry(nil)},"function signature":func(){g.Fn(nil)},"defined function":func(){g.Defined(nil)},"generic alias":func(){g.GenericAlias(nil)},"interface":func(){g.Interface(nil)},"anonymous":func(){g.Anonymous(nil)},
  "arrow":func(){g.Arrow()(nil)},"block arrow":func(){g.BlockArrow()(nil)},"contextual arrow":func(){g.InferredArrow()(nil)},"Go invokes callback":func(){g.Invoked()},
- "bound":func(){g.Bound[func()int](nil)},"class union bound":func(){g.UnionBound[*g.Item](nil)},"function union bound":func(){g.UnionBound[func()int](nil)},"generic class":func(){g.GenericClass[int](nil)},"generic arrow":func(){g.GenericArrow[int]()(nil)},
+ "bound":func(){g.Bound[func()int](nil)},"class union bound":func(){g.UnionBound[*g.Item](nil)},"function union bound":func(){g.UnionBound[func()int](nil)},"mixed function bound":func(){g.MixedBound[func()int](nil)},"scalar mixed function bound":func(){g.ScalarBound[func()int](nil)},"generic class":func(){g.GenericClass[int](nil)},"generic arrow":func(){g.GenericArrow[int]()(nil)},
  "method":func(){host.Entry(nil)},"static":func(){g.HostStaticEntry(nil)},"generic method":func(){g.HostGeneric[int](host,nil)},"struct":func(){record.Entry(nil)},"enum":func(){status.Entry(nil)},"defined method":func(){number.Entry(nil)},
  "constructor":func(){g.NewConstruct(nil)},"derived super":func(){g.NewDerived(nil)},"escaped builtin":func(){g.Escaped(nil)},"setter":func(){host.SetItem(nil)},"finally":func(){g.Finally(nil)},
  }
