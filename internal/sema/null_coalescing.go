@@ -140,6 +140,9 @@ func (c *Checker) coalesceNilness(expression ast.Expression) int {
 			return 2
 		case *ast.UnaryExpr:
 			if expr.Operator == ast.NonNullOperator {
+				if expr.ImplicitNonNull && expr.AssertionType.NonNullKinds != 0 {
+					return 0
+				}
 				return 2
 			}
 			if expr.Operator == "&" {
@@ -149,12 +152,15 @@ func (c *Checker) coalesceNilness(expression ast.Expression) int {
 			}
 			return 0
 		case *ast.CallExpr:
+			if expr.NonNullConversion && expr.ConversionType != nil && expr.ConversionType.NonNullKinds != 0 {
+				return 0
+			}
 			if expr.NonNullConversion || expr.Builtin == ast.MakeSliceCall || expr.Builtin == ast.MakeMapCall || expr.Builtin == ast.MakeGoChannelCall || expr.Builtin == ast.MakeCall {
 				return 2
 			}
 			return 0
 		case *ast.GoTypeAssertionExpr:
-			if expr.NonNull && !expr.Checked {
+			if expr.NonNull && expr.Type.NonNullKinds == 0 && !expr.Checked {
 				return 2
 			}
 			return 0

@@ -14,7 +14,7 @@ import (
 func prependParameterChecks(body *goast.BlockStmt, parameters []ast.Parameter) {
 	var checks []goast.Stmt
 	for _, parameter := range parameters {
-		if !parameter.NonNull {
+		if !parameter.NonNull && parameter.NonNullKinds == 0 {
 			continue
 		}
 		name := goast.NewIdent(goName(parameter.Name))
@@ -29,6 +29,11 @@ func prependParameterChecks(body *goast.BlockStmt, parameters []ast.Parameter) {
 			Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ExprStmt{X: &goast.CallExpr{
 				Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral(message)},
 			}}}},
+		}
+		if parameter.NonNullKinds != 0 {
+			check = &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiCheckNonNullKinds"), Args: []goast.Expr{
+				value, &goast.BasicLit{Kind: token.INT, Value: fmt.Sprint(parameter.NonNullKinds)}, stringLiteral(message),
+			}}}
 		}
 		if parameter.Variadic {
 			check = &goast.RangeStmt{Key: goast.NewIdent("_"), Value: value, Tok: token.DEFINE,

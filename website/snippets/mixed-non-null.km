@@ -1,0 +1,13 @@
+import go fmt from "fmt";
+
+alias Callback = () => int;
+constraint Value = Callback | int;
+
+function identity<T extends Value>(value: T): T {
+  return value;
+}
+
+function main(): void {
+  const read = identity<Callback>(() => 7);
+  fmt.Println(identity(0), read());
+}

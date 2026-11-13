@@ -16,7 +16,7 @@ func (c *Checker) checkStorageExpressionExpectedSlot(slot *ast.Expression, expec
 	span := (*slot).GetSpan()
 	*slot = &ast.UnaryExpr{
 		Operator: ast.NonNullOperator, Operand: *slot,
-		AssertionType: typeRefFromType(expected, span), AssertionSpan: span,
+		AssertionType: c.boundaryTypeRef(expected, span), AssertionSpan: span,
 		ImplicitNonNull: true, Span: span,
 	}
 	return expected
@@ -25,8 +25,29 @@ func (c *Checker) checkStorageExpressionExpectedSlot(slot *ast.Expression, expec
 func (c *Checker) needsStorageBoundary(expected, actual Type, expression ast.Expression) bool {
 	// Extracted results can come from Go collections or callbacks. Validate
 	// their runtime references even when their declared types are native.
-	return actual.Kind != Invalid && c.requiresUniformNativeNonNull(expected, nil) &&
-		isNilable(actual) && c.isAssignable(expected, actual) &&
+	mask, ambiguous := c.mixedNonNullKinds(expected)
+	if mask != 0 {
+		var checked *ast.TypeRef
+		switch value := expression.(type) {
+		case *ast.UnaryExpr:
+			if value.ImplicitNonNull && len(value.NonNullResults) == 0 {
+				checked = &value.AssertionType
+			}
+		case *ast.CallExpr:
+			if value.NonNullConversion {
+				checked = value.ConversionType
+			}
+		case *ast.GoTypeAssertionExpr:
+			if value.NonNull && !value.Checked {
+				checked = &value.Type
+			}
+		}
+		if checked != nil && checked.NonNullKinds == mask && exactType(expected, c.resolveType(*checked)) {
+			return false
+		}
+	}
+	return actual.Kind != Invalid && (c.requiresUniformNativeNonNull(expected, nil) || mask != 0 || ambiguous) &&
+		(isNilable(actual) || mask != 0 || ambiguous) && c.isAssignable(expected, actual) &&
 		(expression == nil || !c.assignmentProvesNonNull(actual, expression))
 }
 
@@ -54,7 +75,7 @@ func (c *Checker) checkMultipleStorageSlot(slot *ast.Expression, expected, actua
 	span := (*slot).GetSpan()
 	*slot = &ast.UnaryExpr{
 		Operator: ast.NonNullOperator, Operand: *slot, ImplicitNonNull: true,
-		AssertionType: typeRefFromType(expected, span), AssertionSpan: span,
+		AssertionType: c.boundaryTypeRef(expected, span), AssertionSpan: span,
 		NonNullResults: checks, Span: span,
 	}
 	return expected

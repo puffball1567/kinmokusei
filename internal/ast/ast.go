@@ -43,6 +43,7 @@ type Program struct {
 	UsesUTF8             bool
 	UsesObservation      bool
 	UsesJSONSnapshot     bool
+	UsesNonNullKinds     bool
 }
 
 // NativeTypeMethodSet keeps callable expressions separate from constants in
@@ -120,9 +121,10 @@ type TypeRef struct {
 	// LoweredType is populated for generic aliases. The source alias remains
 	// available to language tooling while Go code generation uses its expanded
 	// underlying type, keeping generated modules compatible with Go 1.23.
-	LoweredType *TypeRef
-	Go          bool
-	Nullable    bool
+	LoweredType  *TypeRef
+	Go           bool
+	Nullable     bool
+	NonNullKinds uint8 // Checked mixed-bound publication; does not change storage.
 	// Variadic marks a function type whose final Parameters entry is the
 	// source-level slice type of a rest parameter.
 	Variadic bool
@@ -162,10 +164,11 @@ type Parameter struct {
 	Variadic   bool
 	// NonNull requests an entry check for this reference (each rest element).
 	// Semantic analysis sets this from the source contract, not its Go storage.
-	NonNull    bool
-	Visibility Visibility
-	IsField    bool
-	Span       source.Span
+	NonNull      bool
+	NonNullKinds uint8 // Selective checks for mixed reference/value bounds.
+	Visibility   Visibility
+	IsField      bool
+	Span         source.Span
 }
 
 type TypeParameter struct {

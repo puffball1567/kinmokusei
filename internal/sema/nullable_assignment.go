@@ -27,11 +27,14 @@ func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression)
 	case *ast.ArrowExpr, *ast.ArrayLiteralExpr, *ast.ObjectLiteralExpr, *ast.GoCompositeLiteralExpr, *ast.NewExpr:
 		return true
 	case *ast.UnaryExpr:
+		if expression.ImplicitNonNull && expression.AssertionType.NonNullKinds != 0 {
+			return false
+		}
 		return expression.Operator == "&" || expression.Operator == ast.NonNullOperator
 	case *ast.CallExpr:
-		return expression.NonNullConversion || expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
+		return expression.NonNullConversion && (expression.ConversionType == nil || expression.ConversionType.NonNullKinds == 0) || expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
 	case *ast.GoTypeAssertionExpr:
-		return expression.NonNull && !expression.Checked
+		return expression.NonNull && expression.Type.NonNullKinds == 0 && !expression.Checked
 	case *ast.IdentifierExpr:
 		for index := len(c.scopes) - 1; index >= 0; index-- {
 			if symbol, exists := c.scopes[index][expression.Name]; exists {

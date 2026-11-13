@@ -231,8 +231,17 @@ postfix `!`. Parentheses end short-circuiting. Independent Go comparisons includ
 linked declarations, nested chains, nil versus empty slices, source-located
 assertions and generated temporary-name hygiene in `optional_chaining_test.go`.
 
-Generic bounds without a uniform reference contract and recursive validation of values received
-from Go remain follow-up work. The checks do not protect arbitrary mutable Go
+Development builds validate mixed reference/value bounds selectively at callable
+entry and storage/result publication, conversions, nil-capable assertions,
+checked splits/receives and Result boundaries. Scalar zeros and raw Go nils of
+other storage kinds remain valid. Native/raw alternatives sharing the same
+nil-capable kind require a concrete type or separate uniform constraints; mixed
+reference/value assertion targets still require a concrete target. Nominal
+source and imported callback identities are retained when restoring source
+constraint terms. Selective checks do not prove that raw alternatives are
+non-null. Independent Go coverage is in `mixed_non_null_test.go`.
+
+Recursive validation of values received from Go remains follow-up work. The checks do not protect arbitrary mutable Go
 storage from being modified externally after validation.
 
 ### Go compatibility areas

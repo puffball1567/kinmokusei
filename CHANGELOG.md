@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate non-null references in mixed generic bounds (#117). Select checks
+  by storage kind for callable/class alternatives while preserving scalar zeros
+  and raw Go nil alternatives. Apply the policy to parameters, storage/results,
+  conversions, assertions, checked splits, receives and Result handling.
+  Diagnose ambiguous native/raw alternatives of the same storage kind instead
+  of guessing. Preserve nominal callback identities in source constraint terms
+  and retain nullable flow facts after a selective check.
+
 - Add optional chaining with `?.member`, `?.[index]` and `?.(arguments)`
   (#117). Capture each receiver once and skip the remaining unparenthesized
   chain, arguments and indices when it is nil. Nil-capable results are nullable;

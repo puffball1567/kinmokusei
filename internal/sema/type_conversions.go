@@ -11,6 +11,7 @@ import (
 
 func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 	expr.NonNull = false
+	expr.Type.NonNullKinds = 0
 	value := c.singleValue(c.checkExpression(expr.Value), expr.Value.GetSpan())
 	asserted := c.resolveType(expr.Type)
 	if value.Kind == Invalid || asserted.Kind == Invalid {
@@ -74,6 +75,7 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 			return Type{Kind: Invalid, Name: "<invalid>"}
 		}
 		expr.NonNull = true
+		expr.Type.NonNullKinds = c.boundaryTypeRef(asserted, expr.Span).NonNullKinds
 	}
 	if !expr.Checked {
 		return asserted
@@ -146,9 +148,10 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 		valueGo, valueOK = gotypes.Typ[gotypes.UntypedNil], true
 	}
 	convertible := targetOK && valueOK && gotypes.ConvertibleTo(valueGo, targetGo) && c.conversionPreservesSourceContract(target, value)
-	if convertible && c.requiresNativeNonNull(target, nil) && isNilable(target) {
+	mask, ambiguous := c.mixedNonNullKinds(target)
+	if convertible && c.requiresNativeNonNull(target, nil) && (isNilable(target) || mask != 0 || ambiguous) {
 		expr.NonNullConversion = true
-		ref := typeRefFromType(target, expr.Span)
+		ref := c.boundaryTypeRef(target, expr.Span)
 		expr.ConversionType = &ref
 	}
 	if !convertible {

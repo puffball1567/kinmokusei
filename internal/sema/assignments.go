@@ -42,6 +42,9 @@ func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 			continue
 		}
 		binding.NonNull = c.needsStorageBoundary(result, result, nil)
+		if binding.NonNull {
+			binding.ResolvedType = c.boundaryTypeRef(result, binding.Span)
+		}
 		c.declareMultiLocal(binding.Name, result, stmt.Constant, stmt, i, binding.Span)
 		c.updateIdentifierFlow(binding.Name, binding.Span, result, nil)
 		if value.Kind == Result && i == len(results)-1 {
@@ -97,7 +100,7 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			c.applyClassUpcast(&slot, declared, results[i])
 			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
 			if c.needsStorageBoundary(declared, results[i], nil) {
-				ref := typeRefFromType(declared, binding.Span)
+				ref := c.boundaryTypeRef(declared, binding.Span)
 				stmt.NonNullResults[i] = &ref
 			}
 			c.updateIdentifierFlow(binding.Name, binding.Span, results[i], nil)

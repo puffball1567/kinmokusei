@@ -472,6 +472,22 @@ and `T[] | null` still work with unconstrained element types because the
 container itself has a nil representation. Use an explicit presence/result
 representation when arbitrary scalar or struct values may be absent.
 
+Development builds validate native non-null alternatives of mixed bounds at
+parameter entry and value publication. A bound containing a callback and `int`
+rejects a nil callback supplied from Go while accepting integer zero. A bound
+containing a callback and a raw pointer preserves the pointer's nil contract.
+This also applies to stored/returned values, checked bindings, receives and
+Result success values; failure zeros remain governed by their success checks.
+
+<<< ../snippets/mixed-non-null.km{ts}
+
+When native non-null and raw nil-capable alternatives have the same storage
+kind, the checker requires a concrete type or separate uniform constraints.
+It does not infer which source contract a nil value intended. Assertions to a
+bound mixing reference and value types also require a concrete target.
+
+<<< ../snippets-invalid/mixed-non-null-ambiguous.km{ts}
+
 The compiler tracks maybe-null, definitely-null, and non-null facts separately from declared types. Facts join by guarantees across reachable flow and are invalidated by writes or effect boundaries that may change storage.
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.
