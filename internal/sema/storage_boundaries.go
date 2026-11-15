@@ -23,6 +23,12 @@ func (c *Checker) checkStorageExpressionExpectedSlot(slot *ast.Expression, expec
 }
 
 func (c *Checker) needsStorageBoundary(expected, actual Type, expression ast.Expression) bool {
+	if c.compilerOwnedReferenceCall(expression) && c.requiresUniformNativeNonNull(expected, nil) && c.isAssignable(expected, actual) {
+		return false
+	}
+	if slot := ast.ReferenceReadSlot(expression); slot != nil && *slot != nil && c.requiresUniformNativeNonNull(expected, nil) && c.isAssignable(expected, actual) {
+		return false
+	}
 	// Extracted results can come from Go collections or callbacks. Validate
 	// their runtime references even when their declared types are native.
 	mask, ambiguous := c.mixedNonNullKinds(expected)

@@ -44,6 +44,7 @@ type Program struct {
 	UsesObservation      bool
 	UsesJSONSnapshot     bool
 	UsesNonNullKinds     bool
+	UsesReferenceReads   bool
 }
 
 // NativeTypeMethodSet keeps callable expressions separate from constants in
@@ -793,6 +794,7 @@ func (*ChannelSendStmt) statement()             {}
 func (s *ChannelSendStmt) GetSpan() source.Span { return s.Span }
 
 type IdentifierExpr struct {
+	NonNullRead         *TypeRef // Validate a source reference when this value is read.
 	GoConstant          bool
 	Name                string
 	GoMember            *MemberExpr
@@ -830,8 +832,9 @@ func (e *LiteralExpr) GetSpan() source.Span { return e.Span }
 const NonNullOperator = "postfix!"
 
 type UnaryExpr struct {
-	Operator string
-	Operand  Expression
+	NonNullRead *TypeRef // Validate a source reference when this value is read.
+	Operator    string
+	Operand     Expression
 	// AssertionType and AssertionSpan are populated for NonNullOperator only.
 	AssertionType TypeRef
 	AssertionSpan source.Span
@@ -845,7 +848,8 @@ func (*UnaryExpr) expression()            {}
 func (e *UnaryExpr) GetSpan() source.Span { return e.Span }
 
 type BinaryExpr struct {
-	Parenthesized     bool // Preserve explicit grouping for ?? / logical mixing checks.
+	NonNullRead       *TypeRef // Validate a source reference when this value is read.
+	Parenthesized     bool     // Preserve explicit grouping for ?? / logical mixing checks.
 	CoalesceType      *TypeRef
 	CoalesceLeftValue Expression // Checked non-null branch conversion, using a reserved temporary.
 	CoalesceHelper    string     // A static zero-argument fallback can retain private inferred Go types.
@@ -864,6 +868,7 @@ func (e *BinaryExpr) GetSpan() source.Span { return e.Span }
 // Checked assertions produce (value, boolean); unchecked assertions panic on
 // failure. Source non-null reference targets also reject a nil asserted value.
 type GoTypeAssertionExpr struct {
+	NonNullRead             *TypeRef // Validate a source reference when this value is read.
 	NativeContractArguments []NativeContract
 	Value                   Expression
 	Type                    TypeRef
@@ -905,18 +910,20 @@ func (*TaskStartExpr) expression()            {}
 func (e *TaskStartExpr) GetSpan() source.Span { return e.Span }
 
 type AwaitExpr struct {
-	Value      Expression
-	ValueType  TypeRef
-	ResultTask bool
-	Void       bool
-	Span       source.Span
+	NonNullRead *TypeRef // Validate a source reference when this value is read.
+	Value       Expression
+	ValueType   TypeRef
+	ResultTask  bool
+	Void        bool
+	Span        source.Span
 }
 
 func (*AwaitExpr) expression()            {}
 func (e *AwaitExpr) GetSpan() source.Span { return e.Span }
 
 type CallExpr struct {
-	StaticCallee  bool // A declaration/package function cannot be rebound by an argument.
+	NonNullRead   *TypeRef // Validate a source reference when this value is read.
+	StaticCallee  bool     // A declaration/package function cannot be rebound by an argument.
 	Callee        Expression
 	TypeArguments []TypeRef
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
@@ -1059,6 +1066,8 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
+	BoundMethod            bool     // A resolved method value is always a non-nil callable.
+	NonNullRead            *TypeRef // Validate a source reference when this value is read.
 	Property               bool
 	PropertyGetter         string
 	PropertySetter         string
@@ -1127,8 +1136,9 @@ func (*OptionalReceiverExpr) expression()          {}
 func (*OptionalReceiverExpr) GetSpan() source.Span { return source.Span{} }
 
 type IndexExpr struct {
-	FixedArrayStorage       bool // Preserve addressable array storage rather than copying it.
-	MapIndex                bool // Preserve map key context while capturing assignment targets.
+	NonNullRead             *TypeRef // Validate a source reference when this value is read.
+	FixedArrayStorage       bool     // Preserve addressable array storage rather than copying it.
+	MapIndex                bool     // Preserve map key context while capturing assignment targets.
 	NativeContractArguments []NativeContract
 	// TypeArguments retains a possible explicit instantiation. For ambiguous
 	// f[T] syntax, Index retains the ordinary index until checking resolves f.
@@ -1178,6 +1188,7 @@ func (e *NewExpr) GetSpan() source.Span { return e.Span }
 // consumed as one of its base types, or a nullable class is boxed into a
 // nullable interface. Both conversions preserve nil and evaluate Value once.
 type ClassUpcastExpr struct {
+	NonNullRead       *TypeRef // Validate a source reference when this value is read.
 	Value             Expression
 	SourceClass       string
 	TargetClass       string

@@ -162,6 +162,9 @@ func (c *Checker) checkNumericMaterialization(expr ast.Expression, target Type) 
 // Only propagate values from scalar initializers that emit Go constants.
 // Identifiers carry the checked binding fact, not merely source immutability.
 func initializerEmitsConstant(expr ast.Expression) bool {
+	if slot := ast.ReferenceReadSlot(expr); slot != nil && *slot != nil {
+		return false
+	}
 	switch e := expr.(type) {
 	case *ast.IdentifierExpr:
 		return e.GoConstant || e.GoMember != nil && e.GoMember.Constant

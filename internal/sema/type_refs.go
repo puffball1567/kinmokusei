@@ -80,6 +80,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 	}
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
+		if slot := ast.ReferenceReadSlot(expression); slot != nil {
+			visitType(*slot)
+		}
 		switch expression := expression.(type) {
 		case *ast.OptionalChainExpr:
 			visitExpression(expression.Object)

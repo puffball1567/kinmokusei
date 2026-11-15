@@ -11,6 +11,17 @@ import (
 )
 
 func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
+	value, err := generateUncheckedExpression(expr)
+	if err != nil {
+		return nil, err
+	}
+	if slot := kinmokuseiAST.ReferenceReadSlot(expr); slot != nil && *slot != nil {
+		return generateReferenceRead(value, **slot), nil
+	}
+	return value, nil
+}
+
+func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
 	case *kinmokuseiAST.OptionalChainExpr:
 		return generateOptionalChain(expr)

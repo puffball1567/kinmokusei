@@ -81,6 +81,9 @@ func hasContextualShift(expression ast.Expression) bool {
 }
 
 func evaluationMayHaveEffects(expression ast.Expression) bool {
+	if slot := ast.ReferenceReadSlot(expression); slot != nil && *slot != nil {
+		return true
+	}
 	switch expr := expression.(type) {
 	case *ast.ArrowExpr, *ast.IdentifierExpr, *ast.LiteralExpr, nil:
 		return false

@@ -31,6 +31,7 @@ func (c *Checker) checkDiscard(expression *ast.Expression, annotation ast.TypeRe
 		value = c.checkExpressionExpectedSlot(expression, expected)
 	}
 	span := (*expression).GetSpan()
+	clearReferenceRead(*expression)
 	if call, ok := (*expression).(*ast.CallExpr); ok && (call.Builtin == ast.ResultOKCall || call.Builtin == ast.ResultFailCall) {
 		c.report(span, "Result constructors must be returned, not discarded")
 	}

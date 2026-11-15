@@ -168,6 +168,7 @@ func (c *Checker) checkUnary(expr *ast.UnaryExpr) Type {
 
 func (c *Checker) checkUnaryOperand(expr *ast.UnaryExpr, operand Type) Type {
 	if expr.Operator == "&" {
+		clearReferenceRead(expr.Operand)
 		if operand.Kind == Invalid {
 			return operand
 		}

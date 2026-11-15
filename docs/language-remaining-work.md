@@ -224,7 +224,6 @@ Safe-zero and nullable payloads retain their zero contracts. Independent Go
 comparisons cover typed-nil errors, failure payloads, generic values, closures,
 loops and reassignment in `result_presence_test.go`.
 
-This is still partial progress on #117.
 Development builds support optional member/index/call chains with lazy arguments
 and indices, nullable reference results, checked value results, `??` and checked
 postfix `!`. Parentheses end short-circuiting. Independent Go comparisons include
@@ -241,8 +240,18 @@ source and imported callback identities are retained when restoring source
 constraint terms. Selective checks do not prove that raw alternatives are
 non-null. Independent Go coverage is in `mixed_non_null_test.go`.
 
-Recursive validation of values received from Go remains follow-up work. The checks do not protect arbitrary mutable Go
-storage from being modified externally after validation.
+Development builds also validate native non-null references extracted from
+Go-owned fields, collection elements, callbacks and other unproven storage.
+Each read checks its own reference before source use, including nested and
+cyclic data, without eagerly traversing the entire object graph. Checked local
+snapshots retain their identity; mutation of shared storage is checked again
+when that storage is read. Raw Go and explicit nullable contracts retain their
+nil semantics, and interface checks do not inspect hidden implementation
+pointers. Concurrent Go mutation still requires normal Go synchronization.
+Independent Go coverage, single-evaluation and fixed-array effect checks are in
+`reference_reads_test.go`; checker and editor regressions cover rechecking,
+success-proof joins and navigation. These complete the scoped #117 work; the
+documented raw Go behavior and concrete-type requirements remain intentional.
 
 ### Go compatibility areas
 
