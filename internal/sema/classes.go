@@ -510,9 +510,13 @@ func (c *Checker) applyClassUpcast(slot *ast.Expression, expected, actual Type) 
 	}
 	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name {
 		if ancestor, ok := c.classAncestorType(actualClass, targetClass.Name); ok && exactType(targetClass, ancestor) {
+			result := targetClass
+			if actual.Kind == Nullable {
+				result = Type{Kind: Nullable, Name: "nullable", Element: &targetClass}
+			}
 			*slot = &ast.ClassUpcastExpr{
 				Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name,
-				SourceType: typeRefFromType(actualClass, (*slot).GetSpan()), TargetType: typeRefFromType(targetClass, (*slot).GetSpan()), Span: (*slot).GetSpan(),
+				SourceType: typeRefFromType(actual, (*slot).GetSpan()), TargetType: typeRefFromType(result, (*slot).GetSpan()), Span: (*slot).GetSpan(),
 			}
 		}
 	}

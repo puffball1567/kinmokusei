@@ -47,6 +47,9 @@ func (c *Checker) checkArrayLengthConstant(call *ast.CallExpr, value Type) {
 // are not evaluated; checked constant calls may themselves hide unevaluated
 // operands. Source operations lowered to runtime helpers stay nonconstant.
 func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
+	if slot := ast.ReferenceReadSlot(expression); slot != nil && *slot != nil {
+		return false
+	}
 	switch expr := expression.(type) {
 	case nil, *ast.IdentifierExpr, *ast.LiteralExpr, *ast.ArrowExpr:
 		return true

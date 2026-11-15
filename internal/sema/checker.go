@@ -60,6 +60,7 @@ type Checker struct {
 	usesObservation            bool
 	usesJSONSnapshot           bool
 	usesNonNullKinds           bool
+	usesReferenceReads         bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
 	taskLaunchCall             *ast.CallExpr
@@ -240,6 +241,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	program.UsesObservation = c.usesObservation
 	program.UsesJSONSnapshot = c.usesJSONSnapshot
 	program.UsesNonNullKinds = c.usesNonNullKinds
+	program.UsesReferenceReads = c.usesReferenceReads
 	return c.diagnostics
 }
 
@@ -590,12 +592,16 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	}
 }
 
-func (c *Checker) checkExpression(expr ast.Expression) Type {
+func (c *Checker) checkExpression(expr ast.Expression) (result Type) {
 	if len(c.exceptionFlows) != 0 {
 		defer c.recordExceptionFlow()
 	}
 	if expr == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if slot := ast.ReferenceReadSlot(expr); slot != nil {
+		*slot = nil
+		defer func() { c.checkReferenceRead(expr, result) }()
 	}
 	switch expr := expr.(type) {
 	case *ast.OptionalChainExpr:

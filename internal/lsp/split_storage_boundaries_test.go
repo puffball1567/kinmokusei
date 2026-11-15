@@ -80,3 +80,9 @@ func TestResultPresenceDiagnosticsAndNavigation(t *testing.T) {
 	good := prefix + `if(err!=nil){return 0;}return value.n;}`
 	checkSplitStorageNavigation(t, bad, good)
 }
+
+func TestReferenceReadDiagnosticsAndNavigation(t *testing.T) {
+	t.Parallel()
+	prefix := `class Box{public n:int=7;}class Node{constructor(public box:Box){}}function f(node:Node):int{const value=node.`
+	checkSplitStorageNavigation(t, prefix+`missing;return value.n;}`, prefix+`box;return value.n;}`)
+}

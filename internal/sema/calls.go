@@ -147,6 +147,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		if symbol, exists := c.lookupSymbol(name.Name, name.Span); exists {
 			name.ResolvedDeclaration = symbol.declarationSpan
 			callable = symbol.typeInfo
+			c.checkReferenceRead(name, callable)
 			callableName = fmt.Sprintf("value %q", name.Name)
 		} else if fn, exists := c.functions[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
 			expr.StaticCallee = true

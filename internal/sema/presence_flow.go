@@ -16,6 +16,7 @@ import (
 type presenceFlow struct {
 	required, checked bool
 	errorGuard        bool
+	nonNullOnSuccess  bool
 	guard, payload    source.Span
 }
 
@@ -59,7 +60,7 @@ func (c *Checker) bindPresencePair(expression ast.Expression, value Type, bindin
 	if first.constant && first.declarationSpan != bindings[0].Span {
 		return
 	}
-	first.presence = presenceFlow{required: true, errorGuard: errorGuard}
+	first.presence = presenceFlow{required: true, errorGuard: errorGuard, nonNullOnSuccess: c.requiresUniformNativeNonNull(payload, nil)}
 	guard, guardScope, paired := c.presenceBinding(bindings[1].Name)
 	validGuard := guard.declaredType.IsBoolean()
 	if errorGuard {
@@ -107,6 +108,9 @@ func (c *Checker) applyPresenceCondition(expression ast.Expression) (bool, bool)
 		for name, payload := range scope {
 			if payload.declarationSpan == guard.presence.payload && payload.presence.required && payload.presence.guard == guard.declarationSpan && payload.presence.errorGuard == errorGuard && !payload.flowEscaped {
 				payload.presence.checked = true
+				if payload.presence.nonNullOnSuccess && payload.declaredType.Kind == Nullable && payload.declaredType.Element != nil {
+					payload.typeInfo = *payload.declaredType.Element
+				}
 				c.scopes[i][name] = payload
 			}
 		}
@@ -166,6 +170,7 @@ func isAbsenceLiteral(expression ast.Expression) bool {
 func mergePresence(symbol valueSymbol, scope int, name string, branches ...[]map[string]valueSymbol) presenceFlow {
 	var result presenceFlow
 	result.checked = true
+	result.nonNullOnSuccess = true
 	guardSet, payloadSet := false, false
 	for _, branch := range branches {
 		candidate := symbol
@@ -175,6 +180,11 @@ func mergePresence(symbol valueSymbol, scope int, name string, branches ...[]map
 			}
 		}
 		state := candidate.presence
+		if state.required {
+			result.nonNullOnSuccess = result.nonNullOnSuccess && state.nonNullOnSuccess
+		} else {
+			result.nonNullOnSuccess = result.nonNullOnSuccess && candidate.typeInfo.Kind != Nullable
+		}
 		if !payloadSet {
 			result.payload = state.payload
 			result.errorGuard = state.errorGuard
@@ -197,6 +207,7 @@ func mergePresence(symbol valueSymbol, scope int, name string, branches ...[]map
 	}
 	if !result.required {
 		result.checked = false
+		result.nonNullOnSuccess = false
 	}
 	return result
 }

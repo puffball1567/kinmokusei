@@ -201,6 +201,11 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		return nil, nil, err
 	}
 	file.Decls = append(file.Decls, iteratorDeclarations...)
+	readDeclarations, err := referenceReadRuntimeDeclarations(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, readDeclarations...)
 	needsContracts := false
 	goast.Inspect(file, func(node goast.Node) bool {
 		if name, ok := node.(*goast.Ident); ok && (name.Name == "__kinmokuseiSourceContract" || name.Name == "__kinmokuseiKnownContracts") {

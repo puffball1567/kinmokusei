@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Validate native non-null references when reading Go-owned fields, collection
+  elements, callbacks and other unproven storage (#117). Check each extracted
+  reference once before use, including nested and cyclic data, with the original
+  source position in failures. Preserve reference identity, addressability,
+  explicit discards, raw Go nil rules and typed-nil interfaces. Keep checks in
+  evaluated fixed-array `len`/`cap` operands and require matching success proofs
+  for checked payloads assigned to nullable bindings.
+
 - Validate non-null references in mixed generic bounds (#117). Select checks
   by storage kind for callable/class alternatives while preserving scalar zeros
   and raw Go nil alternatives. Apply the policy to parameters, storage/results,

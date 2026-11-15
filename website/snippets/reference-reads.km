@@ -1,0 +1,20 @@
+import go fmt from "fmt";
+
+class Item {
+  constructor(public count: int) {}
+}
+
+struct Row {
+  item: Item;
+}
+
+function read(row: Row): int {
+  // Also checked if Go supplied or replaced row.item with nil.
+  const snapshot = row.item;
+  return snapshot.count;
+}
+
+function main(): void {
+  const row = Row{ item: new Item(7) };
+  fmt.Println(read(row));
+}

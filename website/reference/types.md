@@ -524,10 +524,28 @@ checks after all arguments have been evaluated.
 
 Nullable destinations retain absence, and raw Go destinations retain Go nil
 behavior. Interface checks preserve Go's distinction between a nil interface and
-an interface containing a typed nil pointer. These are reference checks, not
-recursive validation of an incoming aggregate. Generic bounds without a uniform
-non-null reference contract remain under development. External Go mutation after
-validation can still invalidate stored source contracts.
+an interface containing a typed nil pointer. Mixed generic contracts use the
+selective storage-kind checks described above.
+
+Development builds also check native non-null references when reading fields,
+collection elements, callback results and other storage whose current value is
+not proven. This protects source references inside aggregates supplied or
+modified by Go, including nested and cyclic data. A failed check panics with
+the original `.km` file, line and column before the reference is used. The
+expression runs once, and ordinary pointer/interface checks do not scan the
+object graph. A checked local snapshot retains its identity; subsequent reads
+of shared fields or elements validate their current values again.
+
+<<< ../snippets/reference-reads.km{ts}
+
+Declare fields as nullable when absence is part of their contract. Raw Go
+references keep Go nil behavior, and explicit whole-value discards do not
+require a non-null result. Interface checks concern the interface itself, not
+hidden implementation pointers. Concurrent mutation from Go still requires
+normal synchronization. For a checked split into an existing nullable binding,
+the matching success flag establishes non-null only when the payload type
+promises a native non-null reference; success alone does not establish that a
+raw Go pointer or callback is non-nil.
 
 A raw Go pointer, interface or function type does not imply that its value is
 non-nil. Assigning one to an explicit `T | null` local or field preserves the

@@ -16,6 +16,9 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=7;}struct Row{public item:C;}function f(rows:Row[]):int{return rows[0].item.n;}`,
+	`class C{public n:int=7;}function f(items:C[]):int{for(const item of items){return item.n;}return 0;}`,
+	`alias F=()=>int;struct Row{public callback:F;}function f(row:Row):int{return row.callback();}`,
 	`alias F=()=>int;constraint Mixed=F|int;function f<T extends Mixed>(read:()=>T):T{return read();}`,
 	`alias F=()=>int;constraint Mixed=F|*int;function f<T extends Mixed>(read:()=>T,fallback:T):T{const x:T|null=T(read());return x??fallback;}`,
 	`class C{}constraint Mixed=C|*int;function f<T extends Mixed>(read:()=>T):T{return read();}`,

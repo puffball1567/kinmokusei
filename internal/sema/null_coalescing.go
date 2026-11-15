@@ -128,6 +128,9 @@ func baseOfNullable(value Type) Type {
 // runs. A narrowed class type alone is not proof: zero-value/Go ingress has
 // separate checks. Bound traversal so a long chain cannot exhaust the stack.
 func (c *Checker) coalesceNilness(expression ast.Expression) int {
+	if slot := ast.ReferenceReadSlot(expression); slot != nil && *slot != nil {
+		return 2
+	}
 	seen := map[source.Span]bool{}
 	for steps := 0; steps < 512; steps++ {
 		switch expr := expression.(type) {
