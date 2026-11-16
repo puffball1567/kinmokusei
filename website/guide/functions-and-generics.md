@@ -71,7 +71,7 @@ const goShaped = identity[string](explicit);
 const partial = second<int>(1, goShaped);
 ```
 
-Calls may infer all arguments or provide a leading partial/full list with `<T>` or `[T]`. Repeated parameter uses must infer the same type, and every uninferred type parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
+Calls may infer all arguments or provide a leading partial/full list with `<T>` or `[T]`. Repeated parameter uses must infer the same type, and every uninferred type parameter must be supplied. A stored function value must have a concrete signature, supplied by explicit type arguments or a function-typed context.
 
 Direct arrow callback parameters can also be inferred in native and Go
 generic calls. See [generic callback inference](../book/functions-and-generics#generic-callback-inference)
@@ -83,7 +83,7 @@ for examples and inference boundaries.
 Fully instantiated generic function values are released in v0.4.7.
 :::
 
-Supply all type arguments when storing or passing a generic function:
+Supply all type arguments when no function-typed context is available:
 
 ```ts
 function identity<T>(value: T): T { return value; }
@@ -94,11 +94,14 @@ const callbacks: ((value: int) => int)[] = [integerIdentity, sameIdentity];
 const answer = callbacks[0](42);
 ```
 
-Both forms lower directly to a Go function instantiation, without a wrapper.
 The resulting value can be returned, stored in collections, or used as a
 callback. Native `string`, nullable types, `Result<T>`, multiple results and
 variadics retain their checked contracts. A Result-returning function value does
-not permit silently discarding the result.
+not permit silently discarding the result. Concrete native non-null parameters
+and results receive an invocation wrapper when needed, so Go callers also
+receive the checks. Variadic elements are checked before the body; Result
+payloads are checked only on success, preserving failure zeros and typed-nil
+error behavior.
 
 Imported Go functions work too:
 
@@ -109,12 +112,36 @@ const cloneIntegers = Clone<int[], int>;
 const copy = cloneIntegers([1, 2, 3]);
 ```
 
+### Contextual function values
+
+::: info Available in development builds
+A destination function type can infer all missing generic arguments.
+:::
+
+<<< ../snippets/contextual-function-values.km{ts}
+
+This prints `7 8 9 raw [1 2 3]`. The same inference applies to assignments,
+returns, typed collection/object elements, class fields and callbacks. Both
+`pair<int>` and `pair[int]` can supply a leading explicit list. Generic call
+arguments can use other arguments to determine a declaration callback's type,
+including when the callback comes first. Checking does not reorder runtime
+argument evaluation or execute the callback during inference.
+
+Inputs and results must determine one consistent instantiation. Verified text,
+nullable references, nominal types, Result and variadic contracts remain part
+of that signature. If the context cannot determine a parameter, supply type
+arguments or a concrete function annotation:
+
+<<< ../snippets-invalid/contextual-function-values.km{ts}
+
+Inferred arguments must be nameable in generated Go. An API exposing a private
+Go type needs a public function-type context or wrapper rather than an inferred
+private type argument. Mutually dependent generic callbacks without a concrete
+context are rejected.
+
 Ordinary `values[index]` remains indexing when `values` is a collection, even if
 it shadows a generic function. Constraints are checked when the function is
-instantiated. Partial argument lists and target-type inference for function
-values are not yet supported; supply every argument explicitly. Generic
-instance methods remain direct-call-only. Existing generic calls may still
-infer missing arguments.
+instantiated. Generic instance methods remain direct-call-only.
 
 ## Constraints
 

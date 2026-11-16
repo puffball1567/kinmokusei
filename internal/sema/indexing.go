@@ -25,7 +25,7 @@ func (c *Checker) checkIndexAccess(expr *ast.IndexExpr, checked, storage bool) T
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	var object Type
-	if len(expr.TypeArguments) != 0 {
+	if len(expr.TypeArguments) != 0 || len(expr.ResolvedTypeArguments) != 0 {
 		object = c.genericValueOperand(expr.Object)
 		if object.Kind == GoTypeName {
 			return c.checkGoTypeInstantiationExpression(expr, object)

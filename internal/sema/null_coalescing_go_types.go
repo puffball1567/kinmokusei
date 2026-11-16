@@ -45,7 +45,7 @@ func (c *Checker) coalesceStaticHelper(expr *ast.BinaryExpr, left, right, result
 
 // Named public Go types hide their implementation fields; only names that
 // actually appear in a generated result signature need to be accessible.
-func coalesceTypeNameable(value Type) bool {
+func typeNameableForEmission(value Type) bool {
 	// Bound structural expansion and memoize shared Go types. Nominal source
 	// types expose only their name and type arguments in a generated signature.
 	budget := 16384

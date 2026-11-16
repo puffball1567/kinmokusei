@@ -110,7 +110,7 @@ func (c *Checker) checkCoalesce(expr *ast.BinaryExpr, expected *Type) Type {
 	if !expr.CoalesceChecked {
 		expr.CoalesceHelper = c.coalesceStaticHelper(expr, left, right, result)
 	}
-	if expr.CoalesceHelper == "" && !coalesceTypeNameable(result) {
+	if expr.CoalesceHelper == "" && !typeNameableForEmission(result) {
 		c.report(expr.Span, "?? result contains a private Go type; add an explicit public interface or named type context")
 		return Type{Kind: Invalid}
 	}

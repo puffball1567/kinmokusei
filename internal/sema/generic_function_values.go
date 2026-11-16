@@ -29,6 +29,7 @@ func (c *Checker) genericValueOperand(expression ast.Expression) Type {
 }
 
 func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) Type {
+	expr.FunctionBoundary = nil
 	invalid := Type{Kind: Invalid, Name: "<invalid>"}
 	if callable.Kind == Invalid {
 		return invalid
@@ -41,13 +42,17 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 		c.report(expr.Span, "instantiated generic method values are not yet supported; call the method directly")
 		return invalid
 	}
+	refs := expr.TypeArguments
+	if len(expr.ResolvedTypeArguments) != 0 {
+		refs = expr.ResolvedTypeArguments
+	}
 	var instantiated Type
 	if len(callable.TypeParameters) != 0 {
-		if len(expr.TypeArguments) != len(callable.TypeParameters) {
-			c.report(expr.Span, fmt.Sprintf("generic function value requires all %d type arguments, got %d", len(callable.TypeParameters), len(expr.TypeArguments)))
+		if len(refs) != len(callable.TypeParameters) {
+			c.report(expr.Span, fmt.Sprintf("generic function value requires all %d type arguments, got %d", len(callable.TypeParameters), len(refs)))
 			return invalid
 		}
-		bindings := c.nativeFunctionTypeBindings(callable, expr.TypeArguments)
+		bindings := c.nativeFunctionTypeBindings(callable, refs)
 		arguments := make([]Type, len(callable.TypeParameters))
 		for i, parameter := range callable.TypeParameters {
 			arguments[i] = bindings[parameter.GoType]
@@ -55,7 +60,7 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 				return invalid
 			}
 		}
-		if !c.validateNativeTypeArguments(callable.TypeParameters, arguments, expr.TypeArguments, expr.Span, "generic function value") {
+		if !c.validateNativeTypeArguments(callable.TypeParameters, arguments, refs, expr.Span, "generic function value") {
 			return invalid
 		}
 		instantiated = substituteNativeTypeParameters(callable, bindings)
@@ -67,11 +72,11 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 			c.report(expr.Span, "generic function value has invalid Go type information")
 			return invalid
 		}
-		if len(expr.TypeArguments) != signature.TypeParams().Len() {
-			c.report(expr.Span, fmt.Sprintf("generic Go function value requires all %d type arguments, got %d", signature.TypeParams().Len(), len(expr.TypeArguments)))
+		if len(refs) != signature.TypeParams().Len() {
+			c.report(expr.Span, fmt.Sprintf("generic Go function value requires all %d type arguments, got %d", signature.TypeParams().Len(), len(refs)))
 			return invalid
 		}
-		arguments, ok := c.explicitGoFunctionTypeArguments(expr.TypeArguments)
+		arguments, ok := c.explicitGoFunctionTypeArguments(refs)
 		if !ok {
 			return invalid
 		}
@@ -92,6 +97,7 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 	}
 	expr.Instantiated = true
 	expr.ResolvedType = typeRefFromType(instantiated, expr.Span)
+	c.recordFunctionValueBoundary(expr, instantiated)
 	return instantiated
 }
 

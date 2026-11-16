@@ -58,7 +58,7 @@ func (c *Checker) checkOptionalChain(expr *ast.OptionalChainExpr, expected *Type
 		c.report(expr.Value.GetSpan(), "optional chaining requires an ordinary value or void call; handle Result, Task and multiple results explicitly")
 		return Type{Kind: Invalid}
 	}
-	if !coalesceTypeNameable(value) {
+	if !typeNameableForEmission(value) {
 		c.report(expr.Span, "optional chaining result contains a private Go type; add an explicit public interface or named type context")
 		return Type{Kind: Invalid}
 	}
