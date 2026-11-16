@@ -1,0 +1,19 @@
+import go fmt from "fmt";
+import go slices from "slices";
+import go cmp from "cmp";
+
+function identity<T>(value: T): T { return value; }
+function pair<T, U>(left: T, right: U): (T, U) { return left, right; }
+function apply<T>(callback: (value: T) => T, value: T): T {
+  return callback(value);
+}
+
+function main(): void {
+  const f: (value: int) => int = identity;
+  const paired: (left: int, right: bstring) => (int, bstring) = pair<int>;
+  const [amount, text] = paired(9, b"raw");
+  const values = [3, 1, 2];
+  slices.SortFunc(values, cmp.Compare);
+  const clone: (values: int[]) => int[] = slices.Clone;
+  fmt.Println(f(7), apply(identity, 8), amount, text, clone(values));
+}

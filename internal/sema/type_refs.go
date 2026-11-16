@@ -166,6 +166,17 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.IndexExpr:
 			visitExpression(expression.Object)
 			if expression.Instantiated {
+				if boundary := expression.FunctionBoundary; boundary != nil {
+					for i := range boundary.Parameters {
+						visitType(&boundary.Parameters[i].Type)
+					}
+					for _, ref := range boundary.Results {
+						visitType(ref)
+					}
+				}
+				for i := range expression.ResolvedTypeArguments {
+					visitType(&expression.ResolvedTypeArguments[i])
+				}
 				for i := range expression.TypeArguments {
 					visitType(&expression.TypeArguments[i])
 				}

@@ -490,13 +490,18 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			return nil, err
 		}
 		if expr.Instantiated {
+			arguments := expr.TypeArguments
+			if len(expr.ResolvedTypeArguments) != 0 {
+				arguments = expr.ResolvedTypeArguments
+			}
 			if len(expr.NativeContractArguments) != 0 {
 				if name, ok := object.(*goast.Ident); ok {
 					name.Name = nativeBindingName(name.Name)
 				}
-				return &goast.CallExpr{Fun: indexedGoType(object, expr.TypeArguments), Args: nativeContractExpressions(expr.NativeContractArguments)}, nil
+				bound := &goast.CallExpr{Fun: indexedGoType(object, arguments), Args: nativeContractExpressions(expr.NativeContractArguments)}
+				return generateFunctionValueBoundary(expr, bound)
 			}
-			return indexedGoType(object, expr.TypeArguments), nil
+			return generateFunctionValueBoundary(expr, indexedGoType(object, arguments))
 		}
 		index, err := generateExpression(expr.Index)
 		if err != nil {

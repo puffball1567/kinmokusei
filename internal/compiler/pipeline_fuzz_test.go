@@ -387,6 +387,10 @@ var pipelineFuzzSeeds = []string{
 	`class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { const count = len(values); for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`,
 	`class Holder { constructor() { const callback = (): int => { return 1; }; const value = callback(); } }`,
 	"\xff\x00",
+	`function id<T>(v:T):T{return v;}const f:(v:int)=>int=id;function use():int{return f(7);}`,
+	`function pair<T,U>(a:T,b:U):(T,U){return a,b;}const f:(a:int,b:bstring)=>(int,bstring)=pair[int];`,
+	`function id<T>(v:T):T{return v;}function apply<T>(f:(v:T)=>T,v:T):T{return f(v);}const n=apply(id,7);`,
+	`class Item{}function first<T>(...values:T[]):T{return values[0];}function f():(...values:Item[])=>Item{return first;}`,
 }
 
 func compilePipelineProperty(input string) ([]byte, bool, error) {

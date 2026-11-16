@@ -11,6 +11,17 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Infer generic function values from a destination function type, including
+  omitted or trailing type arguments for source and Go declarations. Support
+  bindings, assignments, returns, typed collections/fields and higher-order
+  calls, including generic callbacks inferred from other arguments. Reject
+  unresolved/conflicting types and unnameable private Go arguments; preserve
+  source contracts and editor navigation without synthetic rename references.
+- Enforce concrete non-null parameter and result contracts on instantiated
+  generic function values, including direct Go callers, variadics, multiple
+  results and successful Result payloads. Preserve nullable/raw Go contracts,
+  typed-nil interfaces and Result failure zeros.
+
 - Validate native non-null references when reading Go-owned fields, collection
   elements, callbacks and other unproven storage (#117). Check each extracted
   reference once before use, including nested and cyclic data, with the original

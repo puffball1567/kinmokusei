@@ -1142,18 +1142,28 @@ type IndexExpr struct {
 	NativeContractArguments []NativeContract
 	// TypeArguments retains a possible explicit instantiation. For ambiguous
 	// f[T] syntax, Index retains the ordinary index until checking resolves f.
-	TypeArguments []TypeRef
-	Instantiated  bool
-	ResolvedType  TypeRef
-	Object        Expression
-	Index         Expression
-	Addressable   bool
-	Assignable    bool
-	Span          source.Span
+	TypeArguments         []TypeRef
+	ResolvedTypeArguments []TypeRef // Context-inferred arguments; source arguments retain their own spans.
+	FunctionBoundary      *FunctionValueBoundary
+	Instantiated          bool
+	ResolvedType          TypeRef
+	Object                Expression
+	Index                 Expression
+	Addressable           bool
+	Assignable            bool
+	Span                  source.Span
 }
 
 func (*IndexExpr) expression()            {}
 func (e *IndexExpr) GetSpan() source.Span { return e.Span }
+
+// FunctionValueBoundary retains the concrete source contracts erased by a
+// generic function's Go signature. Checks run when the bound value is invoked.
+type FunctionValueBoundary struct {
+	Parameters []Parameter
+	Results    []*TypeRef
+	Condition  NonNullCondition
+}
 
 type SliceExpr struct {
 	InitializedOnly   bool // Slicing must not expose zeroed capacity as non-null elements.

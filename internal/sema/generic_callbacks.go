@@ -1,6 +1,7 @@
 package sema
 
 import (
+	"fmt"
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
@@ -22,8 +23,9 @@ func genericArgumentParameter(callable Type, call *ast.CallExpr, index int) Type
 	return expected
 }
 
-// Direct arrow construction does not execute its body. Delay only those bodies
-// until other arguments provide their contexts; never reorder emitted arguments
+// Direct arrow construction and generic declaration references do not execute
+// user code. Delay their checking until other arguments provide their contexts;
+// never reorder emitted arguments
 // or evaluate a source expression twice. The ordinary call checker remains the
 // authority for argument compatibility, arity, constants, and constraints.
 func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Type, bindings nativeTypeBindings) []Type {
@@ -39,6 +41,8 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 	for i, argument := range call.Arguments {
 		if arrow, ok := argument.(*ast.ArrowExpr); ok {
 			pending[i] = arrow
+		} else if c.deferredGenericFunctionValue(argument) {
+			pending[i] = nil
 		} else {
 			formal := genericArgumentParameter(callable, call, i)
 			var actual Type
@@ -80,6 +84,9 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 	for i, actual := range actuals {
 		expected := genericArgumentParameter(callable, call, i)
 		if arrow, deferred := pending[i]; deferred {
+			if arrow == nil {
+				continue
+			}
 			// Explicit parts of callback signatures also outrank numeric defaults.
 			context := c.arrowContext(expected)
 			if context.Kind == Function && len(context.Parameters) == len(arrow.Parameters) && context.Variadic == hasVariadicParameter(arrow.Parameters) {
@@ -119,6 +126,16 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 			}
 			formal := genericArgumentParameter(callable, call, i)
 			context := c.arrowContext(substituteNativeTypeParameters(formal, bindings))
+			if arrow == nil {
+				if containsUnboundCallbackType(context, bindings) {
+					continue
+				}
+				actuals[i] = c.checkExpressionExpectedSlot(&call.Arguments[i], context)
+				_ = c.inferNativeTypeArguments(c.arrowContext(formal), actuals[i], bindings)
+				delete(pending, i)
+				progress = true
+				continue
+			}
 			if !genericArrowContextReady(arrow, context, bindings) {
 				continue
 			}
@@ -146,7 +163,11 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 			// Report missing annotations rather than inventing a type for a cycle.
 			for i := range call.Arguments {
 				if arrow, ok := pending[i]; ok {
-					actuals[i] = c.checkArrow(arrow)
+					if arrow == nil {
+						c.report(call.Arguments[i].GetSpan(), fmt.Sprintf("cannot infer generic function callback %d; provide explicit type arguments or a function type annotation", i+1))
+					} else {
+						actuals[i] = c.checkArrow(arrow)
+					}
 				}
 			}
 			break

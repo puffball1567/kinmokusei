@@ -55,6 +55,9 @@ func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Ty
 }
 
 func (c *Checker) checkExpressionExpectedSlot(slot *ast.Expression, expected Type) Type {
+	if actual, handled := c.checkContextualFunctionValue(slot, expected); handled {
+		return actual
+	}
 	actual := c.checkExpressionExpected(*slot, expected)
 	c.applyClassUpcast(slot, expected, actual)
 	return actual
@@ -73,8 +76,9 @@ func (c *Checker) checkArrayLiteral(expr *ast.ArrayLiteralExpr) Type {
 		c.report(expr.Elements[0].GetSpan(), "cannot infer an array element type from nil or null")
 		element = Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	for _, item := range expr.Elements[1:] {
-		actual := c.checkExpressionExpected(item, element)
+	for i := 1; i < len(expr.Elements); i++ {
+		item := expr.Elements[i]
+		actual := c.checkExpressionExpectedSlot(&expr.Elements[i], element)
 		c.requireAssignable(element, actual, item.GetSpan())
 	}
 	c.prepareGoTypeForEmission(&element, expr.Span)
