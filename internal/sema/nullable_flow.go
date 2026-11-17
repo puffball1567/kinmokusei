@@ -243,6 +243,7 @@ func (c *Checker) mergeValueScopes(entry []map[string]valueSymbol, continuing ..
 	}
 	for scopeIndex, scope := range merged {
 		for name, symbol := range scope {
+			symbol.presence = mergePresence(symbol, scopeIndex, name, continuing...)
 			if symbol.taskState != taskNotTracked {
 				state := uint8(taskNotTracked)
 				for _, branch := range continuing {
@@ -312,6 +313,11 @@ func (c *Checker) mergeValueScopes(entry []map[string]valueSymbol, continuing ..
 }
 
 func (c *Checker) checkLoopFixedPoint(statement ast.Statement, entry nullableFlowSnapshot, checkIteration func() (nullableFlowSnapshot, bool)) {
+	reused, complete := c.memoizeLoopCheck(statement, entry)
+	if reused {
+		return
+	}
+	defer complete()
 	c.pushBranchFlowTarget(statement, true)
 	defer c.popBranchFlowTarget()
 	header := nullableFlowSnapshot{scopes: cloneValueScopes(entry.scopes), members: cloneMemberFlow(entry.members)}
@@ -370,7 +376,7 @@ func nullableFlowSymbolCount(scopes []map[string]valueSymbol) int {
 	count := 0
 	for _, scope := range scopes {
 		for _, symbol := range scope {
-			if symbol.declaredType.Kind == Nullable || symbol.taskState != taskNotTracked {
+			if symbol.declaredType.Kind == Nullable || symbol.taskState != taskNotTracked || symbol.presence.required || symbol.presence.payload.Start.Line != 0 {
 				count++
 			}
 		}
@@ -386,6 +392,12 @@ func sameNullableFlow(left, right []map[string]valueSymbol) bool {
 		rightScope := right[scopeIndex]
 		for name, leftSymbol := range leftScope {
 			rightSymbol, exists := rightScope[name]
+			if leftSymbol.presence != rightSymbol.presence {
+				return false
+			}
+			if (leftSymbol.presence.required || leftSymbol.presence.payload.Start.Line != 0) && leftSymbol.flowEscaped != rightSymbol.flowEscaped {
+				return false
+			}
 			if leftSymbol.taskState != taskNotTracked {
 				if !exists || rightSymbol.declarationSpan != leftSymbol.declarationSpan || rightSymbol.taskState != leftSymbol.taskState {
 					return false
@@ -460,6 +472,7 @@ func (c *Checker) updateIdentifierFlowProof(name string, span source.Span, value
 			c.invalidateMemberFactsForDeclaration(symbol.declarationSpan, span, "an assignment to its receiver")
 		}
 		c.recordCapturedWrite(index, symbol.declarationSpan, span)
+		symbol.presence = presenceFlow{}
 		symbol.typeInfo = declared
 		if declared.Kind == Nullable && declared.Element != nil && !symbol.flowEscaped && nonNull && c.isAssignable(*declared.Element, value) {
 			symbol.typeInfo = *declared.Element
@@ -497,6 +510,8 @@ func (c *Checker) markIdentifierEscaped(name string, span source.Span, cause str
 		}
 		c.recordCapturedWrite(index, symbol.declarationSpan, span)
 		symbol.flowEscaped = true
+		symbol.presence.checked = false
+		symbol.presence.payload = source.Span{}
 		symbol.typeInfo = symbol.declaredType
 		symbol.flowInvalidated = span
 		symbol.flowInvalidationCause = cause
@@ -512,6 +527,8 @@ func (c *Checker) markDeclarationEscaped(declaration, span source.Span, cause st
 				continue
 			}
 			symbol.flowEscaped = true
+			symbol.presence.checked = false
+			symbol.presence.payload = source.Span{}
 			symbol.typeInfo = symbol.declaredType
 			symbol.flowInvalidated = span
 			symbol.flowInvalidationCause = cause
@@ -603,10 +620,12 @@ func (c *Checker) invalidateControlTransferFlow(span source.Span) {
 	}
 	for scopeIndex, scope := range c.scopes {
 		for name, symbol := range scope {
-			if symbol.constant || symbol.declaredType.Kind != Nullable {
+			if symbol.constant || symbol.declaredType.Kind != Nullable && !symbol.presence.required && symbol.presence.payload.Start.Line == 0 {
 				continue
 			}
 			symbol.typeInfo = symbol.declaredType
+			symbol.presence.checked = false
+			symbol.presence.payload = source.Span{}
 			symbol.flowInvalidated = span
 			symbol.flowInvalidationCause = "an arbitrary control transfer"
 			c.scopes[scopeIndex][name] = symbol

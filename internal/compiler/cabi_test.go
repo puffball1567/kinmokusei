@@ -292,7 +292,7 @@ export c("kinmokusei_preserve") {preserve};
 		t.Fatalf("imported enum header:\n%s", artifacts.Header)
 	}
 	gateway := string(artifacts.Gateway)
-	if !strings.Contains(gateway, "__kinmokuseiResult := preserve(") || !strings.Contains(gateway, "Code(arg0))") || !strings.Contains(gateway, "*outResult = C.int32_t(__kinmokuseiResult)") {
+	if !strings.Contains(gateway, "__kinmokuseiResult := preserve(") || !strings.Contains(gateway, "Code(__kinmokuseiArg0))") || !strings.Contains(gateway, "*__kinmokuseiOutResult = C.int32_t(__kinmokuseiResult)") {
 		t.Fatalf("imported enum gateway:\n%s", artifacts.Gateway)
 	}
 }

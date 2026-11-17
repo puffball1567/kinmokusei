@@ -96,6 +96,12 @@ prefix to `Exception.message` or `.error()`, which still return message text.
 
 `T | null` marks a nil-backed reference as nullable. `null` belongs to this checked type system; imported raw Go `nil` retains its low-level Go meaning. The two do not assign implicitly.
 
+Use `const user: User | null = null` for an absent source class. Development
+builds reject `const user: User = nil`, as well as raw nil initialization of
+source interfaces and function signatures. Aliases and generic bounds cannot
+bypass that rule. Go pointer/interface/callback types keep their raw Go nil
+behavior at the interop boundary.
+
 ```ts
 const user = findUser(id);
 if (user === null) { return "missing"; }
@@ -131,6 +137,27 @@ Bind getter results to locals before narrowing, because each property read can
 run different code and return a different value.
 
 ## Flow facts and invalidation
+
+v0.4.12 builds require presence checks for unsafe-zero payloads from
+ordinary `[value, ok]` map lookups, channel receives and `as?` assertions:
+
+<<< ../snippets/map-absence.km{ts}
+
+Check the matching local flag before reading, calling, returning or copying the
+payload. `if (!ok) { return fallback; }` is a useful early-exit form. Resetting
+the flag, using a copied/stale flag, or capturing mutable storage does not
+establish success. Nullable payloads still need a separate null guard even
+when the key exists. See [zero values and absence](../reference/types#zero-values-and-absence).
+
+To replace an absent reference, v0.4.12 provides lazy `??`:
+
+<<< ../snippets/null-coalescing.km{ts}
+
+This prints `fallback 2` followed by `金木犀`. The first lookup is absent, so the fallback runs;
+the second lookup returns a user, so the fallback is skipped. The source
+binding keeps its declared nullable type. A nullable fallback keeps the result
+nullable as well. See [null coalescing](../reference/operators#null-coalescing)
+for type context and Go interface behavior.
 
 When null would be a programming error, use checked postfix `!`:
 

@@ -80,6 +80,19 @@ hello 5
 
 Missing and nil maps return the value type's zero value plus `false`. Map iteration order is unspecified; this example never depends on it.
 
+v0.4.12 builds preserve absence for non-null reference elements. A
+`Map<int, User>` read has type `User | null`, while writing still requires a
+`User`. Choose a fallback with `??` or check a snapshot against null. For an
+unsafe struct/array or an unconstrained generic element, use `[value, ok]`:
+
+<<< ../snippets/map-absence.km{ts}
+
+This prints `guest`, `7`, and `fallback`. The checked generic helper returns
+its fallback on a missing key, and only reads the payload after `ok` succeeds.
+Safe-zero scalar/container values keep Go's ordinary zero behavior. When using
+a constrained map, every alternative must agree on key/value types and source
+nullability. See [zero values and absence](../reference/types#zero-values-and-absence).
+
 Both array-conversion forms panic if the source is shorter than `N`. The view also carries ordinary pointer aliasing: keep it only while shared mutation is intentional and the backing storage remains valid.
 
 ## Generic clearing and deletion
@@ -101,6 +114,32 @@ Clearing a slice changes its shared backing elements without changing length or
 capacity; elements beyond its length remain untouched. Clearing a map removes
 every entry, including NaN keys. Nil maps/slices are safe. Deletion checks the
 key's type, source nullability and numeric constant range at compile time.
+
+v0.4.12 builds require safe zero values for cleared slice elements, including
+every slice alternative in a generic bound. Map alternatives can always be
+cleared: removal does not create a zero payload. Clearing a non-null class slice
+is rejected:
+
+<<< ../snippets-invalid/clear-non-null-slice.km{ts}
+
+## Non-null elements and initialization
+
+Use nullable elements for initially empty slots, or append initialized values to
+an empty reserved slice. This works with arbitrary generic element types:
+
+<<< ../snippets/initialized-slices.km{ts}
+
+This prints `2 Aki`, `3 true`, and `1 2`. `filled` copies its supplied value;
+for a class, both slots refer to the same supplied instance. Construct inside
+the loop when each slot needs a separate instance.
+
+`makeSlice<User>(count)` with a nonzero or unknown length is rejected. A
+nullable element or a finite bound containing only safe-zero types permits
+zero initialization; the generic allocation example uses a numeric bound.
+Reslicing a non-null element slice past its current length panics, even when
+capacity is available. The same rule covers structs/arrays containing non-null
+references and unconstrained generic elements. Ordinary bounds checks still use
+Go's integer and panic behavior. Nullable-element slices can extend to capacity.
 
 ## Generic append and copy
 

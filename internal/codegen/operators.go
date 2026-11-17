@@ -96,6 +96,9 @@ func goAssignmentToken(operator string) token.Token {
 }
 
 func isGoConstant(expr kinmokuseiAST.Expression) bool {
+	if slot := kinmokuseiAST.ReferenceReadSlot(expr); slot != nil && *slot != nil {
+		return false
+	}
 	switch expr := expr.(type) {
 	case *kinmokuseiAST.IdentifierExpr:
 		return expr.GoConstant || expr.GoMember != nil && expr.GoMember.Constant
@@ -104,7 +107,7 @@ func isGoConstant(expr kinmokuseiAST.Expression) bool {
 	case *kinmokuseiAST.UnaryExpr:
 		return expr.Operator != kinmokuseiAST.NonNullOperator && isGoConstant(expr.Operand)
 	case *kinmokuseiAST.BinaryExpr:
-		return isGoConstant(expr.Left) && isGoConstant(expr.Right)
+		return expr.Operator != "??" && isGoConstant(expr.Left) && isGoConstant(expr.Right)
 	case *kinmokuseiAST.CallExpr:
 		if expr.GoConstant {
 			return true

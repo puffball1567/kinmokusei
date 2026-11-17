@@ -84,8 +84,8 @@ func ParseDependencyArgument(argument string) (string, string, error) {
 	if err := validateModulePath(path); err != nil {
 		return "", "", err
 	}
-	if !goModuleVersionPattern.MatchString(version) {
-		return "", "", fmt.Errorf("dependency version %q is not a complete Go module version", version)
+	if err := validateDependencyVersion(path, version); err != nil {
+		return "", "", err
 	}
 	return path, version, nil
 }
@@ -155,7 +155,7 @@ func commitManifestAndLock(manifest Manifest, offline bool) error {
 	if err != nil {
 		return err
 	}
-	contents, err := RenderManifest(manifest)
+	contents, err := renderManifestChanges(manifest)
 	if err != nil {
 		return err
 	}

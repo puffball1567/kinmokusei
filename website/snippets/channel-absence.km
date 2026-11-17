@@ -1,0 +1,26 @@
+import go { Println } from "fmt"
+
+class User {
+  constructor(public name: string) {}
+}
+
+function receiveOr<T>(channel: GoReceiveChannel<T>, fallback: T): T {
+  select {
+    case const [value, open] = <-channel {
+      if (!open) { return fallback }
+      return value
+    }
+  }
+}
+
+function main(): void {
+  const users = goChannel<User>()
+  closeGoChannel(users)
+  const user = (<-users) ?? new User("guest")
+  Println(user.name)
+
+  const numbers = goChannel<int>(1)
+  numbers <- 7
+  closeGoChannel(numbers)
+  Println(receiveOr(numbers, 0))
+}

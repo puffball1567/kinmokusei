@@ -10,6 +10,10 @@ import (
 )
 
 func (p *Parser) parseDeclaration() ast.Declaration {
+	if !p.enterNesting() {
+		return nil
+	}
+	defer p.leaveNesting()
 	if p.at(token.At) {
 		decorators := p.parseDecorators()
 		decl := p.parseDeclaration()

@@ -44,7 +44,7 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				ref.Struct = true
 				ref.ResolvedDeclaration = structure.declarationSpan
 			}
-		} else if imported := c.lookupGoPackage(ref.Span.Path, ref.Qualifier); imported != nil {
+		} else if imported := c.lookupGoTypePackage(*ref); imported != nil {
 			ref.QualifierDeclaration = imported.declaration.AliasSpan
 			if imported.declaration.ResolvedAlias != "" {
 				ref.Qualifier = imported.declaration.ResolvedAlias
@@ -80,7 +80,14 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 	}
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
+		if slot := ast.ReferenceReadSlot(expression); slot != nil {
+			visitType(*slot)
+		}
 		switch expression := expression.(type) {
+		case *ast.OptionalChainExpr:
+			visitExpression(expression.Object)
+			visitExpression(expression.Value)
+			visitType(&expression.ResultType)
 		case *ast.UnaryExpr:
 			visitExpression(expression.Operand)
 			visitType(&expression.AssertionType)
@@ -95,6 +102,8 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(expression.Value)
 			visitType(&expression.ValueType)
 		case *ast.BinaryExpr:
+			visitType(expression.CoalesceType)
+			visitExpression(expression.CoalesceLeftValue)
 			visitExpression(expression.Left)
 			visitExpression(expression.Right)
 		case *ast.GoTypeAssertionExpr:
@@ -104,6 +113,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitExpression(expression.Callee)
 			for i := range expression.CaptureArgumentTypes {
 				visitType(&expression.CaptureArgumentTypes[i])
+			}
+			if expression.DeferSignature != nil {
+				visitType(expression.DeferSignature)
 			}
 			visitType(expression.MultipleArgumentResult)
 			for i := range expression.ResolvedTypeArguments {
@@ -154,6 +166,17 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.IndexExpr:
 			visitExpression(expression.Object)
 			if expression.Instantiated {
+				if boundary := expression.FunctionBoundary; boundary != nil {
+					for i := range boundary.Parameters {
+						visitType(&boundary.Parameters[i].Type)
+					}
+					for _, ref := range boundary.Results {
+						visitType(ref)
+					}
+				}
+				for i := range expression.ResolvedTypeArguments {
+					visitType(&expression.ResolvedTypeArguments[i])
+				}
 				for i := range expression.TypeArguments {
 					visitType(&expression.TypeArguments[i])
 				}
@@ -229,6 +252,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.IncDecStmt:
 			visitExpression(statement.Target)
 		case *ast.MultiAssignmentStmt:
+			for _, boundary := range statement.NonNullResults {
+				visitType(boundary)
+			}
 			visitExpression(statement.Value)
 			for _, upcast := range statement.Upcasts {
 				if upcast != nil {
@@ -257,6 +283,14 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		case *ast.SelectStmt:
 			for i := range statement.Cases {
 				clause := &statement.Cases[i]
+				for _, upcast := range clause.Upcasts {
+					if upcast != nil {
+						visitExpression(upcast)
+					}
+				}
+				for _, boundary := range clause.NonNullResults {
+					visitType(boundary)
+				}
 				for binding := range clause.Bindings {
 					visitType(&clause.Bindings[binding].ResolvedType)
 				}
@@ -606,7 +640,11 @@ func typeRefFromType(t Type, span source.Span) ast.TypeRef {
 		for i := range t.TypeArguments {
 			arguments[i] = typeRefFromType(t.TypeArguments[i], span)
 		}
-		return ast.TypeRef{Name: name, Qualifier: t.GoQualifier, GenericArguments: arguments, Go: true, Span: span}
+		ref := ast.TypeRef{Name: name, Qualifier: t.GoQualifier, GenericArguments: arguments, Go: true, Span: span}
+		if ref.Qualifier != "" && object.Pkg() != nil {
+			ref.GoPackagePath = object.Pkg().Path()
+		}
+		return ref
 	}
 	if t.Kind == GoBasic {
 		return ast.TypeRef{Name: t.Name, Qualifier: t.GoQualifier, Go: true, Span: span}

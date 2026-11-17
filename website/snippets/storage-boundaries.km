@@ -1,0 +1,16 @@
+import go errors from "errors";
+import go fmt from "fmt";
+
+alias View = interface { Error(): bstring; };
+
+function asView(raw: error): View {
+  // A nil Go interface would panic here, before returning a non-null View.
+  return raw;
+}
+
+function main(): void {
+  fmt.Println(asView(errors.New("present")).Error());
+
+  const absent: View | null = errors.Unwrap(errors.New("plain"));
+  fmt.Println(absent === null);
+}

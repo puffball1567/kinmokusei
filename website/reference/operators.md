@@ -21,14 +21,66 @@ From lowest to highest; every binary group is left-associative:
 
 | Level | Operators | Operand summary |
 | ---: | --- | --- |
-| 1 | `\|\|` | `boolean` |
-| 2 | `&&` | `boolean` |
-| 3 | `==`, `!=`, `===`, `!==` | Compatible comparable values |
-| 4 | `<`, `<=`, `>`, `>=` | Compatible ordered values |
-| 5 | `+`, `-`, `|`, `^` | Numeric; `+` also supports compatible strings; bitwise forms require integers |
-| 6 | `*`, `/`, `%`, `<<`, `>>`, `&`, `&^` | Numeric/integer as applicable |
+| 1 | `??` | Nil fallback, or missing-key/closed-receive fallback for value payloads |
+| 2 | `\|\|` | `boolean` |
+| 3 | `&&` | `boolean` |
+| 4 | `==`, `!=`, `===`, `!==` | Compatible comparable values |
+| 5 | `<`, `<=`, `>`, `>=` | Compatible ordered values |
+| 6 | `+`, `-`, `|`, `^` | Numeric; `+` also supports compatible strings; bitwise forms require integers |
+| 7 | `*`, `/`, `%`, `<<`, `>>`, `&`, `&^` | Numeric/integer as applicable |
 
 The grouping follows the implemented Go-compatible bitwise precedence. `a + b << c` means `a + (b << c)`; `a | b + c` means `(a | b) + c`.
+
+## Null coalescing
+
+v0.4.12 builds support `value ?? fallback`. The left operand runs once;
+the right operand runs only when the value is `null` or Go nil. This tests
+absence, not truthiness: zero, false and empty text are ordinary values.
+Those scalar types cannot be nullable; a literal `null ?? 0` is allowed and
+takes its result type from the fallback or an explicit destination type.
+
+For a direct map lookup `values[key]` or receive `(<-channel)` with a payload
+that has no nil representation, `??` checks the operation's success flag. The
+fallback runs only for a missing key or closed receive; present `0`, `false`,
+empty text and zero-valued records are preserved. This also lets a record or
+fixed array containing non-null references supply a valid initialized default.
+Reference payloads keep the ordinary nil test, including a present nil payload.
+The receive keeps Go blocking behavior.
+
+<<< ../snippets/absence-fallbacks.km{ts}
+
+<<< ../snippets/absence-fallbacks.stdout{text}
+
+Generic payloads need a constraint that consistently permits nil or consistently
+contains value types. For an open `T` or a reference/value mixture, use the
+explicit `[value, ok]` form and check the flag. Ordinary array/slice indexing
+does not produce a missing-key flag or intercept bounds panics.
+
+<<< ../snippets-invalid/fallback-mixed-payload.km{ts}
+
+<<< ../snippets/null-coalescing.km{ts}
+
+The fallback must be assignable to the left operand's non-null type, or to a
+compatible explicit destination type (for example, a base class or interface).
+A nullable fallback retains `T | null`. Choosing a non-null result does not
+narrow the original nullable binding. `Result` and `Task` are not unwrapped;
+handle them explicitly, including the requirement to consume a Task on every
+reachable path if `await` occurs in a conditional fallback.
+
+Chains group left to right. Mixing `??` with `&&` or `||` requires parentheses,
+such as `null ?? (ready || retry)`. A bare `null ?? null` needs a concrete
+nullable destination type. Go interfaces use their existing nil comparison:
+an interface containing a typed nil pointer does not select the fallback.
+For several value-type lookups, nest defaults explicitly:
+`first[key] ?? (second[key] ?? 0)`.
+
+An inferred result containing an unexported Go type is supported when the
+storage is a pointer, slice, map, channel or interface and the fallback is a
+static zero-argument function with matching storage type.
+Otherwise, supply a compatible public result type, such as an exported Go
+interface; an unnameable result is diagnosed in Kinmokusei source.
+
+<<< ../snippets-invalid/coalescing-scalar.km{ts}
 
 ## Boolean and comparison operators
 
@@ -115,6 +167,17 @@ be unwrapped this way. A newline before `!` starts a prefix operation instead.
 <<< ../snippets/non-null-assertion.km{ts}
 
 `as? Type` performs a checked Go-interface or class downcast and returns value plus `boolean`. `as! Type` is forced and panics on failure. Both evaluate the source once.
+
+Explicit conversions to non-null source function and anonymous interface
+contracts also reject a nil result at the conversion's source location.
+Checked non-null conversions and forced source assertions establish a proof
+for a nullable snapshot; raw Go conversions and raw Go assertion targets keep
+their existing nil semantics. See [explicit conversions](./types#explicit-conversions).
+
+v0.4.12 builds require `[value, ok]` and a successful flag check before
+using an unsafe-zero checked assertion payload. Forwarding the unchecked pair
+directly through a function return or argument list is rejected; split it and
+handle failure explicitly. Whole-result `_` discard remains explicit discard.
 
 Native generic class downcasts check the source type arguments, not just their
 generated Go storage. `Box<bstring>` is not `Box<string>`, even when the raw

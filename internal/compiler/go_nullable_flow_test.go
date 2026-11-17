@@ -60,7 +60,7 @@ export function ErrorAbsent(value: error): boolean {
   return optional === null;
 }
 
-export function Invoke(value: Action): int {
+export function Invoke(value: Action | null): int {
   const optional: Action | null = value;
   if (optional === null) { return -1; }
   return optional();

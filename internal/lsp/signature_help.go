@@ -616,10 +616,10 @@ angleArgumentsSkipped:
 		return callContext{}, false
 	}
 	context := callContext{Name: item.Lexeme, DisplayName: item.Lexeme, CalleeOffset: item.Span.Start.Offset, OpenOffset: openOffset}
-	if index > 0 && tokens[index-1].Kind == token.Dot {
+	if index > 0 && (tokens[index-1].Kind == token.Dot || tokens[index-1].Kind == token.OptionalDot) {
 		context.MemberDotOffset = tokens[index-1].Span.Start.Offset
 	}
-	if index >= 2 && tokens[index-1].Kind == token.Dot && (tokens[index-2].Kind == token.Identifier || tokens[index-2].Kind == token.This) {
+	if index >= 2 && (tokens[index-1].Kind == token.Dot || tokens[index-1].Kind == token.OptionalDot) && (tokens[index-2].Kind == token.Identifier || tokens[index-2].Kind == token.This) {
 		context.Qualifier = tokens[index-2].Lexeme
 		context.DisplayName = context.Qualifier + "." + context.Name
 	}
@@ -730,6 +730,9 @@ func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 		}
 		visit(value)
 		switch value := value.(type) {
+		case *ast.OptionalChainExpr:
+			expression(value.Object)
+			expression(value.Value)
 		case *ast.UnaryExpr:
 			expression(value.Operand)
 		case *ast.PropagateExpr:

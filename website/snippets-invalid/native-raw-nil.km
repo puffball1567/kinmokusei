@@ -1,0 +1,5 @@
+class User {
+  public name: string = "Aki";
+}
+
+const user: User = nil;

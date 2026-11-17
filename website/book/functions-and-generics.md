@@ -294,16 +294,23 @@ identity[string]("hello");
 pair<int>(1, "one");
 ```
 
-Every uninferred parameter must be supplied. An uninstantiated generic function cannot be stored as a function value.
+Every uninferred parameter must be supplied. A stored function needs a concrete
+signature, fixed by explicit arguments or a function-typed context.
 
 Since v0.4.7, a fully instantiated generic function is an
 ordinary typed callable: `const integerIdentity = identity<int>` fixes the
 parameter and result types without invoking `identity`. The bracket spelling
 `identity[int]` has the same meaning. This works for imported Go functions too,
-including named imports. All type arguments must be explicit for a function
-value; partial call inference does not imply partial value instantiation.
+including named imports. v0.4.12 builds also infer missing arguments from
+assignment, return, collection/field and callback function types. A leading
+explicit list can fix some arguments while the context supplies the rest.
+Higher-order calls use other arguments to establish a generic declaration
+callback's context, without changing evaluation order. Unresolved cycles,
+conflicting contracts and unnameable private Go type arguments are rejected.
 Constraints are checked at instantiation, and native text/nullability and
-Result contracts remain visible through the callable. Generic instance methods
+Result contracts remain visible through the callable. Concrete non-null
+parameters and results receive invocation checks when needed, including for Go
+callers; Result failure zeros retain their error-controlled semantics. Generic instance methods
 still require direct calls. See the
 [Guide's function-value examples](../guide/functions-and-generics#instantiated-function-values).
 

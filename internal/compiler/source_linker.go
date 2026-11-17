@@ -427,6 +427,9 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 		linker.linkExpression(expression.Call, visible, locals)
 	case *ast.AwaitExpr:
 		linker.linkExpression(expression.Value, visible, locals)
+	case *ast.OptionalChainExpr:
+		linker.linkExpression(expression.Object, visible, locals)
+		linker.linkExpression(expression.Value, visible, locals)
 	case *ast.BinaryExpr:
 		linker.linkExpression(expression.Left, visible, locals)
 		linker.linkExpression(expression.Right, visible, locals)

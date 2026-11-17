@@ -42,7 +42,7 @@ func (c *Checker) checkClassFieldInitializers(decl *ast.ClassDecl) {
 			c.globalDependencyOwner = staticFieldDependency(decl.Name, field.Name)
 		}
 		expected := c.resolveType(field.Type)
-		actual := c.checkExpressionExpectedSlot(&field.Initializer, expected)
+		actual := c.checkStorageExpressionExpectedSlot(&field.Initializer, expected)
 		c.requireAssignable(expected, actual, field.Initializer.GetSpan())
 		c.typeParameterScopes, c.globalDependencyOwner = previousScopes, previousDependency
 		if !field.Static {

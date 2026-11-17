@@ -48,7 +48,7 @@ func (c *Checker) checkResultConstructor(expr *ast.CallExpr, success bool) Type 
 			c.report(expr.Span, fmt.Sprintf("ok for %s expects %d arguments, got %d", c.result.String(), expected, len(expr.Arguments)))
 		}
 		for i, argument := range expr.Arguments {
-			actual := c.checkExpressionExpectedSlot(&expr.Arguments[i], *c.result.Element)
+			actual := c.checkStorageExpressionExpectedSlot(&expr.Arguments[i], *c.result.Element)
 			if i == 0 && expected == 1 {
 				c.requireAssignable(*c.result.Element, actual, argument.GetSpan())
 			}
@@ -72,6 +72,7 @@ func (c *Checker) checkResultConstructor(expr *ast.CallExpr, success bool) Type 
 }
 
 func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
+	stmt.NonNullResult = false
 	if c.result.Element == nil {
 		return
 	}
@@ -93,6 +94,10 @@ func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
 	}
 	if value.Kind == Result && exactType(c.result, value) {
 		stmt.ResultKind = ast.ResultForwardReturn
+		stmt.NonNullResult = value.Element != nil && c.needsStorageBoundary(*c.result.Element, *value.Element, nil)
+		if stmt.NonNullResult {
+			stmt.ResultType = c.boundaryTypeRef(*c.result.Element, stmt.Value.GetSpan())
+		}
 		return
 	}
 	if value.Kind == MultiValue {
@@ -105,6 +110,7 @@ func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
 }
 
 func (c *Checker) checkPropagateExpression(expr *ast.PropagateExpr) Type {
+	expr.NonNull = false
 	operand := c.checkExpression(expr.Value)
 	if c.result.Kind != Result || c.result.Element == nil {
 		c.report(expr.Span, "operator ? may only be used inside a Result-returning function")

@@ -18,6 +18,9 @@ func (c *Checker) hasDeferredShift(expression ast.Expression) bool {
 	case *ast.UnaryExpr:
 		return c.hasDeferredShift(expr.Operand)
 	case *ast.BinaryExpr:
+		if expr.Operator == "??" {
+			return false
+		}
 		if expr.Operator == "<<" || expr.Operator == ">>" {
 			if value, known := c.scalarConstant(expr.Left); known {
 				basic, ok := value.Type.(*gotypes.Basic)

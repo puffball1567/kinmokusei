@@ -1,0 +1,22 @@
+import go { Println } from "fmt"
+
+class User {
+  constructor(public name: string) {}
+}
+
+function getOr<T>(values: Map<string, T>, key: string, fallback: T): T {
+  const [value, ok] = values[key]
+  if (!ok) { return fallback }
+  return value
+}
+
+function main(): void {
+  const users = makeMap<string, User>()
+  const user = users["missing"] ?? new User("guest")
+  Println(user.name)
+
+  const scores = makeMap<string, int>()
+  scores["known"] = 7
+  Println(getOr(scores, "known", 0))
+  Println(getOr(users, "missing", new User("fallback")).name)
+}

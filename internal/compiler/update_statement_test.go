@@ -78,7 +78,7 @@ function dynamicDivide(value: int, divisor: int): int { value /= divisor; return
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
 	text := string(generated)
-	for _, want := range []string{"value += 16", "value &^= 3", "value <<= 2", "value++", "value--", `value += "tama"`, `table["x"]++`, "*pointer *= 4", "values[nextIndex(&calls)] += 5", "for ; index < limit; index++", "duration += time.Second", "mode |= os.ModeDir"} {
+	for _, want := range []string{"value += 16", "value &^= 3", "value <<= 2", "value++", "value--", `value += "tama"`, `table["x"]++`, "*pointer *= 4", "__kinmokuseiEvalValue(values)[nextIndex(&calls)] += 5", "for ; index < limit; index++", "duration += time.Second", "mode |= os.ModeDir"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
 		}

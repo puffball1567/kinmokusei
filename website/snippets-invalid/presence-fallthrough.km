@@ -1,0 +1,12 @@
+class User {
+  constructor(public name: string) {}
+}
+
+function unsafeRead(users: Map<string, User>): string {
+  const [user, ok] = users["missing"];
+  switch (ok) {
+    case false { fallthrough; }
+    case true { return user.name; }
+  }
+  return "missing";
+}

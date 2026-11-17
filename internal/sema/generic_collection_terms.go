@@ -42,12 +42,12 @@ func (c *Checker) recordParameterCollectionTerms(parameter *gotypes.TypeParam, r
 	// The normalized bound may filter terms through comparable/intersections.
 	// Replace only surviving storage shapes with their source counterparts.
 	for i, term := range terms {
-		storage, ok := c.goTypeForNativeStorage(term)
+		storage, ok := c.constraintTermStorage(term)
 		if !ok {
 			continue
 		}
 		for _, candidate := range sourceTerms {
-			other, ok := c.goTypeForNativeStorage(candidate)
+			other, ok := c.constraintTermStorage(candidate)
 			if ok && gotypes.Identical(storage, other) {
 				terms[i] = candidate
 				break
@@ -55,6 +55,16 @@ func (c *Checker) recordParameterCollectionTerms(parameter *gotypes.TypeParam, r
 		}
 	}
 	c.setParameterCollectionTerms(parameter, terms)
+}
+
+// A callable shape can retain a named Go type. Rebuilding only its signature
+// erases nominal identity and can replace a native contract with a different
+// imported callback having the same parameters and result.
+func (c *Checker) constraintTermStorage(value Type) (gotypes.Type, bool) {
+	if value.Kind == Function && value.GoType != nil {
+		return value.GoType, true
+	}
+	return c.goTypeForNativeStorage(value)
 }
 
 func (c *Checker) setParameterCollectionTerms(parameter *gotypes.TypeParam, terms []Type) {

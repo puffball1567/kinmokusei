@@ -39,7 +39,7 @@ func TestCompatibilityWorkflowQualityGates(t *testing.T) {
 	for _, required := range []string{
 		"-fuzz=${{ matrix.target }}",
 		"KINMOKUSEI_REQUIRE_C_TESTS: \"1\"",
-		"TestCABISharedLibraryCompileAndCCallerMatrix|TestIncomingCFFI.*",
+		"TestCABISharedLibraryCompileAndCCallerMatrix|TestCABIGatewayNameHygiene|TestIncomingCFFI.*",
 		"BenchmarkKinmokusei(Check|Codegen)",
 		"TestServerLifecycleDoesNotLeakGoroutines",
 		"TestStructuredTasksMatchIndependentGo",

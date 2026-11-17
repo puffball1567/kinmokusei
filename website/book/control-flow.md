@@ -105,6 +105,13 @@ continue. A zero-value iterator uses `for (const _ of ticks) { ... }`.
 Collection-shaped generic bounds also support range when all permitted types
 agree on the required range behavior.
 
+Since v0.4.12, loop-body returns and Result propagation
+cross iterator cleanup and return from the enclosing source function, including
+when the iterator has its own try/catch/finally. A typed exception from the loop
+body leaves the iterator before matching a handler surrounding the loop. The
+iterator's cleanup still executes. Calling the same callback directly, outside
+range iteration, retains ordinary function-call exception handling.
+
 ## Value switch
 
 ```ts
@@ -213,6 +220,11 @@ defer resource.Close();
 ```
 
 `defer` requires a function or method call. Its target and arguments evaluate when the defer statement executes; the call runs when the surrounding function exits, using Go-compatible last-in-first-out order. A deferred call does not replace structured `finally` when cleanup belongs to a specific try/catch region.
+
+A defer inside `try`, `catch`, `finally` or a loop still belongs to that
+surrounding function. Nested functions and arrows have their own defer lifetime.
+The [exception-block example](../examples/control-flow-boundaries#defer-inside-exception-blocks)
+shows the difference between leaving a block and returning from a function.
 
 ## `try`, `catch`, and `finally`
 

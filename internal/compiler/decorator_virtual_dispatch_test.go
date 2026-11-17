@@ -65,8 +65,8 @@ export function Run(middle:boolean):Result<int[]>{
  return ok([value,load,int(narrow),sum,leaf.calls]);
 }
 export function Fails():Result<DecoratorValue>{return Call(5,decoratorValue<Middle>(new Leaf()),[decoratorValue(-1)]);}
-export function InvokeBase(value:Base):Result<DecoratorValue>{return Call(0,decoratorValue(value),[decoratorValue(1)]);}
-export function InvokeMiddle(value:Middle):Result<DecoratorValue>{return Call(5,decoratorValue(value),[decoratorValue(1)]);}
+export function InvokeBase(value:Base|null):Result<DecoratorValue>{if(value===null){return Call(0,decoratorValue<Base|null>(value),[decoratorValue(1)]);}return Call(0,decoratorValue(value),[decoratorValue(1)]);}
+export function InvokeMiddle(value:Middle|null):Result<DecoratorValue>{if(value===null){return Call(5,decoratorValue<Middle|null>(value),[decoratorValue(1)]);}return Call(5,decoratorValue(value),[decoratorValue(1)]);}
 export function WrongArgument(value:Middle):Result<DecoratorValue>{return Call(5,decoratorValue(value),[decoratorValue("wrong")]);}
 export function Direct():Result<int[]>{const leaf=new Leaf();const value:Middle=leaf;value.value=3;const property=value.value;const loaded=value.load(7)?;const [a,b]=value.pair(2,5);value.touch();return ok([property,loaded,int(a),b,leaf.calls]);}
 `,

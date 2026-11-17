@@ -12,6 +12,7 @@ import (
 	"runtime"
 
 	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/diagnostic"
 	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
@@ -25,17 +26,31 @@ func GenerateWithImporter(program *kinmokuseiAST.Program, packageName string, go
 
 // GenerateWithTarget validates against the same target sizes as semantic checking.
 func GenerateWithTarget(program *kinmokuseiAST.Program, packageName string, goImporter types.Importer, sizes types.Sizes) ([]byte, error) {
-	generated, _, err := generateWithTarget(program, packageName, goImporter, sizes, false)
+	generated, _, err := generateWithTarget(program, packageName, goImporter, sizes, false, nil)
 	return generated, err
 }
 
 // GenerateMappedWithTarget emits physical Go ranges without changing Go's line
 // numbering. The checked input is not mutated and can be shared by callers.
 func GenerateMappedWithTarget(program *kinmokuseiAST.Program, packageName string, goImporter types.Importer, sizes types.Sizes) ([]byte, []SourceMapping, error) {
-	return generateWithTarget(program, packageName, goImporter, sizes, true)
+	return generateWithTarget(program, packageName, goImporter, sizes, true, nil)
 }
 
-func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goImporter types.Importer, sizes types.Sizes, mapped bool) ([]byte, []SourceMapping, error) {
+// CheckInstantiationCycles applies Go's monomorphization rules to the actual
+// lowering, including erased aliases and generated generic method helpers.
+// Mapping uses a clone of the checked program; no artifacts are written.
+func CheckInstantiationCycles(program *kinmokuseiAST.Program, goImporter types.Importer, sizes types.Sizes) ([]diagnostic.Diagnostic, error) {
+	var diagnostics []diagnostic.Diagnostic
+	_, _, err := generateWithTarget(program, "kinmokusei_check", goImporter, sizes, false, &diagnostics)
+	if err == nil && len(diagnostics) != 0 {
+		// Most programs need no mapping clone/token pass. Recheck a detected
+		// cycle with statement origins to report its recursive source use.
+		_, _, err = generateWithTarget(program, "kinmokusei_check", goImporter, sizes, true, &diagnostics)
+	}
+	return diagnostics, err
+}
+
+func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goImporter types.Importer, sizes types.Sizes, mapped bool, instantiations *[]diagnostic.Diagnostic) ([]byte, []SourceMapping, error) {
 	if mapped {
 		program = sourceMappedProgram(program)
 	}
@@ -72,17 +87,26 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	// Reuse checked import aliases rather than introducing a second import of
 	// the same package. Runtime aliases use the reserved compiler namespace.
 	runtimeImport := func(path, fallback string) string {
+		aliases := map[string]bool{}
 		for _, spec := range imports {
 			imported := spec.(*goast.ImportSpec)
+			aliases[imported.Name.Name] = true
 			if imported.Path.Value == fmt.Sprintf("%q", path) {
 				return imported.Name.Name
 			}
+		}
+		for aliases[fallback] {
+			fallback += "_"
 		}
 		imports = append(imports, &goast.ImportSpec{Name: goast.NewIdent(fallback), Path: &goast.BasicLit{Kind: token.STRING, Value: fmt.Sprintf("%q", path)}})
 		seenImports[path] = true
 		return fallback
 	}
 	observationAlias, snapshotAlias := "", ""
+	nonNullAlias := ""
+	if program.UsesNonNullKinds {
+		nonNullAlias = runtimeImport("reflect", "__kinmokuseiReflect")
+	}
 	if program.UsesObservation {
 		observationAlias = runtimeImport("reflect", "__kinmokuseiReflect")
 	}
@@ -110,6 +134,13 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 			return nil, nil, err
 		}
 		file.Decls = append(file.Decls, runtimeDeclarations...)
+	}
+	if program.UsesNonNullKinds {
+		declarations, err := nonNullKindsRuntimeDeclarations(nonNullAlias)
+		if err != nil {
+			return nil, nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
 	}
 	if program.UsesUTF8 {
 		declarations, err := utf8RuntimeDeclarations(utf8Alias)
@@ -142,10 +173,19 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	if program.UsesDecoratorContext || len(program.Decorators) != 0 {
 		file.Decls = append(file.Decls, decoratorRuntimeDeclarations()...)
 	}
+	var origins map[int]kinmokuseiAST.Declaration
+	if instantiations != nil {
+		origins = map[int]kinmokuseiAST.Declaration{}
+	}
 	for _, decl := range program.Declarations {
 		generated, err := generateDeclaration(decl)
 		if err != nil {
 			return nil, nil, err
+		}
+		if instantiations != nil {
+			for index := range generated {
+				origins[len(file.Decls)+index] = decl
+			}
 		}
 		file.Decls = append(file.Decls, generated...)
 	}
@@ -156,6 +196,16 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	if decoratorInit != nil {
 		file.Decls = append(file.Decls, decoratorInit)
 	}
+	iteratorDeclarations, err := iteratorControlDeclarations(file, program.UsesExceptions)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, iteratorDeclarations...)
+	readDeclarations, err := referenceReadRuntimeDeclarations(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, readDeclarations...)
 	needsContracts := false
 	goast.Inspect(file, func(node goast.Node) bool {
 		if name, ok := node.(*goast.Ident); ok && (name.Name == "__kinmokuseiSourceContract" || name.Name == "__kinmokuseiKnownContracts") {
@@ -166,6 +216,26 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	if needsContracts {
 		file.Decls = append(file.Decls, nativeContractRuntimeDeclarations()...)
 	}
+	deferDeclarations, err := lowerSourceDefers(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, deferDeclarations...)
+	evaluationDeclarations, err := evaluationRuntimeDeclarations(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, evaluationDeclarations...)
+	sliceDeclarations, err := initializedSliceDeclarations(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, sliceDeclarations...)
+	coalescing, err := coalesceDeclarations(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	file.Decls = append(file.Decls, coalescing...)
 	set := token.NewFileSet()
 	var output bytes.Buffer
 	if err := format.Node(&output, set, file); err != nil {
@@ -179,6 +249,10 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		if err != nil {
 			return nil, nil, err
 		}
+	}
+	if instantiations != nil {
+		*instantiations = checkInstantiationCycles(generated, mappings, origins, goImporter, sizes)
+		return generated, mappings, nil
 	}
 	if err := validateGeneratedGoWithTarget(generated, goImporter, sizes); err != nil {
 		return nil, nil, fmt.Errorf("generated Go failed validation: %w", err)

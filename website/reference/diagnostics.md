@@ -65,6 +65,29 @@ The compiler reports source-positioned failures for:
 
 Diagnostics are compatibility-sensitive and have regression coverage. Important safety diagnostics should identify the write, capture, alias, or flow join that invalidated a proof when applicable.
 
+## Excessive syntax nesting
+
+v0.4.12 reports `syntax nesting is too deep` with a source
+range instead of exhausting the process stack. This is a source diagnostic:
+`check` returns status `1`, and `check --json` uses the normal diagnostic envelope.
+The same rule applies to imported `.km` files and unsaved editor documents.
+
+The compiler bounds parser recursion and limits the resulting syntax tree to
+256 record levels. Operators, member/index/call chains, nested types and blocks
+contribute to tree depth; parentheses also consume the parser recursion budget.
+This is a depth limit, not a limit on the number of declarations, arguments or
+statements in a file. Split very deep generated expressions/types into smaller
+named pieces. The compiler discards the affected file's partial tree after a
+depth failure; fixing the document restores normal diagnostics and navigation
+without restarting the LSP.
+
+The limit also prevents deeply nested array literals from building a full
+inferred type at every nesting level. Inputs beyond the limit are rejected
+before type checking, including empty nested arrays. This bounds the expensive
+type-inference work; it does not make inference for arbitrarily deep arrays
+supported. The compiler still reads and tokenizes the source, so the total work
+and memory required also depend on the file size.
+
 ## Exit status
 
 | Status | Check meaning |

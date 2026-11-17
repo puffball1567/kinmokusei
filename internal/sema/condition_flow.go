@@ -68,5 +68,13 @@ func (c *Checker) checkCondition(expression ast.Expression) (Type, nullableFlowS
 		}
 		c.restoreNullableFlow(entry)
 	}
+	if positive, applied := c.applyPresenceCondition(expression); applied {
+		if positive {
+			whenTrue = c.snapshotNullableFlow()
+		} else {
+			whenFalse = c.snapshotNullableFlow()
+		}
+		c.restoreNullableFlow(entry)
+	}
 	return result, whenTrue, whenFalse
 }

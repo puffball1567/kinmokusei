@@ -3,8 +3,6 @@ package codegen
 import (
 	"fmt"
 	goast "go/ast"
-	"go/token"
-	"path/filepath"
 
 	kmast "github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -17,22 +15,15 @@ func generateNonNullAssertion(expr *kmast.UnaryExpr) (goast.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Pass the operand as an argument: evaluate it exactly once outside the
-	// helper's lexical scope, even if user code calls a binding named value.
-	value := goast.NewIdent("value")
-	location := expr.AssertionSpan
-	message := fmt.Sprintf("non-null assertion failed at %s:%d:%d", filepath.Base(location.Path), location.Start.Line, location.Start.Column)
-	helper := &goast.FuncLit{
-		Type: &goast.FuncType{
-			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{value}, Type: goType(expr.AssertionType)}}},
-			Results: &goast.FieldList{List: []*goast.Field{{Type: goType(expr.AssertionType)}}},
-		},
-		Body: &goast.BlockStmt{List: []goast.Stmt{
-			&goast.IfStmt{Cond: &goast.BinaryExpr{X: value, Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{
-				&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral(message)}}},
-			}}},
-			&goast.ReturnStmt{Results: []goast.Expr{value}},
-		}},
+	if chain, ok := expr.Operand.(*kmast.OptionalChainExpr); ok && chain.Checked && !expr.ImplicitNonNull {
+		return generateOptionalAssertion(expr, operand), nil
 	}
-	return &goast.CallExpr{Fun: helper, Args: []goast.Expr{operand}}, nil
+	if expr.ImplicitNonNull && len(expr.NonNullResults) != 0 {
+		return generateNonNullResults(expr, operand)
+	}
+	operation := "non-null assertion"
+	if expr.ImplicitNonNull {
+		operation = "non-null storage boundary"
+	}
+	return generateNonNullReference(operand, expr.AssertionType, expr.AssertionSpan, operation), nil
 }

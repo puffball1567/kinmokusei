@@ -74,6 +74,25 @@ The compiler generates:
 - A SHA-256 ABI fingerprint.
 - Compatibility diagnostics against a baseline manifest.
 
+v0.4.12 validates outgoing names against the shared Go/C/C++
+boundary before producing files. Symbols start with an ASCII letter and then
+contain ASCII letters, digits or underscores. The checker rejects Go
+keywords/predeclared names, C/C++ keywords, known standard header/libc/cgo
+declarations, `KINMOKUSEI_*`, `x_cgo_*`, `crosscall2`, and names containing a
+double underscore. For example, export `kinmokusei_open` rather than `malloc`,
+`double`, `GoString` or `recover`. Use a library-specific prefix for collisions
+with other native libraries; arbitrary external declarations are not known to
+the compiler.
+
+`Exception` and `NewException` are reserved when the generated exception runtime
+is present. With outgoing exports, top-level declarations also cannot use the
+implicit cgo import names `C`, `unsafe`, `syscall` or `_cgopackage`. Imports in
+other generated files retain their own alias scope. Internal gateway locals use
+the existing reserved `__kinmokusei` prefix, so user functions such as
+`outResult`, `arg0`, or a const arrow named `arg1` can be exported safely. Public
+C signatures, status codes and fingerprints of valid unchanged contracts are
+unaffected by this local naming fix.
+
 Generated C functions return an `int32_t` status. Non-void values are written through a final out parameter. Status values are:
 
 - `0`: success.
@@ -113,6 +132,32 @@ manifest intentionally expose the transport integer rather than a
 compiler-specific C enum layout. C callers must use the numeric values defined
 by the Kinmokusei enum; unknown representable values are transported without
 implicit validation, matching Go named-integer behavior.
+
+### Outgoing ABI comparison metadata
+
+v0.4.12 writes outgoing manifest **schema 2**. The C header
+and gateway still use the same fixed-width transport and status/out convention.
+Each function also records `parameterTypes` and `resultType`, whose `kind` is
+`boolean`, `integer`, `float`, `enum`, or `void`. Enum contracts contain a
+name-sorted `members` array with each member's name and exact, resolved decimal
+integer value as a JSON string, including the full `uint64` range. These
+contracts participate in the fingerprint.
+
+`keika abi check` reports changed/removed enum members and semantic type changes
+such as `boolean` to `byte`, or an enum to its underlying integer, as breaking
+even when the C signature stays identical. Adding members without changing
+existing members is compatible and reported separately from added functions.
+Member/declaration order, equivalent constant expressions, byte/float aliases,
+and private enum type names do not affect the fingerprint. Unused enums are not
+part of the boundary. The header does not declare enum constants; C callers use
+the member values recorded in the manifest.
+
+Schema 1 baselines do not contain this information and cannot prove semantic
+compatibility. The checker rejects them with a migration diagnostic. Regenerate
+the baseline using the new compiler **from the original baseline sources**, then
+compare that schema 2 manifest against the new sources. Regenerating from the
+new sources would replace the contract being checked. This outgoing format
+change does not change the incoming FFI schema 1 format.
 
 Rejected from the initial stable boundary:
 
@@ -383,6 +428,14 @@ name instead. The generator also avoids collisions with user names resembling
 its own helpers. Argument order and types do not change, and callback input
 errors still report the parameter's original manifest name. Public type and
 function names remain subject to the reserved-name checks above.
+
+Generated C and Go helper namespaces are checked before emission, including
+callback release/state names, POD and tagged-union conversions, registration
+helpers and thread-affine raw wrappers. A collision reports the generated
+identifier and the manifest entries responsible rather than leaving an invalid
+binding for the C/Go compiler. Explicit native types and symbols cannot be
+redefined by an emitted helper. Similar suffixes, repeated references to a native
+symbol and separate C/Go namespaces remain valid when they do not collide.
 
 Keep opaque handles and callback registrations as pointers. Their constructors
 record the original object's identity, and every use checks that identity

@@ -11,6 +11,258 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-11-17
+
+- Infer generic function values from a destination function type, including
+  omitted or trailing type arguments for source and Go declarations. Support
+  bindings, assignments, returns, typed collections/fields and higher-order
+  calls, including generic callbacks inferred from other arguments. Reject
+  unresolved/conflicting types and unnameable private Go arguments; preserve
+  source contracts and editor navigation without synthetic rename references.
+- Enforce concrete non-null parameter and result contracts on instantiated
+  generic function values, including direct Go callers, variadics, multiple
+  results and successful Result payloads. Preserve nullable/raw Go contracts,
+  typed-nil interfaces and Result failure zeros.
+
+- Validate native non-null references when reading Go-owned fields, collection
+  elements, callbacks and other unproven storage (#117). Check each extracted
+  reference once before use, including nested and cyclic data, with the original
+  source position in failures. Preserve reference identity, addressability,
+  explicit discards, raw Go nil rules and typed-nil interfaces. Keep checks in
+  evaluated fixed-array `len`/`cap` operands and require matching success proofs
+  for checked payloads assigned to nullable bindings.
+
+- Validate non-null references in mixed generic bounds (#117). Select checks
+  by storage kind for callable/class alternatives while preserving scalar zeros
+  and raw Go nil alternatives. Apply the policy to parameters, storage/results,
+  conversions, assertions, checked splits, receives and Result handling.
+  Diagnose ambiguous native/raw alternatives of the same storage kind instead
+  of guessing. Preserve nominal callback identities in source constraint terms
+  and retain nullable flow facts after a selective check.
+
+- Add optional chaining with `?.member`, `?.[index]` and `?.(arguments)`
+  (#117). Capture each receiver once and skip the remaining unparenthesized
+  chain, arguments and indices when it is nil. Nil-capable results are nullable;
+  scalar/record results use `??`, checked split bindings or a checked postfix
+  `!`. Keep Go typed-nil interface behavior, normal bounds panics and source
+  contracts, with independent Go comparisons and editor support.
+
+- Require success checks before reading unsafe-zero `Result<T>` split payloads
+  (#117). Verify the matching error binding against `nil` (or `null` for a
+  nullable error) using branches, short-circuit conditions or switches.
+  Reading, logging or discarding the error alone does not establish success.
+  Track reassignments, shadowing, captures and loop joins; keep safe-zero and
+  nullable payloads supported. Check into local bindings before assigning an
+  unsafe-zero payload to global storage. Include editor diagnostics and
+  independent Go comparisons for ordinary and typed-nil errors.
+
+- Validate non-null native references when forwarding `Result<T>` and
+  propagating success values with `?` (#117). Forwarded results check the
+  payload on a nil error. Propagated bindings validate after error handling
+  and destination interface boxing, including inferred and unused names.
+  Cover failure payloads, typed-nil interfaces/errors, private Go callbacks,
+  generic references, Task joins, finally behavior and editor navigation.
+
+- Validate inferred non-null native references in ordinary multiple-result
+  declarations (#117). Check each named reference before following source
+  statements, including unused bindings. For initializers validate before
+  their first condition while preserving per-iteration variables, captured
+  values, labeled branches and goto reinitialization. Keep private Go result
+  types inferred, nullable/raw contracts and explicit discards supported;
+  cover multiple slots, typed-nil interfaces, generics and editor navigation.
+
+- Validate successful checked split declarations of non-null references (#117).
+  Map lookups, channel receives, assertions and `Result` splits check inferred
+  native payloads before source body effects, including for initializers and
+  selected receive declarations. Retain the captured success/error result when
+  its binding is `_` or unused. Cover Go-supplied nil, failure zeros, typed-nil
+  interfaces, generic references and editor navigation with regression tests.
+  Retain inferred Go package identity across modules with conflicting import
+  aliases, and support selected bindings that shadow their payload type name.
+  Keep captured select flags from shadowing Go namespace imports.
+
+- Validate successful checked assignments to non-null references (#117).
+  Map lookups, receives, assertions and selected receives use their captured
+  `ok` flag. `Result` assignments use the captured error's nil status. A nil
+  payload on success panics before any target is written, including native
+  class and interface references supplied from Go. Checks retain failure
+  zeros, typed-nil interface boxing and the evaluation order of selected
+  assignment targets, including when the success flag is discarded.
+
+- Validate non-null references in forwarded ordinary result lists and parallel
+  assignments (#117). Evaluate the producer once and check every required slot
+  before returning or writing any destination. Preserve typed-nil interface
+  boxing, raw/nullable results, discarded slots, duplicate targets, for-post
+  assignments and finally behavior. Keep other result-slot type mismatches
+  rejected, private Go types inferred and temporary names collision-free;
+  add independent Go comparisons, editor coverage and executable documentation.
+
+- Check non-null source reference contracts at single-value storage/result
+  boundaries (#117). Validate bindings, assignments, field/literal initializers,
+  explicit result slots, `ok` payloads, non-spread append elements and channel
+  sends before publishing nil. Retain raw Go/nullable semantics, source-located failures,
+  argument evaluation order and checks in fixed-array `len`/`cap`. Cover private
+  Go function types, package initialization, failed writes, `finally`, flow
+  rechecking and editor navigation with independent Go execution comparisons.
+
+- Ensure malformed anonymous interface members make parser recovery progress,
+  preventing an infinite diagnostic loop on invalid tokens or statement keywords.
+  Retain the compiler fuzz input as a regression case.
+
+- Check non-null source reference parameters at callable entry (#117).
+  Functions, arrows, methods, setters and constructors reject nil before source
+  body/initialization effects; rest parameters check each element. Preserve
+  nullable and raw Go contracts, typed-nil interfaces, argument evaluation order
+  and explicit blank discards. Generic checks require every constraint term to
+  promise a nil-comparable non-null reference. Cover Go callers and callbacks
+  with independent execution comparisons and source-located panic messages.
+
+- Recognize checked presence guards through boolean constants, negation,
+  nested equality and boolean `switch` (#117). Track matching and failed case
+  tests, grouped labels, defaults and fallthrough; require the payload's own
+  success flag and preserve invalidation after writes, capture and escape.
+  Cover map/receive/assertion payloads and generic values, with independent Go
+  execution comparisons, editor diagnostics/navigation and executable examples.
+
+- Validate explicit conversions to non-null native references (#117).
+  Function aliases, defined functions, compatible generic bounds and anonymous
+  source interfaces reject a nil conversion result at its source location.
+  Preserve raw Go conversions and interface typed-nil behavior. Share runtime
+  reference checks with `!`/`as!`, retain checks in fixed-array `len`/`cap`, and
+  preserve operand/panic order. Checked conversions and forced source assertions
+  establish flow proofs for nullable snapshots and skipped `??` defaults.
+
+- Add direct map/receive `??` defaults for non-nil-capable payloads (#117).
+  Use the success flag for scalars, records, fixed arrays and uniform value-type
+  constraints, preserving present zeros and evaluating defaults only on absence.
+  Keep reference payload nil semantics and ordinary one-value reads unchanged.
+  Diagnose open/mixed generic payloads and unnameable Go result types; retain
+  operand order, conditional flow/Task checks and editor result navigation.
+
+- Validate non-null source function contracts at Go type assertions (#117).
+  A typed nil function no longer passes `as?` for a non-null source signature;
+  `as!` reports a source-located panic at the assertion boundary. Preserve
+  nullable targets and imported Go function types, including aliases, defined
+  types and constrained generic assertions. Retain checks in fixed-array
+  `len`/`cap` operands and single evaluation through `try`/`finally`.
+
+- Preserve absence in single-value channel receives and `select` (#117).
+  Unsafe-zero references become nullable; unsafe record/array and unknown
+  generic payloads require checked receive. Require the matching `open` proof
+  for unsafe checked select bindings, while preserving safe Go zeros, explicit
+  discards, nil-channel blocking and range behavior. Retain null on selected
+  class/interface conversions, evaluate all selected assignment targets before
+  writes, and support checked field/index/pointer/property targets. Preserve
+  private Go types, source maps and layout intrinsics' unevaluated operands;
+  show inferred nullable select types in editor hover.
+
+- Preserve absence in map reads (#117). A one-value lookup of a class,
+  pointer, interface or function without a safe zero returns a nullable value;
+  unsafe struct/array and unconstrained generic payloads require a checked
+  lookup. Keep map writes and valid Go scalar/container zeros unchanged.
+  Require the matching success flag before using unsafe-zero payloads from
+  checked map lookup, receive or type assertions. Track reassignment, branches,
+  loops, captures and escapes; prevent unchecked assertion-result forwarding.
+  Reject constrained map alternatives with incompatible source contracts.
+  Update existing examples to check presence or use an explicit `!`/`??`.
+
+- Add lazy null coalescing `value ?? fallback` for nullable and raw Go
+  references (#117). Evaluate the left side once and the fallback only when
+  nil; retain interface typed-nil behavior, class/interface conversions,
+  contextual literals, generics, Task/flow checks and editor navigation.
+  Require parentheses when mixing with `&&`/`||`. Support private Go result
+  types through static zero-argument fallbacks or explicit public type context;
+  diagnose other unnameable result types before Go generation.
+
+- Prevent slice allocation, clearing and reslicing from exposing invalid zero
+  values as non-null references (#117). Check nested structs/arrays and every
+  generic constraint alternative; allow empty reserved slices and initialized
+  appends. Require nullable elements when zero-initializing references, and
+  reject reslicing past the current length for elements without a safe zero.
+  Preserve Go bounds panics, integer widths, aliases, named/private Go types,
+  source locations and checks inside fixed-array `len`/`cap` operands.
+
+- Reject raw `nil` assignments and conversions to non-null source classes,
+  interfaces and function signatures, including aliases, defined function types
+  and generic constraints (#117). Use `T | null` and `null` for absence. Keep
+  defensive nil comparisons and raw Go pointer, collection, interface and
+  callback boundaries and their documented nil behavior.
+
+- Read earlier values before later calls or channel receives can change them
+  (#111). Preserve callee/receiver, argument, binary-operand, literal-field,
+  multiple-return and slice-bound order; freeze assignment targets and compound
+  update values before evaluating their right-hand sides. Retain fixed-array
+  storage, short-circuiting, contextual constants and private Go argument types.
+
+- Reuse nested-loop checks across exception handlers, inferred arrows,
+  constructors/field initializers, labels and escaping branch/capture effects.
+  Replay intermediate-flow and return/Task obligations independently of earlier
+  paths, preserve diagnostics and capture causes, and keep cached obligations
+  immutable when finally consumes tasks. Cover 12/24/40 levels across while,
+  for and range loops; replace rather than accumulate catch metadata on repeated
+  checks (#105).
+
+- Keep source `defer` calls inside `try`, `catch` and `finally` pending until
+  their enclosing function exits, in reverse registration order alongside its
+  other defers. Preserve eager operand evaluation, generic/private Go argument
+  types, variadics, return values, panic/recover and Goexit behavior; bound
+  stack depth for loop registrations. Also preserve legacy `panic(nil)` through
+  exception and return-control boundaries (#110).
+
+- Diagnose unbounded generic instantiation cycles during checking and editor
+  analysis, using Go's rules on the actual lowering. Cover functions, methods,
+  classes and type declarations, including inferred and indirect calls; retain
+  finite recursion, permutations and erased aliases. Point to original source
+  uses and reject emission before replacing existing outputs (#108).
+
+- Preserve manifest comments, table/key order, spacing and LF/CRLF line endings
+  during dependency installation, addition, updates and removal. Edit only
+  changed entries, retain removed entries' inline comments as standalone notes,
+  and keep unchanged files byte-identical. Validate the edited model before
+  writing and preserve exact rollback on resolution failure (#91).
+
+- Reuse completed nested-loop checks when their full entry state is unchanged,
+  preserving null-flow diagnostics and avoiding repeated inner fixed-point
+  solving for ordinary while/for/range loops. Keep independent callable caches
+  and ordinary checks for intermediate exception, label, inference or escaping
+  control/capture effects; add timed resource and runtime regressions (#105).
+
+- Accept hyphenated prerelease and complete pseudo-versions consistently in
+  dependency commands, manifests, locks and package caches. Use Go's version
+  parser/comparator; reject malformed or noncanonical pinned identities and
+  module-major mismatches before mutation. Preserve full SemVer project metadata
+  and bundle notices for the pinned Go version-handling dependency (#90).
+
+- Diagnose excessive syntax nesting before it can overflow compiler or LSP
+  stacks. Bound recursive parsing and iteratively validate syntax-tree depth,
+  including long operator/member/type chains; keep the editor responsive and
+  allow normal checking/navigation after the file is edited (#104). Reject
+  over-deep array literals before inferred-type expansion, with isolated
+  memory-budget regressions for the reported nesting sizes (#106).
+
+- Reject outgoing C ABI names that collide with C/C++ keywords, Go predeclared
+  identifiers, standard header/cgo declarations or compiler metadata. Check
+  exception-runtime and implicit cgo-import collisions before output, and
+  isolate gateway locals so source functions named `outResult` or `arg0` remain
+  usable. Verify generated gateways from both C and C++ callers (#95).
+
+- Include semantic parameter/result types and exact enum member values in
+  outgoing C ABI schema 2 manifests and fingerprints. Detect enum renumbering,
+  removal and same-transport semantic changes (including boolean/byte); accept
+  unchanged aliases, reordered declarations and additive enum members. Legacy
+  schema 1 baselines must be regenerated from their original sources (#96).
+
+- Reject incoming FFI manifests whose derived C/Go helper identifiers collide,
+  naming the conflicting manifest entries before writing output. Check callback
+  release/state, POD/union conversion, registration, affine wrapper and native
+  symbol namespaces while preserving valid neighboring names and aliases (#97).
+
+- Preserve caller returns, Result propagation and typed exceptions across
+  function iterators with their own try/catch/finally blocks. Isolate nested
+  iterator control signals while retaining cleanup order, multiple results,
+  ordinary Go panic identity, legacy `panic(nil)` and `Goexit` behavior. Keep
+  direct Go ranges for programs without language exceptions (#112).
+
 ## [0.4.11] - 2026-10-26
 
 - Reject `T | null` at the source declaration unless the type parameter's
@@ -1087,7 +1339,10 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.12...HEAD
+[0.4.12]: https://github.com/puffball1567/kinmokusei/compare/v0.4.11...v0.4.12
+[0.4.11]: https://github.com/puffball1567/kinmokusei/compare/v0.4.10...v0.4.11
+[0.4.10]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7

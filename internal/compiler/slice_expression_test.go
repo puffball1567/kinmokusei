@@ -102,7 +102,7 @@ func NewTriplePointer() *Triple { value := NewTriple(); return &value }
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("err=%v diagnostics=%v", err, diagnostics)
 	}
-	for _, want := range []string{"values[:]", "values[:2]", "values[3:]", "values[1:4]", "values[1:3:4]", "value[\"X-Test\"][0]", "value[1:]", "pointer[:2]", "values[:upper()]"} {
+	for _, want := range []string{"values[:]", "values[:2]", "values[3:]", "values[1:4]", "values[1:3:4]", "value[\"X-Test\"][0]", "value[1:]", "pointer[:2]", "__kinmokuseiEvalValue(values)[:upper()]"} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)
 		}

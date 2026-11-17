@@ -233,7 +233,7 @@ function breakRange(): int {
 	}
 	for _, want := range []string{
 		"func relay(input <-chan int, output chan<- int)",
-		"output <- <-input + 1",
+		"__kinmokuseiEvalValue(output) <- <-input + 1",
 		"func roundTrip(channel chan int) int",
 		"var instant = <-time.After(0)",
 		"var channel = make(chan int, 1)",

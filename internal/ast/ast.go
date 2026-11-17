@@ -43,6 +43,8 @@ type Program struct {
 	UsesUTF8             bool
 	UsesObservation      bool
 	UsesJSONSnapshot     bool
+	UsesNonNullKinds     bool
+	UsesReferenceReads   bool
 }
 
 // NativeTypeMethodSet keeps callable expressions separate from constants in
@@ -87,6 +89,9 @@ type Expression interface {
 }
 
 type TypeRef struct {
+	// GoPackagePath retains package identity for inferred qualified types when
+	// their new storage location belongs to a different source import scope.
+	GoPackagePath        string
 	Name                 string
 	NameSpan             source.Span
 	Qualifier            string
@@ -117,9 +122,10 @@ type TypeRef struct {
 	// LoweredType is populated for generic aliases. The source alias remains
 	// available to language tooling while Go code generation uses its expanded
 	// underlying type, keeping generated modules compatible with Go 1.23.
-	LoweredType *TypeRef
-	Go          bool
-	Nullable    bool
+	LoweredType  *TypeRef
+	Go           bool
+	Nullable     bool
+	NonNullKinds uint8 // Checked mixed-bound publication; does not change storage.
 	// Variadic marks a function type whose final Parameters entry is the
 	// source-level slice type of a rest parameter.
 	Variadic bool
@@ -157,9 +163,13 @@ type Parameter struct {
 	Name       string
 	Type       TypeRef
 	Variadic   bool
-	Visibility Visibility
-	IsField    bool
-	Span       source.Span
+	// NonNull requests an entry check for this reference (each rest element).
+	// Semantic analysis sets this from the source contract, not its Go storage.
+	NonNull      bool
+	NonNullKinds uint8 // Selective checks for mixed reference/value bounds.
+	Visibility   Visibility
+	IsField      bool
+	Span         source.Span
 }
 
 type TypeParameter struct {
@@ -422,16 +432,18 @@ type Binding struct {
 	Name                string
 	GoMember            *MemberExpr
 	Used                bool
+	NonNull             bool // Validate an inferred native reference on publication.
 	ResolvedDeclaration source.Span
 	ResolvedType        TypeRef
 	Span                source.Span
 }
 
 type MultiVariableDecl struct {
-	Constant bool
-	Bindings []Binding
-	Value    Expression
-	Span     source.Span
+	Constant         bool
+	NonNullCondition NonNullCondition
+	Bindings         []Binding
+	Value            Expression
+	Span             source.Span
 }
 
 func (*MultiVariableDecl) statement()             {}
@@ -454,6 +466,7 @@ type ReturnStmt struct {
 	AdditionalValues []Expression
 	ResultKind       ResultReturnKind
 	ResultType       TypeRef
+	NonNullResult    bool // Validate a forwarded Result payload on success.
 	CrossesTry       bool
 	Span             source.Span
 }
@@ -541,11 +554,23 @@ func (*IncDecStmt) statement()             {}
 func (s *IncDecStmt) GetSpan() source.Span { return s.Span }
 
 type MultiAssignmentStmt struct {
-	Bindings []Binding
-	Upcasts  []*ClassUpcastExpr // Per-result source class coercions, when required.
-	Value    Expression
-	Span     source.Span
+	NonNullCondition NonNullCondition
+	NonNullResults   []*TypeRef // Target reference checks before publishing results.
+	Bindings         []Binding
+	Upcasts          []*ClassUpcastExpr // Per-result source class coercions, when required.
+	Value            Expression
+	Span             source.Span
 }
+
+// Checked producers expose zero payloads on failure. Their reference contract
+// applies only on success; an ordinary tuple has no implicit success flag.
+type NonNullCondition int
+
+const (
+	NonNullAlways NonNullCondition = iota
+	NonNullIfPresent
+	NonNullIfNoError
+)
 
 func (*MultiAssignmentStmt) statement()             {}
 func (s *MultiAssignmentStmt) GetSpan() source.Span { return s.Span }
@@ -620,15 +645,18 @@ const (
 // either discard, declare Bindings, or assign Targets. Each Body is a distinct
 // case-local scope and never falls through to another case.
 type SelectCase struct {
-	Kind     SelectCaseKind
-	Constant bool
-	Declare  bool
-	Bindings []Binding
-	Targets  []Expression
-	Channel  Expression
-	Value    Expression
-	Body     *BlockStmt
-	Span     source.Span
+	NonNullResults   []*TypeRef
+	NonNullCondition NonNullCondition
+	Upcasts          []*ClassUpcastExpr // Receive-assignment conversions after selection.
+	Kind             SelectCaseKind
+	Constant         bool
+	Declare          bool
+	Bindings         []Binding
+	Targets          []Expression
+	Channel          Expression
+	Value            Expression
+	Body             *BlockStmt
+	Span             source.Span
 }
 
 func (c *SelectCase) GetSpan() source.Span { return c.Span }
@@ -766,6 +794,7 @@ func (*ChannelSendStmt) statement()             {}
 func (s *ChannelSendStmt) GetSpan() source.Span { return s.Span }
 
 type IdentifierExpr struct {
+	NonNullRead         *TypeRef // Validate a source reference when this value is read.
 	GoConstant          bool
 	Name                string
 	GoMember            *MemberExpr
@@ -798,27 +827,38 @@ type LiteralExpr struct {
 func (*LiteralExpr) expression()            {}
 func (e *LiteralExpr) GetSpan() source.Span { return e.Span }
 
-// NonNullOperator is distinct from prefix boolean negation. It is a checked
-// postfix operation, never a Go constant or an erased type assertion.
+// NonNullOperator is distinct from prefix boolean negation. Postfix assertions
+// and inserted storage checks are never Go constants or erased type assertions.
 const NonNullOperator = "postfix!"
 
 type UnaryExpr struct {
-	Operator string
-	Operand  Expression
+	NonNullRead *TypeRef // Validate a source reference when this value is read.
+	Operator    string
+	Operand     Expression
 	// AssertionType and AssertionSpan are populated for NonNullOperator only.
 	AssertionType TypeRef
 	AssertionSpan source.Span
-	Span          source.Span
+	// ImplicitNonNull marks a source storage-contract check inserted by sema.
+	ImplicitNonNull bool
+	NonNullResults  []bool // Checked slots when an implicit boundary forwards a result list.
+	Span            source.Span
 }
 
 func (*UnaryExpr) expression()            {}
 func (e *UnaryExpr) GetSpan() source.Span { return e.Span }
 
 type BinaryExpr struct {
-	Left     Expression
-	Operator string
-	Right    Expression
-	Span     source.Span
+	NonNullRead       *TypeRef // Validate a source reference when this value is read.
+	Parenthesized     bool     // Preserve explicit grouping for ?? / logical mixing checks.
+	CoalesceType      *TypeRef
+	CoalesceLeftValue Expression // Checked non-null branch conversion, using a reserved temporary.
+	CoalesceHelper    string     // A static zero-argument fallback can retain private inferred Go types.
+	CoalesceNonNull   bool       // The fallback was checked to produce a non-null value.
+	CoalesceChecked   bool       // A non-nil-capable map/receive payload uses the success flag.
+	Left              Expression
+	Operator          string
+	Right             Expression
+	Span              source.Span
 }
 
 func (*BinaryExpr) expression()            {}
@@ -826,12 +866,15 @@ func (e *BinaryExpr) GetSpan() source.Span { return e.Span }
 
 // GoTypeAssertionExpr keeps the two failure modes syntactically distinct.
 // Checked assertions produce (value, boolean); unchecked assertions panic on
-// failure with the same runtime semantics as a Go type assertion.
+// failure. Source non-null reference targets also reject a nil asserted value.
 type GoTypeAssertionExpr struct {
+	NonNullRead             *TypeRef // Validate a source reference when this value is read.
 	NativeContractArguments []NativeContract
 	Value                   Expression
 	Type                    TypeRef
 	Checked                 bool
+	CheckedResultHandled    bool // Split binding or explicit whole-result discard.
+	NonNull                 bool // A successful Go assertion must establish a source non-null contract.
 	ClassDowncast           bool
 	SourceClass             string
 	Span                    source.Span
@@ -843,6 +886,7 @@ func (e *GoTypeAssertionExpr) GetSpan() source.Span { return e.Span }
 // PropagateExpr explicitly unwraps an Kinmokusei Result or a Go (T, error)
 // operation and returns the error from the enclosing Result function.
 type PropagateExpr struct {
+	NonNull    bool // Validate the destination reference after handling the error.
 	Value      Expression
 	ValueType  TypeRef
 	ResultType TypeRef
@@ -866,17 +910,20 @@ func (*TaskStartExpr) expression()            {}
 func (e *TaskStartExpr) GetSpan() source.Span { return e.Span }
 
 type AwaitExpr struct {
-	Value      Expression
-	ValueType  TypeRef
-	ResultTask bool
-	Void       bool
-	Span       source.Span
+	NonNullRead *TypeRef // Validate a source reference when this value is read.
+	Value       Expression
+	ValueType   TypeRef
+	ResultTask  bool
+	Void        bool
+	Span        source.Span
 }
 
 func (*AwaitExpr) expression()            {}
 func (e *AwaitExpr) GetSpan() source.Span { return e.Span }
 
 type CallExpr struct {
+	NonNullRead   *TypeRef // Validate a source reference when this value is read.
+	StaticCallee  bool     // A declaration/package function cannot be rebound by an argument.
 	Callee        Expression
 	TypeArguments []TypeRef
 	// ResolvedTypeArguments supplies nominally inferred arguments when Go's
@@ -887,14 +934,18 @@ type CallExpr struct {
 	MultipleArgumentCount  int
 	MultipleArgumentResult *TypeRef
 	GenericCall            bool      // Generic functions cannot be captured uninstantiated.
-	CaptureArgumentTypes   []TypeRef // Contextual types for eager Task argument capture.
-	Arguments              []Expression
+	CaptureArgumentTypes   []TypeRef // Contextual types for Task captures and deferred runtime shifts.
+	// DeferSignature provides call-context types for runtime shifts captured by
+	// function-scoped defer lowering. It is metadata, never a source annotation.
+	DeferSignature *TypeRef
+	Arguments      []Expression
 	// IntegerSizeArguments marks untyped numeric sizes that need an integer
 	// context when lowering introduces evaluation-order temporaries.
 	IntegerSizeArguments   []bool
 	MakeSliceTarget        bool // make[T] has a checked slice target, not a map hint or channel capacity.
 	Expanded               bool
 	Conversion             bool
+	NonNullConversion      bool // Native reference conversion validates the resulting non-null contract.
 	GoConstant             bool // Checked calls/conversions that Go evaluates at compile time.
 	ConversionType         *TypeRef
 	DecoratorValueIdentity string
@@ -1015,6 +1066,8 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
+	BoundMethod            bool     // A resolved method value is always a non-nil callable.
+	NonNullRead            *TypeRef // Validate a source reference when this value is read.
 	Property               bool
 	PropertyGetter         string
 	PropertySetter         string
@@ -1059,31 +1112,69 @@ type MemberExpr struct {
 func (*MemberExpr) expression()            {}
 func (e *MemberExpr) GetSpan() source.Span { return e.Span }
 
+// OptionalChainExpr captures Object once and evaluates Value only when it is
+// non-nil. Receiver is a synthetic reference to that captured snapshot.
+type OptionalChainExpr struct {
+	Object         Expression
+	Value          Expression
+	Receiver       *OptionalReceiverExpr
+	ResultType     TypeRef
+	Checked        bool // Value uses an explicit (payload, present) representation.
+	ForwardChecked bool // A nested chain already supplies the presence flag.
+	Span           source.Span
+}
+
+func (*OptionalChainExpr) expression()            {}
+func (e *OptionalChainExpr) GetSpan() source.Span { return e.Span }
+
+type OptionalReceiverExpr struct {
+	Marker string
+	Type   TypeRef
+}
+
+func (*OptionalReceiverExpr) expression()          {}
+func (*OptionalReceiverExpr) GetSpan() source.Span { return source.Span{} }
+
 type IndexExpr struct {
+	NonNullRead             *TypeRef // Validate a source reference when this value is read.
+	FixedArrayStorage       bool     // Preserve addressable array storage rather than copying it.
+	MapIndex                bool     // Preserve map key context while capturing assignment targets.
 	NativeContractArguments []NativeContract
 	// TypeArguments retains a possible explicit instantiation. For ambiguous
 	// f[T] syntax, Index retains the ordinary index until checking resolves f.
-	TypeArguments []TypeRef
-	Instantiated  bool
-	ResolvedType  TypeRef
-	Object        Expression
-	Index         Expression
-	Addressable   bool
-	Assignable    bool
-	Span          source.Span
+	TypeArguments         []TypeRef
+	ResolvedTypeArguments []TypeRef // Context-inferred arguments; source arguments retain their own spans.
+	FunctionBoundary      *FunctionValueBoundary
+	Instantiated          bool
+	ResolvedType          TypeRef
+	Object                Expression
+	Index                 Expression
+	Addressable           bool
+	Assignable            bool
+	Span                  source.Span
 }
 
 func (*IndexExpr) expression()            {}
 func (e *IndexExpr) GetSpan() source.Span { return e.Span }
 
+// FunctionValueBoundary retains the concrete source contracts erased by a
+// generic function's Go signature. Checks run when the bound value is invoked.
+type FunctionValueBoundary struct {
+	Parameters []Parameter
+	Results    []*TypeRef
+	Condition  NonNullCondition
+}
+
 type SliceExpr struct {
-	UTF8   bool // Preserve text validity by checking UTF-8 byte boundaries.
-	Object Expression
-	Low    Expression
-	High   Expression
-	Max    Expression
-	Full   bool
-	Span   source.Span
+	InitializedOnly   bool // Slicing must not expose zeroed capacity as non-null elements.
+	FixedArrayStorage bool
+	UTF8              bool // Preserve text validity by checking UTF-8 byte boundaries.
+	Object            Expression
+	Low               Expression
+	High              Expression
+	Max               Expression
+	Full              bool
+	Span              source.Span
 }
 
 func (*SliceExpr) expression()            {}
@@ -1107,6 +1198,7 @@ func (e *NewExpr) GetSpan() source.Span { return e.Span }
 // consumed as one of its base types, or a nullable class is boxed into a
 // nullable interface. Both conversions preserve nil and evaluate Value once.
 type ClassUpcastExpr struct {
+	NonNullRead       *TypeRef // Validate a source reference when this value is read.
 	Value             Expression
 	SourceClass       string
 	TargetClass       string

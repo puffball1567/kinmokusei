@@ -1,0 +1,27 @@
+import go { Println } from "fmt";
+
+class User {
+  constructor(public name: string) {}
+}
+
+alias MaybeUser = User | null;
+
+function filled<T>(count: int, value: T): T[] {
+  let values = makeSlice<T>(0, count);
+  for (const _ of count) {
+    values = append(values, value);
+  }
+  return values;
+}
+
+function main(): void {
+  const users = filled(2, new User("Aki"));
+  Println(len(users), users[0].name);
+
+  const emptySlots = makeSlice<MaybeUser>(1, 3);
+  clear(emptySlots);
+  Println(len(emptySlots[:3]), emptySlots[0] === null);
+
+  const shorter = users[:1];
+  Println(len(shorter), cap(shorter));
+}

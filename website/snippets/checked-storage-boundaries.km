@@ -1,0 +1,22 @@
+import go context from "context";
+import go fmt from "fmt";
+
+alias Callback = () => void;
+
+function cancelAt(values: Map<int, context.CancelFunc>, key: int): boolean {
+  let cancel: Callback = () => {};
+  let present = false;
+  [cancel, present] = values[key];
+  if (!present) {
+    return false;
+  }
+  cancel();
+  return true;
+}
+
+function main(): void {
+  const values = makeMap<int, context.CancelFunc>();
+  const [_, cancel] = context.WithCancel(context.Background());
+  values[1] = cancel;
+  fmt.Println(cancelAt(values, 0), cancelAt(values, 1));
+}

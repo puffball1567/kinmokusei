@@ -469,7 +469,11 @@ func CheckFilesWithOverlayInProject(paths []string, overlay map[string]string, p
 		allowed := loader.linkModules(ordered)
 		if len(loader.diagnostics) == 0 {
 			loader.diagnostics = append(loader.diagnostics, sema.CheckScopedWithGoImporterAndPolicy(loader.merged, allowed, goImporter, sema.GoInteropPolicy{AllowUnsafe: allowUnsafeGo, Sizes: sizes})...)
-			return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes, sourceInputs: loader.sourceInputs}, nil
+			result := Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes, sourceInputs: loader.sourceInputs}
+			if err := result.checkInstantiationCycles(); err != nil {
+				return Result{}, err
+			}
+			return result, nil
 		}
 	}
 	return Result{Program: loader.merged, Diagnostics: loader.diagnostics, goImporter: goImporter, goSizes: sizes, sourceInputs: loader.sourceInputs}, nil

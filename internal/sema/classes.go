@@ -398,8 +398,10 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		c.inConstructor = true
 		c.pushScope()
 		c.declareLocal("this", thisType, true, nil, decl.Constructor.Span)
-		for _, parameter := range decl.Constructor.Parameters {
+		for i := range decl.Constructor.Parameters {
+			parameter := &decl.Constructor.Parameters[i]
 			t := c.resolveType(parameter.Type)
+			c.checkParameterBoundary(parameter, t)
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 			c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 		}
@@ -428,8 +430,10 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		if !method.Static {
 			c.declareLocal("this", thisType, true, nil, method.Span)
 		}
-		for _, parameter := range method.Parameters {
+		for i := range method.Parameters {
+			parameter := &method.Parameters[i]
 			t := c.resolveType(parameter.Type)
+			c.checkParameterBoundary(parameter, t)
 			c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 			c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 		}
@@ -506,9 +510,13 @@ func (c *Checker) applyClassUpcast(slot *ast.Expression, expected, actual Type) 
 	}
 	if targetClass.Kind == Class && actualClass.Kind == Class && targetClass.Name != actualClass.Name {
 		if ancestor, ok := c.classAncestorType(actualClass, targetClass.Name); ok && exactType(targetClass, ancestor) {
+			result := targetClass
+			if actual.Kind == Nullable {
+				result = Type{Kind: Nullable, Name: "nullable", Element: &targetClass}
+			}
 			*slot = &ast.ClassUpcastExpr{
 				Value: *slot, SourceClass: actualClass.Name, TargetClass: targetClass.Name,
-				SourceType: typeRefFromType(actualClass, (*slot).GetSpan()), TargetType: typeRefFromType(targetClass, (*slot).GetSpan()), Span: (*slot).GetSpan(),
+				SourceType: typeRefFromType(actual, (*slot).GetSpan()), TargetType: typeRefFromType(result, (*slot).GetSpan()), Span: (*slot).GetSpan(),
 			}
 		}
 	}

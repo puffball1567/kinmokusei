@@ -1,0 +1,27 @@
+import go fmt from "fmt";
+
+let value = 1;
+
+function bump(): int {
+  value = 10;
+  return 5;
+}
+
+function pair(first: int, second: int): int {
+  return first * 100 + second;
+}
+
+function main(): void {
+  fmt.Println(pair(value, bump()));
+  value = 1;
+  fmt.Println(value + bump());
+
+  let index = 0;
+  const values = [1, 2];
+  const changeIndex = (): int => {
+    index = 1;
+    return 9;
+  };
+  values[index] = changeIndex();
+  fmt.Println(values[0], values[1]);
+}

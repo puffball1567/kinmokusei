@@ -71,6 +71,9 @@ func generateBlock(block *kinmokuseiAST.BlockStmt) (*goast.BlockStmt, error) {
 			})
 		}
 		if declaration, ok := stmt.(*kinmokuseiAST.MultiVariableDecl); ok {
+			if declaration.NonNullCondition == kinmokuseiAST.NonNullAlways {
+				result.List = append(result.List, generateInferredBindingChecks(declaration.Bindings)...)
+			}
 			for _, binding := range declaration.Bindings {
 				if binding.Name == "_" || binding.Used {
 					continue
@@ -118,6 +121,10 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		value, err = generateCheckedBindingValue(value, stmt.Bindings, stmt.NonNullCondition)
+		if err != nil {
+			return nil, err
+		}
 		names := make([]*goast.Ident, len(stmt.Bindings))
 		for i, binding := range stmt.Bindings {
 			names[i] = goast.NewIdent(goName(binding.Name))
@@ -145,6 +152,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 				return nil, err
 			}
 			result.Results = append(result.Results, value)
+		}
+		if stmt.Value != nil {
+			orderExpressionList(append([]kinmokuseiAST.Expression{stmt.Value}, stmt.AdditionalValues...), result.Results)
 		}
 		return result, nil
 	case *kinmokuseiAST.ThrowStmt:
@@ -203,7 +213,7 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &goast.AssignStmt{Lhs: []goast.Expr{target}, Tok: goAssignmentToken(stmt.Operator), Rhs: []goast.Expr{value}}, nil
+		return generateOrderedAssignment(stmt, target, value)
 	case *kinmokuseiAST.IncDecStmt:
 		if member, ok := stmt.Target.(*kinmokuseiAST.MemberExpr); ok && member.Property {
 			return generatePropertyAssignment(member, stmt.Operator, nil)
@@ -237,6 +247,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 				return generateCoercedMultiAssignment(stmt, targets, value)
 			}
 		}
+		if hasReferenceBoundaries(stmt.NonNullResults) {
+			return generateCoercedMultiAssignment(stmt, targets, value)
+		}
 		return &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{value}}, nil
 	case *kinmokuseiAST.WhileStmt:
 		condition, err := generateExpression(stmt.Condition)
@@ -260,6 +273,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 			return nil, err
 		}
 		result := &goast.RangeStmt{X: source, Body: body}
+		if helper := iteratorControlName(stmt.Kind); helper != "" {
+			result.X = &goast.CallExpr{Fun: goast.NewIdent(helper), Args: []goast.Expr{source}}
+		}
 		for index := len(stmt.Bindings) - 1; index >= 0; index-- {
 			binding := stmt.Bindings[index]
 			if binding.Name == "_" || !binding.Assigned || binding.Used {
@@ -375,7 +391,11 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if stmt.Kind == kinmokuseiAST.GoCall {
 			return &goast.GoStmt{Call: call}, nil
 		}
-		return &goast.DeferStmt{Call: call}, nil
+		source, ok := stmt.Value.(*kinmokuseiAST.CallExpr)
+		if !ok {
+			return nil, fmt.Errorf("defer at %v does not contain a source call", stmt.Span.Start)
+		}
+		return markSourceDefer(source, call), nil
 	case *kinmokuseiAST.DetachStmt:
 		value, err := generateExpression(stmt.Value)
 		if err != nil {
@@ -398,6 +418,9 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if evaluationMayHaveEffects(stmt.Value) {
+			channel = snapshotOrderedValue(stmt.Channel, channel)
+		}
 		return &goast.SendStmt{Chan: channel, Value: value}, nil
 	default:
 		return nil, fmt.Errorf("unsupported statement %T", stmt)
@@ -412,61 +435,6 @@ func generateValueSwitchCase(clause *kinmokuseiAST.ValueSwitchCase) (*goast.Case
 			return nil, err
 		}
 		generated.List = append(generated.List, expression)
-	}
-	body, err := generateBlock(clause.Body)
-	if err != nil {
-		return nil, err
-	}
-	generated.Body = body.List
-	return generated, nil
-}
-
-func generateSelectCase(clause *kinmokuseiAST.SelectCase) (*goast.CommClause, error) {
-	generated := &goast.CommClause{}
-	if clause.Kind == kinmokuseiAST.SelectSend {
-		channel, err := generateExpression(clause.Channel)
-		if err != nil {
-			return nil, err
-		}
-		value, err := generateExpression(clause.Value)
-		if err != nil {
-			return nil, err
-		}
-		generated.Comm = &goast.SendStmt{Chan: channel, Value: value}
-	} else if clause.Kind == kinmokuseiAST.SelectReceive {
-		channel, err := generateExpression(clause.Channel)
-		if err != nil {
-			return nil, err
-		}
-		receive := &goast.UnaryExpr{Op: token.ARROW, X: channel}
-		if clause.Declare {
-			targets := make([]goast.Expr, len(clause.Bindings))
-			used := false
-			for i, binding := range clause.Bindings {
-				name := "_"
-				if binding.Name != "_" && binding.Used {
-					name = goName(binding.Name)
-					used = true
-				}
-				targets[i] = goast.NewIdent(name)
-			}
-			if used {
-				generated.Comm = &goast.AssignStmt{Lhs: targets, Tok: token.DEFINE, Rhs: []goast.Expr{receive}}
-			} else {
-				generated.Comm = &goast.ExprStmt{X: receive}
-			}
-		} else if len(clause.Targets) != 0 {
-			targets := make([]goast.Expr, len(clause.Targets))
-			for i, target := range clause.Targets {
-				targets[i], err = generateExpression(target)
-				if err != nil {
-					return nil, err
-				}
-			}
-			generated.Comm = &goast.AssignStmt{Lhs: targets, Tok: token.ASSIGN, Rhs: []goast.Expr{receive}}
-		} else {
-			generated.Comm = &goast.ExprStmt{X: receive}
-		}
 	}
 	body, err := generateBlock(clause.Body)
 	if err != nil {
@@ -526,11 +494,16 @@ func generateForClause(stmt kinmokuseiAST.Statement, initializer bool) (goast.St
 		if err != nil {
 			return nil, err
 		}
+		value, err = generateCheckedBindingValue(value, declaration.Bindings, declaration.NonNullCondition)
+		if err != nil {
+			return nil, err
+		}
 		targets := make([]goast.Expr, len(declaration.Bindings))
 		hasName := false
 		for i, binding := range declaration.Bindings {
 			name := binding.Name
-			if name != "_" && !binding.Used {
+			checked := declaration.NonNullCondition == kinmokuseiAST.NonNullAlways && binding.NonNull
+			if name != "_" && !binding.Used && !checked {
 				name = "_"
 			}
 			if name != "_" {

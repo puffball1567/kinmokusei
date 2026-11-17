@@ -1,0 +1,1 @@
+generic instantiation cycle: recursive instantiations grow type arguments without bound

@@ -1,0 +1,18 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public name: string) {}
+  public next: User | null = null;
+}
+
+function show(user: User | null): void {
+  fmt.Println(user?.name ?? "anonymous");
+  fmt.Println(user?.next?.name ?? "no next user");
+  const [name, present] = user?.name;
+  if (present) { fmt.Println(name); }
+}
+
+function main(): void {
+  show(null);
+  show(new User("Alice"));
+}

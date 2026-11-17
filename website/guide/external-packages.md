@@ -5,6 +5,12 @@ description: Define, acquire, lock, replace, and consume source packages through
 
 # Use external Kinmokusei packages
 
+v0.4.12 supports complete prerelease versions with hyphenated
+identifiers, such as `keika deps add example.com/lib@v1.0.0-rc-1`. The package's
+`[project] version` is `1.0.0-rc-1`. Fixed dependency identities use canonical
+Go module versions; see [version rules](../reference/project-files#dependencies-and-replacements)
+for metadata, pseudo-versions and major suffixes.
+
 This feature is available since v0.4.1. Source
 packages use ordinary imports; Go packages continue to use `import go`.
 Both are checked and compiled into the application's Go output.
@@ -114,6 +120,12 @@ keika build
 dependency and writes it under `[dependencies]`. Modules without that declaration
 retain the existing Go dependency behavior. `keika install --go-module` remains
 the explicit Go-only command.
+
+v0.4.12 keeps your manifest comments and formatting during
+dependency changes, including short import aliases and local replacements.
+Updating a pin preserves its inline comment; removing it keeps that comment as
+a standalone note. See the [project-file reference](../reference/project-files)
+for the editing rules.
 
 Use the declared module path in source:
 

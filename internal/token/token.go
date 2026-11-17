@@ -76,6 +76,7 @@ const (
 	LeftBracket  Kind = "["
 	RightBracket Kind = "]"
 	Dot          Kind = "."
+	OptionalDot  Kind = "?."
 	Ellipsis     Kind = "..."
 	At           Kind = "@"
 
@@ -119,6 +120,7 @@ const (
 	AndNot        Kind = "&^"
 	Tilde         Kind = "~"
 	Question      Kind = "?"
+	Coalesce      Kind = "??"
 )
 
 var keywords = map[string]Kind{

@@ -8,6 +8,8 @@ import (
 )
 
 func (c *Checker) checkCall(expr *ast.CallExpr) Type {
+	expr.StaticCallee = false
+	expr.NonNullConversion = false
 	// Re-resolve direct callee identity on each flow-analysis pass. Contracts
 	// are not callable types and never follow mutable/unknown function values.
 	delete(c.goCallContracts, expr.Callee)
@@ -145,13 +147,16 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		if symbol, exists := c.lookupSymbol(name.Name, name.Span); exists {
 			name.ResolvedDeclaration = symbol.declarationSpan
 			callable = symbol.typeInfo
+			c.checkReferenceRead(name, callable)
 			callableName = fmt.Sprintf("value %q", name.Name)
 		} else if fn, exists := c.functions[name.Name]; exists && c.isTopLevelAllowed(name.Span, name.Name) {
+			expr.StaticCallee = true
 			c.recordGlobalDependency(name.Name)
 			name.ResolvedDeclaration = fn.declarationSpan
 			callable = callableTypeForFunction(fn)
 			callableName = fmt.Sprintf("function %q", name.Name)
 		} else if imported, exists := c.lookupNamedGoImport(name.Name, name.Span); exists {
+			_, expr.StaticCallee = imported.pack.packageInfo.Scope().Lookup(imported.name).(*gotypes.Func)
 			callable = c.checkNamedGoIdentifier(name, imported)
 			callableName = fmt.Sprintf("Go member %q", name.Name)
 		} else {
@@ -161,6 +166,13 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		previousCallee := c.directCallCallee
 		c.directCallCallee = expr.Callee
 		callable = c.checkExpression(expr.Callee)
+		if member, ok := expr.Callee.(*ast.MemberExpr); ok && member.Go {
+			if object, ok := member.Object.(*ast.IdentifierExpr); ok {
+				if pack := c.lookupGoPackage(member.Span.Path, object.Name); pack != nil {
+					_, expr.StaticCallee = pack.packageInfo.Scope().Lookup(member.Name).(*gotypes.Func)
+				}
+			}
+		}
 		c.directCallCallee = previousCallee
 		callableName = "expression"
 	}
@@ -322,6 +334,20 @@ func (c *Checker) recordCallSignature(expr *ast.CallExpr, callable Type) {
 		return
 	}
 	expr.GenericCall = expr.GenericCall || callable.Generic
+	if c.deferCaptureCall == expr && !callable.Generic {
+		ref := typeRefFromType(callable, expr.Span)
+		expr.DeferSignature = &ref
+		for i, argument := range expr.Arguments {
+			if !c.hasDeferredShift(argument) {
+				continue
+			}
+			if expr.CaptureArgumentTypes == nil {
+				expr.CaptureArgumentTypes = make([]ast.TypeRef, len(expr.Arguments))
+			}
+			parameter := genericArgumentParameter(callable, expr, i)
+			expr.CaptureArgumentTypes[i] = typeRefFromType(parameter, expr.Span)
+		}
+	}
 	if c.taskLaunchCall == expr && !callable.Generic {
 		expr.CaptureArgumentTypes = make([]ast.TypeRef, len(expr.Arguments))
 		for i := range expr.Arguments {

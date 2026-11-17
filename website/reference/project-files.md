@@ -11,6 +11,18 @@ The manifest accepts the sections and quoted string values documented here,
 not every TOML feature. For example, write `cgo = "enabled"`, not a Boolean,
 and write build tags as one comma-separated string, not a TOML array.
 
+v0.4.12 preserves manifest comments and existing layout when
+`install`, `deps add`, `deps update`, or `deps remove` changes dependencies.
+Only affected values/entries are edited; unrelated table/key order, spacing,
+string spelling, and LF/CRLF line endings remain intact. New entries use a
+stable order, and missing tables are appended. An inline comment on a removed
+entry becomes a standalone comment; empty tables and their comments remain.
+An unchanged manifest stays byte-identical. Adding a line after a final line
+without a newline necessarily inserts a line break.
+
+The resulting manifest and lock are committed together; dependency-resolution
+failure restores the original files, including their comments and formatting.
+
 ## Complete example
 
 ```toml
@@ -48,6 +60,12 @@ unsafe = "deny"
 
 All four keys are required. Source inputs are resolved below the project root; `source` is not a supported key.
 
+v0.4.12 validates `version` as a complete semantic version
+without `v`: for example `1.0.0-rc-1` or `1.0.0-rc-1+build-1`. Prerelease and
+build identifiers may contain ASCII letters, digits and hyphens, separated by
+dots. Empty identifiers and leading zeros in core numbers or numeric prerelease
+identifiers are rejected. Build identifiers may contain leading zeros.
+
 ## `[target]`
 
 | Key | Values |
@@ -73,6 +91,22 @@ for the acquisition, automatic alias and local-development workflows.
 
 Go dependencies require complete versions, including complete pseudo-versions;
 source dependencies require complete tags matching their package manifests.
+
+v0.4.12 accepts hyphens inside prerelease identifiers, such
+as `v1.0.0-rc-1`, through add/update, direct/transitive source imports, Go
+dependencies and offline lock/cache verification. Dependencies use complete
+**canonical Go module versions** with a `v` prefix. Queries/shorthands such as
+`latest`, `v1` or `v1.2` and arbitrary build metadata such as
+`v1.0.0+build-1` are rejected instead of silently rewritten. The special
+`+incompatible` suffix is preserved according to Go's module rules. Module path
+major suffixes must match, for example `example.com/lib/v2@v2.0.0-rc-1`.
+See [Go module versions](https://go.dev/ref/mod#versions).
+
+Project metadata can use full SemVer build identifiers, but a distributed
+source package's version must exactly match its requested canonical module
+identity. Publish `1.0.0-rc-1` as `v1.0.0-rc-1`; do not depend on
+`v1.0.0+build-1` as a distinct downloadable release.
+
 Go replacements are project-relative local paths inside the project root and
 must correspond to declared Go dependencies. Source `[replace]` entries can
 point to sibling projects; these distinct policies are not interchangeable.

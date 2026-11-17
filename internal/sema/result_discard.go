@@ -13,6 +13,9 @@ const resultUsageMessage = "Result values must be consumed with ?, explicitly sp
 // Blank bindings do not introduce storage or predeclared arrow symbols.
 // They still type-check and evaluate their initializer, including its effects.
 func (c *Checker) checkDiscard(expression *ast.Expression, annotation ast.TypeRef, propagation bool) int {
+	if assertion, ok := (*expression).(*ast.GoTypeAssertionExpr); ok {
+		assertion.CheckedResultHandled = true
+	}
 	expected := Type{Kind: Invalid, Name: "<inferred>"}
 	if annotation.IsSpecified() {
 		expected = c.resolveType(annotation)
@@ -20,10 +23,15 @@ func (c *Checker) checkDiscard(expression *ast.Expression, annotation ast.TypeRe
 	var value Type
 	if expr, ok := (*expression).(*ast.PropagateExpr); ok && propagation {
 		value = c.checkPropagateExpression(expr)
+	} else if index, ok := (*expression).(*ast.IndexExpr); ok && !annotation.IsSpecified() {
+		value = c.checkIndexAccess(index, false, true)
+	} else if receive, ok := (*expression).(*ast.UnaryExpr); ok && receive.Operator == "<-" && !annotation.IsSpecified() {
+		value = c.checkChannelReceiveAccess(receive, false, true)
 	} else {
 		value = c.checkExpressionExpectedSlot(expression, expected)
 	}
 	span := (*expression).GetSpan()
+	clearReferenceRead(*expression)
 	if call, ok := (*expression).(*ast.CallExpr); ok && (call.Builtin == ast.ResultOKCall || call.Builtin == ast.ResultFailCall) {
 		c.report(span, "Result constructors must be returned, not discarded")
 	}
@@ -61,6 +69,7 @@ type resultErrorUse struct {
 }
 
 // This is a binding-use check, not ownership or path-sensitive error analysis.
+// Unsafe-zero Result payload reads have separate proofs in presence_flow.go.
 // Reuse the source read flags, never the generated Go unused-local cleanup.
 // Share the map with lazy arrow checkers and validate only after all bodies.
 func (c *Checker) trackResultError(name string, span source.Span) {

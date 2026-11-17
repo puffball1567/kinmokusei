@@ -97,11 +97,11 @@ func TestAssignmentNonNullProofUsesStorageNotTypeSpelling(t *testing.T) {
 		"map":              `const raw: Map<string, int> = nil; const value: Map<string, int> | null = raw; if (value === null) { return true; } return value["x"] > 0;`,
 		"channel":          `const raw: GoChannel<int> = nil; const value: GoChannel<int> | null = raw; if (value === null) { return true; } return <-value > 0;`,
 		"defined pointer":  `const raw: Link = nil; const value: Link | null = raw; if (value === null) { return true; } return *value > 0;`,
-		"defined function": `const raw: Callback = nil; const value: Callback | null = raw; if (value === null) { return true; } return value() > 0;`,
+		"defined function": `const raw: Callback = incoming; const value: Callback | null = raw; if (value === null) { return true; } return value() > 0;`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			input := `type Link = distinct *int; type Callback = distinct () => int; function inspect(): boolean {` + body + `}`
+			input := `type Link = distinct *int; type Callback = distinct () => int; function inspect(incoming:Callback): boolean {` + body + `}`
 			if diagnostics := checkSource(t, input); len(diagnostics) != 0 {
 				t.Fatalf("unexpected diagnostics: %v", diagnostics)
 			}

@@ -47,22 +47,28 @@ func (c *Checker) checkArrayLengthConstant(call *ast.CallExpr, value Type) {
 // are not evaluated; checked constant calls may themselves hide unevaluated
 // operands. Source operations lowered to runtime helpers stay nonconstant.
 func arrayLengthOperandUnevaluated(expression ast.Expression) bool {
+	if slot := ast.ReferenceReadSlot(expression); slot != nil && *slot != nil {
+		return false
+	}
 	switch expr := expression.(type) {
 	case nil, *ast.IdentifierExpr, *ast.LiteralExpr, *ast.ArrowExpr:
 		return true
 	case *ast.UnaryExpr:
 		return expr.Operator != "<-" && expr.Operator != ast.NonNullOperator && arrayLengthOperandUnevaluated(expr.Operand)
 	case *ast.BinaryExpr:
-		return arrayLengthOperandUnevaluated(expr.Left) && arrayLengthOperandUnevaluated(expr.Right)
+		return expr.Operator != "??" && arrayLengthOperandUnevaluated(expr.Left) && arrayLengthOperandUnevaluated(expr.Right)
 	case *ast.MemberExpr:
 		return !expr.Property && arrayLengthOperandUnevaluated(expr.Object)
 	case *ast.IndexExpr:
 		return arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Index)
 	case *ast.SliceExpr:
-		return arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Low) && arrayLengthOperandUnevaluated(expr.High) && arrayLengthOperandUnevaluated(expr.Max)
+		return !expr.InitializedOnly && !expr.UTF8 && arrayLengthOperandUnevaluated(expr.Object) && arrayLengthOperandUnevaluated(expr.Low) && arrayLengthOperandUnevaluated(expr.High) && arrayLengthOperandUnevaluated(expr.Max)
 	case *ast.GoTypeAssertionExpr:
-		return !expr.ClassDowncast && arrayLengthOperandUnevaluated(expr.Value)
+		return !expr.ClassDowncast && !expr.NonNull && arrayLengthOperandUnevaluated(expr.Value)
 	case *ast.CallExpr:
+		if expr.NonNullConversion {
+			return false
+		}
 		if expr.GoConstant {
 			// Only nested constant len/cap reset Go's enclosing call scan.
 			// Layout arguments (even through constant conversions/min/max)

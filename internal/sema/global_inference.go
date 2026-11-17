@@ -96,4 +96,6 @@ func (c *Checker) finishInitializerCheck(dependency *Checker) {
 	c.usesUTF8 = c.usesUTF8 || dependency.usesUTF8
 	c.usesObservation = c.usesObservation || dependency.usesObservation
 	c.usesJSONSnapshot = c.usesJSONSnapshot || dependency.usesJSONSnapshot
+	c.usesNonNullKinds = c.usesNonNullKinds || dependency.usesNonNullKinds
+	c.usesReferenceReads = c.usesReferenceReads || dependency.usesReferenceReads
 }

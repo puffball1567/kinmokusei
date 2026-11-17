@@ -268,7 +268,7 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		}
 	}
 	if ref.Qualifier != "" {
-		imported := c.lookupGoPackage(ref.Span.Path, ref.Qualifier)
+		imported := c.lookupGoTypePackage(ref)
 		if imported == nil || imported.packageInfo == nil {
 			c.report(ref.Span, fmt.Sprintf("unknown Go package alias %q", ref.Qualifier))
 			return Type{Kind: Invalid, Name: "<invalid>"}

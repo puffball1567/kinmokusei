@@ -53,6 +53,17 @@ func (c *Checker) checkUnsafeBuiltinCall(expr *ast.CallExpr) (Type, bool) {
 	if member.Name == "Add" || member.Name == "Slice" || member.Name == "String" {
 		wantArguments = 2
 	}
+	if kind == ast.UnsafeSizeofCall || kind == ast.UnsafeAlignofCall || kind == ast.UnsafeOffsetofCall {
+		entry := c.snapshotNullableFlow()
+		previousDepth, previousSuppression := c.unevaluatedDepth, c.suppressFlowEffects
+		c.unevaluatedDepth++
+		c.suppressFlowEffects++
+		defer func() {
+			c.restoreNullableFlow(entry)
+			c.unevaluatedDepth = previousDepth
+			c.suppressFlowEffects = previousSuppression
+		}()
+	}
 	arguments, spans := c.checkBuiltinCallInputs(expr, qualifiedName, wantArguments)
 	// Expanded results are runtime values, with their producer retained only
 	// as the diagnostic origin. Never index source arguments by result slot.

@@ -1,0 +1,19 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public name: string) {}
+}
+
+function findName(users: Map<int, User>, id: int): string {
+  const [user, found] = users[id];
+  if (!found) {
+    return "anonymous";
+  }
+  return user.name;
+}
+
+function main(): void {
+  const users = makeMap<int, User>();
+  users[1] = new User("Alice");
+  fmt.Println(findName(users, 0), findName(users, 1));
+}

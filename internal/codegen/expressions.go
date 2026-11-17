@@ -11,7 +11,22 @@ import (
 )
 
 func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
+	value, err := generateUncheckedExpression(expr)
+	if err != nil {
+		return nil, err
+	}
+	if slot := kinmokuseiAST.ReferenceReadSlot(expr); slot != nil && *slot != nil {
+		return generateReferenceRead(value, **slot), nil
+	}
+	return value, nil
+}
+
+func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
+	case *kinmokuseiAST.OptionalChainExpr:
+		return generateOptionalChain(expr)
+	case *kinmokuseiAST.OptionalReceiverExpr:
+		return goast.NewIdent(expr.Marker), nil
 	case *kinmokuseiAST.IdentifierExpr:
 		if expr.GoMember != nil {
 			return generateExpression(expr.GoMember)
@@ -49,6 +64,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		}
 		return &goast.UnaryExpr{Op: goToken(expr.Operator), X: value}, nil
 	case *kinmokuseiAST.BinaryExpr:
+		if expr.Operator == "??" {
+			return generateCoalesce(expr)
+		}
 		left, err := generateExpression(expr.Left)
 		if err != nil {
 			return nil, err
@@ -56,6 +74,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		right, err := generateExpression(expr.Right)
 		if err != nil {
 			return nil, err
+		}
+		if evaluationMayHaveEffects(expr.Right) {
+			left = snapshotOrderedValue(expr.Left, left)
 		}
 		return &goast.BinaryExpr{X: left, Op: goToken(expr.Operator), Y: right}, nil
 	case *kinmokuseiAST.GoTypeAssertionExpr:
@@ -74,7 +95,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: arguments}, nil
 		}
-		return &goast.TypeAssertExpr{X: value, Type: goType(expr.Type)}, nil
+		return generateGoTypeAssertion(expr, value), nil
 	case *kinmokuseiAST.TaskStartExpr:
 		return generateTaskStart(expr)
 	case *kinmokuseiAST.AwaitExpr:
@@ -109,6 +130,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				args = append(args, generated)
 			}
 			call := &goast.CallExpr{Fun: goast.NewIdent(initializerName(expr.SuperBase)), Args: args}
+			orderExpressionList(expr.Arguments, args[len(args)-len(expr.Arguments):])
 			if expr.Expanded {
 				call.Ellipsis = token.Pos(1)
 			}
@@ -236,6 +258,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				args[i] = generated
 			}
 			call := &goast.CallExpr{Fun: goast.NewIdent(name), Args: args}
+			orderExpressionList(expr.Arguments, args)
 			if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
 				return generateCapturedMultipleCall(expr, call), nil
 			}
@@ -307,7 +330,22 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			args = append(args, generated)
 		}
+		orderExpressionList(expr.Arguments, args[len(args)-len(expr.Arguments):])
+		if expressionListMayHaveEffects(expr.Arguments) {
+			for i := 0; i < len(args)-len(expr.Arguments); i++ {
+				args[i] = evaluatedValue(args[i])
+			}
+		}
+		if !expr.StaticCallee && !expr.GenericCall && !expr.Conversion && expr.Builtin == kinmokuseiAST.NotBuiltinCall && expressionListMayHaveEffects(expr.Arguments) {
+			callee = evaluatedValue(callee)
+		}
 		call := &goast.CallExpr{Fun: callee, Args: args}
+		if expr.NonNullConversion {
+			if expr.ConversionType == nil || len(args) != 1 {
+				return nil, fmt.Errorf("non-null conversion has no checked target type")
+			}
+			return generateNonNullReference(call, *expr.ConversionType, expr.Span, "non-null conversion"), nil
+		}
 		if expr.MultipleArgumentCount > 0 && expr.MultipleArgumentResult != nil {
 			return generateCapturedMultipleCall(expr, call), nil
 		}
@@ -343,6 +381,8 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
 			}
 		}
+		prependParameterChecks(body, expr.Parameters)
+		body.List = append([]goast.Stmt{sourceCallableMarker()}, body.List...)
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
 	case *kinmokuseiAST.ArrayLiteralExpr:
 		elements := make([]goast.Expr, 0, len(expr.Elements))
@@ -357,6 +397,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		if expr.Fixed {
 			arrayType.Len = &goast.BasicLit{Kind: token.INT, Value: strconv.FormatInt(expr.ResolvedLength, 10)}
 		}
+		orderExpressionList(expr.Elements, elements)
 		return &goast.CompositeLit{Type: arrayType, Elts: elements}, nil
 	case *kinmokuseiAST.ObjectLiteralExpr:
 		fields := make([]*goast.Field, 0, len(expr.Fields))
@@ -390,6 +431,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			values = append(values, &goast.KeyValueExpr{Key: goast.NewIdent(goName(resolvedName)), Value: value})
 		}
+		orderFieldValues(expr.Fields, values)
 		return &goast.CompositeLit{Type: &goast.StructType{Fields: &goast.FieldList{List: fields}}, Elts: values}, nil
 	case *kinmokuseiAST.GoCompositeLiteralExpr:
 		fields := make([]goast.Expr, 0, len(expr.Fields))
@@ -404,6 +446,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			}
 			fields = append(fields, &goast.KeyValueExpr{Key: goast.NewIdent(goName(name)), Value: value})
 		}
+		orderFieldValues(expr.Fields, fields)
 		return &goast.CompositeLit{Type: goType(expr.Type), Elts: fields}, nil
 	case *kinmokuseiAST.MemberExpr:
 		if expr.ReceiverContractHelper != "" && !expr.GenericMethod {
@@ -447,17 +490,29 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			return nil, err
 		}
 		if expr.Instantiated {
+			arguments := expr.TypeArguments
+			if len(expr.ResolvedTypeArguments) != 0 {
+				arguments = expr.ResolvedTypeArguments
+			}
 			if len(expr.NativeContractArguments) != 0 {
 				if name, ok := object.(*goast.Ident); ok {
 					name.Name = nativeBindingName(name.Name)
 				}
-				return &goast.CallExpr{Fun: indexedGoType(object, expr.TypeArguments), Args: nativeContractExpressions(expr.NativeContractArguments)}, nil
+				bound := &goast.CallExpr{Fun: indexedGoType(object, arguments), Args: nativeContractExpressions(expr.NativeContractArguments)}
+				return generateFunctionValueBoundary(expr, bound)
 			}
-			return indexedGoType(object, expr.TypeArguments), nil
+			return generateFunctionValueBoundary(expr, indexedGoType(object, arguments))
 		}
 		index, err := generateExpression(expr.Index)
 		if err != nil {
 			return nil, err
+		}
+		if evaluationMayHaveEffects(expr.Index) {
+			if expr.FixedArrayStorage {
+				object = &goast.StarExpr{X: evaluatedValue(&goast.UnaryExpr{Op: token.AND, X: object})}
+			} else {
+				object = snapshotOrderedValue(expr.Object, object)
+			}
 		}
 		return &goast.IndexExpr{X: object, Index: index}, nil
 	case *kinmokuseiAST.SliceExpr:
@@ -483,6 +538,16 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
+		bounds := []goast.Expr{low, high, max}
+		orderExpressionList([]kinmokuseiAST.Expression{expr.Low, expr.High, expr.Max}, bounds)
+		low, high, max = bounds[0], bounds[1], bounds[2]
+		if expressionListMayHaveEffects([]kinmokuseiAST.Expression{expr.Low, expr.High, expr.Max}) {
+			if expr.FixedArrayStorage {
+				object = &goast.StarExpr{X: evaluatedValue(&goast.UnaryExpr{Op: token.AND, X: object})}
+			} else {
+				object = snapshotOrderedValue(expr.Object, object)
+			}
+		}
 		if expr.UTF8 {
 			unsigned := func(bound goast.Expr) goast.Expr {
 				if bound == nil {
@@ -491,6 +556,9 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 				return &goast.CallExpr{Fun: goast.NewIdent("uint64"), Args: []goast.Expr{bound}}
 			}
 			return &goast.CallExpr{Fun: goast.NewIdent("__kinmokuseiSliceUTF8"), Args: []goast.Expr{object, unsigned(low), unsigned(high), goast.NewIdent(strconv.FormatBool(expr.High != nil))}}, nil
+		}
+		if expr.InitializedOnly {
+			return generateInitializedSlice(expr, object, low, high, max), nil
 		}
 		return &goast.SliceExpr{X: object, Low: low, High: high, Max: max, Slice3: expr.Full}, nil
 	case *kinmokuseiAST.NewExpr:
@@ -507,6 +575,7 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 			name = nativeImplementationName(name)
 		}
 		call := &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.TypeArguments), Args: args}
+		orderExpressionList(expr.Arguments, args[len(args)-len(expr.Arguments):])
 		if expr.Expanded {
 			call.Ellipsis = token.Pos(1)
 		}

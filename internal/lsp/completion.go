@@ -533,7 +533,7 @@ func completionContextAt(text string, offset int) (qualifier, prefix string, dot
 	// dot inside a comment or string as a selector. Preserve editor byte offsets.
 	tokens, _ := lexer.Lex("<completion-context>", text[:start])
 	index := len(tokens) - 2 // EOF is always the final token.
-	if index < 0 || tokens[index].Kind != token.Dot {
+	if index < 0 || (tokens[index].Kind != token.Dot && tokens[index].Kind != token.OptionalDot) {
 		return "", prefix, -1, false
 	}
 	if index > 0 && token.IsIdentifierName(tokens[index-1].Kind) {

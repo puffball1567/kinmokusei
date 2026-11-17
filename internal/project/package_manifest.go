@@ -39,7 +39,7 @@ func (m Manifest) validatePackageConfig() error {
 		if !validPackageSource(m.Package.Entry) {
 			return fmt.Errorf("package entry must be a canonical relative .km source path")
 		}
-		if !versionPattern.MatchString(m.Package.MinimumVersion) {
+		if !validProjectVersion(m.Package.MinimumVersion) {
 			return fmt.Errorf("package min-kinmokusei must be a complete version")
 		}
 		if m.Package.Backend != "go" {
@@ -64,8 +64,8 @@ func (m Manifest) validatePackageConfig() error {
 		if module == m.Project.GoModule {
 			return fmt.Errorf("package %q cannot depend on itself", module)
 		}
-		if !goModuleVersionPattern.MatchString(version) {
-			return fmt.Errorf("package %q requires a complete version, got %q", module, version)
+		if err := validateDependencyVersion(module, version); err != nil {
+			return fmt.Errorf("package %q requires a complete version, got %q: %w", module, version, err)
 		}
 	}
 	for module, replacement := range m.PackageReplacements {

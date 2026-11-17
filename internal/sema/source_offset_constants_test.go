@@ -8,6 +8,12 @@ import (
 func TestSourceOffsetConstants(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct{ name, source, want string }{
+		{"closed receive layout", `struct S{public p:*int;}function f(ch:GoChannel<S>):int{return int(u.Offsetof((<-ch).p));}`, ""},
+		{"missing map layout", `struct S{public p:*int;}function f(m:Map<int,S>):int{return int(u.Offsetof(m[0].p));}`, ""},
+		{"layout does not consume presence", `struct S{public p:*int;}function f(ch:GoChannel<S>):S{const [v,open]=<-ch;const size=u.Sizeof(v);return v;}`, "may be absent"},
+		{"layout arrow still checked", `class C{public n:int=1;}function f(ch:GoChannel<C>):int{return int(u.Sizeof((()=>{const v=<-ch;return v.n;})()));}`, "nullable"},
+		{"layout does not consume task", `function work():int{return 3;}function f():void{const task=go work();const size=u.Sizeof(await task);detach task;}`, ""},
+		{"layout leaves task pending", `function work():int{return 3;}function f():void{const task=go work();const size=u.Sizeof(await task);}`, "Task"},
 		{"public field", `struct S{public pad:byte;public value:int64;}function f(s:S):void{const offset=u.Offsetof(s.value);const p=&offset;}`, "addressable"},
 		{"private field", `struct S{public pad:byte;private value:int64;}function f(s:S):void{const offset=u.Offsetof(s.value);const p=&offset;}`, "addressable"},
 		{"pointer field", `struct S{public pad:byte;public value:int64;}function f(s:*S):void{const offset=u.Offsetof(s.value);const p=&offset;}`, "addressable"},

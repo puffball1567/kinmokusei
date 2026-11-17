@@ -10,10 +10,15 @@ import (
 )
 
 func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
+	expr.NonNull = false
+	expr.Type.NonNullKinds = 0
 	value := c.singleValue(c.checkExpression(expr.Value), expr.Value.GetSpan())
 	asserted := c.resolveType(expr.Type)
 	if value.Kind == Invalid || asserted.Kind == Invalid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if expr.Checked && !expr.CheckedResultHandled && !c.zeroValueSafe(asserted) {
+		c.report(expr.Span, "checked assertion values without a safe zero require destructuring into [value, ok]; verify ok before using value")
 	}
 	source := value
 	if source.Kind == Nullable && source.Element != nil {
@@ -63,6 +68,14 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 	if !gotypes.AssertableTo(contract, assertedGoType) {
 		c.report(expr.Span, fmt.Sprintf("Go interface %s cannot contain asserted type %s", value.String(), asserted.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	if c.requiresNativeNonNull(asserted, nil) {
+		if !isNilable(asserted) {
+			c.report(expr.Type.Span, fmt.Sprintf("cannot establish the non-null contract of assertion target %s; use a concrete target instead of a constraint mixing nil-capable and value types", asserted.String()))
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+		expr.NonNull = true
+		expr.Type.NonNullKinds = c.boundaryTypeRef(asserted, expr.Span).NonNullKinds
 	}
 	if !expr.Checked {
 		return asserted
@@ -135,6 +148,12 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 		valueGo, valueOK = gotypes.Typ[gotypes.UntypedNil], true
 	}
 	convertible := targetOK && valueOK && gotypes.ConvertibleTo(valueGo, targetGo) && c.conversionPreservesSourceContract(target, value)
+	mask, ambiguous := c.mixedNonNullKinds(target)
+	if convertible && c.requiresNativeNonNull(target, nil) && (isNilable(target) || mask != 0 || ambiguous) {
+		expr.NonNullConversion = true
+		ref := c.boundaryTypeRef(target, expr.Span)
+		expr.ConversionType = &ref
+	}
 	if !convertible {
 		c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("cannot convert %s to %s", value.String(), target.String()))
 	} else if target.IsNumeric() {

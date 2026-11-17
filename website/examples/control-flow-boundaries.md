@@ -33,4 +33,20 @@ Expected output:
 
 Prefer structured branches and loops for ordinary code. Labels and `goto` are narrow tools for making an otherwise awkward transfer explicit; the compiler rejects undefined or unused labels and unsafe jump shapes.
 
+## Defer inside exception blocks
+
+<<< ../snippets/defer-exception-scope.km{ts}
+
+Run this example with `keika run defer-exception-scope.km`:
+
+```text
+body finally after deferred
+```
+
+The `finally` block runs when `try` exits. The deferred call waits until `work`
+exits, after `after` is printed. A defer registered inside `catch` or `finally`
+follows the same rule. Defers registered before, inside and after an exception
+block share one reverse registration order. A nested arrow function instead
+runs its own defers when that arrow returns.
+
 Read [Control flow](../book/control-flow) for the semantic model and the [syntax reference](../reference/language#control-flow) for the complete statement forms.

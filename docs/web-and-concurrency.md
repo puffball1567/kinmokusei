@@ -48,7 +48,7 @@ layer.
 Low-level implemented constructs map directly to Go:
 
 - `go callback(args);`
-- `defer callback(args);`
+- `defer callback(args);` (function-scoped even inside exception blocks)
 - directional `GoChannel<T>` types
 - send, receive, checked receive, close, range, and `select`
 

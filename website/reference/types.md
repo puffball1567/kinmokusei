@@ -111,6 +111,26 @@ Empty collections, `nil`, and `null` need an expected or explicit type when no e
 
 Go values use `go/types` assignability, addressability, method-set, and constraint rules where possible.
 
+### Recursive generic instantiations
+
+v0.4.12 diagnoses unbounded generic instantiation during
+`keika check`, including checks in the editor. For example, this does not reach
+Go emission:
+
+<<< ../snippets-invalid/generic-instantiation-cycle.km{ts}
+
+The type argument would grow through `T`, `T[]`, `T[][]`, and so on. The same
+rule applies across mutually recursive functions, generic methods, and type
+declarations such as `class Node<T> { public next: Node<T[]> | null = null; }`.
+The diagnostic identifies a recursive source use, rather than a generated Go
+line. Correcting the source clears the editor diagnostic.
+
+Recursion that reuses the same arguments or a finite set of arguments is
+allowed, including type-parameter permutations. Transparent aliases are checked
+after their Go 1.23 expansion, so an unused, erased alias argument does not
+create a false cycle. This restriction concerns compile-time type expansion;
+ordinary runtime recursion still needs an appropriate stopping condition.
+
 An incompatible initialized binding is rejected at its declaration:
 
 <<< ../snippets-invalid/type-mismatch.km{ts}
@@ -140,12 +160,43 @@ const rawAgain = string(id);
   likewise uses U+FFFD. Checked byte-to-`string` decoding never does that. See
   [strings and Unicode](../book/types-and-values#strings-and-unicode).
 - Named defined types convert to/from compatible underlying types explicitly.
+- Conversions to a non-null source function signature or method-bearing
+  anonymous source interface validate the converted reference at runtime.
+  A nil result panics at the conversion's source filename, line and column.
+  The operand runs once; this includes function aliases, native defined
+  functions and compatible nil-capable generic bounds. Raw Go target types
+  retain Go conversion behavior. An interface holding a typed nil pointer
+  remains a non-nil interface. Direct `nil` and nullable source operands still
+  need the appropriate explicit guard rather than an unchecked conversion.
 - Enum conversion is explicit in both directions.
 - Slice and fixed array do not convert implicitly; use `copyArray` or `viewArray` for the checked supported boundary.
 - Class upcasts are implicit only along the declared inheritance chain; downcasts use `as?` or `as!`.
-- Go interface assertions use `as?`/`as!` and retain Go assertion failure behavior.
+- Go interface assertions use `as?`/`as!`. Raw Go target types retain Go assertion
+  failure behavior. When the target is a non-null source function signature,
+  `as?` also returns `false` for a typed nil function; `as!` panics at the assertion
+  with its source filename, line and column. This includes transparent aliases,
+  native defined function types and nil-capable generic constraints. Use a
+  concrete assertion target for constraints mixing non-null source references
+  with non-nil-capable value types. A nullable function target accepts a matching
+  nil function, so check that payload against `null` before calling it.
   An assertion cannot establish a UTF-8 contract: assert `bstring`, then decode
   explicitly rather than asserting `string` or a verified-text-containing type.
+
+<<< ../snippets/function-assertions.km{ts}
+
+<<< ../snippets/function-assertions.stdout{text}
+
+An explicitly checked non-null conversion or forced source assertion can
+establish a non-null local snapshot even when its declared type is nullable:
+
+<<< ../snippets/reference-conversions.km{ts}
+
+<<< ../snippets/reference-conversions.stdout{text}
+
+For an optional Go callback, bind it to a nullable source function type and
+check `null` before calling it. A raw Go target conversion supplies no proof.
+
+<<< ../snippets-invalid/nil-function-conversion.km{ts}
 
 Conversions do not implicitly change reference ownership, recursively copy
 reference-bearing collection elements, or turn `null` into raw Go `nil`.
@@ -172,8 +223,94 @@ Generated code preserves the corresponding Go zero value: numeric zero, `false`,
 | --- | --- |
 | `null` | Checked absence for a declared `T \| null` |
 | `nil` | Raw Go nil at nil-capable low-level boundaries |
-| Missing map key | Returns the value type's zero value; checked lookup also returns `false` |
-| Closed channel receive | Returns the element zero value; checked receive also returns `false` |
+| Missing map key | Plain safe-zero reads retain Go zeros; use checked lookup or a direct `??` default for value payloads |
+| Closed channel receive | Plain safe-zero reads retain Go behavior; use checked receive or a direct `??` default for value payloads |
+
+v0.4.12 builds require a safe element zero value for nonempty `makeSlice`
+and slice `make`, and for slice `clear`. Numbers, booleans, text, `T | null`,
+slices, maps and channels have valid zeros. Native structs, structural objects
+and fixed arrays require safe zeros in every stored field/element; a zero-length
+array contains no elements. All alternatives of a generic bound must qualify;
+an unconstrained `T` does not provide this guarantee. Imported Go implementation
+state remains a platform boundary rather than a checked native field contract.
+
+A non-null class, pointer, interface or function cannot be zero-initialized:
+
+<<< ../snippets-invalid/slice-non-null-zero.km{ts}
+
+Use `makeSlice<User | null>(count)` when empty slots are intended. Otherwise,
+use `makeSlice<User>(0, capacity)` and append initialized users. The empty
+allocation must have a compile-time zero length. See
+[initialized collection elements](../examples/collections#non-null-elements-and-initialization).
+
+When a slice's element zero is unsafe or unknown, slicing also checks that the
+new high bound does not exceed its current length. The check reports the source
+location and remains active inside fixed-array `len`/`cap` expressions. Three-index
+slicing can reserve capacity beyond the length, but cannot expose those slots.
+After shortening a view, keep the original longer view if you need its full range.
+Safe-zero elements retain ordinary Go reslicing up to capacity. Fixed arrays
+remain fully initialized storage and retain their ordinary slicing behavior.
+
+v0.4.12 builds type a one-value map read as `T | null` when `T` has a nil
+representation and its zero would violate a non-null contract: classes,
+pointers, interfaces and functions. Use a null guard, `??`, or an explicit `!`.
+The stored element type is unchanged: `Map<int, User>` still accepts only a
+non-null `User` on writes. Safe Go zeros (including scalar zeros and nil
+slices/maps/channels) retain their ordinary one-value behavior.
+
+For a struct/array payload, use a checked `[value, ok]` or a direct
+`values[key] ?? initializedDefault` / `(<-channel) ?? initializedDefault`.
+The latter tests success and preserves present zero values. An unconstrained
+`T` still requires a checked pair because its absence representation is unknown.
+For ordinary checked map, channel and `as?` bindings whose
+payload zero is unsafe or unknown, the checker rejects any use of the payload
+before its matching flag proves success. A flag cannot prove that an explicitly
+nullable stored value is non-null; check that independently.
+
+<<< ../snippets/map-absence.km{ts}
+
+Use the original local flag in `if (ok)`, `if (!ok)` with an early exit, a
+boolean comparison or short-circuit expression. Compile-time boolean constants
+and nested equality/negation preserve this relation. Boolean switches support
+`switch (ok)`, `switch (!ok)`, comparisons of the guard, and `switch (true/false)`
+with guard case expressions. A failed `case false` test can prove success for
+later labels or a default, including a default written first.
+
+<<< ../snippets/presence-guards.km{ts}
+
+<<< ../snippets/presence-guards.stdout{text}
+
+Every path entering a grouped/fallthrough body must prove success. A case
+label alone does not prove success when failure can fall through into it:
+
+<<< ../snippets-invalid/presence-fallthrough.km{ts}
+
+Reassigning the flag/payload or
+letting mutable storage escape can invalidate the relation. Copying a boolean
+does not copy a proof. Copy a verified payload into a stable local before
+capturing it; direct assignment of an unverified unsafe payload to global
+storage is rejected. Safe-zero payloads do not require a presence check.
+
+<<< ../snippets-invalid/map-value-without-guard.km{ts}
+
+These checks preserve raw Go boundaries: a successful lookup can still contain
+a nil raw Go pointer/interface explicitly stored by Go. Success proves presence,
+not the behavior of foreign implementations.
+
+v0.4.12 builds apply the same rule to `<-channel`: an unsafe-zero reference
+has type `T | null`, while an unsafe record/array or unknown generic element
+requires `[value, open]`. A checked `select` binding likewise requires `open`
+before an unsafe payload can be read. Nullable payloads still need a null guard
+after success. Bare receives and `_ = <-channel` discard without exposing a
+payload. Safe-zero elements and channel range retain their Go behavior; range
+does not yield a zero element after close.
+
+<<< ../snippets/channel-absence.km{ts}
+
+To require a non-null received reference, use `(<-channel)!`; for expected
+absence, use a null guard, `??`, or the checked pair. A nil raw Go channel still blocks, and
+nil select channels still disable their cases. Selected class-to-interface
+assignment preserves null rather than boxing it into a non-null interface.
 
 `null === null` without a concrete nullable context is rejected because it supplies no base type. A nullable value must be narrowed before member access, indexing, slicing, calling, dereference, or channel operations that require a concrete non-null receiver.
 
@@ -208,6 +345,24 @@ Structural objects differ from native structs: their field-name/type set determi
 
 Function identity includes parameter order/types, variadic status, and result. A variadic `(prefix: int, ...values: int[]) => int` is not assignable to a function taking one ordinary `int[]` parameter.
 
+v0.4.12 builds check named non-null source class, interface and function
+parameters when entering a callable, including Go calls into exported functions
+or callbacks. A nil argument panics with its source parameter's filename, line
+and column before body effects. Constructor checks precede field initialization
+and `super()`; methods, setters and expression/block arrows follow the same rule.
+Rest parameters check each element, while an empty rest slice is valid.
+
+<<< ../snippets/parameter-boundaries.km{ts}
+
+`T | null`, raw Go pointers/interfaces/function types and explicit `_` parameter
+discards retain their existing behavior. An interface containing a typed nil
+pointer is still a non-nil interface, following Go semantics. A type parameter
+receives an entry check only when every constraint alternative requires a
+nil-comparable non-null source reference. Open/mixed bounds do not prove this.
+These entry checks validate parameter references, not nested fields or collection
+elements. Single-value storage/result transfers also have the checks described
+under [nullability](#nullability).
+
 Interfaces are reference-bearing contracts. Kinmokusei classes name contracts explicitly with `implements`; imported Go interface connectivity is checked against the generated public method set. Value versus pointer receiver methods affect native struct method sets just as in Go. A pointer method requires addressable storage when automatic addressing is used.
 
 Source and imported Go callables may have multiple results. A matching result
@@ -215,6 +370,53 @@ list can be destructured, forwarded by `return call();`, or expanded as the sole
 argument to a matching call. An explicit `return first, second;` is also valid.
 Result lists cannot be stored as tuple values or mixed with additional call
 arguments. `Result<T>` remains a separate checked error effect.
+
+v0.4.12 builds check non-null source references when forwarding an ordinary
+result list or assigning it to existing bindings. The producer runs once; all
+required slot checks finish before returning values or writing any destination.
+If a later slot fails, earlier assignment targets retain their old values.
+Explicit `_` assignment targets discard their results without a reference check.
+Checks preserve raw Go and nullable contracts, as well as interface boxing of
+typed nil pointers. A boolean in an ordinary function result list does not make
+another result optional: use a nullable type or an explicit checked/Result API
+when failure may produce absence.
+
+<<< ../snippets/multiple-storage-boundaries.km{ts}
+
+Ordinary multiple-result declarations also validate inferred non-null source
+references. In `const [user, count] = createUser()`, each named non-null reference
+is checked before the next source statement, including unused names. An explicit
+`_` discards its result. Private Go companion result types retain their inferred
+type identity. Nullable and raw Go reference results retain their own contracts.
+
+For an ordinary multiple-result for initializer, validation runs once before
+the first condition. Go's per-iteration variable behavior is preserved through
+post statements, captured values and labeled continue/break. A goto that restarts
+the loop repeats initialization and validation.
+
+<<< ../snippets/inferred-tuple-boundaries.km{ts}
+
+Checked assignments to existing non-null reference bindings validate the
+payload on a successful map lookup, receive or assertion. `Result`
+assignments use a nil error as the success condition. A successful nil payload
+panics before either target is written. Failure can still supply a zero
+payload, and the matching `ok` proof is required before reading an unsafe
+zero from a checked lookup, receive or assertion. The check uses the original
+success value even when its destination is `_`.
+
+In a `select` receive assignment, the selected case evaluates its assignment
+targets before validation and performs the writes after validation.
+
+<<< ../snippets/checked-storage-boundaries.km{ts}
+
+Checked split declarations such as `const [value, ok] = values[key]` also
+validate inferred non-null source reference payloads on success. The producer
+runs once and validation finishes before the following statements, including
+when `ok` is discarded or a named payload is unused. This applies to map reads,
+receives, `as?`, `Result` splits, for initializers and select declarations.
+An explicit `_` payload discards the value. Nullable payloads can contain null.
+
+<<< ../snippets/split-storage-boundaries.km{ts}
 
 ## Generics
 
@@ -270,9 +472,80 @@ and `T[] | null` still work with unconstrained element types because the
 container itself has a nil representation. Use an explicit presence/result
 representation when arbitrary scalar or struct values may be absent.
 
+v0.4.12 builds validate native non-null alternatives of mixed bounds at
+parameter entry and value publication. A bound containing a callback and `int`
+rejects a nil callback supplied from Go while accepting integer zero. A bound
+containing a callback and a raw pointer preserves the pointer's nil contract.
+This also applies to stored/returned values, checked bindings, receives and
+Result success values; failure zeros remain governed by their success checks.
+
+<<< ../snippets/mixed-non-null.km{ts}
+
+When native non-null and raw nil-capable alternatives have the same storage
+kind, the checker requires a concrete type or separate uniform constraints.
+It does not infer which source contract a nil value intended. Assertions to a
+bound mixing reference and value types also require a concrete target.
+
+<<< ../snippets-invalid/mixed-non-null-ambiguous.km{ts}
+
 The compiler tracks maybe-null, definitely-null, and non-null facts separately from declared types. Facts join by guarantees across reachable flow and are invalidated by writes or effect boundaries that may change storage.
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.
+
+v0.4.12 builds reject raw `nil` assignments and conversions to non-null
+source classes, native interfaces, source anonymous method contracts and source
+function signatures. Aliases, native defined function types and generic bounds
+retain that rule. For example, this is rejected:
+
+<<< ../snippets-invalid/native-raw-nil.km{ts}
+
+Migrate `const user: User = nil` to `const user: User | null = null`, then
+narrow the value before use. For callbacks, declare an alias such as
+`alias Callback = () => int` and use `Callback | null`. Defensive `nil`
+comparisons remain permitted; a nil-backed representation alone does not make
+raw `nil` a valid initializer for a non-null source reference.
+
+Raw pointers, slices, maps and channels retain Go nil storage. Imported Go
+interfaces and callback types, including aliases of those types, also retain
+Go's raw nil rules. Inferred Go values keep that behavior until consumed by a
+source non-null storage contract.
+
+v0.4.12 builds insert a runtime reference check when an unproven nil-capable
+value is stored into a non-null source reference type. This covers explicit
+local/global bindings, assignments, field and explicitly typed aggregate
+initializers, single-value returns, each expression in a return list, `ok`
+payloads, non-spread append elements and channel sends. A nil result panics at the source
+value expression before it is published; a failed assignment retains the old
+destination value. The operand runs once, and checks survive fixed-array
+`len`/`cap` optimization. Ordinary call arguments continue to use callable entry
+checks after all arguments have been evaluated.
+
+<<< ../snippets/storage-boundaries.km{ts}
+
+Nullable destinations retain absence, and raw Go destinations retain Go nil
+behavior. Interface checks preserve Go's distinction between a nil interface and
+an interface containing a typed nil pointer. Mixed generic contracts use the
+selective storage-kind checks described above.
+
+v0.4.12 builds also check native non-null references when reading fields,
+collection elements, callback results and other storage whose current value is
+not proven. This protects source references inside aggregates supplied or
+modified by Go, including nested and cyclic data. A failed check panics with
+the original `.km` file, line and column before the reference is used. The
+expression runs once, and ordinary pointer/interface checks do not scan the
+object graph. A checked local snapshot retains its identity; subsequent reads
+of shared fields or elements validate their current values again.
+
+<<< ../snippets/reference-reads.km{ts}
+
+Declare fields as nullable when absence is part of their contract. Raw Go
+references keep Go nil behavior, and explicit whole-value discards do not
+require a non-null result. Interface checks concern the interface itself, not
+hidden implementation pointers. Concurrent mutation from Go still requires
+normal synchronization. For a checked split into an existing nullable binding,
+the matching success flag establishes non-null only when the payload type
+promises a native non-null reference; success alone does not establish that a
+raw Go pointer or callback is non-nil.
 
 A raw Go pointer, interface or function type does not imply that its value is
 non-nil. Assigning one to an explicit `T | null` local or field preserves the
@@ -302,7 +575,48 @@ The operand is evaluated once; an interface check concerns the interface
 itself, not a typed nil pointer it may contain. This does not validate arbitrary
 Go-owned mutable storage. See [assertions](./operators#assertions-and-conversions).
 
+v0.4.12 builds also support `value ?? fallback`: the operand runs once,
+and a nil value evaluates the fallback. Direct map/receive expressions with
+non-nil-capable payloads instead use the success flag to select the fallback.
+A compatible non-null fallback
+gives a non-null result; a nullable fallback retains `T | null`. This does not
+narrow the original binding or inspect typed nil pointees inside Go interfaces.
+See [null coalescing](./operators#null-coalescing).
+
+v0.4.12 builds support optional chaining: `value?.member`,
+`value?.[index]` and `callback?.(arguments)`. Each optional receiver is captured
+once. When it is nil, the remaining unparenthesized chain, index expressions
+and call arguments are skipped. An existing non-nil Go interface holding a
+typed nil pointer still invokes its implementation, following Go equality.
+
+<<< ../snippets/optional-chaining.km{ts}
+
+A nil-capable result has type `T | null`. Scalar, struct and fixed-array
+results cannot represent null directly: consume the checked result with `??`,
+`const [value, present] = ...`, or checked postfix `!`. A present zero value is
+preserved. `!` panics at the assertion's source location when the chain is
+absent. Optional void calls can stand alone as statements. Result, Task and
+ordinary multiple-result calls require an explicit receiver guard and their
+normal handling.
+
+The operator protects only the receiver immediately before `?.`. For example,
+if `user.next` is nullable, use `user?.next?.name`, rather than
+`user?.next.name`. Parentheses end the short-circuited chain:
+`(user?.self()).name` requires a null check or assertion. Optional chains are
+not assignment/address targets and do not narrow the original receiver.
+
+<<< ../snippets-invalid/optional-chain-group.km{ts}
+
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
+
+Loop checks include facts arriving from later iterations; a proof valid only
+on the first iteration does not make an access safe. v0.4.12
+reuses completed nested-loop checks when their full entry state and enclosing
+analysis context are unchanged. This includes exception handlers, inferred
+arrows, constructors, field initializers, labels and captured writes. Diagnostics,
+intermediate exceptional paths and Task ownership checks are preserved; a cache
+hit never treats a first-iteration proof as valid on later iterations. Checking
+cost still depends on source size and the number of distinct flow states.
 
 <<< ../snippets-invalid/null-proof-invalidated.km{ts}
 
@@ -311,6 +625,41 @@ Narrowing applies to stable bindings and member paths only while the proof remai
 `Result<T>` is valid only as a function/method return effect. It cannot be stored or nested. `Task<T>` is a local non-escaping single-consumption capability; it cannot appear in public signatures or storage positions.
 
 `Result<void>` lowers to one `error`; `Result<T>` lowers to `(T, error)`. `Task<Result<T>>` retains both layers: `await` joins the worker, and the following `?` propagates the operation error. Neither form is an ordinary heap wrapper visible to Go callers.
+
+v0.4.12 builds validate a forwarded `Result<T>` payload when its error is
+nil and `T` requires a nil-comparable non-null source reference. The producer
+runs once. An invalid nil reports the forwarding expression's source location.
+Error results retain their payload and error values.
+
+For `const value = operation()?`, propagation first handles the error branch,
+then validates a named non-null source reference before following statements.
+An explicitly typed binding performs interface boxing before validation.
+Unused named bindings receive the check; `_` discards the payload. Raw Go and
+nullable destinations retain their own contracts. These checks also apply to
+Task results and returns crossing try/finally.
+
+<<< ../snippets/result-boundaries.km{ts}
+
+When a split `Result<T>` payload has an unsafe or unknown zero value, v0.4.12
+builds require a success check before using it. Check the matching local error
+binding against `nil`; an error declared as `error | null` also supports
+`=== null`. Early returns, short-circuit conditions and switches carry this
+proof. A typed-nil pointer held inside an error interface still counts as an
+error, following Go interface equality.
+
+<<< ../snippets/result-presence.km{ts}
+
+Reading, logging or discarding the error does not prove success:
+
+<<< ../snippets-invalid/result-success-proof.km{ts}
+
+Error/boolean aliases do not transfer the proof. Reassigning the pair requires
+a fresh check; shadowing, address escape and mutable captures can invalidate
+the relation. Once checked, the payload snapshot stays valid if the error alone
+changes. Check into local bindings before assigning an unsafe-zero payload to
+global storage. Scalar, nullable and other safe-zero payloads can be read
+without this proof; ordinary error-use diagnostics still apply. These rules
+apply to source `Result<T>`, including Result-annotated callbacks.
 
 ## Decorator contexts and values
 

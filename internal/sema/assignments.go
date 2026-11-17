@@ -8,6 +8,9 @@ import (
 )
 
 func isAllowedExpressionStatement(expression ast.Expression) bool {
+	if chain, ok := expression.(*ast.OptionalChainExpr); ok {
+		return isAllowedExpressionStatement(chain.Value)
+	}
 	if _, ok := expression.(*ast.CallExpr); ok {
 		return true
 	}
@@ -21,28 +24,47 @@ func isAllowedExpressionStatement(expression ast.Expression) bool {
 func (c *Checker) checkMultiVariableDeclaration(stmt *ast.MultiVariableDecl) {
 	value := c.checkMultipleValueExpression(stmt.Value)
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
+	stmt.NonNullCondition = ast.NonNullAlways
+	if value.Kind == Result {
+		stmt.NonNullCondition = ast.NonNullIfNoError
+	} else if checkedPresenceProducer(stmt.Value) {
+		stmt.NonNullCondition = ast.NonNullIfPresent
+	}
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
-		if binding.Name == "_" {
-			continue
-		}
+		binding.NonNull = false
 		result := Type{Kind: Invalid, Name: "<invalid>"}
 		if i < len(results) {
 			result = defaultLiteralType(results[i])
 		}
 		binding.ResolvedType = typeRefFromType(result, binding.Span)
+		if binding.Name == "_" {
+			continue
+		}
+		binding.NonNull = c.needsStorageBoundary(result, result, nil)
+		if binding.NonNull {
+			binding.ResolvedType = c.boundaryTypeRef(result, binding.Span)
+		}
 		c.declareMultiLocal(binding.Name, result, stmt.Constant, stmt, i, binding.Span)
 		c.updateIdentifierFlow(binding.Name, binding.Span, result, nil)
 		if value.Kind == Result && i == len(results)-1 {
 			c.trackResultError(binding.Name, binding.Span)
 		}
 	}
+	c.bindPresencePair(stmt.Value, value, stmt.Bindings)
 }
 
 func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 	value := c.checkMultipleValueExpression(stmt.Value)
 	results := c.multipleResults(value, len(stmt.Bindings), stmt.Value.GetSpan())
 	stmt.Upcasts = make([]*ast.ClassUpcastExpr, len(stmt.Bindings))
+	stmt.NonNullResults = make([]*ast.TypeRef, len(stmt.Bindings))
+	stmt.NonNullCondition = ast.NonNullAlways
+	if value.Kind == Result {
+		stmt.NonNullCondition = ast.NonNullIfNoError
+	} else if checkedPresenceProducer(stmt.Value) {
+		stmt.NonNullCondition = ast.NonNullIfPresent
+	}
 	for i := range stmt.Bindings {
 		binding := &stmt.Bindings[i]
 		if binding.Name == "_" {
@@ -77,15 +99,23 @@ func (c *Checker) checkMultiAssignment(stmt *ast.MultiAssignmentStmt) {
 			var slot ast.Expression = &ast.IdentifierExpr{Name: "_", Span: binding.Span}
 			c.applyClassUpcast(&slot, declared, results[i])
 			stmt.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
+			if c.needsStorageBoundary(declared, results[i], nil) {
+				ref := c.boundaryTypeRef(declared, binding.Span)
+				stmt.NonNullResults[i] = &ref
+			}
 			c.updateIdentifierFlow(binding.Name, binding.Span, results[i], nil)
 			if value.Kind == Result && i == len(results)-1 {
 				c.trackResultError(binding.Name, binding.Span)
 			}
 		}
 	}
+	c.bindPresencePair(stmt.Value, value, stmt.Bindings)
 }
 
 func (c *Checker) checkMultipleValueExpression(expression ast.Expression) Type {
+	if assertion, ok := expression.(*ast.GoTypeAssertionExpr); ok {
+		assertion.CheckedResultHandled = true
+	}
 	if receive, ok := expression.(*ast.UnaryExpr); ok && receive.Operator == "<-" {
 		return c.checkChannelReceive(receive, true)
 	}
@@ -145,6 +175,8 @@ func (c *Checker) checkAssignmentTarget(expr ast.Expression) Type {
 		if member.Property {
 			return target
 		}
+	} else if index, ok := expr.(*ast.IndexExpr); ok {
+		target = c.checkIndexAccess(index, false, true)
 	} else {
 		target = c.checkExpression(expr)
 	}

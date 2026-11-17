@@ -1,0 +1,9 @@
+class User { public name: string = "guest" }
+
+function unsafeReceive(users: GoReceiveChannel<User>): string {
+  select {
+    case const [user, open] = <-users {
+      return user.name
+    }
+  }
+}

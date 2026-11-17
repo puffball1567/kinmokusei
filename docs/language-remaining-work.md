@@ -59,7 +59,7 @@ that milestone. OOP work continues alongside Go compatibility.
 
 ## Next patch release work areas
 
-### Nullability safety follow-up (#117)
+### Nullability safety coverage (v0.4.12, #117)
 
 v0.4.7 builds preserve explicit `T | null` state when receiving raw Go
 references. A matching pointer/interface/function/collection storage type no
@@ -77,11 +77,181 @@ linked aliases, named types, callbacks and typed-nil Go interfaces have runtime
 comparison coverage in `non_null_assertions_test.go`. Nullable `unsafe.Pointer`
 assignment follows the same conservative storage rule as ordinary Go pointers.
 
-This is still partial progress on #117. Optional chaining, null coalescing,
-non-null boundary checks, raw-nil restrictions and recursive zero-safety rules
-remain unimplemented.
-The zero-safety audit must cover map/receive/assertion success checks,
-`makeSlice`, reslicing and `clear`, including nested structs and generic types.
+v0.4.12 builds reject raw `nil` assignments and conversions to non-null
+source classes, interfaces and function signatures, including aliases, native
+defined function types and generic bounds. `native_raw_nil_test.go` covers
+these restrictions and the retained raw Go pointer/collection/callback rules;
+compiler and LSP tests preserve source diagnostics and nullable edit recovery.
+
+v0.4.12 builds apply recursive zero-safety to slice `make`/`makeSlice`,
+`clear` and reslicing, including canonical struct fields, fixed arrays, source
+nullable generic arguments and every alternative of a bound. Empty reserved
+slices and initialized appends remain supported; unsafe-zero slices cannot
+reslice beyond their current length. Runtime comparisons cover aliases,
+integer widths, private Go types and fixed-array len/cap check retention.
+
+v0.4.12 builds support lazy `??` for nullable and raw nil-capable values,
+including class/interface conversions, generics, contextual literal fallbacks,
+conditional Task/flow checks and editor navigation. The operand is evaluated
+once; a nil interface differs from an interface holding a typed nil pointer.
+Private Go result storage works with static zero-argument fallback functions
+or explicit public result contexts; other unnameable signatures are rejected.
+
+v0.4.12 builds preserve missing-key absence in one-value map reads.
+Unsafe-zero references produce nullable results; unsafe structs/arrays and
+unknown generic elements require checked bindings. Normal checked map,
+receive and assertion bindings require the matching success flag before using
+unsafe-zero payloads. The relation follows declaration identities, assignments,
+joins, loop fixed points and captures; boolean aliases do not transfer proofs.
+Checked assertions cannot forward an unchecked unsafe payload through a result
+list. Constrained map alternatives must agree on key/value source contracts.
+
+v0.4.12 builds apply the same absence rules to single-value receives and
+select bindings. Checked select payloads without safe zeros require their local
+success flag. Receive assignment conversions preserve source null, including
+class inheritance and interface targets. Selected targets are evaluated before
+writes; field/index/pointer/property targets are supported without running
+unselected target expressions. Layout intrinsics still inspect unevaluated
+storage, while nested callable bodies retain ordinary checks.
+
+v0.4.12 builds validate the reference itself when a Go type assertion
+targets a non-null source function signature, including aliases, native defined
+types and nil-capable generic constraints. Checked assertions reject typed nil
+functions; forced assertions report a source-located panic. Nullable targets
+and imported Go function types retain Go assertion behavior. Constraints mixing
+source non-null references and non-nil-capable values require a concrete target.
+Independent runtime coverage is in `assertion_non_null_test.go`.
+
+v0.4.12 builds support direct map/receive `??` fallbacks for scalar,
+record and fixed-array payloads, including uniform value-type generic bounds.
+The success flag selects the default; present zeros are preserved, and ordinary
+reference payloads keep the nil test. Open or mixed reference/value bounds
+require explicit checked bindings. Private Go values can use a public interface
+result context; other unnameable results are diagnosed. Independent comparisons
+cover operand order, lazy defaults, conditional effects, source maps and editor
+navigation in `absence_coalescing_test.go` and its Go type fixture.
+
+v0.4.12 builds validate explicit conversions to non-null native references,
+including function aliases, defined functions, nil-capable generic bounds and
+anonymous source interface contracts. The operand runs once and a nil result
+panics at the original conversion location. Raw Go target conversions and
+typed-nil interface behavior are unchanged. Conversion/assertion checks share
+lowering; runtime guards cannot be elided by fixed-array `len`/`cap`, and their
+panic ordering is retained. Checked conversions and forced source assertions
+establish nullable-flow and coalescing proofs. Independent Go comparisons are
+in `conversion_non_null_test.go`.
+
+v0.4.12 builds recognize presence checks through compile-time boolean
+constants, negation, nested equality and boolean switches. A flag or its
+comparison/negation may be matched against a constant, or a constant tag may
+match the guard in a case. Failed tests carry proofs to later cases/defaults;
+grouped labels and fallthrough merge every entry path. Declaration identity,
+mutable-state invalidation and independent nullable payload contracts remain
+required. Independent Go comparisons are in `presence_guards_test.go`.
+
+v0.4.12 builds check named non-null source reference parameters at callable
+entry. Functions, expression/block/contextual arrows, methods, setters and
+constructors reject nil before source body effects or field/base initialization.
+Rest parameters check every element; an empty rest slice remains valid. Explicit
+blank parameters discard values. Nullable and raw Go contracts retain their nil
+semantics, including interfaces containing typed nil pointers. Generic parameter
+checks require every bound alternative to promise a nil-comparable non-null
+reference; open or mixed bounds do not establish this guarantee. Independent Go
+caller/callback comparisons cover source locations, argument order and public
+generic wrappers in `parameter_boundaries_test.go`.
+
+v0.4.12 builds check single-value transfers into non-null source reference
+storage/results. Bindings, assignments, field and explicitly typed aggregate
+initializers, per-expression return slots, `ok` payloads, non-spread append elements and
+channel sends validate unproven nil-capable references before publication. The
+check preserves the destination contract across flow rechecking and reports the
+original value expression's location. Existing call entry checks retain argument
+evaluation order. Raw Go and nullable destinations remain unchanged. Independent
+Go comparisons cover private function types, package initialization, retained old
+values after failed writes, finally ordering and fixed-array `len`/`cap` in
+`storage_boundaries_test.go`; editor tests preserve source hover/navigation.
+
+v0.4.12 builds validate forwarded ordinary multiple results and ordinary
+parallel assignments per destination contract. The producer runs once and all
+required checks complete before publishing any result or writing any target.
+Typed checks preserve interface boxing of typed nil pointers. Nullable/raw Go
+results and explicitly discarded assignment slots retain their behavior. Other
+slot mismatches remain errors, including incompatible text and class storage.
+Independent comparisons cover private Go functions, qualified callback types,
+generics, temporary-name hygiene, duplicate targets, for-post clauses and finally
+in `multiple_storage_boundaries_test.go`; editor tests preserve source navigation.
+
+v0.4.12 builds validate checked assignments to existing non-null reference
+bindings using the producer's success flag. Map lookups, receives, assertions
+and selected receives check the payload on `ok`. `Result` assignments check
+it on a nil error. Discarding the flag still evaluates and uses it for the
+check. Selected receive targets are evaluated before validation, and a failed
+check prevents all writes. Independent Go comparisons cover absence, nil on
+success, typed-nil values and errors, private types, and evaluation order in
+`checked_storage_boundaries_test.go`.
+
+v0.4.12 builds apply successful-reference validation to inferred checked
+split declarations, including map lookups, receives, assertions and `Result`.
+Initializers capture the producer once and validate before body effects, even
+for discarded success flags, unused named payloads and for initializers.
+Selected receive declarations validate before the selected body. Generic native
+references, nullable contracts and typed-nil interface semantics have independent
+Go comparisons in `split_storage_boundaries_test.go`.
+
+v0.4.12 builds validate inferred non-null native references in ordinary
+multiple-result declarations before following source statements. Per-slot checks
+use the inferred storage directly, including unused named values. Private Go
+companion types remain inferred. For initializers validate once before their
+first condition, retaining Go iteration variables and labeled branch/goto
+behavior. Independent comparisons cover source locations, closure snapshots,
+multiple slots, nullable/raw values, interfaces, generics and finally behavior
+in `inferred_tuple_boundaries_test.go`.
+
+v0.4.12 builds validate non-null native references when forwarding a
+`Result` on a nil error. Propagated `?` bindings validate after the error branch
+and destination interface boxing, including inferred and unused named bindings.
+The operand runs once. Forwarding preserves error results and their original
+payloads; propagation exits with the caller's zero payload on error. Independent
+comparisons cover typed nil, private Go callbacks, source aliases, generic
+references, Task joins and finally behavior in `result_boundaries_test.go`.
+
+v0.4.12 builds require a successful error check before reading a split
+`Result<T>` payload whose zero is unsafe or unknown. The matching local error
+binding must compare equal to nil (or null for nullable error storage). Branches,
+short-circuit conditions, boolean and direct error switches carry the proof;
+copies, reassignments, escapes and mutable captures cannot reuse a stale proof.
+Safe-zero and nullable payloads retain their zero contracts. Independent Go
+comparisons cover typed-nil errors, failure payloads, generic values, closures,
+loops and reassignment in `result_presence_test.go`.
+
+v0.4.12 builds support optional member/index/call chains with lazy arguments
+and indices, nullable reference results, checked value results, `??` and checked
+postfix `!`. Parentheses end short-circuiting. Independent Go comparisons include
+linked declarations, nested chains, nil versus empty slices, source-located
+assertions and generated temporary-name hygiene in `optional_chaining_test.go`.
+
+v0.4.12 builds validate mixed reference/value bounds selectively at callable
+entry and storage/result publication, conversions, nil-capable assertions,
+checked splits/receives and Result boundaries. Scalar zeros and raw Go nils of
+other storage kinds remain valid. Native/raw alternatives sharing the same
+nil-capable kind require a concrete type or separate uniform constraints; mixed
+reference/value assertion targets still require a concrete target. Nominal
+source and imported callback identities are retained when restoring source
+constraint terms. Selective checks do not prove that raw alternatives are
+non-null. Independent Go coverage is in `mixed_non_null_test.go`.
+
+v0.4.12 builds also validate native non-null references extracted from
+Go-owned fields, collection elements, callbacks and other unproven storage.
+Each read checks its own reference before source use, including nested and
+cyclic data, without eagerly traversing the entire object graph. Checked local
+snapshots retain their identity; mutation of shared storage is checked again
+when that storage is read. Raw Go and explicit nullable contracts retain their
+nil semantics, and interface checks do not inspect hidden implementation
+pointers. Concurrent Go mutation still requires normal Go synchronization.
+Independent Go coverage, single-evaluation and fixed-array effect checks are in
+`reference_reads_test.go`; checker and editor regressions cover rechecking,
+success-proof joins and navigation. These complete the scoped #117 work; the
+documented raw Go behavior and concrete-type requirements remain intentional.
 
 ### Go compatibility areas
 
@@ -95,7 +265,7 @@ where applicable, editor support and user documentation.
 |---|---|---|
 | 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
 | 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
-| 3 | Instantiated generic function values | Released in v0.4.7 for full explicit argument lists, source/Go functions and named/aliased imports, with Result/variadic/text contracts, independent Go comparison and editor support; partial/contextual instantiation and generic instance method values remain |
+| 3 | Instantiated generic function values | Released in v0.4.7 for full explicit lists; v0.4.12 adds destination-type inference and leading partial lists for source/Go functions, including higher-order callbacks, assignments, returns, typed aggregates, invocation checks for concrete non-null contracts, independent Go comparison and editor support; unresolved callback cycles, private inferred Go type arguments and generic instance method values remain unsupported |
 | 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types, including pointers, aliases, constraints, source contracts, independent Go comparison and editor support; class instance expressions and method-local generics remain |
 | 5 | Native enum method expressions | Released in v0.4.7: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
 | 6 | Native source interface constraints | Direct runtime interface bounds are released in v0.4.7: structural method sets, inherited/generic signatures, dependent inference, owner substitution, properties, Result/text/nullability, editor support and independent Go comparison; composition into source type sets remains |
@@ -519,7 +689,7 @@ complex cases follow Go's first-match behavior. The existing duplicate
 | Source struct constraint terms | Terms requiring source struct value storage before it is finalized are diagnosed, including generic instances, instead of panicking | Coordinate constraint and source storage completion before enabling these terms; imported Go concrete types remain available |
 | Abstract classes/methods | Explicit abstract method declarations and concrete implementation checks are implemented; abstract classes cannot be constructed directly | Interface requirements must be declared explicitly; direct constructor access to abstract methods is rejected, while indirect access to an unimplemented construction-phase slot panics; method-level generics remain nonvirtual |
 | Getter/setter properties | Instance/static properties and interface contracts support independent visibility, exact paired types, generic/diamond interface inheritance, DI, virtual/abstract/final and partial instance overrides, phase-local construction dispatch, single-evaluation updates, nullable-flow invalidation and public Go accessor APIs; differential coverage in `class_properties_test.go`, `virtual_properties_test.go`, `interface_properties_test.go` and `static_properties_test.go` | Static accessors cannot capture class type parameters or be overridden; adding a missing accessor to an inherited class property is rejected; no property storage, implicit Result/Task handling or stable getter narrowing |
-| Static fields/constants | Mutable fields and typed compile-time scalar constants implemented with explicit initializers, enum-member references, shared inherited/generic scope and Go package APIs; development builds allow accessible static constants in array type lengths, including forward/inherited constants | Continue auditing contextual-expression combinations and initialization dependencies |
+| Static fields/constants | Mutable fields and typed compile-time scalar constants implemented with explicit initializers, enum-member references, shared inherited/generic scope and Go package APIs; v0.4.12 supports accessible static constants in array type lengths, including forward/inherited constants | Continue auditing contextual-expression combinations and initialization dependencies |
 
 Multiple class inheritance, prototype mutation, dynamic field creation, and
 runtime metaprogramming are deliberate exclusions, not missing Go compatibility.

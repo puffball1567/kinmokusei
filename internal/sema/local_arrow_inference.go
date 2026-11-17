@@ -23,6 +23,8 @@ type localArrowInference struct {
 	usesUTF8                  bool
 	usesObservation           bool
 	usesJSONSnapshot          bool
+	usesNonNullKinds          bool
+	usesReferenceReads        bool
 }
 
 func resolveLocalArrowType(symbol valueSymbol) valueSymbol {
@@ -65,6 +67,8 @@ func (inference *localArrowInference) check() {
 	inference.usesUTF8 = dependency.usesUTF8
 	inference.usesObservation = dependency.usesObservation
 	inference.usesJSONSnapshot = dependency.usesJSONSnapshot
+	inference.usesNonNullKinds = dependency.usesNonNullKinds
+	inference.usesReferenceReads = dependency.usesReferenceReads
 	inference.checking, inference.checked = false, true
 }
 
@@ -79,6 +83,8 @@ func (c *Checker) finishLocalArrowBinding(inference *localArrowInference) {
 	c.usesUTF8 = c.usesUTF8 || inference.usesUTF8
 	c.usesObservation = c.usesObservation || inference.usesObservation
 	c.usesJSONSnapshot = c.usesJSONSnapshot || inference.usesJSONSnapshot
+	c.usesNonNullKinds = c.usesNonNullKinds || inference.usesNonNullKinds
+	c.usesReferenceReads = c.usesReferenceReads || inference.usesReferenceReads
 	decl := inference.declaration
 	scope := c.scopes[len(c.scopes)-1]
 	symbol := scope[decl.Name]

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/cabi"
 	"github.com/puffball1567/kinmokusei/internal/product"
 )
 
@@ -20,7 +21,7 @@ type cabiScalar struct {
 }
 
 const (
-	cabiManifestSchemaVersion = 1
+	cabiManifestSchemaVersion = cabi.SchemaVersion
 	cabiGatewayVersionMajor   = 1
 	cabiGatewayVersionMinor   = 0
 )
@@ -32,38 +33,11 @@ type CABIOutput struct {
 	Fingerprint string
 }
 
-type cabiManifestVersion struct {
-	Major int `json:"major"`
-	Minor int `json:"minor"`
-}
-
-type cabiManifestStatus struct {
-	OK              int32 `json:"ok"`
-	Panic           int32 `json:"panic"`
-	InvalidArgument int32 `json:"invalidArgument"`
-}
-
-type cabiManifestFunction struct {
-	Symbol          string   `json:"symbol"`
-	Parameters      []string `json:"parameters"`
-	Result          string   `json:"result"`
-	ResultTransport string   `json:"resultTransport"`
-}
-
-type cabiFingerprintInput struct {
-	SchemaVersion  int                    `json:"schemaVersion"`
-	GatewayVersion cabiManifestVersion    `json:"gatewayVersion"`
-	Status         cabiManifestStatus     `json:"status"`
-	Functions      []cabiManifestFunction `json:"functions"`
-}
-
-type cabiManifest struct {
-	SchemaVersion  int                    `json:"schemaVersion"`
-	GatewayVersion cabiManifestVersion    `json:"gatewayVersion"`
-	Fingerprint    string                 `json:"fingerprint"`
-	Status         cabiManifestStatus     `json:"status"`
-	Functions      []cabiManifestFunction `json:"functions"`
-}
+type cabiManifestVersion = cabi.Version
+type cabiManifestStatus = cabi.Status
+type cabiManifestFunction = cabi.Function
+type cabiFingerprintInput = cabi.FingerprintInput
+type cabiManifest = cabi.Manifest
 
 // GenerateCABI emits the cgo export gateway and a stable, toolchain-neutral C
 // header for explicitly exported Kinmokusei functions. Semantic checking must
@@ -72,6 +46,14 @@ func GenerateCABI(program *kinmokuseiAST.Program) (CABIOutput, error) {
 	exports := cabiExports(program)
 	if len(exports) == 0 {
 		return CABIOutput{}, fmt.Errorf("program does not declare any C ABI exports")
+	}
+	for _, export := range exports {
+		if err := cabi.ValidateSymbol(export.Symbol); err != nil {
+			return CABIOutput{}, err
+		}
+		if program.UsesExceptions && (export.Symbol == "Exception" || export.Symbol == "NewException") {
+			return CABIOutput{}, fmt.Errorf("C ABI symbol %q is reserved by the exception runtime", export.Symbol)
+		}
 	}
 	manifest, fingerprint, err := generateCABIManifest(program, exports)
 	if err != nil {
@@ -114,12 +96,14 @@ func generateCABIManifest(program *kinmokuseiAST.Program, exports []kinmokuseiAS
 	functions := make([]cabiManifestFunction, len(exports))
 	for index, export := range exports {
 		parameters := make([]string, len(export.Parameters))
+		parameterTypes := make([]cabi.Type, len(export.Parameters))
 		for parameterIndex, parameter := range export.Parameters {
 			mapped, ok := mapProgramCABIType(program, parameter.Type, false)
 			if !ok {
 				return nil, "", fmt.Errorf("C ABI export %q has unsupported parameter type %q", export.Symbol, parameter.Type.Name)
 			}
 			parameters[parameterIndex] = mapped.cType
+			parameterTypes[parameterIndex] = cabiSemanticType(program, parameter.Type, mapped)
 		}
 		result, ok := mapProgramCABIType(program, export.ReturnType, true)
 		if !ok {
@@ -133,6 +117,7 @@ func generateCABIManifest(program *kinmokuseiAST.Program, exports []kinmokuseiAS
 		}
 		functions[index] = cabiManifestFunction{
 			Symbol: export.Symbol, Parameters: parameters, Result: resultType, ResultTransport: transport,
+			ParameterTypes: parameterTypes, ResultType: cabiSemanticType(program, export.ReturnType, result),
 		}
 	}
 	version := cabiManifestVersion{Major: cabiGatewayVersionMajor, Minor: cabiGatewayVersionMinor}
@@ -192,17 +177,17 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, program *kinmokusei
 		if index != 0 {
 			goSource.WriteString(", ")
 		}
-		fmt.Fprintf(goSource, "arg%d %s", index, mapped.cgoType)
+		fmt.Fprintf(goSource, "__kinmokuseiArg%d %s", index, mapped.cgoType)
 	}
 	if resultType.goType != "void" {
 		if len(parameterTypes) != 0 {
 			goSource.WriteString(", ")
 		}
-		goSource.WriteString("outResult *" + resultType.cgoType)
+		goSource.WriteString("__kinmokuseiOutResult *" + resultType.cgoType)
 	}
 	goSource.WriteString(") (__kinmokuseiStatus C.int32_t) {\n")
 	if resultType.goType != "void" {
-		goSource.WriteString("\tif outResult == nil {\n\t\treturn C.int32_t(2)\n\t}\n")
+		goSource.WriteString("\tif __kinmokuseiOutResult == nil {\n\t\treturn C.int32_t(2)\n\t}\n")
 	}
 	// A nil recovered value may still mean panic(nil) under Go's legacy
 	// compatibility setting. Install recovery after boundary validation so an
@@ -217,17 +202,17 @@ func generateCABIWrapper(goSource, cHeader *strings.Builder, program *kinmokusei
 			goSource.WriteString(", ")
 		}
 		if mapped.goType == "bool" {
-			fmt.Fprintf(goSource, "arg%d != 0", index)
+			fmt.Fprintf(goSource, "__kinmokuseiArg%d != 0", index)
 		} else {
-			fmt.Fprintf(goSource, "%s(arg%d)", mapped.goType, index)
+			fmt.Fprintf(goSource, "%s(__kinmokuseiArg%d)", mapped.goType, index)
 		}
 	}
 	goSource.WriteString(")\n")
 	if resultType.goType != "void" {
 		if resultType.goType == "bool" {
-			goSource.WriteString("\t*outResult = C.uint8_t(0)\n\tif __kinmokuseiResult {\n\t\t*outResult = C.uint8_t(1)\n\t}\n")
+			goSource.WriteString("\t*__kinmokuseiOutResult = C.uint8_t(0)\n\tif __kinmokuseiResult {\n\t\t*__kinmokuseiOutResult = C.uint8_t(1)\n\t}\n")
 		} else {
-			goSource.WriteString("\t*outResult = " + resultType.cgoType + "(__kinmokuseiResult)\n")
+			goSource.WriteString("\t*__kinmokuseiOutResult = " + resultType.cgoType + "(__kinmokuseiResult)\n")
 		}
 	}
 	goSource.WriteString("\t__kinmokuseiCompleted = true\n\treturn C.int32_t(0)\n}\n\n")

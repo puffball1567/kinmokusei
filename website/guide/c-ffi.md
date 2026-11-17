@@ -50,6 +50,21 @@ Panics never cross the C boundary. An out value is unspecified on failure.
 
 The generated header also publishes `KINMOKUSEI_ABI_GATEWAY_VERSION_MAJOR`, `KINMOKUSEI_ABI_GATEWAY_VERSION_MINOR`, and `KINMOKUSEI_ABI_FINGERPRINT`. Generated ABI metadata therefore uses the `KINMOKUSEI_ABI_*` namespace; public example symbols use the lowercase `kinmokusei_*` prefix.
 
+v0.4.12 checks outgoing names before writing files. Symbols
+must begin with an ASCII letter and contain only ASCII letters, digits and
+underscores. C/C++ keywords, Go keywords/predeclared identifiers, known standard
+header/libc/cgo names (such as `int32_t`, `malloc` and `GoString`), the uppercase
+`KINMOKUSEI_` namespace, and names containing `__` are rejected. Exception
+runtime names are reserved when that runtime is used. Use a library-specific
+prefix to avoid collisions with other linked libraries, which the compiler
+cannot discover automatically.
+
+Source function names can still be ordinary names such as `outResult` or
+`arg0`: gateway locals use compiler-reserved names. Packages with outgoing
+exports cannot declare top-level `C`, `unsafe`, `syscall` or `_cgopackage`
+because cgo imports those names. Go import aliases in separate generated files
+remain allowed.
+
 ## Stable outgoing types
 
 The boundary accepts `boolean`, fixed-width signed/unsigned integers, `byte`/`uint8`, `float32`, float aliases, `void` results, and native enums whose ultimate underlying type is fixed-width.
@@ -63,6 +78,19 @@ keika abi check --baseline ./previous/kinmokusei_abi.json library.km
 ```
 
 Declaration order and source aliases do not affect the canonical fingerprint. Prefer adding a symbol over changing a published signature.
+
+v0.4.12 emits outgoing manifest schema 2. It fingerprints
+semantic parameter/result types and exact enum member values as well as C
+transport types. Renumbering or removing a member, changing `boolean` to `byte`,
+or replacing an enum with an integer is breaking even if both use the same C
+type. Adding a member while retaining existing values is compatible. Reordering
+members with explicit unchanged values is an exact match; reordering implicit
+members can change their values and is breaking.
+
+Schema 1 baselines are rejected because they lack semantic type information.
+Use the new compiler to run `emit-c-abi` on the **original baseline sources**
+before comparing against the updated sources. The C signatures and incoming
+FFI schema 1 are unchanged.
 
 ## Generate an incoming binding
 

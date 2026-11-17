@@ -34,5 +34,7 @@ function main(): void {
 
   const plain: Animal = new Animal("Mugi");
   const [missing, found] = plain as? GuideDog;
-  fmt.Println(found, missing === nil);
+  let candidate: GuideDog | null = null;
+  if (found) { candidate = missing; }
+  fmt.Println(found, candidate === null);
 }

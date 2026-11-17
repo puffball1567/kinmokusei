@@ -14,7 +14,7 @@ func TestUninstantiatedGoFunctionValueDiagnostics(t *testing.T) {
 		`import go slices from "slices";function run():void{const value=slices.Index;}`,
 		`import go slices from "slices";const value=()=>slices.Index;`,
 		`import go slices from "slices";const value=[slices.Index];`,
-		`import go slices from "slices";function apply(f:()=>void):void{}function run():void{apply(slices.Index);}`,
+		`import go slices from "slices";function apply(f:interface{}):void{}function run():void{apply(slices.Index);}`,
 	} {
 		path := filepath.Join(t.TempDir(), "invalid.km")
 		checked, err := CheckFilesWithOverlay([]string{path}, map[string]string{path: input})

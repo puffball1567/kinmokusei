@@ -19,7 +19,7 @@ type Wrapped<T> = distinct Values<T>;
 
 public function size<U>(this: Values<U>): int { return len(this); }
 public function push<U>(this: *Values<U>, value: U): void { *this = append(*this, value); }
-public function first<A, B>(this: Lookup<A, B>, key: A): B { return this[key]; }
+public function first<A, B>(this: Lookup<A, B>, key: A): B { const [value,ok]=this[key];if(!ok){throw new Exception("missing");}return value; }
 
 function ValuesBehavior(values: int[], tail: int): int {
   let typed = Values<int>(values);

@@ -24,29 +24,29 @@ type Empty interface{~chan int;~chan string}
 		"bounds.km": `export constraint Send<E>=~GoChannel<E>|~GoSendChannel<E>;
 export constraint Receive<E>=~GoChannel<E>|~GoReceiveChannel<E>;
 export function put<E,C extends Send<E>>(ch:C,value:E):void{ch<-value;}
-export function get<E,C extends Receive<E>>(ch:C):E{return <-ch;}`,
+export function get<E,C extends Receive<E>>(ch:C,fallback:E):E{const [value,open]=<-ch;if(!open){return fallback;}return value;}`,
 		"entry.km": `import {Send,Receive,put,get} from "./bounds";
 import go contracts from "generic-channel-operations.test/contracts";
 type Named=distinct GoChannel<int>;
 function importedPut<E,C extends contracts.Send<E>>(ch:C,value:E):void{ch<-value;}
-function importedGet<E,C extends contracts.Receive<E>>(ch:C):E{return <-ch;}
+function importedGet<E,C extends contracts.Receive<E>>(ch:C):E{const [value,open]=<-ch;if(!open){throw new Exception("closed");}return value;}
 function offer<C extends Send<int>>(ch:C):boolean{select{case ch<-23{return true;}default{return false;}}}
 function poll<C extends Receive<int>>(ch:C):int{select{case const [value,open]=<-ch{if(open){return value;}return -1;}default{return -2;}}}
 function assigned<C extends Receive<int>>(ch:C):int{let value=0;let open=false;select{case [value,open]=<-ch{if(open){return value;}}default{return -2;}}return -1;}
 function evaluated<C extends Send<int>>(ch:C,count:*int):void{const channel=():C=>{*count+=1;return ch;};const value=():int=>{*count+=10;return 31;};select{case channel()<-value(){}default{}}}
-export function Buffered():int[]{const ch=Named(goChannel<int>(2));put(ch,7);const send:GoSendChannel<int>=ch;importedPut(send,9);const receive:GoReceiveChannel<int>=ch;const a=get<int,GoReceiveChannel<int>>(receive);const b=importedGet<int,Named>(ch);closeGoChannel(ch);const zero=get<int,Named>(ch);return [a,b,zero];}
+export function Buffered():int[]{const ch=Named(goChannel<int>(2));put(ch,7);const send:GoSendChannel<int>=ch;importedPut(send,9);const receive:GoReceiveChannel<int>=ch;const a=get<int,GoReceiveChannel<int>>(receive,0);const b=importedGet<int,Named>(ch);closeGoChannel(ch);const zero=get<int,Named>(ch,0);return [a,b,zero];}
 export function Selection():int[]{const ch=goChannel<int>(1);let calls=0;evaluated(ch,&calls);const a=poll(ch);offer(ch);const b=assigned(ch);closeGoChannel(ch);const closed=poll(ch);const absent:GoChannel<int>=nil;const idle=poll(absent);let flag=0;if(offer(absent)){flag=1;}evaluated(absent,&calls);return [a,b,closed,idle,flag,calls];}
-export function Concurrent():int{const ch=goChannel<int>();go put(ch,42);return get<int,GoChannel<int>>(ch);}
+export function Concurrent():int{const ch=goChannel<int>();go put(ch,42);return get<int,GoChannel<int>>(ch,0);}
 class Item{constructor(public value:int){}}
 class Child extends Item{constructor(){super(29);}}
 constraint Items=~GoChannel<Item>|~GoSendChannel<Item>;
 function offerChild<C extends Items>(ch:C):void{select{case ch<-new Child(){}default{}}}
 function putChild<C extends Items>(ch:C):void{ch<-new Child();}
-export function Upcast():int[]{const ch=goChannel<Item>(3);offerChild(ch);putChild(ch);select{case ch<-new Child(){}default{}}const a=<-ch;const b=<-ch;const c=<-ch;return [a.value,b.value,c.value];}
+export function Upcast():int[]{const ch=goChannel<Item>(3);offerChild(ch);putChild(ch);select{case ch<-new Child(){}default{}}const a=(<-ch)!;const b=(<-ch)!;const c=(<-ch)!;return [a.value,b.value,c.value];}
 constraint Objects=~GoChannel<Item|null>|~GoReceiveChannel<Item|null>;
 function objectValue<C extends Objects>(ch:C):int{const [value,open]=<-ch;if(value!==null){return value.value;}return 0;}
 constraint Both<E>=contracts.Send<E>&contracts.Receive<E>;
-class Relay<E>{public function roundTrip<C extends Both<E>>(ch:C,value:E):E{ch<-value;return <-ch;}}
+class Relay<E>{public function roundTrip<C extends Both<E>>(ch:C,value:E):E{ch<-value;const [received,open]=<-ch;if(!open){throw new Exception("closed");}return received;}}
 export function OOP():int[]{const ch=goChannel<Item|null>(1);const item=new Item(17);importedPut<Item|null,GoChannel<Item|null>>(ch,item);const a=objectValue(ch);const value=new Relay<Item|null>().roundTrip<GoChannel<Item|null>>(ch,item);let identity=0;if(value===item){identity=1;}closeGoChannel(ch);return [a,identity,objectValue(ch)];}
 export function ClosedSend():void{const ch=goChannel<int>();closeGoChannel(ch);put(ch,1);}
 `,

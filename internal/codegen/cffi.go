@@ -793,7 +793,7 @@ func validateCFFIManifest(manifest cffiManifest) error {
 			return fmt.Errorf("C FFI function %q may not combine a callScoped callback with owned, handle, or string results in schema 1", function.Name)
 		}
 	}
-	return nil
+	return validateCFFIGeneratedNames(manifest)
 }
 
 func validCFFIIdentifier(name string) bool {

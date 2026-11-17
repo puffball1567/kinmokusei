@@ -86,7 +86,7 @@ export function Run(n:int):int[]{
 export function Checked(n:int):Result<int>{const read=Counter.checked;return read(Counter{value:n});}
 export function NilPointer():boolean{return (*Counter).isNil(nil);}
 export function NilValue():int{return (*Counter).read(nil);}
-export function NilInterface():int{const v:Reader=nil;return Reader.read(v);}
+export function NilInterface(v:Reader):int{return Reader.read(v);}
 export function Evaluation():int[]{
  let order=0;let v=Counter{value:1};const receiver=():*Counter=>{order=order*10+1;return &v;};const argument=():int=>{order=order*10+2;return 8;};
  (*Counter).set(receiver(),argument());defer (*Counter).set(&v,100);
@@ -165,7 +165,7 @@ func Run(n int)[]int{
 func Checked(n int)(int,error){read:=counter.checked;return read(counter{n})}
 func NilPointer()bool{return (*counter).isNil(nil)}
 func NilValue()int{return (*counter).read(nil)}
-func NilInterface()int{var v reader;return reader.read(v)}
+func NilInterface(v reader)int{return reader.read(v)}
 func Evaluation()[]int{order:=0;v:=counter{1};receiver:=func()*counter{order=order*10+1;return &v};argument:=func()int{order=order*10+2;return 8};(*counter).set(receiver(),argument());defer (*counter).set(&v,100);result:=make(chan int,1);snapshot:=v;go func(){result<-counter.read(snapshot)}();return []int{order,v.value,<-result}}
 func Shadow()int{counter:=counter{9};return counter.read()}
 `
@@ -178,7 +178,7 @@ func TestMethods(t *testing.T){
  if !g.NilPointer()||g.NilPointer()!=r.NilPointer(){t.Fatal("nil pointer")}
  if a,b:=g.EnumMethods(),r.EnumMethods();!reflect.DeepEqual(a,b){t.Fatal("enum methods",a,b)}
  if !g.EnumNilPointer()||g.EnumNilPointer()!=r.EnumNilPointer(){t.Fatal("enum nil pointer")}
- for _,pair:=range [][2]func()int{{g.NilValue,r.NilValue},{g.NilInterface,r.NilInterface},{g.EnumNilValue,r.EnumNilValue}}{if !panics(pair[0])||!panics(pair[1]){t.Fatal("nil panic")}}
+ for _,pair:=range [][2]func()int{{g.NilValue,r.NilValue},{func()int{return g.NilInterface(nil)},func()int{return r.NilInterface(nil)}},{g.EnumNilValue,r.EnumNilValue}}{if !panics(pair[0])||!panics(pair[1]){t.Fatal("nil panic")}}
  if a,b:=g.Evaluation(),r.Evaluation();!reflect.DeepEqual(a,b){t.Fatal("evaluation",a,b)}
  if g.Shadow()!=r.Shadow(){t.Fatal("lexical shadowing")}
 }

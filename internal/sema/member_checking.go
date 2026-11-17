@@ -13,6 +13,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 }
 
 func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
+	expr.BoundMethod = false
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
 			if c.fieldInitializerStatic {
@@ -114,6 +115,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.Static = true
 			identifier.ResolvedDeclaration = class.declarationSpan
 			expr.ResolvedDeclaration = method.declarationSpan
+			expr.BoundMethod = true
 			owner := method.declaringClass
 			if owner == "" {
 				owner = identifier.Name
@@ -203,6 +205,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			}
 			expr.ResolvedName = method.goName
 			expr.ResolvedDeclaration = method.declarationSpan
+			expr.BoundMethod = true
 			expr.VirtualDispatch = method.virtual
 			expr.VirtualOwner = method.virtualOwner
 			if len(method.typeInfo.TypeParameters) != 0 {
@@ -249,6 +252,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			}
 			expr.ResolvedName = method.goName
 			expr.ResolvedDeclaration = method.declarationSpan
+			expr.BoundMethod = true
 			if len(method.typeInfo.TypeParameters) != 0 {
 				expr.GenericMethod = true
 				expr.ResolvedName = staticMethodGoName(structObject.Name, method.goName, method.visibility)
@@ -304,6 +308,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 				expr.ResolvedName = method.goName
 				expr.ResolvedDeclaration = method.declarationSpan
+				expr.BoundMethod = true
 				callable := substituteNativeTypeParameters(method.typeInfo, nativeDefinedTypeBindings(symbol, nativeObject))
 				recordReceiverContracts(expr, nativeObject, object, callable, method)
 				return callable
@@ -325,6 +330,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		}
 		expr.ResolvedName = method.goName
 		expr.ResolvedDeclaration = method.declarationSpan
+		expr.BoundMethod = true
 		return substituteNativeTypeParameters(method.typeInfo, nativeInterfaceBindings(contract, object))
 	}
 	if object.Kind == GoPackage {
@@ -373,6 +379,7 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	expr.ResolvedName = method.goName
 	expr.VirtualOwner = method.virtualOwner
 	expr.ResolvedDeclaration = method.declarationSpan
+	expr.BoundMethod = true
 	if len(method.typeInfo.TypeParameters) != 0 {
 		expr.GenericMethod = true
 		expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)

@@ -48,10 +48,8 @@ type Manifest struct {
 }
 
 var (
-	projectNamePattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-	versionPattern         = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$`)
-	goModuleVersionPattern = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?(?:\+[0-9A-Za-z.]+)?$`)
-	goVersionPattern       = regexp.MustCompile(`^1\.[0-9]+(?:\.[0-9]+)?$`)
+	projectNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+	goVersionPattern   = regexp.MustCompile(`^1\.[0-9]+(?:\.[0-9]+)?$`)
 )
 
 func ReadManifest(root string) (Manifest, error) {
@@ -260,7 +258,7 @@ func (m Manifest) Validate() error {
 	if !projectNamePattern.MatchString(m.Project.Name) {
 		return fmt.Errorf("project name %q must contain only letters, digits, '.', '_' or '-'", m.Project.Name)
 	}
-	if !versionPattern.MatchString(m.Project.Version) {
+	if !validProjectVersion(m.Project.Version) {
 		return fmt.Errorf("project version %q must be a complete semantic version such as 0.1.0", m.Project.Version)
 	}
 	if err := validateModulePath(m.Project.GoModule); err != nil {
@@ -282,8 +280,8 @@ func (m Manifest) Validate() error {
 		if path == m.Project.GoModule {
 			return fmt.Errorf("project module %q cannot depend on itself", path)
 		}
-		if !goModuleVersionPattern.MatchString(version) {
-			return fmt.Errorf("Go dependency %q has invalid complete version %q", path, version)
+		if err := validateDependencyVersion(path, version); err != nil {
+			return fmt.Errorf("Go dependency %q has invalid complete version %q: %w", path, version, err)
 		}
 	}
 	for path, replacement := range m.Replacements {

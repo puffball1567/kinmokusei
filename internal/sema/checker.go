@@ -47,8 +47,10 @@ type Checker struct {
 	callableScopeBases         []int
 	capturedWrites             []map[source.Span]source.Span
 	loopFlowContexts           []loopFlowContext
+	loopCheckMemos             map[ast.Statement]loopCheckMemo
 	breakFlowContexts          []breakFlowContext
 	suppressFlowEffects        int
+	unevaluatedDepth           int // Layout intrinsics inspect types without reading values.
 	memberFlow                 map[memberFlowKey]memberFlowState
 	memberTypes                map[memberFlowKey]Type
 	usesTasks                  bool
@@ -57,10 +59,14 @@ type Checker struct {
 	usesUTF8                   bool
 	usesObservation            bool
 	usesJSONSnapshot           bool
+	usesNonNullKinds           bool
+	usesReferenceReads         bool
 	nativeTypeIndirectionDepth int
 	taskOperandDepth           int
 	taskLaunchCall             *ast.CallExpr
+	deferCaptureCall           *ast.CallExpr
 	directCallCallee           ast.Expression
+	optionalReceiver           Type
 	typeParameterScopes        []map[string]Type
 	deferredParameterBounds    map[*gotypes.TypeParam]bool
 	pendingBoundInstances      *[]boundInstance
@@ -234,6 +240,8 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	program.UsesUTF8 = c.usesUTF8
 	program.UsesObservation = c.usesObservation
 	program.UsesJSONSnapshot = c.usesJSONSnapshot
+	program.UsesNonNullKinds = c.usesNonNullKinds
+	program.UsesReferenceReads = c.usesReferenceReads
 	return c.diagnostics
 }
 
@@ -336,7 +344,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.reportOrDeferTasksBeforeReturn()
 			return
 		}
-		value := c.checkExpressionExpectedSlot(&stmt.Value, c.result)
+		value := c.checkStorageExpressionExpectedSlot(&stmt.Value, c.result)
 		if c.result.Kind == Void {
 			c.report(stmt.Value.GetSpan(), "void function cannot return a value")
 		} else {
@@ -387,6 +395,10 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.BlockStmt:
 		c.checkBlock(stmt, true)
 	case *ast.ExpressionStmt:
+		if receive, ok := stmt.Value.(*ast.UnaryExpr); ok && receive.Operator == "<-" {
+			c.checkChannelReceiveAccess(receive, false, true)
+			return
+		}
 		if propagated, ok := stmt.Value.(*ast.PropagateExpr); ok {
 			value := c.checkPropagateExpression(propagated)
 			if value.Kind != Invalid && value.Kind != Void {
@@ -419,7 +431,7 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			c.report(stmt.Target.GetSpan(), "Task bindings cannot be reassigned")
 		}
 		if stmt.Operator == "" || stmt.Operator == "=" {
-			value := c.checkExpressionExpectedSlot(&stmt.Value, target)
+			value := c.checkStorageExpressionExpectedSlot(&stmt.Value, target)
 			c.requireAssignable(target, value, stmt.Value.GetSpan())
 			c.updateAssignmentFlow(stmt.Target, value, stmt.Value)
 		} else {
@@ -527,7 +539,12 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			return
 		}
 		diagnosticCount := len(c.diagnostics)
+		previousDefer := c.deferCaptureCall
+		if stmt.Kind == ast.DeferCall {
+			c.deferCaptureCall = call
+		}
 		value := c.checkExpression(call)
+		c.deferCaptureCall = previousDefer
 		if name := unusedBuiltinResult(call); name != "" && value.Kind != Invalid && len(c.diagnostics) == diagnosticCount {
 			keyword := "defer"
 			if stmt.Kind == ast.GoCall {
@@ -575,14 +592,22 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	}
 }
 
-func (c *Checker) checkExpression(expr ast.Expression) Type {
+func (c *Checker) checkExpression(expr ast.Expression) (result Type) {
 	if len(c.exceptionFlows) != 0 {
 		defer c.recordExceptionFlow()
 	}
 	if expr == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	if slot := ast.ReferenceReadSlot(expr); slot != nil {
+		*slot = nil
+		defer func() { c.checkReferenceRead(expr, result) }()
+	}
 	switch expr := expr.(type) {
+	case *ast.OptionalChainExpr:
+		return c.checkOptionalChain(expr, nil)
+	case *ast.OptionalReceiverExpr:
+		return c.optionalReceiver
 	case *ast.LiteralExpr:
 		switch expr.Kind {
 		case ast.IntegerLiteral:
@@ -675,6 +700,9 @@ func (c *Checker) checkExpression(expr ast.Expression) Type {
 		}
 		return c.checkConstantOperation(expr, c.checkUnary(expr))
 	case *ast.BinaryExpr:
+		if expr.Operator == "??" {
+			return c.checkCoalesce(expr, nil)
+		}
 		if expr.Operator == "&&" || expr.Operator == "||" {
 			result, _, _ := c.checkCondition(expr)
 			return result

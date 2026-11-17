@@ -44,6 +44,7 @@ func TestGenericFunctionValueSignatures(t *testing.T) {
 		`function identity<T>(value:T):T{return value;}const f=identity<int>;function use():int{return f(|1);}`,
 		`function identity<T>(value:T):T{return value;}const f=identity[int];function use():int{return f(|1);}`,
 		`function identity<T>(value:T):T{return value;}function use():int{const f=identity<int>;return f(|1);}`,
+		`function identity<T>(value:T):T{return value;}const f:(v:int)=>int=identity;function use():int{return f(|1);}`,
 	} {
 		t.Run(input, func(t *testing.T) {
 			text := strings.Replace(input, "|", "", 1)
@@ -52,5 +53,30 @@ func TestGenericFunctionValueSignatures(t *testing.T) {
 				t.Fatalf("signature=%q active=%v parameters=%v", label, active, parameters)
 			}
 		})
+	}
+}
+
+func TestContextualFunctionValueNavigationAndRename(t *testing.T) {
+	t.Parallel()
+	input := `type Amount=distinct int;
+function identity<T>(value:T):T{return value;}
+const first:(value:Amount)=>Amount=identity;
+const second:(value:Amount)=>Amount=identity;
+function use(value:Amount):Amount{return first(value);}`
+	uri := fileURI(filepath.Join(t.TempDir(), "entry.km"))
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, positionOf(input, "identity", 1), ""),
+		requestAt("textDocument/rename", 3, uri, positionOf(input, "identity", 2), `"newName":"same"`),
+		requestAt("textDocument/rename", 4, uri, positionOf(input, "Amount", 0), `"newName":"Quantity"`),
+	)
+	definition := messages[2]["result"].(map[string]any)["range"].(map[string]any)["start"].(map[string]any)
+	if definition["line"] != float64(1) {
+		t.Fatal(definition)
+	}
+	for id, count := range map[int]int{3: 3, 4: 7} {
+		changes := messages[float64(id)]["result"].(map[string]any)["changes"].(map[string]any)
+		if len(changes[uri].([]any)) != count {
+			t.Fatalf("rename %d includes implicit type arguments: %v", id, changes)
+		}
 	}
 }

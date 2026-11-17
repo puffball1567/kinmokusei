@@ -18,7 +18,7 @@ function choose<T>(left: T, right: T): T { return left; }
 function first<T>(items: T[]): T { return items[0]; }
 function present<T>(value: T): Result<T> { return ok(value); }
 function dereference<T>(value: *T): T { return *value; }
-function lookup<T>(values: Map<string, T>): T { return values["value"]; }
+function lookup<T>(values: Map<string, T>): T { const [value,ok]=values["value"];if(!ok){throw new Exception("missing");}return value; }
 function unwrap<T>(holder: { value: T }): T { return holder.value; }
 function apply<T>(value: T, transform: (item: T) => T): T { return transform(value); }
 function relay<T>(value: T): T { return identity(value); }

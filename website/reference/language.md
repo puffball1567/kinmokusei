@@ -7,6 +7,11 @@ description: Searchable declaration, expression, and statement forms implemented
 
 This page indexes implemented forms. Detailed semantic rules live in the linked guide and type/reference pages.
 
+v0.4.12 bounds recursive syntax and syntax-tree depth.
+Extremely deep expressions, types or control flow produce a positioned
+[nesting diagnostic](./diagnostics#excessive-syntax-nesting). Large files with
+many shallow declarations/statements remain supported.
+
 ## Lexical conventions
 
 Source is UTF-8 and files use `.km`. Identifiers are case-sensitive and may contain Unicode letters; generated public Go names are checked for collisions after normalization. Keywords such as `function`, `class`, `go`, `null`, and `select` cannot be declaration names.
@@ -273,6 +278,13 @@ defer call();
 ```
 
 Conditions are parenthesized and must be `boolean`. `if`, `while`, `for`, `switch`, `select`, and `try` own braced bodies; a label instead prefixes one following statement as `name: statement`.
+
+`defer call();` evaluates the callee and arguments immediately and invokes the
+saved call when the enclosing function exits. Calls run in reverse registration
+order, including those registered inside `try`, `catch`, `finally` or loops.
+Leaving those blocks does not run their source defers. Each nested function or
+arrow owns its own defers; `finally` still runs when its exception block exits.
+See the [executable example](../examples/control-flow-boundaries#defer-inside-exception-blocks).
 
 Value switch cases accept comma-separated expressions. Cases stop after the first match unless the final statement is explicit `fallthrough;`; fallthrough is not available in a type switch.
 

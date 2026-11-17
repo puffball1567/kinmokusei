@@ -1,0 +1,8 @@
+class User {
+  public name: string = "Alice";
+  public function self(): User { return this; }
+}
+
+function read(user: User | null): string {
+  return (user?.self()).name;
+}

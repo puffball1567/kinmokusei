@@ -48,6 +48,10 @@ func (p *Parser) parseType() (ast.TypeRef, bool) {
 }
 
 func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
+	if !p.enterNesting() {
+		return ast.TypeRef{}, false
+	}
+	defer p.leaveNesting()
 	if p.match(token.Interface) {
 		start := p.previous()
 		if _, ok := p.expect(token.LeftBrace, "expected '{' after anonymous interface"); !ok {
@@ -57,6 +61,10 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		for !p.at(token.RightBrace) && !p.at(token.EOF) {
 			name, ok := p.expect(token.Identifier, "expected anonymous interface method name")
 			if !ok {
+				// Statement recovery may stop at return/let/etc. or just after
+				// a semicolon. Consume the invalid member token first, as for
+				// named interfaces, so this loop always makes progress.
+				p.advance()
 				p.synchronizeStatement()
 				continue
 			}

@@ -140,7 +140,7 @@ function selectForever(): void { select {} }
 		"select {}",
 		"case instant := <-time.After(0):",
 		"case observedChannel(&counter, channel, 1) <- observedValue(&counter, 2):",
-		"case values[observedIndex(&counter)] = <-channel:",
+		"case __kinmokuseiEvalValue(values)[observedIndex(&counter)] = <-channel:",
 	} {
 		if !strings.Contains(string(generated), want) {
 			t.Errorf("generated Go does not contain %q:\n%s", want, generated)

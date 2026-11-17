@@ -9,10 +9,13 @@ import "github.com/puffball1567/kinmokusei/internal/ast"
 // storage rather than the import spelling, so aliases and instantiated named
 // types follow the same rule. Explicit null guards still establish flow facts.
 func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression) bool {
+	if slot := ast.ReferenceReadSlot(expression); slot != nil && *slot != nil && (value.Kind == Class || value.Kind == Interface) {
+		return true
+	}
 	switch value.Kind {
 	case Invalid, Nil, Null, Nullable:
 		return false
-	case GoPointer, GoInterface, Array, Map, GoChannel, Function, TypeParameter:
+	case Class, Interface, GoPointer, GoInterface, Array, Map, GoChannel, Function, TypeParameter:
 		// These types alone do not prove that the runtime value is non-nil.
 	case GoNamed, GoBasic:
 		if !isNilable(value) {
@@ -22,15 +25,30 @@ func (c *Checker) assignmentProvesNonNull(value Type, expression ast.Expression)
 		return true
 	}
 	switch expression := expression.(type) {
+	case *ast.BinaryExpr:
+		return expression.Operator == "??" && expression.CoalesceNonNull
 	case *ast.ArrowExpr, *ast.ArrayLiteralExpr, *ast.ObjectLiteralExpr, *ast.GoCompositeLiteralExpr, *ast.NewExpr:
 		return true
 	case *ast.UnaryExpr:
+		if expression.ImplicitNonNull && expression.AssertionType.NonNullKinds != 0 {
+			return false
+		}
 		return expression.Operator == "&" || expression.Operator == ast.NonNullOperator
 	case *ast.CallExpr:
-		return expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
+		if (value.Kind == Class || value.Kind == Interface) && c.compilerOwnedReferenceCall(expression) {
+			return true
+		}
+		return expression.NonNullConversion && (expression.ConversionType == nil || expression.ConversionType.NonNullKinds == 0) || expression.Builtin == ast.MakeSliceCall || expression.Builtin == ast.MakeMapCall || expression.Builtin == ast.MakeGoChannelCall
+	case *ast.GoTypeAssertionExpr:
+		return expression.NonNull && expression.Type.NonNullKinds == 0 && !expression.Checked
+	case *ast.ClassUpcastExpr:
+		return !expression.NullableInterface && !expression.SourceType.Nullable && c.assignmentProvesNonNull(c.resolveType(expression.SourceType), expression.Value)
 	case *ast.IdentifierExpr:
 		for index := len(c.scopes) - 1; index >= 0; index-- {
 			if symbol, exists := c.scopes[index][expression.Name]; exists {
+				if (value.Kind == Class || value.Kind == Interface) && c.localReferenceReadProven(expression.Name, symbol) {
+					return true
+				}
 				// Reuse a checked nullable snapshot, not a raw Go variable's
 				// spelling. Its current fact already includes escape analysis.
 				return symbol.declaredType.Kind == Nullable && symbol.typeInfo.Kind != Nullable

@@ -86,6 +86,20 @@ func (c *Checker) lookupGoPackage(path, alias string) *goPackageSymbol {
 	return c.goPackages[path][alias]
 }
 
+func (c *Checker) lookupGoTypePackage(ref ast.TypeRef) *goPackageSymbol {
+	if ref.GoPackagePath == "" {
+		return c.lookupGoPackage(ref.Span.Path, ref.Qualifier)
+	}
+	for _, imports := range c.goPackages {
+		for _, imported := range imports {
+			if imported.path == ref.GoPackagePath {
+				return imported
+			}
+		}
+	}
+	return nil
+}
+
 func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageSymbol) Type {
 	delete(c.goCallContracts, expression)
 	expression.Go = true

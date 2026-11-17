@@ -50,12 +50,6 @@ func generateTryStatement(stmt *kinmokuseiAST.TryStmt) (goast.Stmt, error) {
 		)
 
 		recoveryBody := &goast.BlockStmt{List: []goast.Stmt{
-			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(recoveredName)}, Tok: token.DEFINE, Rhs: []goast.Expr{
-				&goast.CallExpr{Fun: goast.NewIdent("recover")},
-			}},
-			&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent(recoveredName), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{
-				&goast.ReturnStmt{},
-			}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(candidateName), goast.NewIdent(okName)}, Tok: token.DEFINE, Rhs: []goast.Expr{
 				&goast.TypeAssertExpr{X: goast.NewIdent(recoveredName), Type: goast.NewIdent("__kinmokuseiException")},
 			}},
@@ -68,12 +62,7 @@ func generateTryStatement(stmt *kinmokuseiAST.TryStmt) (goast.Stmt, error) {
 				&goast.CallExpr{Fun: &goast.SelectorExpr{X: goast.NewIdent(candidateName), Sel: goast.NewIdent("KinmokuseiExceptionError")}},
 			}},
 		}}
-		tryBody.List = append([]goast.Stmt{&goast.DeferStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{
-			Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: recoveryBody,
-		}}}}, tryBody.List...)
-		outerBody.List = append(outerBody.List, &goast.ExprStmt{X: &goast.CallExpr{Fun: &goast.FuncLit{
-			Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: tryBody,
-		}}})
+		outerBody.List = append(outerBody.List, generatePanicCapture(tryBody, recoveryBody, recoveredName)...)
 
 		dispatchBody := &goast.BlockStmt{List: []goast.Stmt{
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{
@@ -167,23 +156,18 @@ func generateTryStatement(stmt *kinmokuseiAST.TryStmt) (goast.Stmt, error) {
 		candidateName := fmt.Sprintf("__kinmokusei_return_candidate_%d", offset)
 		okName := fmt.Sprintf("__kinmokusei_return_ok_%d", offset)
 		returnRecoveryBody := &goast.BlockStmt{List: []goast.Stmt{
-			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(recoveredName)}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("recover")}}},
-			&goast.IfStmt{Cond: &goast.BinaryExpr{X: goast.NewIdent(recoveredName), Op: token.EQL, Y: goast.NewIdent("nil")}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{}}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(candidateName), goast.NewIdent(okName)}, Tok: token.DEFINE, Rhs: []goast.Expr{&goast.TypeAssertExpr{X: goast.NewIdent(recoveredName), Type: goast.NewIdent("__kinmokuseiReturn")}}},
 			&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: goast.NewIdent(okName)}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{goast.NewIdent(recoveredName)}}}}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(controlName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent(candidateName)}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(returningName)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent("true")}},
 		}}
-		wrapperBody := &goast.BlockStmt{List: []goast.Stmt{
-			&goast.DeferStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: returnRecoveryBody}}},
-			call,
-		}}
+		captured := generatePanicCapture(&goast.BlockStmt{List: []goast.Stmt{call}}, returnRecoveryBody, recoveredName)
 		returnStatement := exceptionControlReturn(stmt.ReturnType, controlName)
 		call = &goast.BlockStmt{List: []goast.Stmt{
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(returningName)}, Type: goast.NewIdent("bool")}}}},
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(controlName)}, Type: goast.NewIdent("__kinmokuseiReturn")}}}},
 			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent(controlName)}},
-			&goast.ExprStmt{X: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: wrapperBody}}},
+			&goast.BlockStmt{List: captured},
 			&goast.IfStmt{Cond: goast.NewIdent(returningName), Body: &goast.BlockStmt{List: []goast.Stmt{returnStatement}}},
 		}}
 	}
@@ -193,6 +177,26 @@ func generateTryStatement(stmt *kinmokuseiAST.TryStmt) (goast.Stmt, error) {
 	return &goast.BlockStmt{List: []goast.Stmt{call, &goast.ExprStmt{X: &goast.CallExpr{
 		Fun: goast.NewIdent("panic"), Args: []goast.Expr{&goast.BasicLit{Kind: token.STRING, Value: strconv.Quote("unreachable after terminal Kinmokusei try")}},
 	}}}}, nil
+}
+
+// Normal completion is distinct from legacy panic(nil), whose recover result
+// is nil. Dispatch only after the protected call resumes: runtime.Goexit must
+// continue unwinding, rather than being mistaken for a nil panic.
+func generatePanicCapture(body, handler *goast.BlockStmt, recovered string) []goast.Stmt {
+	completed := recovered + "_completed"
+	protected := &goast.BlockStmt{List: []goast.Stmt{&goast.DeferStmt{Call: &goast.CallExpr{Fun: &goast.FuncLit{
+		Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: &goast.BlockStmt{List: []goast.Stmt{
+			&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(recovered)}, Tok: token.ASSIGN, Rhs: []goast.Expr{&goast.CallExpr{Fun: goast.NewIdent("recover")}}},
+		}},
+	}}}}}
+	protected.List = append(protected.List, body.List...)
+	protected.List = append(protected.List, &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(completed)}, Tok: token.ASSIGN, Rhs: []goast.Expr{goast.NewIdent("true")}})
+	return []goast.Stmt{
+		&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(recovered)}, Type: goast.NewIdent("any")}}}},
+		&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent(completed)}, Tok: token.DEFINE, Rhs: []goast.Expr{goast.NewIdent("false")}},
+		&goast.ExprStmt{X: &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}}, Body: protected}}},
+		&goast.IfStmt{Cond: &goast.UnaryExpr{Op: token.NOT, X: goast.NewIdent(completed)}, Body: handler},
+	}
 }
 
 func generateTypedCatchBody(clause *kinmokuseiAST.CatchClause, handledName string, bindingType, bindingValue goast.Expr) (*goast.BlockStmt, error) {

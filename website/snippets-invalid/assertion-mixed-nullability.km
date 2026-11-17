@@ -1,0 +1,6 @@
+type Callback = distinct () => int;
+constraint Mixed = Callback | int;
+
+function convert<T extends Mixed>(value: interface {}): T {
+  return value as! T;
+}

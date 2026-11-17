@@ -1,0 +1,22 @@
+import go fmt from "fmt";
+
+class User {
+  constructor(public id: int) {}
+}
+
+export function userID(user: User): int {
+  return user.id;
+}
+
+export function optionalID(user: User | null): int {
+  if (user === null) {
+    return 0;
+  }
+  return user.id;
+}
+
+function main(): void {
+  const callback: (user: User) => int = (user) => userID(user);
+  fmt.Println(callback(new User(7)));
+  fmt.Println(optionalID(null));
+}

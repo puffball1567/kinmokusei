@@ -6,6 +6,7 @@ import (
 	"go/importer"
 	goparser "go/parser"
 	"go/token"
+	"strings"
 	"testing"
 
 	"github.com/puffball1567/kinmokusei/internal/codegen"
@@ -15,6 +16,87 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`class C{public n:int=7;}struct Row{public item:C;}function f(rows:Row[]):int{return rows[0].item.n;}`,
+	`class C{public n:int=7;}function f(items:C[]):int{for(const item of items){return item.n;}return 0;}`,
+	`alias F=()=>int;struct Row{public callback:F;}function f(row:Row):int{return row.callback();}`,
+	`alias F=()=>int;constraint Mixed=F|int;function f<T extends Mixed>(read:()=>T):T{return read();}`,
+	`alias F=()=>int;constraint Mixed=F|*int;function f<T extends Mixed>(read:()=>T,fallback:T):T{const x:T|null=T(read());return x??fallback;}`,
+	`class C{}constraint Mixed=C|*int;function f<T extends Mixed>(read:()=>T):T{return read();}`,
+	`class C{public n:int=7;public next:C|null=null;}function f(x:C|null):int{return x?.next?.n??0;}`,
+	`alias F=(n:int)=>int;function f(fn:F|null):int{return fn?.(7)??0;}`,
+	`function f(xs:int[]|null):int{return xs?.[0]!;}`,
+	`class C{public n:int=7;}function load():Result<C>{return ok(new C());}function f():int{const[value,err]=load();if(err!=nil){return 0;}return value.n;}`,
+	`class C{public n:int=7;}function load():Result<C>{return ok(new C());}function f():int{let[value,err]=load();switch(err){default{return 0;}case nil{return value.n;}}}`,
+	`class C{public n:int=7;}function load():Result<C>{return ok(new C());}function f():int{const[value,err]=load();_=err;return value.n;}`,
+	`class C{}function source():Result<C>{return ok(new C());}function f():Result<C>{const C=7;return source();}`,
+	`class C{public n:int=7;}function source():Result<C>{return ok(new C());}function f():Result<C>{return source();}`,
+	`alias F=()=>int;function source():Result<F>{return ok(()=>7);}function f():Result<F>{try{return source();}finally{}}`,
+	`class C{public n:int=7;}function source():Result<C>{return ok(new C());}function f():Result<int>{const value=source()?;return ok(value.n);}`,
+	`alias F=()=>int;constraint Functions=F;function f<T extends Functions>(source:()=>Result<T>):Result<T>{const value=source()?;return ok(value);}`,
+	`class C{public n:int=7;}function source():(C,int){return new C(),0;}function f():int{const[v,n]=source();return v.n+n;}`,
+	`class C{public n:int=7;}function source():(C,int){return new C(),0;}function f():int{outer:for(let[v,n]=source();n<2;n++){if(n==0){continue outer;}return v.n;}return 0;}`,
+	`alias F=()=>int;function source():(F,F,boolean){return ()=>1,()=>2,false;}function f():void{for(const[a,b,flag]=source();false;){}}`,
+	`import go __kinmokuseiSelectPresent from "strconv";alias F=()=>int;function f(ch:GoChannel<F>):int{select{case const [v,_]=<-ch{return len(__kinmokuseiSelectPresent.Itoa(7));}}}`,
+	`class C{public n:int=7;}function f(m:Map<int,C>):int{const [v,ok]=m[0];if(!ok){return 0;}return v.n;}`,
+	`alias F=()=>int;function f(ch:GoChannel<F>):void{select{case const [v,_]=<-ch{}}}`,
+	`alias F=()=>int;function source():Result<F>{return ok(()=>3);}function f():void{for(const [v,_]=source();false;){}}`,
+	`alias F=()=>int;function f(m:Map<int,F>):int{let value:F=()=>3;let valid=false;[value,valid]=m[0];if(!valid){return 0;}return value();}`,
+	`alias F=()=>int;function f(ch:GoChannel<F>):int{let value:F=()=>3;let open=false;select{case [value,open]=<-ch{if(!open){return 0;}return value();}}}`,
+	`alias F=()=>int;function source():Result<F>{return ok(()=>3);}function f():void{let value:F=()=>1;[value,_]=source();}`,
+	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,int){return nil,9;}function f():(F,int){return raw();}`,
+	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,int){return nil,9;}function f():void{let cb:F=()=>{};let n=0;[cb,n]=raw();}`,
+	`import go context from "context";alias F=()=>void;function raw():(context.CancelFunc,boolean){return nil,false;}function f():(F,int){return raw();}`,
+	`import go context from "context";alias F=()=>void;function f(raw:context.CancelFunc):F{let value:F=raw;while(false){value=raw;}return value;}`,
+	`alias View=interface{Error():bstring;};function f(raw:error):View{return raw;}`,
+	`import go context from "context";alias F=()=>void;function f(raw:context.CancelFunc):int{const n=len([raw]);return n;}`,
+	`class C{}function f(value:C,...rest:C[]):int{return len(rest);}`,
+	`alias F=()=>int;constraint Mixed=F|*int;function f<T extends Mixed>(value:T):void{}`,
+	`class C{}function f():(value:C)=>int{return (value)=>1;}`,
+	`class C{public n:int=7;}const YES=true;function f(m:Map<int,C>):int{const [v,ok]=m[0];switch(ok){case false{return 0;}default{return v.n;}}}`,
+	`class C{public n:int=7;}const YES=true;const NO=false;function f(m:Map<int,C>):int{const [v,ok]=m[0];if((ok===YES)!==NO){return v.n;}return 0;}`,
+	`class C{public n:int=7;}function f(m:Map<int,C>):int{const [v,ok]=m[0];switch(ok){case false{fallthrough;}case true{return v.n;}}return 0;}`,
+	`alias F=()=>int;function f(raw:F):int{const checked:F|null=F(raw);return checked();}`,
+	`alias View=interface{Error():bstring;};function f(raw:error):View{return View(raw);}`,
+	`constraint F=()=>int;function f<T extends F>(v:T):T{return T(v);}`,
+	`class C{}struct Row{public v:C;}function f(m:Map<int,Row>):Row{return m[0]??Row{v:new C()};}`,
+	`function f(ch:GoChannel<int>,m:Map<int,int>):int{return ((<-ch)??9)+(m[0]??7);}`,
+	`constraint P=~int|~*int;function f<T extends P>(m:Map<int,T>,fallback:T):T{return m[0]??fallback;}`,
+	`alias F=()=>int;function f(v:interface{}):int{const [callback,ok]=v as? F;if(!ok){return 0;}return callback();}`,
+	`type F=distinct ()=>int;constraint Mixed=F|int;function f<T extends Mixed>(v:interface{}):T{return v as! T;}`,
+	`constraint F=()=>int;function f<T extends F>(v:interface{}):T{return v as! T;}`,
+	`class C{public n:int=1;}function f(ch:GoChannel<C>):int{return ((<-ch)??new C()).n;}`,
+	`class C{public n:int=1;}function f(ch:GoChannel<C>):int{select{case const [v,open]=<-ch{if(open){return v.n;}return 0;}}}`,
+	`function f(ch:GoChannel<int>,xs:int[],flags:boolean[]):void{select{case [xs[0],flags[0]]=<-ch{}}}`,
+	`class C{public n:int=1;}function f(m:Map<int,C>):int{return (m[0]??new C()).n;}`,
+	`class C{public n:int=1;}function f(m:Map<int,C>):int{const [v,ok]=m[0];if(ok){return v.n;}return 0;}`,
+	`class C{public n:int=1;}function f(m:Map<int,C>,b:boolean):int{let [v,ok]=m[0];if(!ok){return 0;}while(b){const n=v.n;[v,ok]=m[1];}return 0;}`,
+	`class C{}struct Row{public v:C;}function f(m:Map<int,Row>):Row{const [v,ok]=m[0];if(!ok){throw new Exception("missing");}return v;}`,
+	`class C{public n:int=1;}function f(v:C|null):int{return (v??new C()).n;}`,
+	`function f(n:uint):byte{return null??(1<<n);}`,
+	`function f(v:int[]|null):int[]{return v??[];}`,
+	`alias F=(n:int)=>int;function f(v:F|null):int{return (v??((n)=>n+1))(2);}`,
+	`class C{}const value:C|null=null??null;`,
+	`const bad=null??true||false;`,
+	`class User{}function f():void{const xs=makeSlice<User>(1);}`,
+	`class User{}function f(xs:User[],n:int):User[]{return xs[:n];}`,
+	`class User{}struct Row<T>{public v:T;}function f():void{const xs=makeSlice<Row<User|null>>(1);clear(xs);}`,
+	`constraint Slice<E>=~E[];function f<E,T extends Slice<E>>(xs:T,n:int):T{return xs[:n];}`,
+	`class User{}function f():User{return nil;}`,
+	`class User{}constraint Users=User;function f<T extends Users>():T{return T(nil);}`,
+	`alias Callback=()=>int;function f(v:Callback|null):int{if(v===null){return 0;}return v();}`,
+	`let x=1;function bump():int{x=10;return 5;}function pair(a:int,b:int):int{return a*100+b;}function f():int{return pair(x,bump())+x+bump();}`,
+	`function f():int[]{let i=0;const a=[1,2];const rhs=():int=>{i=1;return 9;};a[i]+=rhs();return a;}`,
+	`function pair(a:byte,b:int):int{return int(a)*100+b;}function count():int{return 0;}function later():int{return 5;}function f():int{return pair(1<<count(),later());}`,
+	`class Item{public n:int=1;}function f(b:boolean,q:Item):void{const run=()=>{let p:Item|null=q;try{while(b){p=q;while(b){p=null;if(b){return 1;}}}}catch(_:Exception){}finally{}return 0;};run();}`,
+	`class Item{}function work():int{return 7;}function f(b:boolean,q:Item):int{const task=go work();let p:Item|null=q;try{while(b){p=q;while(b){p=null;if(b){return 1;}}}}finally{const n=await task;}return 0;}`,
+	`class Item{}function f(b:boolean,q:Item):void{let p:Item|null=q;outer:while(b){const run=():void=>{while(b){p=q;while(b){p=null;}}};if(b){continue outer;}}}`,
+	`function grow<T>(x:T):void{grow<T[]>([x]);}`,
+	`class C<T>{public next:C<T[]>|null=null;}`,
+	`class C{public function grow<T>(x:T):void{this.grow<T[]>([x]);}}`,
+	`alias Drop<T>=int;class C<T>{public value:Drop<C<T[]>>=0;}`,
+	`class Item{public value:int=1;}function f(b:boolean,q:Item):int{let p:Item|null=q;while(b){p=q;while(b){p=null;}}if(p!==null){return p.value;}return 0;}`,
+	`function f(b:boolean,q:*int):void{let p:*int|null=q!;for(;b;){p=q!;for(;b;){p=null;}}}`,
+	`class Item{public value:int=1;}function f(b:boolean,q:Item):int{let p:Item|null=q;while(b){p=q;while(b){p=null;}}return p.value;}`,
 	`class Base{}class Box<T> extends Base{constructor(public value:T){}}function box<T>(v:T):Base{return new Box<T>(v);}function match<T>(v:Base):boolean{const [_,ok]=v as? Box<T>;return ok;}function f():boolean{return match<string>(box<bstring>(b"\xff"));}`,
 	`struct Box<T>{public value:T;private function map():T{return this.value;}public function read():T{return this.map();}}function f():bstring{const value=Box<bstring>{value:b"\xff"};const read=Box<bstring>.read;return read(value);}`,
 	`function f<T>(v:T):boolean{return inspectNil(v)||inspectComparable(v)&&inspectEqual(v,v);}`,
@@ -305,6 +387,10 @@ var pipelineFuzzSeeds = []string{
 	`class User {} class Holder { private user: User; constructor(values: int[]) { if (len(values) > 0) { const count = len(values); for (const value of values) { this.user = new User(); } } else { this.user = new User(); } } }`,
 	`class Holder { constructor() { const callback = (): int => { return 1; }; const value = callback(); } }`,
 	"\xff\x00",
+	`function id<T>(v:T):T{return v;}const f:(v:int)=>int=id;function use():int{return f(7);}`,
+	`function pair<T,U>(a:T,b:U):(T,U){return a,b;}const f:(a:int,b:bstring)=>(int,bstring)=pair[int];`,
+	`function id<T>(v:T):T{return v;}function apply<T>(f:(v:T)=>T,v:T):T{return f(v);}const n=apply(id,7);`,
+	`class Item{}function first<T>(...values:T[]):T{return values[0];}function f():(...values:Item[])=>Item{return first;}`,
 }
 
 func compilePipelineProperty(input string) ([]byte, bool, error) {
@@ -322,6 +408,13 @@ func compilePipelinePropertyWithPolicy(input string, policy sema.GoInteropPolicy
 	}
 	goImporter := importer.Default()
 	if diagnostics := sema.CheckScopedWithGoImporterAndPolicy(program, nil, goImporter, policy); len(diagnostics) != 0 {
+		return nil, false, nil
+	}
+	checked := Result{Program: program, goImporter: goImporter, goSizes: policy.Sizes}
+	if err := checked.checkInstantiationCycles(); err != nil {
+		return nil, false, err
+	}
+	if len(checked.Diagnostics) != 0 {
 		return nil, false, nil
 	}
 	first, err := codegen.GenerateWithTarget(program, "fuzzpkg", goImporter, policy.Sizes)
@@ -361,6 +454,13 @@ func TestCompilePipelineProperties(t *testing.T) {
 }
 
 func FuzzCompilePipelineNeverPanics(f *testing.F) {
+	for _, seed := range []string{
+		"const x=" + strings.Repeat("!", 1000) + "true;",
+		"const x=0" + strings.Repeat("+1", 1000) + ";",
+		"alias X=int" + strings.Repeat("[]", 1000) + ";",
+	} {
+		f.Add(seed)
+	}
 	for _, seed := range pipelineFuzzSeeds {
 		f.Add(seed)
 	}

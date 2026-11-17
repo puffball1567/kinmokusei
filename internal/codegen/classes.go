@@ -240,6 +240,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		initializerType.Params.List = append(initializerType.Params.List, goParameterField(parameter))
 	}
 	initializerBody := &goast.BlockStmt{}
+	prependParameterChecks(initializerBody, constructorParameters)
 	if len(class.TypeParameters) != 0 {
 		values := make([]goast.Expr, len(class.TypeParameters))
 		for i, parameter := range class.TypeParameters {
@@ -372,7 +373,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		methodType := &goast.FuncType{Params: &goast.FieldList{List: parameters}}
 		methodType.Results = functionResults(method.ReturnType)
-		body, err := generateBlock(method.Body)
+		body, err := generateCallableBlock(method.Body, method.Parameters)
 		if err != nil {
 			return nil, err
 		}

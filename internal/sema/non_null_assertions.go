@@ -7,7 +7,21 @@ import (
 )
 
 func (c *Checker) checkNonNullAssertion(expr *ast.UnaryExpr) Type {
-	value := c.singleValue(c.checkExpression(expr.Operand), expr.Operand.GetSpan())
+	if expr.ImplicitNonNull {
+		// Flow analysis may check a lowered expression again. Keep the target
+		// source contract, rather than replacing it with the operand's Go type.
+		target := c.resolveType(expr.AssertionType)
+		expr.AssertionType = c.boundaryTypeRef(target, expr.AssertionType.Span)
+		actual := c.checkExpression(expr.Operand)
+		c.requireAssignable(target, actual, expr.Operand.GetSpan())
+		return target
+	}
+	value := c.checkExpression(expr.Operand)
+	if chain, ok := expr.Operand.(*ast.OptionalChainExpr); ok && chain.Checked && value.Kind == MultiValue && len(value.Results) == 2 {
+		expr.AssertionType = typeRefFromType(value.Results[0], expr.Span)
+		return value.Results[0]
+	}
+	value = c.singleValue(value, expr.Operand.GetSpan())
 	if value.Kind == Invalid {
 		return value
 	}

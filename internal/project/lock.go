@@ -103,7 +103,7 @@ func (l Lock) Validate() error {
 		return err
 	}
 	for i, pkg := range l.Packages {
-		if !canonicalPackageSubpath(pkg.Path) || !goModuleVersionPattern.MatchString(pkg.Version) || !validSHA256(pkg.Hash) || !validSHA256(pkg.ManifestHash) || pkg.License == "" || pkg.Dependencies == nil || pkg.GoDependencies == nil {
+		if !canonicalPackageSubpath(pkg.Path) || validateDependencyVersion(pkg.Path, pkg.Version) != nil || !validSHA256(pkg.Hash) || !validSHA256(pkg.ManifestHash) || pkg.License == "" || pkg.Dependencies == nil || pkg.GoDependencies == nil {
 			return fmt.Errorf("invalid locked Kinmokusei package %q", pkg.Path)
 		}
 		if i > 0 && l.Packages[i-1].Path >= pkg.Path {

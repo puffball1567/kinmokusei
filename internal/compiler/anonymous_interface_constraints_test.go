@@ -37,8 +37,8 @@ function checked<T extends interface{checked():Result<int>;}>(v:T):Result<int>{c
 function many<T extends interface{sum(...v:int[]):int;pair():(int,bstring);}>(v:T):int{const [n,s]=v.pair();const sum=v.sum;return sum(n,len(s));}
 class Extract<E>{public function get<T extends interface{read():E;}>(v:T):E{return v.read();}}
 function view<T extends Readable<string>>(v:T):interface{read():string;}{return v;}
-const nilView:interface{read():string;}=nil;
-export function NilGlobal():boolean{return nilView===nil;}
+const nilView:interface{read():string;}|null=null;
+export function NilGlobal():boolean{return nilView===null;}
 export function Run(n:int):int[]{const v=Number{n:n};let p=Pointer{n:n+1};const f=read<int,Number>;const xs=Items<Number>([v]);return [read(v),forward(v),f(v),read(&p),Holder<Number>{v:v}.read(),many(Worker{n:n}),new Extract<int>().get(v),read(xs[0])];}
 export function TextValue(s:string):string{return read(Text{text:s});}
 export function SpecializedText(s:string):string{return new Extract<string>().get(Text{text:s});}
@@ -48,7 +48,7 @@ export function Structural(s:string):string{const v=Readable<string>(view(Text{t
 export function NestedText(s:string):string{return read(Nested{text:s}).read();}
 export function RawText(v:fmt.Stringer):bstring{return RawView(v).String();}
 export function Arrow(s:string):string{const create=(s:string):interface{read():string;}=>new TextRef(s);const f=create(s).read;return f();}
-export function NilValue():string{const v:interface{read():string;}=nil;return v.read();}
+export function NilValue(v:interface{read():string;}):string{return v.read();}
 `,
 	}
 	for name, input := range files {
@@ -93,7 +93,7 @@ func Structural(s string)string{v:=interface{Read()string}(view(text{s}));f:=v.R
 func NestedText(s string)string{return read[interface{Read()string}](nested{s}).Read()}
 func RawText(v interface{String()string})string{return interface{String()string}(v).String()}
 func Arrow(s string)string{create:=func(s string)interface{Read()string}{return &textRef{s}};f:=create(s).Read;return f()}
-func NilValue()string{var v interface{Read()string};return v.Read()}
+func NilValue(v interface{Read()string})string{return v.Read()}
 func NilGlobal()bool{var v interface{Read()string};return v==nil}
 `
 	comparison := `package anonymousbounds_test
@@ -104,7 +104,7 @@ func TestContracts(t *testing.T){
  for _,n:=range []int{-10,0,17}{if a,b:=g.Run(n),r.Run(n);!reflect.DeepEqual(a,b){t.Fatal("methods",n,a,b)};if g.Optional(n)!=r.Optional(n){t.Fatal("nullable",n)};a,ae:=g.CheckedValue(n);b,be:=r.CheckedValue(n);if a!=b||(ae==nil)!=(be==nil){t.Fatal("Result",a,ae,b,be)};if ae!=nil&&ae.Error()!=be.Error(){t.Fatal("failure",ae,be)}}
  for _,s:=range []string{"","osmanthus","金木犀"}{for _,pair:=range [][2]func(string)string{{g.TextValue,r.TextValue},{g.SpecializedText,r.SpecializedText},{g.Structural,r.Structural},{g.NestedText,r.NestedText},{g.Arrow,r.Arrow}}{if pair[0](s)!=pair[1](s){t.Fatal("text contract",s)}}}
  if a,b:=g.RawText(raw("\xff")),r.RawText(raw("\xff"));a!=b{t.Fatal("raw Go interface conversion",a,b)}
- if !panics(g.NilValue)||!panics(r.NilValue){t.Fatal("nil interface panic")}
+ if !panics(func()string{return g.NilValue(nil)})||!panics(func()string{return r.NilValue(nil)}){t.Fatal("nil interface panic")}
  if !g.NilGlobal()||g.NilGlobal()!=r.NilGlobal(){t.Fatal("nil global binding")}
 }
 `

@@ -602,8 +602,10 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 		symbol.declarationSpan = method.ReceiverNameSpan
 		scope[receiverName] = symbol
 	}
-	for _, parameter := range method.Parameters {
+	for i := range method.Parameters {
+		parameter := &method.Parameters[i]
 		t := c.resolveType(parameter.Type)
+		c.checkParameterBoundary(parameter, t)
 		c.rejectResultValueType(t, parameter.Type.Span, "parameters")
 		c.declareLocal(parameter.Name, t, false, nil, parameter.Span)
 	}
@@ -649,8 +651,10 @@ func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, ty
 	receiverSymbol := scope[receiverName]
 	receiverSymbol.declarationSpan = method.ReceiverNameSpan
 	scope[receiverName] = receiverSymbol
-	for _, parameter := range method.Parameters {
+	for i := range method.Parameters {
+		parameter := &method.Parameters[i]
 		parameterType := c.resolveType(parameter.Type)
+		c.checkParameterBoundary(parameter, parameterType)
 		c.rejectResultValueType(parameterType, parameter.Type.Span, "parameters")
 		c.declareLocal(parameter.Name, parameterType, false, nil, parameter.Span)
 	}

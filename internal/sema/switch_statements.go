@@ -43,6 +43,9 @@ func (c *Checker) checkSelect(stmt *ast.SelectStmt) {
 }
 
 func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
+	clause.Upcasts = nil
+	clause.NonNullResults = nil
+	clause.NonNullCondition = ast.NonNullAlways
 	count := selectReceiveTargetCount(clause)
 	if count == 0 {
 		return
@@ -58,30 +61,63 @@ func (c *Checker) checkSelectReceive(clause *ast.SelectCase, value Type) {
 		results = []Type{c.singleValue(value, clause.Channel.GetSpan())}
 	}
 	if clause.Declare {
+		if count == 2 {
+			clause.NonNullCondition = ast.NonNullIfPresent
+		}
 		for i := range clause.Bindings {
 			binding := &clause.Bindings[i]
-			if binding.Name == "_" {
-				continue
-			}
+			binding.NonNull = false
 			result := Type{Kind: Invalid, Name: "<invalid>"}
 			if i < len(results) {
 				result = defaultLiteralType(results[i])
 			}
 			binding.ResolvedType = typeRefFromType(result, binding.Span)
+			if binding.Name == "_" {
+				continue
+			}
+			binding.NonNull = count == 2 && c.needsStorageBoundary(result, result, nil)
+			if binding.NonNull {
+				binding.ResolvedType = c.boundaryTypeRef(result, binding.Span)
+			}
 			c.declareSelectLocal(binding.Name, result, clause.Constant, clause, i, binding.Span)
 		}
+		c.bindPresencePair(&ast.UnaryExpr{Operator: "<-"}, value, clause.Bindings)
 		return
 	}
+	clause.Upcasts = make([]*ast.ClassUpcastExpr, len(clause.Targets))
+	clause.NonNullResults = make([]*ast.TypeRef, len(clause.Targets))
+	if count == 2 {
+		clause.NonNullCondition = ast.NonNullIfPresent
+	}
+	bindings := make([]ast.Binding, len(clause.Targets))
 	for i, target := range clause.Targets {
+		bindings[i].Span = target.GetSpan()
+		if identifier, ok := target.(*ast.IdentifierExpr); ok {
+			bindings[i].Name = identifier.Name
+		}
 		if identifier, ok := target.(*ast.IdentifierExpr); ok && identifier.Name == "_" {
 			continue
 		}
 		targetType := c.checkAssignmentTarget(target)
 		if i < len(results) {
 			c.requireAssignable(targetType, results[i], target.GetSpan())
+			var slot ast.Expression = &ast.IdentifierExpr{Name: "__kinmokuseiSelectValue", Span: target.GetSpan()}
+			c.applyClassUpcast(&slot, targetType, results[i])
+			clause.Upcasts[i], _ = slot.(*ast.ClassUpcastExpr)
+			if c.needsStorageBoundary(targetType, results[i], nil) {
+				ref := c.boundaryTypeRef(targetType, target.GetSpan())
+				clause.NonNullResults[i] = &ref
+			}
+		}
+	}
+	// Every selected LHS is evaluated against the old storage before any of
+	// the receive results is assigned, just as in a Go parallel assignment.
+	for i, target := range clause.Targets {
+		if i < len(results) {
 			c.updateAssignmentFlow(target, results[i], nil)
 		}
 	}
+	c.bindPresencePair(&ast.UnaryExpr{Operator: "<-"}, value, bindings)
 }
 
 func (c *Checker) checkTypeSwitch(stmt *ast.TypeSwitchStmt) {
