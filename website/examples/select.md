@@ -47,7 +47,7 @@ select {
 
 Select preserves Go evaluation and channel panic/blocking behavior. It does not add cancellation automatically; select on an explicit `context.Context.Done()` channel when needed.
 
-Development builds require `open` before using a checked payload whose zero
+v0.4.12 builds require `open` before using a checked payload whose zero
 would violate its source contract. A one-value reference binding is nullable;
 handle it with a null guard, `??`, or `!`. Safe-zero elements keep Go behavior.
 

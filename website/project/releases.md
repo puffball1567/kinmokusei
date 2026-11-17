@@ -36,6 +36,43 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.12 highlights
+
+Use matching v0.4.12 compiler and editor artifacts.
+
+- Optional member/index/call chains (`?.`), lazy `??` defaults and checked
+  absence handling for map reads, channel receives and optional value results.
+- Destination-type inference and leading partial arguments for source/Go
+  generic function values, including higher-order callbacks and editor support.
+- Stronger native non-null contracts across parameters, storage, multiple
+  results, Result success paths and mixed generic bounds. Go-owned nested and
+  cyclic data is checked when a native reference is read.
+- Correct source evaluation order, function-scoped `defer` across handlers and
+  enclosing-function control flow through iterators; faster nested-loop checks
+  and bounded syntax/generic-instantiation diagnostics.
+- Comment-preserving dependency edits, canonical prerelease/pseudo-version
+  handling, C ABI semantic/enum compatibility checks and FFI name isolation.
+
+### Migrating from v0.4.11
+
+Update with `keika update --version v0.4.12` on supported Linux/macOS
+installations, or install the release archive manually. Install the matching
+VSIX separately. Libraries relying on these changes should require
+`min-kinmokusei = "0.4.12"`.
+
+Recheck programs that used absent map/receive/assertion/Result payloads or raw
+`nil` as a native non-null value. Use `T | null` for absence, `??` for defaults,
+and the matching success flag/error before reading checked payloads. Zero-filled
+reference slices need nullable elements or initialization through appends.
+Postfix `!` remains a runtime assertion with a source-located panic.
+
+Outgoing C ABI manifests now use schema 2. Regenerate schema 1 baselines from
+their original sources before comparing new manifests. Review the
+[v0.4.12 release notes](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.12),
+[nullability](../reference/types#nullability),
+[generic function values](../guide/functions-and-generics#contextual-function-values)
+and [ABI checks](../guide/c-ffi#detect-abi-breaks).
+
 ## v0.4.11 highlights
 
 Use matching v0.4.11 compiler and editor artifacts.

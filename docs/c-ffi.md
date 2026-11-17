@@ -74,7 +74,7 @@ The compiler generates:
 - A SHA-256 ABI fingerprint.
 - Compatibility diagnostics against a baseline manifest.
 
-Development after v0.4.11 validates outgoing names against the shared Go/C/C++
+v0.4.12 validates outgoing names against the shared Go/C/C++
 boundary before producing files. Symbols start with an ASCII letter and then
 contain ASCII letters, digits or underscores. The checker rejects Go
 keywords/predeclared names, C/C++ keywords, known standard header/libc/cgo
@@ -135,7 +135,7 @@ implicit validation, matching Go named-integer behavior.
 
 ### Outgoing ABI comparison metadata
 
-Development after v0.4.11 writes outgoing manifest **schema 2**. The C header
+v0.4.12 writes outgoing manifest **schema 2**. The C header
 and gateway still use the same fixed-width transport and status/out convention.
 Each function also records `parameterTypes` and `resultType`, whose `kind` is
 `boolean`, `integer`, `float`, `enum`, or `void`. Enum contracts contain a
