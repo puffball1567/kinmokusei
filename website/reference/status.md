@@ -20,12 +20,12 @@ Since v0.4.1, [external Kinmokusei packages](/guide/external-packages) support t
 
 ## Release availability
 
-The current compiler/editor release is v0.4.11. It adds retained and official
-compiler version lists, numeric version selection, clearer verified-text Go
-boundary diagnostics and declaration-time checks for nullable type parameters.
-The generic source contracts, observation/snapshot adapters and input staging
-released in v0.4.10 remain available. Opaque Go API protections remain in place.
-See [v0.4.11 highlights](../project/releases#v0411-highlights) for upgrade notes.
+The current compiler/editor release is v0.4.12. It adds optional chaining,
+lazy defaults and contextual generic function values, strengthens null/zero-value
+safety across Kinmokusei and Go boundaries, and corrects evaluation, defer and
+iterator behavior. Dependency edits preserve manifest formatting; C ABI schema 2
+checks semantic types and exact enum values. See
+[v0.4.12 highlights](../project/releases#v0412-highlights) for upgrade notes.
 
 Compiler self-update and the scalar-union, object-order and generated-name
 corrections released in v0.4.8 remain available.

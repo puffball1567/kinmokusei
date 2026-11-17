@@ -301,7 +301,7 @@ Since v0.4.7, a fully instantiated generic function is an
 ordinary typed callable: `const integerIdentity = identity<int>` fixes the
 parameter and result types without invoking `identity`. The bracket spelling
 `identity[int]` has the same meaning. This works for imported Go functions too,
-including named imports. Development builds also infer missing arguments from
+including named imports. v0.4.12 builds also infer missing arguments from
 assignment, return, collection/field and callback function types. A leading
 explicit list can fix some arguments while the context supplies the rest.
 Higher-order calls use other arguments to establish a generic declaration

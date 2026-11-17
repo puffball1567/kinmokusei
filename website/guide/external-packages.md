@@ -5,7 +5,7 @@ description: Define, acquire, lock, replace, and consume source packages through
 
 # Use external Kinmokusei packages
 
-Development after v0.4.11 supports complete prerelease versions with hyphenated
+v0.4.12 supports complete prerelease versions with hyphenated
 identifiers, such as `keika deps add example.com/lib@v1.0.0-rc-1`. The package's
 `[project] version` is `1.0.0-rc-1`. Fixed dependency identities use canonical
 Go module versions; see [version rules](../reference/project-files#dependencies-and-replacements)
@@ -121,7 +121,7 @@ dependency and writes it under `[dependencies]`. Modules without that declaratio
 retain the existing Go dependency behavior. `keika install --go-module` remains
 the explicit Go-only command.
 
-Development after v0.4.11 keeps your manifest comments and formatting during
+v0.4.12 keeps your manifest comments and formatting during
 dependency changes, including short import aliases and local replacements.
 Updating a pin preserves its inline comment; removing it keeps that comment as
 a standalone note. See the [project-file reference](../reference/project-files)

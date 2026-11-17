@@ -33,7 +33,7 @@ The grouping follows the implemented Go-compatible bitwise precedence. `a + b <<
 
 ## Null coalescing
 
-Development builds support `value ?? fallback`. The left operand runs once;
+v0.4.12 builds support `value ?? fallback`. The left operand runs once;
 the right operand runs only when the value is `null` or Go nil. This tests
 absence, not truthiness: zero, false and empty text are ordinary values.
 Those scalar types cannot be nullable; a literal `null ?? 0` is allowed and
@@ -174,7 +174,7 @@ Checked non-null conversions and forced source assertions establish a proof
 for a nullable snapshot; raw Go conversions and raw Go assertion targets keep
 their existing nil semantics. See [explicit conversions](./types#explicit-conversions).
 
-Development builds require `[value, ok]` and a successful flag check before
+v0.4.12 builds require `[value, ok]` and a successful flag check before
 using an unsafe-zero checked assertion payload. Forwarding the unchecked pair
 directly through a function return or argument list is rejected; split it and
 handle failure explicitly. Whole-result `_` discard remains explicit discard.

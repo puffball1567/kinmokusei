@@ -7,7 +7,7 @@ description: Schema 1 keys, conventions, boundary types, ownership, callbacks, h
 
 `keika ffi generate` accepts exactly one schema 1 JSON document. Unknown fields, trailing JSON, malformed identifiers, duplicate public names, unsupported type combinations, and ambiguous ownership are rejected before any cgo source is written.
 
-Development builds after v0.4.11 also check identifiers derived from public
+v0.4.12 also check identifiers derived from public
 names. For example, an owned-buffer callback `Data` conflicts with a callback
 named `Data_release`, and a POD type `PointState` conflicts with a callback
 named `FromPoint`. Diagnostics identify the C/Go identifier and both manifest

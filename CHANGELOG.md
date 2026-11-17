@@ -11,6 +11,8 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-11-17
+
 - Infer generic function values from a destination function type, including
   omitted or trailing type arguments for source and Go declarations. Support
   bindings, assignments, returns, typed collections/fields and higher-order
@@ -184,7 +186,7 @@ changes source/public APIs and requires the migration described below.
   interfaces and function signatures, including aliases, defined function types
   and generic constraints (#117). Use `T | null` and `null` for absence. Keep
   defensive nil comparisons and raw Go pointer, collection, interface and
-  callback boundaries; this does not yet close other zero-value entry points.
+  callback boundaries and their documented nil behavior.
 
 - Read earlier values before later calls or channel receives can change them
   (#111). Preserve callee/receiver, argument, binary-operand, literal-field,
@@ -1337,7 +1339,10 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.12...HEAD
+[0.4.12]: https://github.com/puffball1567/kinmokusei/compare/v0.4.11...v0.4.12
+[0.4.11]: https://github.com/puffball1567/kinmokusei/compare/v0.4.10...v0.4.11
+[0.4.10]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...v0.4.10
 [0.4.9]: https://github.com/puffball1567/kinmokusei/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/puffball1567/kinmokusei/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/puffball1567/kinmokusei/compare/v0.4.6...v0.4.7

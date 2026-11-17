@@ -114,7 +114,7 @@ const copy = cloneIntegers([1, 2, 3]);
 
 ### Contextual function values
 
-::: info Available in development builds
+::: info Available since v0.4.12
 A destination function type can infer all missing generic arguments.
 :::
 

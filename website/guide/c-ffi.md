@@ -50,7 +50,7 @@ Panics never cross the C boundary. An out value is unspecified on failure.
 
 The generated header also publishes `KINMOKUSEI_ABI_GATEWAY_VERSION_MAJOR`, `KINMOKUSEI_ABI_GATEWAY_VERSION_MINOR`, and `KINMOKUSEI_ABI_FINGERPRINT`. Generated ABI metadata therefore uses the `KINMOKUSEI_ABI_*` namespace; public example symbols use the lowercase `kinmokusei_*` prefix.
 
-Development after v0.4.11 checks outgoing names before writing files. Symbols
+v0.4.12 checks outgoing names before writing files. Symbols
 must begin with an ASCII letter and contain only ASCII letters, digits and
 underscores. C/C++ keywords, Go keywords/predeclared identifiers, known standard
 header/libc/cgo names (such as `int32_t`, `malloc` and `GoString`), the uppercase
@@ -79,7 +79,7 @@ keika abi check --baseline ./previous/kinmokusei_abi.json library.km
 
 Declaration order and source aliases do not affect the canonical fingerprint. Prefer adding a symbol over changing a published signature.
 
-Development after v0.4.11 emits outgoing manifest schema 2. It fingerprints
+v0.4.12 emits outgoing manifest schema 2. It fingerprints
 semantic parameter/result types and exact enum member values as well as C
 transport types. Renumbering or removing a member, changing `boolean` to `byte`,
 or replacing an enum with an integer is breaking even if both use the same C

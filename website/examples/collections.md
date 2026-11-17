@@ -80,7 +80,7 @@ hello 5
 
 Missing and nil maps return the value type's zero value plus `false`. Map iteration order is unspecified; this example never depends on it.
 
-Development builds preserve absence for non-null reference elements. A
+v0.4.12 builds preserve absence for non-null reference elements. A
 `Map<int, User>` read has type `User | null`, while writing still requires a
 `User`. Choose a fallback with `??` or check a snapshot against null. For an
 unsafe struct/array or an unconstrained generic element, use `[value, ok]`:
@@ -115,7 +115,7 @@ capacity; elements beyond its length remain untouched. Clearing a map removes
 every entry, including NaN keys. Nil maps/slices are safe. Deletion checks the
 key's type, source nullability and numeric constant range at compile time.
 
-Development builds require safe zero values for cleared slice elements, including
+v0.4.12 builds require safe zero values for cleared slice elements, including
 every slice alternative in a generic bound. Map alternatives can always be
 cleared: removal does not create a zero payload. Clearing a non-null class slice
 is rejected:

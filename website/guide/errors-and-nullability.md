@@ -138,7 +138,7 @@ run different code and return a different value.
 
 ## Flow facts and invalidation
 
-Development builds require presence checks for unsafe-zero payloads from
+v0.4.12 builds require presence checks for unsafe-zero payloads from
 ordinary `[value, ok]` map lookups, channel receives and `as?` assertions:
 
 <<< ../snippets/map-absence.km{ts}
@@ -149,7 +149,7 @@ the flag, using a copied/stale flag, or capturing mutable storage does not
 establish success. Nullable payloads still need a separate null guard even
 when the key exists. See [zero values and absence](../reference/types#zero-values-and-absence).
 
-To replace an absent reference, development builds provide lazy `??`:
+To replace an absent reference, v0.4.12 provides lazy `??`:
 
 <<< ../snippets/null-coalescing.km{ts}
 

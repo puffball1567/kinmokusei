@@ -67,7 +67,7 @@ Diagnostics are compatibility-sensitive and have regression coverage. Important 
 
 ## Excessive syntax nesting
 
-Development after v0.4.11 reports `syntax nesting is too deep` with a source
+v0.4.12 reports `syntax nesting is too deep` with a source
 range instead of exhausting the process stack. This is a source diagnostic:
 `check` returns status `1`, and `check --json` uses the normal diagnostic envelope.
 The same rule applies to imported `.km` files and unsaved editor documents.

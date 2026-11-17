@@ -113,7 +113,7 @@ Go values use `go/types` assignability, addressability, method-set, and constrai
 
 ### Recursive generic instantiations
 
-Development after v0.4.11 diagnoses unbounded generic instantiation during
+v0.4.12 diagnoses unbounded generic instantiation during
 `keika check`, including checks in the editor. For example, this does not reach
 Go emission:
 
@@ -226,7 +226,7 @@ Generated code preserves the corresponding Go zero value: numeric zero, `false`,
 | Missing map key | Plain safe-zero reads retain Go zeros; use checked lookup or a direct `??` default for value payloads |
 | Closed channel receive | Plain safe-zero reads retain Go behavior; use checked receive or a direct `??` default for value payloads |
 
-Development builds require a safe element zero value for nonempty `makeSlice`
+v0.4.12 builds require a safe element zero value for nonempty `makeSlice`
 and slice `make`, and for slice `clear`. Numbers, booleans, text, `T | null`,
 slices, maps and channels have valid zeros. Native structs, structural objects
 and fixed arrays require safe zeros in every stored field/element; a zero-length
@@ -251,7 +251,7 @@ After shortening a view, keep the original longer view if you need its full rang
 Safe-zero elements retain ordinary Go reslicing up to capacity. Fixed arrays
 remain fully initialized storage and retain their ordinary slicing behavior.
 
-Development builds type a one-value map read as `T | null` when `T` has a nil
+v0.4.12 builds type a one-value map read as `T | null` when `T` has a nil
 representation and its zero would violate a non-null contract: classes,
 pointers, interfaces and functions. Use a null guard, `??`, or an explicit `!`.
 The stored element type is unchanged: `Map<int, User>` still accepts only a
@@ -297,7 +297,7 @@ These checks preserve raw Go boundaries: a successful lookup can still contain
 a nil raw Go pointer/interface explicitly stored by Go. Success proves presence,
 not the behavior of foreign implementations.
 
-Development builds apply the same rule to `<-channel`: an unsafe-zero reference
+v0.4.12 builds apply the same rule to `<-channel`: an unsafe-zero reference
 has type `T | null`, while an unsafe record/array or unknown generic element
 requires `[value, open]`. A checked `select` binding likewise requires `open`
 before an unsafe payload can be read. Nullable payloads still need a null guard
@@ -345,7 +345,7 @@ Structural objects differ from native structs: their field-name/type set determi
 
 Function identity includes parameter order/types, variadic status, and result. A variadic `(prefix: int, ...values: int[]) => int` is not assignable to a function taking one ordinary `int[]` parameter.
 
-Development builds check named non-null source class, interface and function
+v0.4.12 builds check named non-null source class, interface and function
 parameters when entering a callable, including Go calls into exported functions
 or callbacks. A nil argument panics with its source parameter's filename, line
 and column before body effects. Constructor checks precede field initialization
@@ -371,7 +371,7 @@ argument to a matching call. An explicit `return first, second;` is also valid.
 Result lists cannot be stored as tuple values or mixed with additional call
 arguments. `Result<T>` remains a separate checked error effect.
 
-Development builds check non-null source references when forwarding an ordinary
+v0.4.12 builds check non-null source references when forwarding an ordinary
 result list or assigning it to existing bindings. The producer runs once; all
 required slot checks finish before returning values or writing any destination.
 If a later slot fails, earlier assignment targets retain their old values.
@@ -472,7 +472,7 @@ and `T[] | null` still work with unconstrained element types because the
 container itself has a nil representation. Use an explicit presence/result
 representation when arbitrary scalar or struct values may be absent.
 
-Development builds validate native non-null alternatives of mixed bounds at
+v0.4.12 builds validate native non-null alternatives of mixed bounds at
 parameter entry and value publication. A bound containing a callback and `int`
 rejects a nil callback supplied from Go while accepting integer zero. A bound
 containing a callback and a raw pointer preserves the pointer's nil contract.
@@ -492,7 +492,7 @@ The compiler tracks maybe-null, definitely-null, and non-null facts separately f
 
 Raw Go `nil` remains separate and is used at the low-level Go boundary.
 
-Development builds reject raw `nil` assignments and conversions to non-null
+v0.4.12 builds reject raw `nil` assignments and conversions to non-null
 source classes, native interfaces, source anonymous method contracts and source
 function signatures. Aliases, native defined function types and generic bounds
 retain that rule. For example, this is rejected:
@@ -510,7 +510,7 @@ interfaces and callback types, including aliases of those types, also retain
 Go's raw nil rules. Inferred Go values keep that behavior until consumed by a
 source non-null storage contract.
 
-Development builds insert a runtime reference check when an unproven nil-capable
+v0.4.12 builds insert a runtime reference check when an unproven nil-capable
 value is stored into a non-null source reference type. This covers explicit
 local/global bindings, assignments, field and explicitly typed aggregate
 initializers, single-value returns, each expression in a return list, `ok`
@@ -527,7 +527,7 @@ behavior. Interface checks preserve Go's distinction between a nil interface and
 an interface containing a typed nil pointer. Mixed generic contracts use the
 selective storage-kind checks described above.
 
-Development builds also check native non-null references when reading fields,
+v0.4.12 builds also check native non-null references when reading fields,
 collection elements, callback results and other storage whose current value is
 not proven. This protects source references inside aggregates supplied or
 modified by Go, including nested and cyclic data. A failed check panics with
@@ -575,7 +575,7 @@ The operand is evaluated once; an interface check concerns the interface
 itself, not a typed nil pointer it may contain. This does not validate arbitrary
 Go-owned mutable storage. See [assertions](./operators#assertions-and-conversions).
 
-Development builds also support `value ?? fallback`: the operand runs once,
+v0.4.12 builds also support `value ?? fallback`: the operand runs once,
 and a nil value evaluates the fallback. Direct map/receive expressions with
 non-nil-capable payloads instead use the success flag to select the fallback.
 A compatible non-null fallback
@@ -583,7 +583,7 @@ gives a non-null result; a nullable fallback retains `T | null`. This does not
 narrow the original binding or inspect typed nil pointees inside Go interfaces.
 See [null coalescing](./operators#null-coalescing).
 
-Development builds support optional chaining: `value?.member`,
+v0.4.12 builds support optional chaining: `value?.member`,
 `value?.[index]` and `callback?.(arguments)`. Each optional receiver is captured
 once. When it is nil, the remaining unparenthesized chain, index expressions
 and call arguments are skipped. An existing non-nil Go interface holding a
@@ -610,7 +610,7 @@ not assignment/address targets and do not narrow the original receiver.
 Narrowing applies to stable bindings and member paths only while the proof remains valid. Assignment, aliasing writes, address-taking, mutable capture, unknown effects, and control-flow joins may discard it. The declared `T | null` type does not change; only the current flow fact does.
 
 Loop checks include facts arriving from later iterations; a proof valid only
-on the first iteration does not make an access safe. Development after v0.4.11
+on the first iteration does not make an access safe. v0.4.12
 reuses completed nested-loop checks when their full entry state and enclosing
 analysis context are unchanged. This includes exception handlers, inferred
 arrows, constructors, field initializers, labels and captured writes. Diagnostics,
@@ -626,7 +626,7 @@ cost still depends on source size and the number of distinct flow states.
 
 `Result<void>` lowers to one `error`; `Result<T>` lowers to `(T, error)`. `Task<Result<T>>` retains both layers: `await` joins the worker, and the following `?` propagates the operation error. Neither form is an ordinary heap wrapper visible to Go callers.
 
-Development builds validate a forwarded `Result<T>` payload when its error is
+v0.4.12 builds validate a forwarded `Result<T>` payload when its error is
 nil and `T` requires a nil-comparable non-null source reference. The producer
 runs once. An invalid nil reports the forwarding expression's source location.
 Error results retain their payload and error values.
@@ -640,7 +640,7 @@ Task results and returns crossing try/finally.
 
 <<< ../snippets/result-boundaries.km{ts}
 
-When a split `Result<T>` payload has an unsafe or unknown zero value, development
+When a split `Result<T>` payload has an unsafe or unknown zero value, v0.4.12
 builds require a success check before using it. Check the matching local error
 binding against `nil`; an error declared as `error | null` also supports
 `=== null`. Early returns, short-circuit conditions and switches carry this
