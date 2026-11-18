@@ -440,9 +440,8 @@ Compatible `Result<T>`/`Result<void>` methods implement `(T, error)`/`error`
 returns, and variadic signatures must agree.
 
 This addition concerns source generic declarations, not direct imported Go
-generic calls. Native source interfaces still cannot be constraint operands
-(for example `constraint Named = LabelView`); direct source interface bounds
-are described below.
+generic calls. Direct source interface bounds and development-build constraint
+composition are described below.
 
 Use `&`, not a union, to combine method contracts:
 
@@ -482,10 +481,28 @@ Method parameters and results must match invariantly, including nested
 nullable, text and native type contracts; constraint checking does not insert
 implicit validation wrappers.
 
-Direct bounds (`T extends Reader<E>`) are supported. Source runtime interfaces
-are not yet operands in source type-set declarations such as
-`constraint C = Reader<int> & comparable`. Such combinations are diagnosed,
-not silently weakened.
+### Composing source interface contracts
+
+::: info Development build
+Named and method-only anonymous source interfaces can also be constraint
+operands, including generic aliases, forward references and reused constraints.
+:::
+
+<<< ../snippets/source-constraint-composition.km{ts}
+
+This prints `gold 4 true`. The composed contract retains source method names,
+properties, nullable/text signatures, Result effects, multiple results and
+variadics. Method matching remains structural; type-set and `comparable`
+requirements are checked as well. The same rules apply to generic owners,
+method-local parameters and instantiated function values.
+
+Use `&` to combine contracts. Methods with matching emitted Go names must have
+compatible source signatures; incompatible Result effects are rejected instead
+of selecting a contract by operand order. Properties combined from separate
+interfaces must retain identical getter/setter types. Go method operands keep
+their exported Go spelling and raw signatures. Nonpublic methods and unsupported
+Go signatures are diagnosed; raw Go generic method arguments still cannot erase
+source-only types after owner substitution.
 
 ### Reusing Go type sets
 
@@ -502,7 +519,8 @@ type sets using `&`.
 An explicit `comparable` requirement survives constraint reuse. It may be named
 on its own or combined with `&`, but cannot appear in a multi-term `|` union,
 including indirectly through an imported or source constraint. Empty
-intersections are errors. Native source interfaces are not constraint operands.
+intersections are errors. Development builds also allow source interface
+operands as described above.
 
 For example, an ordered type cannot also have boolean as its underlying type:
 

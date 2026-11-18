@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Compose named and method-only anonymous source interfaces with type sets,
+  `comparable`, other source constraints and compatible Go method contracts.
+  Preserve source member names, dependent inference, generic owner bounds,
+  properties, text/nullability and Result effects. Diagnose conflicting source
+  contracts and retain Go boundary checks after generic owner substitution.
+  Add independent Go execution comparisons, editor coverage and documentation.
+
 - Support source struct terms in generic constraints, including forward
   declarations, generic instances, aliases, dependent inference and inline
   generic method bounds. Preserve nullable and verified-text contracts through

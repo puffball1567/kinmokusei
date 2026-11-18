@@ -16,6 +16,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint C<E>=Reader<E>&comparable;interface Reader<E>{function read():E;}struct S{public function read():string{return "ok";}}function f<E,T extends C<E>>(v:T):E{return v.read();}const n:string=f(S{});`,
+	`class Item{}constraint C<E>=interface{read():E;}&comparable;struct S{public function read():Item|null{return null;}}function f<E,T extends C<E>>(v:T):E{return v.read();}const n:Item|null=f(S{});`,
+	`interface A{get value():int;}interface B{set value(v:string):void;}constraint C=A&B;`,
+	`interface Reader{function read():int;}constraint A=Reader&B;constraint B=A;`,
+	`constraint C<E>=Reader<E>&comparable;interface Reader<E>{function read():E;}struct Box<E>{public function f<T extends C<E>>(v:T):E{return v.read();}}`,
 	`constraint Boxes<E>=Box<E>;struct Box<E>{public value:E;}function keep<E,T extends Boxes<E>>(v:T):T{return v;}function f(v:Box<int>):Box<int>{return keep(v);}`,
 	`class User{}alias Wrapped<E>=Box<E>;constraint Boxes<E>=Wrapped<E>;struct Box<E>{public value:E;}function keep<E,T extends Boxes<E>>(v:T):T{return v;}function f(v:Box<User|null>):Box<User|null>{return keep(v);}`,
 	`constraint Rows=comparable&Node<int>;struct Node<E>{public next:Node<E[]>;}`,

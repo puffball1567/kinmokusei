@@ -35,16 +35,27 @@ func (c *Checker) sourceConstraintOperand(term ast.TypeSetTerm) (constraintOpera
 		return constraintOperand{}, true
 	}
 	operand := constraintOperand{methods: constraintMethods(contract), comparable: symbol.constraintComparable, valid: true}
+	bindings := make(nativeTypeBindings, len(symbol.typeParameters))
+	for i, argument := range ref.GenericArguments {
+		bindings[symbol.typeParameters[i].GoType] = c.resolveType(argument)
+	}
+	if symbol.constraintSourceMethods != nil {
+		operand.sourceMethods = substituteConstraintMethods(symbol.constraintSourceMethods, bindings)
+		for _, raw := range symbol.constraintRawMethods {
+			for _, method := range operand.methods {
+				if raw.Id() == method.Id() {
+					operand.rawMethods = append(operand.rawMethods, method)
+					break
+				}
+			}
+		}
+	}
 	if len(symbol.constraintTermTypes) == 0 {
 		return operand, true
 	}
 	union, ok := contract.EmbeddedType(0).(*gotypes.Union)
 	if !ok || union.Len() != len(symbol.constraintTermTypes) {
 		return constraintOperand{}, true
-	}
-	bindings := make(nativeTypeBindings, len(symbol.typeParameters))
-	for i, argument := range ref.GenericArguments {
-		bindings[symbol.typeParameters[i].GoType] = c.resolveType(argument)
 	}
 	terms := make([]*gotypes.Term, union.Len())
 	shapes := make([]Type, union.Len())

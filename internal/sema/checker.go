@@ -98,6 +98,7 @@ type Checker struct {
 	nativeInterfaceDeclarations     map[string]*ast.InterfaceDecl
 	nativeInterfaceAliases          map[string]ast.TypeRef
 	nativeInterfaceBounds           map[*gotypes.TypeParam]Type
+	nativeRawConstraintArguments    map[*gotypes.TypeParam][]Type
 	nativeInterfacesReady           bool
 	nativeInterfaceArgumentsReady   bool
 	pendingNativeInterfaceArguments []nativeInterfaceApplication
@@ -142,9 +143,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		goTypeExpressionMethods: map[source.Span]map[string]ast.CallableSignature{},
 		nativeTypeMethodSets:    map[source.Span]ast.NativeTypeMethodSet{},
 
-		nativeInterfaceDeclarations: map[string]*ast.InterfaceDecl{},
-		nativeInterfaceAliases:      map[string]ast.TypeRef{},
-		nativeInterfaceBounds:       map[*gotypes.TypeParam]Type{},
+		nativeInterfaceDeclarations:  map[string]*ast.InterfaceDecl{},
+		nativeInterfaceAliases:       map[string]ast.TypeRef{},
+		nativeInterfaceBounds:        map[*gotypes.TypeParam]Type{},
+		nativeRawConstraintArguments: map[*gotypes.TypeParam][]Type{},
 
 		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
@@ -177,6 +179,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareInterfaces(program)
 	c.nativeInterfacesReady = true
+	c.declareNativeConstraints(program)
 	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareClasses(program)
 	c.declareTopLevel(program)

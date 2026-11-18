@@ -268,6 +268,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"contextual-functions.test":           {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[25], implementedGoCompatibilityContracts[47]},
 	"struct-constraints.test":             {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[25], implementedGoCompatibilityContracts[26], implementedGoCompatibilityContracts[47]},
 	"source-interface-constraints.test":   {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[64], implementedGoCompatibilityContracts[72]},
+	"source-constraint-composition.test":  {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[64], implementedGoCompatibilityContracts[72], implementedGoCompatibilityContracts[93]},
 	"anonymous-bounds.test":               {implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47], implementedGoCompatibilityContracts[64], implementedGoCompatibilityContracts[72], implementedGoCompatibilityContracts[93]},
 	"typed-for.test":                      {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[28]},
 	"recursive-storage.test":              {implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[47]},

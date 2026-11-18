@@ -2,22 +2,22 @@ package sema
 
 import "github.com/puffball1567/kinmokusei/internal/ast"
 
-func (c *Checker) sourceConstraintStorageBoundDeferred(ref ast.TypeRef) bool {
+func (c *Checker) sourceConstraintBoundDeferred(ref ast.TypeRef) bool {
 	if ref.Qualifier != "" || ref.Nullable || ref.IsArray() || ref.IsPointer() || ref.IsFunction() || ref.IsObject() || ref.IsGoStruct() {
 		return false
 	}
 	if _, parameter := c.lookupTypeParameter(ref.Name); parameter {
 		return false
 	}
-	return c.sourceConstraintStorageDeferred(c.interfaces[ref.Name])
+	return c.sourceConstraintCompletionDeferred(c.interfaces[ref.Name])
 }
 
-// Source struct identities exist before their layouts. Delay constraints using
-// those layouts (also through aliases, dependent bounds and containers), then
-// install them before validating any early type applications. Never substitute
+// Source identities exist before their layouts and method contracts. Delay
+// constraints using those, including through aliases, bounds and containers.
+// Install them before validating any early type applications. Never substitute
 // an empty struct/interface for an unresolved source contract.
-func (c *Checker) sourceConstraintStorageDeferred(symbol *interfaceSymbol) bool {
-	if c.structGoTypesFinalized || symbol == nil || symbol.constraintDeclaration == nil {
+func (c *Checker) sourceConstraintCompletionDeferred(symbol *interfaceSymbol) bool {
+	if c.structGoTypesFinalized && c.nativeInterfacesReady || symbol == nil || symbol.constraintDeclaration == nil {
 		return false
 	}
 	type item struct {
@@ -52,6 +52,9 @@ func (c *Checker) sourceConstraintStorageDeferred(symbol *interfaceSymbol) bool 
 		current := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
 		ref := current.ref
+		if ref.GoInterface && !ref.Go && !c.nativeInterfacesReady {
+			return true
+		}
 		for _, child := range []*ast.TypeRef{ref.Element, ref.Pointee, ref.Return} {
 			if child != nil {
 				push(*child, current.shadow)
@@ -68,7 +71,7 @@ func (c *Checker) sourceConstraintStorageDeferred(symbol *interfaceSymbol) bool 
 		if ref.Qualifier != "" || ref.Name == "" || current.shadow[ref.Name] {
 			continue
 		}
-		if c.structs[ref.Name] != nil {
+		if !c.structGoTypesFinalized && c.structs[ref.Name] != nil || !c.nativeInterfacesReady && c.nativeInterfaceDeclarations[ref.Name] != nil {
 			return true
 		}
 		if seen[ref.Name] {

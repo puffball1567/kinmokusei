@@ -159,7 +159,7 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	if symbol == nil || symbol.goNamed == nil || symbol.goNamed.Underlying() != nil {
 		return
 	}
-	if c.sourceConstraintStorageDeferred(symbol) {
+	if c.sourceConstraintCompletionDeferred(symbol) {
 		return
 	}
 	decl := symbol.constraintDeclaration
@@ -182,6 +182,8 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	defer c.popTypeParameterScope()
 	var terms []*gotypes.Term
 	var methods []*gotypes.Func
+	var operands []constraintOperand
+	hasSourceMethods := false
 	restricted := false
 	valid := true
 	if !decl.Intersection && len(decl.Terms) > 100 {
@@ -194,6 +196,8 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 			valid = false
 			continue
 		}
+		operands = append(operands, operand)
+		hasSourceMethods = hasSourceMethods || operand.sourceMethods != nil
 		if !decl.Intersection && len(decl.Terms) > 1 && (!operand.restricted || len(operand.methods) != 0 || operand.comparable) {
 			c.report(term.Span, "constraint union operands must be type sets without method or comparable requirements; use '&' to compose interfaces")
 			valid = false
@@ -247,8 +251,17 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	if valid && symbol.constraintComparable {
 		embedded = append(embedded, gotypes.Universe.Lookup("comparable").Type())
 	}
+	if valid && hasSourceMethods {
+		var compatible bool
+		symbol.constraintSourceMethods, compatible = c.composeSourceConstraintMethods(decl, operands)
+		valid = valid && compatible
+		for _, operand := range operands {
+			symbol.constraintRawMethods = append(symbol.constraintRawMethods, operand.rawMethodContracts()...)
+		}
+	}
 	if !valid {
 		methods = nil
+		symbol.constraintSourceMethods = nil
 	}
 	constraint := gotypes.NewInterfaceType(methods, embedded)
 	constraint.Complete()
