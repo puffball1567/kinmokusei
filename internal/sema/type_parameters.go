@@ -108,15 +108,26 @@ func (c *Checker) finalizeDeferredTypeParameterConstraints(program *ast.Program)
 		}
 		c.completeNativeTypeParameterBounds(parameters, byName, inferredComparable, true)
 	}
+	completeMethods := func(methods []*ast.MethodDecl, owner map[string]Type) {
+		c.pushTypeParameterScope(owner)
+		defer c.popTypeParameterScope()
+		for _, method := range methods {
+			if scope := c.methodTypeParameters[method]; scope != nil {
+				c.completeNativeTypeParameterBounds(method.TypeParameters, scope, nil, true)
+			}
+		}
+	}
 	for _, declaration := range program.Declarations {
 		switch declaration := declaration.(type) {
 		case *ast.ClassDecl:
 			if symbol := c.classes[declaration.Name]; symbol != nil {
 				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+				completeMethods(declaration.Methods, symbol.typeParamScope)
 			}
 		case *ast.StructDecl:
 			if symbol := c.structs[declaration.Name]; symbol != nil {
 				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+				completeMethods(declaration.Methods, symbol.typeParamScope)
 			}
 		case *ast.InterfaceDecl:
 			if symbol := c.interfaces[declaration.Name]; symbol != nil {

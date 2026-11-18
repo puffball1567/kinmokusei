@@ -1,0 +1,18 @@
+import go { Println } from "fmt"
+
+constraint Boxes<E> = Box<E>
+
+struct Box<E> {
+  public value: E
+}
+
+function keep<E, T extends Boxes<E>>(value: T): T {
+  return value
+}
+
+const main = (): void => {
+  const original = Box<int>{ value: 7 }
+  const copied = keep(original)
+  original.value = 9
+  Println(copied.value, original.value)
+}

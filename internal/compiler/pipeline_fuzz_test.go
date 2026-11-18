@@ -16,6 +16,11 @@ import (
 )
 
 var pipelineFuzzSeeds = []string{
+	`constraint Boxes<E>=Box<E>;struct Box<E>{public value:E;}function keep<E,T extends Boxes<E>>(v:T):T{return v;}function f(v:Box<int>):Box<int>{return keep(v);}`,
+	`class User{}alias Wrapped<E>=Box<E>;constraint Boxes<E>=Wrapped<E>;struct Box<E>{public value:E;}function keep<E,T extends Boxes<E>>(v:T):T{return v;}function f(v:Box<User|null>):Box<User|null>{return keep(v);}`,
+	`constraint Rows=comparable&Node<int>;struct Node<E>{public next:Node<E[]>;}`,
+	`class User{}struct Row{public value:User|null;}constraint Rows=~{value:User};function keep<T extends Rows>(v:T):T{return v;}function f(v:Row):void{_=keep(v);}`,
+	`constraint A<B extends A<B>>=B|Row;struct Row{public n:int;}`,
 	`class C{public n:int=7;}struct Row{public item:C;}function f(rows:Row[]):int{return rows[0].item.n;}`,
 	`class C{public n:int=7;}function f(items:C[]):int{for(const item of items){return item.n;}return 0;}`,
 	`alias F=()=>int;struct Row{public callback:F;}function f(row:Row):int{return row.callback();}`,

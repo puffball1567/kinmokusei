@@ -173,6 +173,8 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.finalizeNativeStructGoTypes(program)
 	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
+	c.declareNativeConstraints(program)
+	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareInterfaces(program)
 	c.nativeInterfacesReady = true
 	c.finalizeDeferredTypeParameterConstraints(program)

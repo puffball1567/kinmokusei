@@ -1,0 +1,10 @@
+struct Box { public value: int }
+struct Other { public value: int }
+constraint Boxes = Box
+
+function keep<T extends Boxes>(value: T): T { return value }
+
+const main = (): void => {
+  // Matching fields do not make Other the same named type as Box.
+  const copied = keep(Other{ value: 7 })
+}

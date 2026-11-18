@@ -11,6 +11,13 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Support source struct terms in generic constraints, including forward
+  declarations, generic instances, aliases, dependent inference and inline
+  generic method bounds. Preserve nullable and verified-text contracts through
+  inference and structural record matching. Reject unresolved/cyclic value
+  storage before Go type-set checks, and retain diagnostics for recursive
+  comparable bounds. Add independent Go execution comparisons and editor tests.
+
 ## [0.4.12] - 2026-11-17
 
 - Infer generic function values from a destination function type, including
