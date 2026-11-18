@@ -75,6 +75,16 @@ func (c *Checker) recordParameterRangeShape(parameter *gotypes.TypeParam, ref as
 }
 
 func (c *Checker) constraintArgumentShape(value Type) Type {
+	if value.Kind == Struct {
+		if symbol := c.structs[value.Name]; symbol != nil {
+			shape := substituteNativeTypeParameters(symbol.typeInfo, nativeStructBindings(symbol, value))
+			shape.TypeArguments, shape.TypeParameters, shape.Generic = value.TypeArguments, value.TypeParameters, value.Generic
+			if value.GoType != nil {
+				shape.GoType = value.GoType
+			}
+			return shape
+		}
+	}
 	if value.Kind == TypeParameter {
 		if parameter, ok := value.GoType.(*gotypes.TypeParam); ok {
 			if shape, ok := c.parameterRangeShape(parameter); ok {
@@ -86,6 +96,9 @@ func (c *Checker) constraintArgumentShape(value Type) Type {
 		return value
 	}
 	if shape, ok := c.nativeDefinedShape(value); ok {
+		if shape.Kind == Struct {
+			return c.constraintArgumentShape(shape)
+		}
 		return shape
 	}
 	if shape, err := kinmokuseiTypeFromGo(value.GoType.Underlying()); err == nil {
@@ -118,7 +131,8 @@ func sameConstraintNullability(expected, actual Type) bool {
 	if (expected.Kind == Nullable) != (actual.Kind == Nullable) {
 		return false
 	}
-	if expected.Kind != actual.Kind {
+	records := (expected.Kind == Object || expected.Kind == Struct) && (actual.Kind == Object || actual.Kind == Struct)
+	if expected.Kind != actual.Kind && !records {
 		return true
 	}
 	for _, pair := range [][2]*Type{{expected.Element, actual.Element}, {expected.Key, actual.Key}, {expected.Result, actual.Result}} {
@@ -135,9 +149,21 @@ func sameConstraintNullability(expected, actual Type) bool {
 			}
 		}
 	}
-	if expected.Kind == Object {
+	if records && (expected.Kind == Object || actual.Kind == Object) {
+		fields := make(map[string]Type, len(actual.Fields))
+		for name, field := range actual.Fields {
+			goName := actual.FieldNames[name]
+			if goName == "" {
+				goName = name
+			}
+			fields[goName] = field
+		}
 		for name, field := range expected.Fields {
-			if other, ok := actual.Fields[name]; ok && !sameConstraintNullability(field, other) {
+			goName := expected.FieldNames[name]
+			if goName == "" {
+				goName = name
+			}
+			if other, ok := fields[goName]; ok && !sameConstraintNullability(field, other) {
 				return false
 			}
 		}

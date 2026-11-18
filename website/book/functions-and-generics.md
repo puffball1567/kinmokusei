@@ -329,9 +329,19 @@ function choose<T extends comparable>(value: T, fallback: T): T {
 
 `comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. A source declaration such as `constraint Numeric = ~int | ~float64` names a union of permitted types. Constraint references can be reused in other unions; overlapping terms and cycles are rejected.
 
-Constraint terms that need a source struct's value storage before it is finalized
-are currently diagnosed, including generic struct instances. Imported Go concrete
-types do not have this source declaration-order limitation.
+::: info Development build
+Source struct terms now support forward references, generic instances, aliases,
+and dependent inference, including generic method bounds.
+:::
+
+<<< ../snippets/struct-constraints.km{ts}
+
+This prints `7 9`. `Box<E>` is an exact named term; it does not accept a different
+struct with matching fields. Nullable and verified-text arguments are preserved
+when inferring `E`. Arrays and slices containing source structs can also appear
+in constraint terms. `~Box<int>` is invalid under Go's underlying-type rule.
+Field selection on a constrained type parameter remains unavailable; compose a
+method contract to expose operations, or use the concrete struct type.
 
 Recursive source bounds whose array/struct comparability depends on the same
 unresolved parameter are currently diagnosed. For example, with

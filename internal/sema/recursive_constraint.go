@@ -6,39 +6,15 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-// Source struct storage is finalized after source constraints. In particular,
-// asking an instance of an unfinished generic named type for its underlying
-// type panics in go/types. Diagnose the unsupported dependency before doing so.
+// Never ask Go predicates to expand unfinished or cyclic by-value storage.
+// Valid struct-dependent constraints finish after source layouts are installed;
+// malformed recursive storage must still be rejected before those predicates.
 func (c *Checker) rejectIncompleteConstraintTerm(term ast.TypeSetTerm, value gotypes.Type) bool {
-	if !incompleteConstraintValueType(value, map[gotypes.Type]bool{}) {
+	if comparableStorageReady(value, map[gotypes.Type]bool{}) {
 		return false
 	}
-	c.report(term.Span, "constraint term depends on a source value type whose storage is not yet resolved")
+	c.report(term.Span, "constraint term depends on source value storage that is unresolved or cyclic")
 	return true
-}
-
-func incompleteConstraintValueType(value gotypes.Type, seen map[gotypes.Type]bool) bool {
-	if value == nil || seen[value] {
-		return false
-	}
-	seen[value] = true
-	switch value := gotypes.Unalias(value).(type) {
-	case *gotypes.Named:
-		underlying := value.Origin().Underlying()
-		if underlying == nil {
-			return true
-		}
-		return incompleteConstraintValueType(value.Underlying(), seen)
-	case *gotypes.Array:
-		return incompleteConstraintValueType(value.Elem(), seen)
-	case *gotypes.Struct:
-		for i := 0; i < value.NumFields(); i++ {
-			if incompleteConstraintValueType(value.Field(i).Type(), seen) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // Do not ask go/types to compute array/struct comparability through a type

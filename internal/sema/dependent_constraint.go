@@ -58,7 +58,7 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 				deferred = true
 			}
 		})
-		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint)) {
+		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint) || c.sourceConstraintStorageBoundDeferred(*parameter.Constraint)) {
 			c.deferredParameterBounds[identity] = true
 			state[name] = 2
 			return
@@ -225,6 +225,7 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 				if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 					_ = c.inferNativeTypeArguments(shape, c.constraintArgumentShape(value), bindings)
 				}
+				c.inferNativeStructConstraintArguments(parameter.GoType.(*gotypes.TypeParam), value, bindings)
 			}
 		}
 		after := 0

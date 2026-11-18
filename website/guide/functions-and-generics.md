@@ -155,6 +155,32 @@ function equal<T extends comparable>(left: T, right: T): boolean {
 
 Slices, maps, and functions do not satisfy it. Source constraints can also name exact and underlying type sets, for example `constraint Integer = int | ~int64`. Generic constraints such as `constraint Slice<E> = ~E[]` support dependent bounds and inference. Constraint declarations are compile-time contracts, not runtime interface values.
 
+### Source struct terms
+
+::: info Development build
+Source structs can be exact constraint terms, including generic instances,
+aliases and forward references.
+:::
+
+<<< ../snippets/struct-constraints.km{ts}
+
+This prints `7 9`: returning a struct copies its value. `Boxes<E>` also lets
+inference recover `E`, preserving nullable and verified-text arguments. The
+same bounds work on generic types and method-local type parameters.
+
+A named term matches that type, not every struct with the same fields. Go's
+`~` rule also applies: `~Box<int>` is invalid because a named struct does not
+name its own underlying type. A different named struct fails the exact bound:
+
+<<< ../snippets-invalid/struct-constraints.km{ts}
+
+Field selection such as `value.value` on an abstract `T extends Boxes<E>` is
+not available. Add a method contract when generic code needs to inspect the
+value; a concrete `Box<int>` result supports ordinary field access as above.
+Recursive by-value storage and unresolved recursive comparability are rejected.
+
+### Composing constraints
+
 `constraint Narrow = A & B` restricts a type parameter to types shared by both
 source type sets. Use named intermediate constraints to combine unions and
 intersections; a single declaration cannot mix `|` and `&`.

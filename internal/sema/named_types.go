@@ -159,6 +159,9 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	if symbol == nil || symbol.goNamed == nil || symbol.goNamed.Underlying() != nil {
 		return
 	}
+	if c.sourceConstraintStorageDeferred(symbol) {
+		return
+	}
 	decl := symbol.constraintDeclaration
 	if decl == nil {
 		return

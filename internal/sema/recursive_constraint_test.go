@@ -53,17 +53,17 @@ func TestRecursiveComparableConstraintBoundary(t *testing.T) {
 	}
 }
 
-func TestUnresolvedSourceConstraintStorage(t *testing.T) {
+func TestSourceConstraintStorageCompletion(t *testing.T) {
 	t.Parallel()
-	for _, source := range []string{
-		`struct Holder<E>{value:E;}constraint Box<E>=comparable&Holder<E>;function use<A extends Box<A>>():void{}`,
-		`struct Holder<E>{value:E;}constraint Box<E>=Holder<E>;`,
-		`struct Holder{value:int;}constraint Box=comparable&Holder;`,
-		`struct Holder<E>{value:E;}constraint Box<E>=comparable&~[1]Holder<E>;`,
+	for _, test := range []struct{ source, want string }{
+		{`struct Holder<E>{value:E;}constraint Box<E>=comparable&Holder<E>;function use<A extends Box<A>>():void{}`, "recursive comparable type-set bound cannot be resolved"},
+		{`struct Holder<E>{value:E;}constraint Box<E>=Holder<E>;`, ""},
+		{`struct Holder{value:int;}constraint Box=comparable&Holder;`, ""},
+		{`struct Holder<E>{value:E;}constraint Box<E>=comparable&~[1]Holder<E>;`, ""},
 	} {
-		t.Run(source, func(t *testing.T) {
-			diagnostics := strings.Join(checkSource(t, source), "\n")
-			if !strings.Contains(diagnostics, "storage is not yet resolved") {
+		t.Run(test.source, func(t *testing.T) {
+			diagnostics := strings.Join(checkSource(t, test.source), "\n")
+			if test.want == "" && diagnostics != "" || test.want != "" && !strings.Contains(diagnostics, test.want) {
 				t.Fatalf("diagnostics=%s", diagnostics)
 			}
 		})
