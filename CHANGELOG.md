@@ -18,6 +18,11 @@ changes source/public APIs and requires the migration described below.
   storage before Go type-set checks, and retain diagnostics for recursive
   comparable bounds. Add independent Go execution comparisons and editor tests.
 
+- Accept a single call returning two integers as the length and capacity of
+  `make<Collection>` and `makeSlice<Element>` slice allocations. Preserve named
+  and generic slice types, evaluate the producer once, and retain Go's runtime
+  size checks and Kinmokusei's zero-value initialization rules.
+
 ## [0.4.12] - 2026-11-17
 
 - Infer generic function values from a destination function type, including

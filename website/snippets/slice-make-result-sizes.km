@@ -1,0 +1,14 @@
+import go { Println } from "fmt"
+
+type Numbers = distinct int[]
+
+function dimensions(): (int, int) {
+  return 2, 4
+}
+
+function main(): void {
+  const numbers = make<Numbers>(dimensions())
+  const values = makeSlice<int>(dimensions())
+  Println(len(numbers), cap(numbers))
+  Println(len(values), cap(values))
+}

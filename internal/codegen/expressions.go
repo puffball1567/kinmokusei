@@ -205,6 +205,10 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 				}
 				arguments[index] = generated
 			}
+			if expr.MultipleArgumentCount == 2 {
+				// Bind the producer's results together so it runs exactly once.
+				return orderedSliceMake(collectionType, arguments), nil
+			}
 			if expr.Builtin != kinmokuseiAST.MakeMapCall && len(arguments) == 2 {
 				// Evaluate size expressions in source order before invoking Go's make
 				// intrinsic so behavior does not vary between Go toolchains.
@@ -213,7 +217,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 						arguments[index] = &goast.CallExpr{Fun: goast.NewIdent("int"), Args: []goast.Expr{arguments[index]}}
 					}
 				}
-				return orderedSliceMake(collectionType, arguments[0], arguments[1]), nil
+				return orderedSliceMake(collectionType, arguments), nil
 			}
 			args := append([]goast.Expr{collectionType}, arguments...)
 			return &goast.CallExpr{Fun: goast.NewIdent("make"), Args: args}, nil
