@@ -58,7 +58,7 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 				deferred = true
 			}
 		})
-		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint) || c.sourceConstraintStorageBoundDeferred(*parameter.Constraint)) {
+		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint) || c.sourceConstraintBoundDeferred(*parameter.Constraint)) {
 			c.deferredParameterBounds[identity] = true
 			state[name] = 2
 			return

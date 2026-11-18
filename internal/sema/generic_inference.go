@@ -384,6 +384,13 @@ func (c *Checker) substituteNativeMethodOwnerTypeParameters(value Type, bindings
 			if sourceBound, source := c.nativeInterfaceBounds[parameter.GoType.(*gotypes.TypeParam)]; source {
 				c.nativeInterfaceBounds[methodParameters[i].GoType.(*gotypes.TypeParam)] = substituteNativeTypeParameters(sourceBound, native)
 			}
+			if arguments := c.nativeRawConstraintArguments[parameter.GoType.(*gotypes.TypeParam)]; len(arguments) != 0 {
+				instantiated := make([]Type, len(arguments))
+				for j, argument := range arguments {
+					instantiated[j] = substituteNativeTypeParameters(argument, native)
+				}
+				c.nativeRawConstraintArguments[methodParameters[i].GoType.(*gotypes.TypeParam)] = instantiated
+			}
 			if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 				c.setParameterRangeShape(methodParameters[i].GoType.(*gotypes.TypeParam), substituteNativeTypeParameters(shape, native))
 			}

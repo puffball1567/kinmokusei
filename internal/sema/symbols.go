@@ -103,18 +103,20 @@ type structSymbol struct {
 }
 
 type interfaceSymbol struct {
-	constraintDeclaration *ast.InterfaceDecl
-	constraintResolving   bool
-	constraintValid       bool
-	constraintTermTypes   []Type
-	constraintComparable  bool
-	methods               map[string]methodSymbol
-	bases                 []Type
-	typeParameters        []Type
-	typeParamScope        map[string]Type
-	declarationSpan       source.Span
-	goNamed               *gotypes.Named
-	constraint            bool
+	constraintDeclaration   *ast.InterfaceDecl
+	constraintResolving     bool
+	constraintValid         bool
+	constraintTermTypes     []Type
+	constraintComparable    bool
+	constraintSourceMethods map[string]methodSymbol
+	constraintRawMethods    []*gotypes.Func
+	methods                 map[string]methodSymbol
+	bases                   []Type
+	typeParameters          []Type
+	typeParamScope          map[string]Type
+	declarationSpan         source.Span
+	goNamed                 *gotypes.Named
+	constraint              bool
 }
 
 type nativeTypeSymbol struct {

@@ -60,6 +60,7 @@ func (c *Checker) initializerChecker() *Checker {
 		nativeInterfaceDeclarations:   c.nativeInterfaceDeclarations,
 		nativeInterfaceAliases:        c.nativeInterfaceAliases,
 		nativeInterfaceBounds:         c.nativeInterfaceBounds,
+		nativeRawConstraintArguments:  c.nativeRawConstraintArguments,
 		nativeInterfacesReady:         c.nativeInterfacesReady,
 		nativeInterfaceArgumentsReady: c.nativeInterfaceArgumentsReady,
 

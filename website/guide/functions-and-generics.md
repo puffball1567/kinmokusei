@@ -221,10 +221,32 @@ results, variadics and nullable parameter/result contracts remain checked.
 Private, static and generic methods do not count; pointer-only struct methods
 require a pointer argument. A nullable receiver must be narrowed first.
 
-Direct bounds such as `T extends Reader<E>` are supported. Combining a source
-runtime interface into `constraint C = Reader<int> & comparable` remains
-unsupported. See the [manual](../book/functions-and-generics#source-interface-bounds)
-for the Go-interoperability boundary.
+See the [manual](../book/functions-and-generics#source-interface-bounds) for
+the Go-interoperability boundary.
+
+### Composed interface bounds
+
+::: info Development build
+Named and method-only anonymous source interfaces can be operands in
+`constraint` declarations, alongside type sets, `comparable` and Go interfaces.
+:::
+
+<<< ../snippets/source-constraint-composition.km{ts}
+
+This prints `gold 4 true`. `Readable<E>` requires both the source `read()`
+contract and comparability. `Tagged<E>` reuses it and adds an anonymous method
+contract. The compiler preserves verified text and nullable types while
+inferring `E`; generic method bounds and getters/setters work too.
+
+Use `&` for method contracts; a multi-term `|` union cannot contain them.
+Repeated methods must agree on their source contracts, including Result
+effects. Matching Go storage alone does not make conflicting contracts valid:
+
+<<< ../snippets-invalid/source-constraint-composition.km{ts}
+
+Go operands retain exported Go member names and their interop restrictions.
+Source-only argument shapes in raw Go generic method contracts remain rejected,
+including after specializing a generic method's owner.
 
 ### Anonymous interface bounds
 
@@ -247,8 +269,8 @@ names; bound-method references support definition lookup and rename.
 
 An imported Go method can satisfy the bound only if its source-visible signature
 matches. For example, Go `String() string` matches `String(): bstring`, not
-`String(): string`. Anonymous interface operands in `constraint` type-set
-composition remain unsupported; use a direct `extends interface { ... }` bound.
+`String(): string`. Development builds also support these anonymous interfaces
+in [composed bounds](#composed-interface-bounds).
 Anonymous getter/setter or embedded-interface entries are not part of this form.
 
 ## Generic named types

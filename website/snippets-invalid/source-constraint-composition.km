@@ -1,0 +1,6 @@
+class Item {}
+interface Required { function read(): Item }
+interface Optional { function read(): Item | null }
+
+// The signatures share Go storage, but disagree on their source contract.
+constraint Both = Required & Optional

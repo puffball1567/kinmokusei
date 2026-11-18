@@ -36,7 +36,7 @@ func TestSourceInterfaceConstraints(t *testing.T) {
 		{"multiple results", `interface Reader{function read():(int,bstring);}struct S{public function read():(int,bstring){return 1,b"x";}}function use<T extends Reader>(v:T):(int,bstring){return v.read();}function call():(int,bstring){return use(S{});}`, ""},
 		{"dependent method conflict", `interface Reader<E>{function read():E;function write(v:E):void;}struct S{public function read():string{return "ok";}public function write(v:bstring):void{}}function use<E,T extends Reader<E>>(v:T):E{return v.read();}const n=use(S{});`, "cannot infer"},
 		{"invariant nullable argument", `class Item{}interface Reader{function write(v:Item|null):void;}struct S{public function write(v:Item):void{}}function use<T extends Reader>(v:T):T{return v;}const n=use(S{});`, "does not satisfy"},
-		{"composition remains diagnosed", `interface Reader{function read():int;}constraint Combined=Reader&comparable;`, "constraint"},
+		{"composition", `interface Reader{function read():int;}constraint Combined=Reader&comparable;`, ""},
 		{"generated method collision", `interface Reader{function read():int;function Read():int;}function use<T extends Reader>(v:T):int{return v.read();}`, "conflicting Go method name"},
 		{"generated accessor collision", `interface Reader{get value():int;function getValue():int;}function use<T extends Reader>(v:T):int{return v.value;}`, "conflicting Go method name"},
 		{"recursive source bound", `interface Equal<E>{function same(v:E):boolean;}function use<T extends Equal<T>>(v:T):boolean{return v.same(v);}`, ""},
