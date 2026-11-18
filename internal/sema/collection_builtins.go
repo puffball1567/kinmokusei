@@ -356,9 +356,16 @@ func (c *Checker) checkMakeSizeArguments(expr *ast.CallExpr, name string, minimu
 	if len(expr.Arguments) < minimum || len(expr.Arguments) > maximum {
 		c.report(expr.Span, fmt.Sprintf("%s expects between %d and %d size arguments, got %d", name, minimum, maximum, len(expr.Arguments)))
 	}
+	expr.MultipleArgumentCount = 0
 	expr.IntegerSizeArguments = make([]bool, len(expr.Arguments))
 	for index, argument := range expr.Arguments {
-		value := c.singleValue(c.checkExpression(argument), argument.GetSpan())
+		value := c.checkExpression(argument)
+		_, call := argument.(*ast.CallExpr)
+		if call && maximum == 2 && len(expr.Arguments) == 1 && !expr.Expanded && value.Kind == MultiValue {
+			c.checkSliceSizeResults(expr, name, value.Results)
+			return
+		}
+		value = c.singleValue(value, argument.GetSpan())
 		integer := c.isIntegerContext(argument, value)
 		expr.IntegerSizeArguments[index] = integer && !value.IsInteger()
 		if value.Kind != Invalid && !integer {
@@ -370,6 +377,20 @@ func (c *Checker) checkMakeSizeArguments(expr *ast.CallExpr, name string, minimu
 			} else if !c.integerConstantFitsFixedType(constant, builtins["int"]) {
 				c.report(argument.GetSpan(), fmt.Sprintf("%s size is out of range", name))
 			}
+		}
+	}
+}
+
+func (c *Checker) checkSliceSizeResults(expr *ast.CallExpr, name string, results []Type) {
+	span := expr.Arguments[0].GetSpan()
+	if len(results) != 2 {
+		c.report(span, fmt.Sprintf("%s expects two results for length and capacity, got %d", name, len(results)))
+		return
+	}
+	expr.MultipleArgumentCount = len(results)
+	for i, result := range results {
+		if result.Kind != Invalid && !result.IsInteger() {
+			c.report(span, fmt.Sprintf("%s size result %d must be an integer, got %s", name, i+1, result.String()))
 		}
 	}
 }

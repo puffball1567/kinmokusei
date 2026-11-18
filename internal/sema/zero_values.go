@@ -127,8 +127,10 @@ func (c *Checker) checkZeroSliceAllocation(name string, expr *ast.CallExpr, elem
 	if len(expr.Arguments) == 0 || safe {
 		return
 	}
-	if length, known := c.integerContextValue(expr.Arguments[0]); known && length.Sign() == 0 {
-		return
+	if expr.MultipleArgumentCount == 0 {
+		if length, known := c.integerContextValue(expr.Arguments[0]); known && length.Sign() == 0 {
+			return
+		}
 	}
 	c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s cannot initialize elements of %s with their zero value; use a nullable element type or length 0 and append initialized values", name, element.String()))
 }
