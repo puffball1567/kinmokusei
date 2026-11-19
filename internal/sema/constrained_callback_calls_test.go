@@ -9,6 +9,14 @@ func TestConstrainedCallbackCalls(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct{ name, source, want string }{
 		{"dependent callback", `alias Callback<E>=(v:E)=>E;constraint C<E>=~Callback<E>;function run<E,F extends C<E>>(fn:F,v:E):E{return fn(v);}`, ""},
+		{"dependent verified result", `alias Reader<E>=()=>E;constraint C<E>=~Reader<E>;function read<E,F extends C<E>>(fn:F):E{return fn();}function run(fn:Reader<string>):string{return read(fn);}`, ""},
+		{"dependent nullable result", `class Item{}alias Reader<E>=()=>E;constraint C<E>=~Reader<E>;function read<E,F extends C<E>>(fn:F):E{return fn();}function run(fn:Reader<Item|null>):Item|null{return read(fn);}`, ""},
+		{"dependent variadic input", `alias Sink<E>=(...values:E[])=>void;constraint C<E>=~Sink<E>;function write<E,F extends C<E>>(fn:F):void{fn();}function run(fn:Sink<string>):void{write(fn);}`, ""},
+		{"dependent nullable Result payload", `class Item{}alias Reader=()=>Result<Item|null>;constraint C<E>=~()=>Result<E>;function read<E,F extends C<E>>(fn:F):Result<E>{return fn();}function run(fn:Reader):Result<Item|null>{return read(fn);}`, ""},
+		{"dependent generic named callback", `type Reader<T>=distinct ()=>T;constraint C<E>=~()=>E;function read<E,F extends C<E>>(fn:F):E{return fn();}function run(fn:Reader<int>):int{return read(fn);}`, ""},
+		{"dependent forwarded callback", `alias Reader<E>=()=>E;constraint C<E>=~Reader<E>;function read<E,F extends C<E>>(fn:F):E{return fn();}function forward<A,G extends C<A>>(fn:G):A{return read(fn);}function run(fn:Reader<string>):string{return forward(fn);}`, ""},
+		{"dependent conflicting source arguments", `alias Reader<E>=()=>E;constraint C<E>=~Reader<E>;function read<E,F extends C<E>>(fn:F,value:E):E{return fn();}function run(fn:Reader<string>,raw:bstring):bstring{return read(fn,raw);}`, "type parameter constraint"},
+		{"dependent Result versus raw pair", `constraint C<E>=~()=>Result<E>;function read<E,F extends C<E>>(fn:F):Result<E>{return fn();}function run(fn:()=>(int,error)):Result<int>{return read(fn);}`, "type parameter constraint"},
 		{"named union", `type A=distinct (v:int)=>int;type B=distinct (other:int)=>int;constraint C=A|B;function run<F extends C>(fn:F):int{return fn(7);}`, ""},
 		{"nullable parameter and result", `class Item{}alias Callback=(v:Item|null)=>Item|null;constraint C=~Callback;function run<F extends C>(fn:F):Item|null{return fn(null);}`, ""},
 		{"nullable callback must be narrowed", `alias Callback=(v:int)=>int;constraint C=~Callback;function run<F extends C>(fn:F|null):int{if(fn===null){return 0;}return fn(7);}`, ""},

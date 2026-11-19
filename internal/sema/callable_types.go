@@ -1,6 +1,9 @@
 package sema
 
-import gotypes "go/types"
+import (
+	gotypes "go/types"
+	"maps"
+)
 
 // Check source success payloads before Go storage comparison can erase nullable
 // qualifiers. The normal assignability check still enforces named identity.
@@ -87,4 +90,33 @@ func (c *Checker) constrainedCallableType(value Type) (Type, bool) {
 		return Type{}, false
 	}
 	return callable, true
+}
+
+// Infer dependent arguments from the common callback signature before Go's
+// storage inference drops source qualifiers from its parameters and results.
+func (c *Checker) inferNativeCallableConstraintArguments(parameter, value Type, bindings nativeTypeBindings) {
+	actual := c.callableType(value)
+	if value.Kind == TypeParameter {
+		actual, _ = c.constrainedCallableType(value)
+	}
+	if actual.Kind != Function {
+		return
+	}
+	formal, ok := c.constrainedCallableType(parameter)
+	if !ok {
+		return
+	}
+	trial := maps.Clone(bindings)
+	if c.inferNativeTypeArguments(formal, actual, trial) != nil {
+		return
+	}
+	resolved := substituteNativeTypeParameters(formal, trial)
+	if !sameComposedMethodContract(resolved, actual) {
+		return
+	}
+	left, leftOK := c.goTypeForNativeStorage(resolved)
+	right, rightOK := c.goTypeForNativeStorage(actual)
+	if leftOK && rightOK && gotypes.Identical(left, right) {
+		maps.Copy(bindings, trial)
+	}
 }
