@@ -49,13 +49,12 @@ alias Maybe=Item|null;
 class First<E>{public function get<S extends Slices<E>>(xs:S):E{return xs[0];}}
 export function Objects():int[]{const item=new Item(42);const xs:Maybe[]=[null];replace<Maybe,Maybe[]>(xs,item);const value=new First<Maybe>().get<Maybe[]>(xs);let identity=0;let result=0;if(value===item){identity=1;}if(value!==null){result=value.value;}replace<Maybe,Maybe[]>(xs,null);let empty=0;if(new First<Maybe>().get<Maybe[]>(xs)===null){empty=1;}return [result,identity,empty];}
 export function Nil():void{const xs:int[]=nil;replace(xs,1);}
-function keepCallback<E,F extends Unary<E>>(fn:F):F{return fn;}
+function invoke<E,F extends Unary<E>>(fn:F,value:E):E{return fn(value);}
 function keepRow<E,R extends PlainRow<E>>(row:R):R{return row;}
 export function Structural(n:int):int[]{
  const increment:Callback<int>=(v:int):int=>v+1;
- const fn=keepCallback<int,Callback<int>>(increment);
  const row=keepRow<int,Cell<int>>(Cell<int>{value:n});
- return [fn(row.value),row.value];
+ return [invoke<int,Callback<int>>(increment,row.value),row.value];
 }
 `,
 	}
@@ -92,9 +91,9 @@ type unary[E any]interface{callbacks[E];~func(E)E}
 type rows[E any]interface{~struct{Value E ` + "`json:\"value\"`" + `}|~struct{Detail int ` + "`json:\"detail\"`" + `;Value E ` + "`json:\"value\"`" + `}}
 type plainRow[E any]interface{rows[E];~struct{Value E ` + "`json:\"value\"`" + `}}
 type cell[E any]struct{Value E ` + "`json:\"value\"`" + `}
-func keepCallback[E any,F unary[E]](fn F)F{return fn}
+func invoke[E any,F unary[E]](fn F,value E)E{return fn(value)}
 func keepRow[E any,R plainRow[E]](row R)R{return row}
-func Structural(n int)[]int{increment:=func(v int)int{return v+1};fn:=keepCallback[int](increment);row:=keepRow[int](cell[int]{n});return []int{fn(row.Value),row.Value}}
+func Structural(n int)[]int{increment:=func(v int)int{return v+1};row:=keepRow[int](cell[int]{n});return []int{invoke[int](increment,row.Value),row.Value}}
 `
 	comparison := `package intersections_test
 import("testing";"reflect";g "parameter-intersections.test";r "parameter-intersections.test/reference")

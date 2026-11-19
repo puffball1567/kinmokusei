@@ -277,12 +277,16 @@ func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs
 				}
 				shape, hasShape := c.parameterRangeShape(parameter)
 				matchesShape := !hasShape || sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index]))
-				if !matchesShape || !c.collectionArgumentNullabilityMatches(parameter, arguments[index], nativeBindings) {
+				mismatch := c.constraintArgumentContractMismatch(parameter, arguments[index], nativeBindings)
+				if !matchesShape {
+					mismatch = constraintNullabilityMismatch
+				}
+				if mismatch != "" {
 					span := fallback
 					if index < len(refs) {
 						span = refs[index].Span
 					}
-					c.report(span, fmt.Sprintf("nullable type information does not match %s type parameter constraint for %s", parameters[index].Name, owner))
+					c.report(span, fmt.Sprintf("%s does not match %s type parameter constraint for %s", mismatch, parameters[index].Name, owner))
 					valid = false
 					continue
 				}

@@ -194,6 +194,17 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 		callable = *callable.Element
 	}
 	callable = c.callableType(callable)
+	if callable.Kind == TypeParameter {
+		if signature, valid := c.constrainedCallableType(callable); valid {
+			callable = signature
+		} else {
+			c.report(expr.Callee.GetSpan(), "calling a type parameter requires a common function signature and matching source contracts")
+			for _, argument := range expr.Arguments {
+				c.checkExpression(argument)
+			}
+			return Type{Kind: Invalid, Name: "<invalid>"}
+		}
+	}
 	if callable.Kind != Function || callable.Result == nil {
 		c.report(expr.Callee.GetSpan(), fmt.Sprintf("%s is not callable", callableName))
 		for _, arg := range expr.Arguments {

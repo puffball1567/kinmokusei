@@ -254,7 +254,7 @@ func (c *Checker) textContractTypeArguments(parameters []Type, bindings nativeTy
 		}
 		if goParameter, ok := parameter.GoType.(*gotypes.TypeParam); ok {
 			shape, hasShape := c.parameterRangeShape(goParameter)
-			if hasShape && !sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index])) || !c.collectionArgumentNullabilityMatches(goParameter, arguments[index], nativeBindings) {
+			if hasShape && !sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index])) || c.constraintArgumentContractMismatch(goParameter, arguments[index], nativeBindings) != "" {
 				return nil, false
 			}
 		}

@@ -74,10 +74,9 @@ func (c *Checker) setParameterCollectionTerms(parameter *gotypes.TypeParam, term
 	c.parameterCollectionTerms[parameter] = terms
 }
 
-// A mixed collection bound must not accept a nullable element merely because
-// its Go representation is the same as the non-nullable element it promises.
+// Terms with identical Go storage must agree on the checked source contract.
 // Go satisfaction remains responsible for storage/type-set membership.
-func (c *Checker) collectionArgumentNullabilityMatches(parameter *gotypes.TypeParam, argument Type, bindings nativeTypeBindings) bool {
+func (c *Checker) constraintArgumentContractMismatch(parameter *gotypes.TypeParam, argument Type, bindings nativeTypeBindings) string {
 	expected := c.collectionTerms(parameter)
 	actual := []Type{argument}
 	if other, ok := argument.GoType.(*gotypes.TypeParam); argument.Kind == TypeParameter && ok {
@@ -89,18 +88,20 @@ func (c *Checker) collectionArgumentNullabilityMatches(parameter *gotypes.TypePa
 		if !ok {
 			continue
 		}
-		matched, compatible := false, false
+		var mismatch string
 		for _, term := range expected {
 			shape := c.constraintArgumentShape(substituteNativeTypeParameters(term, bindings))
 			other, ok := c.goTypeForNativeStorage(shape)
 			if ok && gotypes.Identical(storage.Underlying(), other.Underlying()) {
-				matched = true
-				compatible = compatible || sameConstraintNullability(shape, value)
+				mismatch = constraintTermMismatch(shape, value)
+				if mismatch == "" {
+					break
+				}
 			}
 		}
-		if matched && !compatible {
-			return false
+		if mismatch != "" {
+			return mismatch
 		}
 	}
-	return true
+	return ""
 }

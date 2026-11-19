@@ -47,8 +47,10 @@ func (c *Checker) intersectConstraintTerms(left []*gotypes.Term, leftShapes []Ty
 		terms, shapes := left, leftShapes
 		for i, a := range left {
 			for j, b := range right {
-				if a.Tilde() == b.Tilde() && gotypes.Identical(a.Type(), b.Type()) && !sameConstraintNullability(c.constraintArgumentShape(leftShapes[i]), c.constraintArgumentShape(rightShapes[j])) {
-					return terms, shapes, "constraint intersection has incompatible nullable source types"
+				if a.Tilde() == b.Tilde() && gotypes.Identical(a.Type(), b.Type()) {
+					if problem := c.constraintIntersectionContractProblem(leftShapes[i], rightShapes[j]); problem != "" {
+						return terms, shapes, problem
+					}
 				}
 			}
 		}
@@ -67,8 +69,8 @@ func (c *Checker) intersectConstraintTerms(left []*gotypes.Term, leftShapes []Ty
 				}
 				continue
 			}
-			if !sameConstraintNullability(c.constraintArgumentShape(leftShapes[i]), c.constraintArgumentShape(rightShapes[j])) {
-				problem = "constraint intersection has incompatible nullable source types"
+			if mismatch := c.constraintIntersectionContractProblem(leftShapes[i], rightShapes[j]); mismatch != "" {
+				problem = mismatch
 			}
 			term, shape := a, leftShapes[i]
 			if a.Tilde() && !b.Tilde() {
@@ -79,6 +81,16 @@ func (c *Checker) intersectConstraintTerms(left []*gotypes.Term, leftShapes []Ty
 		}
 	}
 	return terms, shapes, problem
+}
+
+func (c *Checker) constraintIntersectionContractProblem(left, right Type) string {
+	switch constraintTermMismatch(c.constraintArgumentShape(left), c.constraintArgumentShape(right)) {
+	case constraintNullabilityMismatch:
+		return "constraint intersection has incompatible nullable source types"
+	case constraintResultMismatch:
+		return "constraint intersection has incompatible callback Result effects"
+	}
+	return ""
 }
 
 func sameConstraintTermSet(left, right []*gotypes.Term) bool {
