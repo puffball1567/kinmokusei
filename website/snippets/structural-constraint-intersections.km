@@ -21,7 +21,6 @@ function keepRow<E, R extends ValueOnly<E>>(row: R): R {
 }
 
 function main(): void {
-  const double: Unary<int> = (value: int): int => value * 2
   const cell = keepRow<int, Cell<int>>(Cell<int>{ value: 7 })
-  Println(invoke(double, cell.value), cell.value)
+  Println(invoke((value) => value * 2, cell.value), cell.value)
 }

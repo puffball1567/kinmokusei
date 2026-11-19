@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Use a callback constraint's common signature to infer inline arrow parameter
+  types and instantiate generic function arguments. Preserve source contracts
+  and check that the resulting callback satisfies the full constraint.
+
 - Infer dependent type arguments from a callback bound's common signature.
   Preserve verified text, nullable references and `Result` payloads when the
   callback's parameters or results supply the type.

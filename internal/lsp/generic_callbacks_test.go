@@ -10,6 +10,7 @@ func TestGenericCallbackInferredParameterNavigation(t *testing.T) {
 	t.Parallel()
 	for _, input := range []string{
 		`function apply<T>(v:T,f:(x:T)=>T):T{return f(v);} const run=()=>apply(2,(value)=>value*2);`,
+		`constraint Callback<T>=~(x:T)=>T; function apply<T,F extends Callback<T>>(f:F,v:T):T{return f(v);} const run=()=>apply((value)=>value*2,2);`,
 		`import go { IndexFunc } from "slices"; const run=()=>IndexFunc([1,2],(value)=>value==2);`,
 	} {
 		path := filepath.Join(t.TempDir(), "callbacks.km")

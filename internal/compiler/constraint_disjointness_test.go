@@ -20,6 +20,8 @@ type Storage[E any] interface{~[]E|~[2]E|~map[string]E}
 type Sequence[E any] interface{~[]E|~[3]E}
 type Slice[E any] interface{Storage[E];Sequence[E]}
 type Callbacks[E any] interface{~func(E)E|~func(E,int)E}
+type Unary[E any] interface{Callbacks[E];~func(E)E}
+func Apply[E any,F Unary[E]](fn F,value E)E{return fn(value)}
 `,
 		"bounds.km": `import go contracts from "parameter-intersections.test/contracts";
 export constraint Slice<E>=contracts.Storage<E>&contracts.Sequence<E>;
@@ -36,7 +38,7 @@ export constraint PlainRow<E>=Rows<E>&~{value:E};
 export struct Cell<E>{public value:E;}
 `,
 		"bridge.km": `export {Slice as Slices,Array,Mapping,Exact,Named,Unary,Callback,PlainRow,Cell} from "./bounds";`,
-		"entry.km": `import {Slices,Array,Mapping,Exact,Named,Unary,Callback,PlainRow,Cell} from "./bridge";
+		"entry.km": `import {Slices,Array,Mapping,Exact,Named,Unary,PlainRow,Cell} from "./bridge";
 import go contracts from "parameter-intersections.test/contracts";
 function replace<E,S extends Slices<E>>(xs:S,value:E):S{xs[0]=value;return xs;}
 function imported<E,S extends contracts.Slice<E>>(xs:S):E{return xs[0];}
@@ -52,9 +54,8 @@ export function Nil():void{const xs:int[]=nil;replace(xs,1);}
 function invoke<E,F extends Unary<E>>(fn:F,value:E):E{return fn(value);}
 function keepRow<E,R extends PlainRow<E>>(row:R):R{return row;}
 export function Structural(n:int):int[]{
- const increment:Callback<int>=(v:int):int=>v+1;
  const row=keepRow<int,Cell<int>>(Cell<int>{value:n});
- return [invoke<int,Callback<int>>(increment,row.value),row.value];
+ return [invoke((v)=>v+1,row.value),contracts.Apply((v)=>v*2,row.value),row.value];
 }
 `,
 	}
@@ -93,7 +94,7 @@ type plainRow[E any]interface{rows[E];~struct{Value E ` + "`json:\"value\"`" + `
 type cell[E any]struct{Value E ` + "`json:\"value\"`" + `}
 func invoke[E any,F unary[E]](fn F,value E)E{return fn(value)}
 func keepRow[E any,R plainRow[E]](row R)R{return row}
-func Structural(n int)[]int{increment:=func(v int)int{return v+1};row:=keepRow[int](cell[int]{n});return []int{invoke[int](increment,row.Value),row.Value}}
+func Structural(n int)[]int{row:=keepRow[int](cell[int]{n});return []int{invoke(func(v int)int{return v+1},row.Value),invoke(func(v int)int{return v*2},row.Value),row.Value}}
 `
 	comparison := `package intersections_test
 import("testing";"reflect";g "parameter-intersections.test";r "parameter-intersections.test/reference")
