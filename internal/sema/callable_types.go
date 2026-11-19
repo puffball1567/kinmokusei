@@ -48,3 +48,43 @@ func (c *Checker) callableType(value Type) Type {
 	}
 	return value
 }
+
+// Go permits a type-parameter call when its type set has one underlying
+// signature. Use the source terms to recover contracts absent from Go storage.
+func (c *Checker) constrainedCallableType(value Type) (Type, bool) {
+	parameter, ok := value.GoType.(*gotypes.TypeParam)
+	if !ok {
+		return Type{}, false
+	}
+	var callable Type
+	var signature *gotypes.Signature
+	for _, term := range c.collectionTerms(parameter) {
+		shape := c.callableType(term)
+		if shape.Kind != Function || shape.Result == nil {
+			return Type{}, false
+		}
+		storage, ok := c.constraintTermStorage(shape)
+		if !ok {
+			return Type{}, false
+		}
+		underlying, ok := storage.Underlying().(*gotypes.Signature)
+		if !ok {
+			return Type{}, false
+		}
+		if signature == nil {
+			callable, signature = shape, underlying
+		} else if !gotypes.Identical(signature, underlying) || !sameComposedMethodContract(callable, shape) {
+			return Type{}, false
+		}
+	}
+	if signature == nil {
+		return Type{}, false
+	}
+	// Verify membership against the full Go bound as well as its normalized
+	// source metadata. This also handles imported and dependent constraints.
+	bound := gotypes.NewInterfaceType(nil, []gotypes.Type{gotypes.NewUnion([]*gotypes.Term{gotypes.NewTerm(true, signature)})}).Complete()
+	if !gotypes.Satisfies(parameter, bound) {
+		return Type{}, false
+	}
+	return callable, true
+}

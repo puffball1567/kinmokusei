@@ -381,6 +381,7 @@ var differentialGoCompatibilityScenarios = map[string][]string{
 	"source-generic-bounds.test":          {implementedGoCompatibilityContracts[91]},
 	"constraint-intersections.test":       {implementedGoCompatibilityContracts[82], implementedGoCompatibilityContracts[91]},
 	"parameter-intersections.test":        {implementedGoCompatibilityContracts[82], implementedGoCompatibilityContracts[91]},
+	"constrained-callback-calls.test":     {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[16], implementedGoCompatibilityContracts[19], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[47]},
 	"constraint-methods.test":             {implementedGoCompatibilityContracts[79], implementedGoCompatibilityContracts[91]},
 	"native-constraint-methods.test":      {implementedGoCompatibilityContracts[79], implementedGoCompatibilityContracts[91], implementedGoCompatibilityContracts[101]},
 	"imported-constraints.test":           {implementedGoCompatibilityContracts[82], implementedGoCompatibilityContracts[91]},

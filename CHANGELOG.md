@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Allow direct invocation of a type parameter whose bound has one function
+  signature and one source contract. Preserve variadics, multiple results,
+  nullable and verified-text types, and `Result` handling with both source and
+  Go constraints. Keep `defer` and Task calls on their existing lowering paths.
+
 - Support more generic constraint intersections over function and record types.
   Exclude terms whose arity, variadic form, field identity, tags, or nested types
   cannot match after substitution. Continue to diagnose unresolved overlaps and

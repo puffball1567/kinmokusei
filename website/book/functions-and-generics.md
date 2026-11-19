@@ -393,6 +393,13 @@ This prints `14 7`. `UnaryOnly<E>` keeps the one-argument function and
 distinguish function types. Use aliases to write function alternatives in a
 union and supply the generic arguments explicitly when inference cannot fix them.
 
+The example calls `callback(value)` directly through the type parameter `F`.
+Every type in its bound must have the same underlying function signature and the
+same source contracts. Named function types can share that signature. Calls
+retain variadics, multiple results, nullable and verified-text types, and normal
+`Result` handling. A `Result<T>` callback and a callback returning `(T, error)`
+have different source contracts even though Go uses the same result types.
+
 If terms might overlap after substitution, such as `E[]` and `int[]`, they remain
 rejected; instantiate those operands with concrete types first:
 

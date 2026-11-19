@@ -12,8 +12,8 @@ struct Cell<E> {
   public value: E
 }
 
-function keepCallback<E, F extends UnaryOnly<E>>(callback: F): F {
-  return callback
+function invoke<E, F extends UnaryOnly<E>>(callback: F, value: E): E {
+  return callback(value)
 }
 
 function keepRow<E, R extends ValueOnly<E>>(row: R): R {
@@ -22,7 +22,6 @@ function keepRow<E, R extends ValueOnly<E>>(row: R): R {
 
 function main(): void {
   const double: Unary<int> = (value: int): int => value * 2
-  const run = keepCallback<int, Unary<int>>(double)
   const cell = keepRow<int, Cell<int>>(Cell<int>{ value: 7 })
-  Println(run(cell.value), cell.value)
+  Println(invoke<int, Unary<int>>(double, cell.value), cell.value)
 }

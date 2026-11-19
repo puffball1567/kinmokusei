@@ -170,3 +170,20 @@ func sameConstraintNullability(expected, actual Type) bool {
 	}
 	return true
 }
+
+// Result and ordinary multiple returns can have identical Go storage but
+// impose different source rules on calls. A type-set term cannot erase them.
+const (
+	constraintNullabilityMismatch = "nullable type information"
+	constraintResultMismatch      = "callback Result effects"
+)
+
+func constraintTermMismatch(expected, actual Type) string {
+	if !sameConstraintNullability(expected, actual) {
+		return constraintNullabilityMismatch
+	}
+	if expected.Kind == Function && actual.Kind == Function && !sameComposedResultEffects(expected, actual) {
+		return constraintResultMismatch
+	}
+	return ""
+}
