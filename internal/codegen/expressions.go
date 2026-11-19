@@ -457,7 +457,11 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			return generateReceiverContractValue(expr)
 		}
 		if expr.MethodExpressionReceiver != nil {
-			return &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}, nil
+			value := &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}
+			if expr.MethodExpressionSignature != nil {
+				return generateFunctionValueBoundary(*expr.MethodExpressionSignature, expr.MethodExpressionBoundary, expr.Span, value)
+			}
+			return value, nil
 		}
 		if expr.Property {
 			object, err := generatePropertyReceiver(expr)
@@ -503,9 +507,9 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 					name.Name = nativeBindingName(name.Name)
 				}
 				bound := &goast.CallExpr{Fun: indexedGoType(object, arguments), Args: nativeContractExpressions(expr.NativeContractArguments)}
-				return generateFunctionValueBoundary(expr, bound)
+				return generateFunctionValueBoundary(expr.ResolvedType, expr.FunctionBoundary, expr.Span, bound)
 			}
-			return generateFunctionValueBoundary(expr, indexedGoType(object, arguments))
+			return generateFunctionValueBoundary(expr.ResolvedType, expr.FunctionBoundary, expr.Span, indexedGoType(object, arguments))
 		}
 		index, err := generateExpression(expr.Index)
 		if err != nil {

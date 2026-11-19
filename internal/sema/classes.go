@@ -420,6 +420,8 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		previousDependency := c.globalDependencyOwner
 		if method.Static {
 			c.globalDependencyOwner = staticMemberDependency(decl.Name, method.GoName)
+		} else {
+			c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
 		}
 		if method.Static && method.Accessor != "" {
 			c.typeParameterScopes = nil

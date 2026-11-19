@@ -39,6 +39,8 @@ func (c *Checker) nativeMethodExpressionReceiverRef(expression ast.Expression) (
 			return ref, false
 		}
 		switch {
+		case c.classes[expression.Name] != nil:
+			expression.ResolvedDeclaration = c.classes[expression.Name].declarationSpan
 		case c.structs[expression.Name] != nil:
 			expression.ResolvedDeclaration = c.structs[expression.Name].declarationSpan
 		case c.interfaces[expression.Name] != nil:
@@ -87,6 +89,10 @@ func (c *Checker) nativeMethodExpressionSet(receiver Type) map[string]methodSymb
 	var methods map[string]methodSymbol
 	var bindings nativeTypeBindings
 	switch base.Kind {
+	case Class:
+		if symbol := c.classes[base.Name]; symbol != nil && !pointer {
+			methods, bindings = symbol.methods, nativeClassBindings(symbol, base)
+		}
 	case Struct:
 		if symbol := c.structs[base.Name]; symbol != nil {
 			methods, bindings = symbol.methods, nativeStructBindings(symbol, base)
@@ -118,7 +124,10 @@ func (c *Checker) nativeMethodExpressionSet(receiver Type) map[string]methodSymb
 	return result
 }
 
-func (c *Checker) nativeMethodExpressionVisible(method methodSymbol, span source.Span) bool {
+func (c *Checker) nativeMethodExpressionVisible(receiver Type, method methodSymbol, span source.Span) bool {
+	if receiver.Kind == Class {
+		return c.canAccessClassMember(method.visibility, method.declaringClass)
+	}
 	return method.visibility == ast.Public || method.declarationSpan.Path == span.Path
 }
 
@@ -132,7 +141,11 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 		c.report(expr.NameSpan, fmt.Sprintf("native type %s has no non-generic method %q in its method set", receiver.String(), expr.Name))
 		return invalid
 	}
-	if !c.nativeMethodExpressionVisible(method, expr.Span) {
+	if !c.nativeMethodExpressionVisible(receiver, method, expr.Span) {
+		if receiver.Kind == Class {
+			c.reportInaccessibleClassMember(expr.Span, "method", expr.Name, method.visibility)
+			return invalid
+		}
 		c.report(expr.NameSpan, fmt.Sprintf("method %q is private on native type %s", expr.Name, receiver.String()))
 		return invalid
 	}
@@ -141,6 +154,27 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 	owner := receiver
 	if owner.Kind == GoPointer && owner.Element != nil {
 		owner = *owner.Element
+	}
+	if owner.Kind == Class {
+		// The Go selector names the public dispatch wrapper for a virtual
+		// method. Its direct fallback depends on the original method body.
+		dependency := method.declarationSpan
+		if origin := c.classes[method.virtualOwner]; method.virtual && origin != nil {
+			dependency = origin.methods[expr.Name].declarationSpan
+		}
+		c.recordGlobalDependency(nativeMethodDependency(dependency))
+		callable := method.typeInfo
+		c.prepareGoTypeForEmission(&callable, expr.Span)
+		signature := typeRefFromType(callable, expr.Span)
+		// Keep a concrete source alias in the emitted signature. Its underlying
+		// class name may be shadowed at this use site.
+		if len(ref.GenericArguments) == 0 {
+			signature.Parameters[0] = ref
+		}
+		c.checkMethodExpressionTypeShadowing(signature, expr.Span)
+		expr.MethodExpressionSignature = &signature
+		expr.MethodExpressionBoundary = c.functionValueBoundary(callable, expr.Span)
+		return method.typeInfo
 	}
 	if owner.Kind != Interface {
 		recordReceiverContracts(expr, owner, receiver, method.typeInfo, method)
@@ -153,18 +187,48 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 	return method.typeInfo
 }
 
+// The boundary wrapper spells method types at the use site, outside their
+// original declaration scope. Reject a local that would capture a type name.
+func (c *Checker) checkMethodExpressionTypeShadowing(signature ast.TypeRef, span source.Span) {
+	seen := map[string]bool{}
+	var visit func(ast.TypeRef)
+	visit = func(ref ast.TypeRef) {
+		if ref.Qualifier == "" && !ref.TypeParameter && ref.Name != "" && !seen[ref.Name] {
+			seen[ref.Name] = true
+			if c.classes[ref.Name] != nil || c.structs[ref.Name] != nil || c.interfaces[ref.Name] != nil || c.nativeTypes[ref.Name] != nil {
+				c.checkGeneratedNameShadowing(generatedIdentifier(ref.Name), "method expression type", span)
+			}
+		}
+		for _, child := range []*ast.TypeRef{ref.Pointee, ref.Element, ref.Return} {
+			if child != nil {
+				visit(*child)
+			}
+		}
+		for _, children := range [][]ast.TypeRef{ref.GenericArguments, ref.Parameters, ref.GoResults} {
+			for _, child := range children {
+				visit(child)
+			}
+		}
+		for _, field := range ref.ObjectFields {
+			visit(field.Type)
+		}
+	}
+	visit(signature)
+}
+
 func (c *Checker) recordNativeMethodExpressionType(span source.Span, receiver Type, ref ast.TypeRef) {
 	if c.nativeTypeMethodSets == nil {
 		c.nativeTypeMethodSets = map[source.Span]ast.NativeTypeMethodSet{}
 	}
 	members := []ast.ObjectTypeField{}
 	for name, method := range c.nativeMethodExpressionSet(receiver) {
-		if c.nativeMethodExpressionVisible(method, span) {
+		if c.nativeMethodExpressionVisible(receiver, method, span) {
 			members = append(members, ast.ObjectTypeField{Name: name, Span: method.declarationSpan, Type: typeRefFromType(method.typeInfo, span)})
 		}
 	}
 	sort.Slice(members, func(i, j int) bool { return members[i].Name < members[j].Name })
 	set := ast.NativeTypeMethodSet{Methods: members}
+	set.IncludeClassStatics = c.classes[ref.Name] != nil && len(ref.GenericArguments) == 0
 	// Only the enum declaration's namespace exposes its constants; aliases
 	// share the method set, but do not create new enum constant namespaces.
 	if enumeration := c.enums[ref.Name]; enumeration != nil && !ref.IsPointer() {

@@ -78,6 +78,17 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitType(parameters[index].Constraint)
 		}
 	}
+	visitFunctionBoundary := func(boundary *ast.FunctionValueBoundary) {
+		if boundary == nil {
+			return
+		}
+		for i := range boundary.Parameters {
+			visitType(&boundary.Parameters[i].Type)
+		}
+		for _, ref := range boundary.Results {
+			visitType(ref)
+		}
+	}
 	var visitStatement func(ast.Statement)
 	visitExpression = func(expression ast.Expression) {
 		if slot := ast.ReferenceReadSlot(expression); slot != nil {
@@ -162,18 +173,13 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 		case *ast.MemberExpr:
 			visitType(expression.MethodExpressionReceiver)
+			visitType(expression.MethodExpressionSignature)
+			visitFunctionBoundary(expression.MethodExpressionBoundary)
 			visitExpression(expression.Object)
 		case *ast.IndexExpr:
 			visitExpression(expression.Object)
 			if expression.Instantiated {
-				if boundary := expression.FunctionBoundary; boundary != nil {
-					for i := range boundary.Parameters {
-						visitType(&boundary.Parameters[i].Type)
-					}
-					for _, ref := range boundary.Results {
-						visitType(ref)
-					}
-				}
+				visitFunctionBoundary(expression.FunctionBoundary)
 				for i := range expression.ResolvedTypeArguments {
 					visitType(&expression.ResolvedTypeArguments[i])
 				}

@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-func (c *Checker) recordFunctionValueBoundary(expression *ast.IndexExpr, callable Type) {
+func (c *Checker) functionValueBoundary(callable Type, span source.Span) *ast.FunctionValueBoundary {
 	boundary := &ast.FunctionValueBoundary{}
 	needed := false
 	for i, value := range callable.Parameters {
@@ -15,7 +16,7 @@ func (c *Checker) recordFunctionValueBoundary(expression *ast.IndexExpr, callabl
 			element := value
 			value = Type{Kind: Array, Name: "array", Element: &element}
 		}
-		parameter := ast.Parameter{Name: fmt.Sprintf("__kinmokuseiValueArgument%d", i), Type: typeRefFromType(value, expression.Span), Variadic: variadic, Span: expression.Span}
+		parameter := ast.Parameter{Name: fmt.Sprintf("__kinmokuseiValueArgument%d", i), Type: typeRefFromType(value, span), Variadic: variadic, Span: span}
 		c.checkParameterBoundary(&parameter, value)
 		needed = needed || parameter.NonNull || parameter.NonNullKinds != 0
 		boundary.Parameters = append(boundary.Parameters, parameter)
@@ -40,13 +41,14 @@ func (c *Checker) recordFunctionValueBoundary(expression *ast.IndexExpr, callabl
 		boundary.Results = make([]*ast.TypeRef, len(values))
 		for i, value := range values {
 			if c.needsStorageBoundary(value, value, nil) {
-				ref := c.boundaryTypeRef(value, expression.Span)
+				ref := c.boundaryTypeRef(value, span)
 				boundary.Results[i] = &ref
 				needed = true
 			}
 		}
 	}
 	if needed {
-		expression.FunctionBoundary = boundary
+		return boundary
 	}
+	return nil
 }

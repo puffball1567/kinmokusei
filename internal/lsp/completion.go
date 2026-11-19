@@ -42,6 +42,12 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	if member {
 		if members, ok := nativeMethodExpressionSetAt(result.Program, doc.Path, doc.Text, dot); ok {
 			items = nativeMethodExpressionCompletions(members, prefix)
+			if members.IncludeClassStatics {
+				if receiver, found := completionReceiverAt(result.Program, doc.Path, offset, qualifier); found && receiver.static {
+					items = append(items, sourceMemberCompletions(result.Program, receiver, prefix)...)
+					sortCompletionItems(items)
+				}
+			}
 		} else if methods, ok := goMethodExpressionMethodsAt(result.Program, doc.Path, doc.Text, dot); ok {
 			items = checkedGoMethodExpressionCompletions(methods, prefix)
 		} else if ref, ok := goMethodExpressionReceiverAt(result.Program, doc.Path, doc.Text, dot); ok {

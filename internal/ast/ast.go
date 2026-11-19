@@ -50,8 +50,9 @@ type Program struct {
 // NativeTypeMethodSet keeps callable expressions separate from constants in
 // the same source namespace. Pointer receivers have no enum constants.
 type NativeTypeMethodSet struct {
-	Methods   []ObjectTypeField
-	Constants []ObjectTypeField
+	IncludeClassStatics bool
+	Methods             []ObjectTypeField
+	Constants           []ObjectTypeField
 }
 
 type ImportDecl struct {
@@ -1092,6 +1093,8 @@ type MemberExpr struct {
 
 	// MethodExpressionReceiver is a checked native type, not a runtime value.
 	MethodExpressionReceiver    *TypeRef
+	MethodExpressionSignature   *TypeRef
+	MethodExpressionBoundary    *FunctionValueBoundary
 	ReceiverContractArguments   []NativeContract
 	ReceiverContractTypes       []TypeRef
 	ReceiverContractHelper      string

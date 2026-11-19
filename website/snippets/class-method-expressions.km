@@ -1,0 +1,17 @@
+import go { Println } from "fmt"
+
+class Counter {
+  constructor(public value: int) {}
+  public virtual function read(): int { return this.value }
+}
+
+class Doubled extends Counter {
+  constructor(value: int) { super(value) }
+  public override function read(): int { return this.value * 2 }
+}
+
+function main(): void {
+  const counter = new Doubled(7)
+  const read = Counter.read
+  Println(read(counter), Doubled.read(counter))
+}
