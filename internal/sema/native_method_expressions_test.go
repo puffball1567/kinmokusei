@@ -31,7 +31,7 @@ func TestNativeMethodExpressions(t *testing.T) {
 		{"direct mismatched receiver", `struct Box<T>{public n:T;public function read():T{return this.n;}}function f(v:Box<bstring>):int{return Box<int>.read(v);}`, "cannot use"},
 		{"direct pointer method on value", `struct Box<T>{public pointer function set():void{}}const f=Box<int>.set;`, "no non-generic method"},
 		{"direct generic method", `struct Box<T>{public function echo<U>(v:U):U{return v;}}const f=Box<int>.echo;`, "no non-generic method"},
-		{"direct class instance expression", `class Box<T>{public function read():int{return 1;}}const f=Box<int>.read;`, "has no members"},
+		{"direct class instance expression", `class Box<T>{public function read():int{return 1;}}const f=Box<int>.read;`, ""},
 		{"direct wrong argument count", `struct Box<T>{public function read():int{return 1;}}const f=Box<int,int>.read;`, "type arguments"},
 		{"direct violated constraint", `constraint Int=~int;struct Box<T extends Int>{public function read():int{return 1;}}const f=Box<bstring>.read;`, "does not satisfy"},
 		{"direct unknown type", `struct Box<T>{public function read():int{return 1;}}const f=Box<Missing>.read;`, "unknown type"},

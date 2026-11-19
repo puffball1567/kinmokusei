@@ -174,7 +174,7 @@ func TestSemanticFailureMatrix(t *testing.T) {
 		{"constructor field collision", `class Value { private item: int; constructor(private item: int) {} }`, "duplicate field"},
 		{"duplicate method", `class Value { public function get(): int { return 1; } public function get(): int { return 2; } }`, "duplicate method"},
 		{"unknown class member", `class Value {} function use(value: Value): int { return value.missing; }`, "has no member"},
-		{"missing static method", `class Value { public function get(): int { return 1; } } function use(): int { return Value.get(); }`, "has no static method"},
+		{"missing method expression receiver", `class Value { public function get(): int { return 1; } } function use(): int { return Value.get(); }`, "expects 1 arguments"},
 		{"static on instance", `class Value { public static function get(): int { return 1; } } function use(value: Value): int { return value.get(); }`, "cannot be called on an instance"},
 		{"private method", `class Value { private function get(): int { return 1; } } function use(value: Value): int { return value.get(); }`, "method \"get\" is private"},
 		{"this outside class", `function value(): int { return this.missing; }`, `undefined name "this"`},

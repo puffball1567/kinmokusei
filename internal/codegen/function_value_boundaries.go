@@ -6,16 +6,16 @@ import (
 	"go/token"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 // Capture the bound value once. Its concrete wrapper enforces source contracts
 // even when Go invokes it without a source call site or mutates its providers.
-func generateFunctionValueBoundary(expression *ast.IndexExpr, value goast.Expr) (goast.Expr, error) {
-	boundary := expression.FunctionBoundary
+func generateFunctionValueBoundary(signature ast.TypeRef, boundary *ast.FunctionValueBoundary, span source.Span, value goast.Expr) (goast.Expr, error) {
 	if boundary == nil {
 		return value, nil
 	}
-	functionType, ok := goType(expression.ResolvedType).(*goast.FuncType)
+	functionType, ok := goType(signature).(*goast.FuncType)
 	if !ok || len(functionType.Params.List) != len(boundary.Parameters) {
 		return nil, fmt.Errorf("function value boundary does not match the function signature")
 	}
@@ -42,7 +42,7 @@ func generateFunctionValueBoundary(expression *ast.IndexExpr, value goast.Expr) 
 		for i, target := range boundary.Results {
 			if target != nil {
 				success := referenceSuccess(boundary.Condition, results[len(results)-1])
-				body.List = append(body.List, generateTypedNonNullCheck(results[i], *target, expression.Span, fmt.Sprintf("non-null function result %d", i+1), success))
+				body.List = append(body.List, generateTypedNonNullCheck(results[i], *target, span, fmt.Sprintf("non-null function result %d", i+1), success))
 			}
 		}
 		body.List = append(body.List, &goast.ReturnStmt{Results: results})
@@ -52,8 +52,8 @@ func generateFunctionValueBoundary(expression *ast.IndexExpr, value goast.Expr) 
 	// of the inner function's parameter declarations.
 	capture := &goast.FuncLit{
 		Type: &goast.FuncType{
-			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{function}, Type: goType(expression.ResolvedType)}}},
-			Results: &goast.FieldList{List: []*goast.Field{{Type: goType(expression.ResolvedType)}}},
+			Params:  &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{function}, Type: goType(signature)}}},
+			Results: &goast.FieldList{List: []*goast.Field{{Type: goType(signature)}}},
 		},
 		Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{&goast.FuncLit{Type: functionType, Body: body}}}}},
 	}

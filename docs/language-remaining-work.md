@@ -48,8 +48,10 @@ participate in global initialization-cycle checking even when referenced
 through a stored method value or expression. Independent runtime coverage is in
 `native_method_expressions_test.go`. Direct generic receiver instantiation is
 implemented for native and Go types, preserving constraints and lexical
-shadowing. Generic methods and class instance method expressions remain follow-up
-work; existing class static methods are unchanged.
+shadowing. Development builds add class instance method expressions with an
+explicit receiver, including inherited and virtual methods, generic class
+applications, aliases, visibility and invocation checks. Methods with their
+own type parameters remain follow-up work.
 
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
@@ -266,7 +268,7 @@ where applicable, editor support and user documentation.
 | 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
 | 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
 | 3 | Instantiated generic function values | Released in v0.4.7 for full explicit lists; v0.4.12 adds destination-type inference and leading partial lists for source/Go functions, including higher-order callbacks, assignments, returns, typed aggregates, invocation checks for concrete non-null contracts, independent Go comparison and editor support; unresolved callback cycles, private inferred Go type arguments and generic instance method values remain unsupported |
-| 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types, including pointers, aliases, constraints, source contracts, independent Go comparison and editor support; class instance expressions and method-local generics remain |
+| 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types. Development builds add class instance expressions, including inherited and virtual methods, aliases, invocation boundaries and editor support. Method-local generics remain |
 | 5 | Native enum method expressions | Released in v0.4.7: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
 | 6 | Native source interface constraints | Direct bounds are released in v0.4.7; development builds also compose named source interfaces with type sets, comparable and compatible Go method interfaces, preserving source contracts, dependent inference, generic owner checks, properties and editor support |
 | 7 | Source struct constraint terms | Implemented in development: exact named terms, generic instances, aliases, forward references, collection terms, dependent inference and generic method bounds; recursive comparable value bounds remain conservative |

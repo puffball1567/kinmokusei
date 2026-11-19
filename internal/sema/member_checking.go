@@ -78,7 +78,8 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.Constant = true
 			return c.resolveNativeType(c.nativeTypes[identifier.Name])
 		}
-		if class := c.classes[identifier.Name]; !shadowed && class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+		_, typeParameter := c.lookupTypeParameter(identifier.Name)
+		if class := c.classes[identifier.Name]; !shadowed && !typeParameter && class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			if field, exists := class.fields[expr.Name]; exists && field.static {
 				field = c.resolveStaticFieldType(field)
 				expr.Static, expr.Addressable = true, true
@@ -106,7 +107,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			}
 			method, exists := class.methods[expr.Name]
 			if !exists || !method.static {
-				c.report(expr.Span, fmt.Sprintf("class %s has no static method %q", identifier.Name, expr.Name))
+				if receiver, ref, found := c.nativeMethodExpressionReceiver(identifier); found {
+					return c.checkNativeMethodExpression(expr, receiver, ref)
+				}
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 			if !c.canAccessClassMember(method.visibility, method.declaringClass) {
@@ -208,6 +211,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.BoundMethod = true
 			expr.VirtualDispatch = method.virtual
 			expr.VirtualOwner = method.virtualOwner
+			if !method.virtual && !method.static {
+				c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
+			}
 			if len(method.typeInfo.TypeParameters) != 0 {
 				expr.GenericMethod = true
 				expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)
@@ -380,6 +386,7 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	expr.VirtualOwner = method.virtualOwner
 	expr.ResolvedDeclaration = method.declarationSpan
 	expr.BoundMethod = true
+	c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 	if len(method.typeInfo.TypeParameters) != 0 {
 		expr.GenericMethod = true
 		expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)

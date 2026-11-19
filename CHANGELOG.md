@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Support class instance method expressions such as `Box<int>.read`. The explicit
+  receiver retains its class type, including when the method is inherited, and
+  virtual and abstract methods dispatch through that receiver. Preserve source
+  callable contracts and check non-null arguments and results when Go invokes
+  the function. Add editor support and an executable guide example.
+
 - Compose named and method-only anonymous source interfaces with type sets,
   `comparable`, other source constraints and compatible Go method contracts.
   Preserve source member names, dependent inference, generic owner bounds,

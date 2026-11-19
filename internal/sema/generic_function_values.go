@@ -97,7 +97,7 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 	}
 	expr.Instantiated = true
 	expr.ResolvedType = typeRefFromType(instantiated, expr.Span)
-	c.recordFunctionValueBoundary(expr, instantiated)
+	expr.FunctionBoundary = c.functionValueBoundary(instantiated, expr.Span)
 	return instantiated
 }
 
