@@ -9,6 +9,17 @@ func TestConstrainedCallbackCalls(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct{ name, source, want string }{
 		{"dependent callback", `alias Callback<E>=(v:E)=>E;constraint C<E>=~Callback<E>;function run<E,F extends C<E>>(fn:F,v:E):E{return fn(v);}`, ""},
+		{"context from fixed callback bound", `constraint C=~(v:int)=>int;function apply<F extends C>(fn:F):int{return fn(7);}function run():int{return apply((v)=>v+1);}`, ""},
+		{"context from dependent callback bound", `constraint C<E,R>=~(v:E)=>R;function apply<E,R,F extends C<E,R>>(fn:F,v:E):R{return fn(v);}function run():string{return apply((v)=>v+"!","text");}`, ""},
+		{"context from a callback annotation", `constraint C<E,R>=~(a:E,b:E)=>R;function pair<E,R,F extends C<E,R>>(fn:F,v:E):R{return fn(v,v);}function run():int{return pair((a:int16,b)=>int(a+b),3);}`, ""},
+		{"context for generic declaration", `constraint C=~(v:int)=>int;function apply<F extends C>(fn:F):int{return fn(7);}function identity<T>(v:T):T{return v;}function run():int{return apply(identity);}`, ""},
+		{"context for variadic arrow", `constraint C=~(...vs:int[])=>int;function apply<F extends C>(fn:F):int{return fn(7,2);}function run():int{return apply((...vs)=>vs[0]+vs[1]);}`, ""},
+		{"context preserves nullable Result payload", `class Item{}constraint C=~(item:Item|null)=>Result<Item|null>;function apply<F extends C>(fn:F):Result<Item|null>{return fn(null);}function run():Result<Item|null>{return apply((item)=>{return ok(item);});}`, ""},
+		{"context does not guess unknown input", `constraint C<E>=~(v:E)=>E;function apply<E,F extends C<E>>(fn:F):F{return fn;}function run():void{const f=apply((v)=>v);}`, "cannot infer arrow parameter"},
+		{"context does not pick an alternative", `alias A=(v:int)=>int;alias B=(v:string)=>int;constraint C=~A|~B;function apply<F extends C>(fn:F):F{return fn;}function run():void{const f=apply((v)=>1);}`, "cannot infer arrow parameter"},
+		{"context does not erase source type differences", `type A=distinct (v:string)=>int;type B=distinct (v:bstring)=>int;constraint C=A|B;function apply<F extends C>(fn:F):F{return fn;}function run():void{const f=apply((v)=>1);}`, "cannot infer arrow parameter"},
+		{"context still requires type-set membership", `type A=distinct (v:int)=>int;type B=distinct (v:int)=>int;constraint C=A|B;function apply<F extends C>(fn:F):int{return fn(7);}function run():int{return apply((v)=>v+1);}`, "type parameter constraint"},
+		{"context with explicit defined type", `type A=distinct (v:int)=>int;type B=distinct (v:int)=>int;constraint C=A|B;function apply<F extends C>(fn:F):int{return fn(7);}function run():int{return apply<A>((v)=>v+1);}`, ""},
 		{"dependent verified result", `alias Reader<E>=()=>E;constraint C<E>=~Reader<E>;function read<E,F extends C<E>>(fn:F):E{return fn();}function run(fn:Reader<string>):string{return read(fn);}`, ""},
 		{"dependent nullable result", `class Item{}alias Reader<E>=()=>E;constraint C<E>=~Reader<E>;function read<E,F extends C<E>>(fn:F):E{return fn();}function run(fn:Reader<Item|null>):Item|null{return read(fn);}`, ""},
 		{"dependent variadic input", `alias Sink<E>=(...values:E[])=>void;constraint C<E>=~Sink<E>;function write<E,F extends C<E>>(fn:F):void{fn();}function run(fn:Sink<string>):void{write(fn);}`, ""},

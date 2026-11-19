@@ -88,7 +88,7 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 				continue
 			}
 			// Explicit parts of callback signatures also outrank numeric defaults.
-			context := c.arrowContext(expected)
+			context := c.genericCallbackContext(expected, nil)
 			if context.Kind == Function && len(context.Parameters) == len(arrow.Parameters) && context.Variadic == hasVariadicParameter(arrow.Parameters) {
 				for j, parameter := range arrow.Parameters {
 					if parameter.Type.IsSpecified() {
@@ -125,7 +125,7 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 				continue
 			}
 			formal := genericArgumentParameter(callable, call, i)
-			context := c.arrowContext(substituteNativeTypeParameters(formal, bindings))
+			context := c.genericCallbackContext(formal, bindings)
 			if arrow == nil {
 				if containsUnboundCallbackType(context, bindings) {
 					continue
@@ -174,6 +174,18 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 		}
 	}
 	return actuals
+}
+
+// A common signature provides context for constructing the argument. Keep the
+// formal parameter itself for inference and the final type-set membership check.
+func (c *Checker) genericCallbackContext(formal Type, bindings nativeTypeBindings) Type {
+	context := c.arrowContext(substituteNativeTypeParameters(formal, bindings))
+	if context.Kind == TypeParameter {
+		if signature, ok := c.constrainedCallableType(context); ok {
+			return substituteNativeTypeParameters(signature, bindings)
+		}
+	}
+	return context
 }
 
 func genericArrowContextReady(arrow *ast.ArrowExpr, context Type, bindings nativeTypeBindings) bool {

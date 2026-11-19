@@ -24,6 +24,7 @@ constraint Load=~()=>Result<Item>;
 alias Reader<E>=()=>E;
 constraint Read<E>=~Reader<E>;
 constraint TryRead<E>=~()=>Result<E>;
+constraint TransformTo<E,R>=~(v:E)=>R;
 alias FindItem=()=>Result<Item|null>;
 
 function transform<F extends Transform>(fn:F,n:int):int{return fn(n);}
@@ -40,7 +41,15 @@ export function ResultValue(n:int):Result<int>{return CheckedCall(checked,n);}
 function read<E,F extends Read<E>>(fn:F):E{return fn();}
 function forward<A,G extends Read<A>>(fn:G):A{return read(fn);}
 function tryRead<E,F extends TryRead<E>>(fn:F):Result<E>{return fn();}
+function transformTo<E,R,F extends TransformTo<E,R>>(fn:F,v:E):R{return fn(v);}
+function identity<T>(v:T):T{return v;}
 export function Text():string{return forward(():string=>"金木犀");}
+export function Contexts(n:int):int[]{
+ const text=transformTo((v)=>v+"木犀","金");
+ const sum=variadic((...vs)=>vs[0]+vs[1],n);
+ const original=transformTo<int,int>(identity,n);
+ return [len(text),sum,original];
+}
 export function Find(n:int):Result<Item|null>{
  const fn:FindItem=():Result<Item|null>=>{
   if(n<0){return fail(errors.New(b"negative"));}
@@ -83,7 +92,15 @@ func ResultValue(n int)(int,error){return checked(func(v int)(int,error){if v<0{
 func read[E any,F ~func()E](fn F)E{return fn()}
 func forward[A any,G ~func()A](fn G)A{return read(fn)}
 func tryRead[E any,F ~func()(E,error)](fn F)(E,error){return fn()}
+func transformTo[E,R any,F ~func(E)R](fn F,v E)R{return fn(v)}
+func identity[T any](v T)T{return v}
 func Text()string{return forward(func()string{return "金木犀"})}
+func Contexts(n int)[]int{
+ text:=transformTo(func(v string)string{return v+"木犀"},"金")
+ sum:=variadic(func(vs ...int)int{return vs[0]+vs[1]},n)
+ original:=transformTo(identity[int],n)
+ return []int{len(text),sum,original}
+}
 type Item struct{Value int}
 func Find(n int)(*Item,error){return tryRead(func()(*Item,error){if n<0{return nil,errors.New("negative")};if n==0{return nil,nil};return &Item{Value:n},nil})}
 func Values(n int)[]int{
@@ -101,6 +118,7 @@ func TestCalls(t *testing.T){
  if a,b:=g.Text(),r.Text();a!=b{t.Fatal(a,b)}
  for _,n:=range []int{-7,0,12}{
   if a,b:=g.Values(n),r.Values(n);!reflect.DeepEqual(a,b){t.Fatal(n,a,b)}
+  if a,b:=g.Contexts(n),r.Contexts(n);!reflect.DeepEqual(a,b){t.Fatal(n,a,b)}
   a,ae:=g.ResultValue(n);b,be:=r.ResultValue(n);if a!=b||fmt.Sprint(ae)!=fmt.Sprint(be){t.Fatal(n,a,ae,b,be)}
   ga,ge:=g.Find(n);ra,re:=r.Find(n)
   if fmt.Sprint(ge)!=fmt.Sprint(re)||(ga==nil)!=(ra==nil)||ga!=nil&&ga.Value!=ra.Value{t.Fatal(n,ga,ge,ra,re)}

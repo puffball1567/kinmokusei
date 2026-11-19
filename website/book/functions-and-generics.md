@@ -409,6 +409,14 @@ callback parameters and `Result` payloads. If the bound has no common
 signature or the argument types do not agree, inference does not choose an
 arbitrary signature.
 
+This signature also supplies the types of an inline arrow's parameters.
+In `invoke((value) => value * 2, cell.value)`, the bound supplies `int` for
+`value`, and the arrow body determines the result type `E`. An existing generic
+function can use a fully determined signature as its instantiation context.
+The constructed callback must still satisfy the original bound. For example,
+a bound listing only exact named types requires one of those types as the type
+argument.
+
 If terms might overlap after substitution, such as `E[]` and `int[]`, they remain
 rejected; instantiate those operands with concrete types first:
 
