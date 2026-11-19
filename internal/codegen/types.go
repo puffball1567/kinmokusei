@@ -193,6 +193,10 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	if ref.GoInterface {
 		methods := make([]*goast.Field, len(ref.ObjectFields))
 		for i, method := range ref.ObjectFields {
+			if method.GoEmbedded {
+				methods[i] = &goast.Field{Type: goType(method.Type)}
+				continue
+			}
 			name := method.Name
 			if method.GoName != "" {
 				name = method.GoName

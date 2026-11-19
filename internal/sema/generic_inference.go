@@ -477,7 +477,7 @@ func substituteNativeTypeParametersSeen(value Type, bindings nativeTypeBindings,
 			result.Name = goTypeDisplayName(converted)
 		}
 	}
-	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.Kind == Function || value.Kind == Object || value.Kind == Nullable || value.Kind == Result || value.Kind == Task {
+	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.Kind == Function && goTypeNameObject(value.GoType) == nil || value.Kind == Object || value.Kind == Nullable || value.Kind == Result || value.Kind == Task {
 		result.GoType = nil
 	}
 	if value.Kind == GoPointer && result.Element != nil {
@@ -511,11 +511,16 @@ func substituteNativeTypeParametersSeen(value Type, bindings nativeTypeBindings,
 // Keep the Go storage type in sync with substituted source arguments, also for
 // native structs nested in invariant collection types or recursive pointers.
 func instantiateSubstitutedNamedType(value Type) Type {
-	if (value.Kind != GoNamed && value.Kind != Struct) || len(value.TypeArguments) == 0 {
+	if len(value.TypeArguments) == 0 || (value.Kind != GoNamed && value.Kind != Struct && value.Kind != Function) {
 		return value
 	}
-	named, ok := value.GoType.(*gotypes.Named)
-	if !ok || named.Obj() == nil {
+	var origin gotypes.Type
+	switch named := value.GoType.(type) {
+	case *gotypes.Named:
+		origin = named.Origin()
+	case *gotypes.Alias:
+		origin = named.Origin()
+	default:
 		return value
 	}
 	arguments := make([]gotypes.Type, len(value.TypeArguments))
@@ -526,7 +531,7 @@ func instantiateSubstitutedNamedType(value Type) Type {
 		}
 		arguments[index] = converted
 	}
-	instantiated, err := gotypes.Instantiate(nil, named.Origin(), arguments, true)
+	instantiated, err := gotypes.Instantiate(nil, origin, arguments, true)
 	if err != nil {
 		return value
 	}
@@ -536,7 +541,7 @@ func instantiateSubstitutedNamedType(value Type) Type {
 		for index, argument := range value.TypeArguments {
 			names[index] = argument.String()
 		}
-		value.Name = named.Obj().Name() + "<" + strings.Join(names, ", ") + ">"
+		value.Name = goTypeNameObject(origin).Name() + "<" + strings.Join(names, ", ") + ">"
 	}
 	return value
 }

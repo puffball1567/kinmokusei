@@ -16,6 +16,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 		if ref == nil {
 			return
 		}
+		if ref.GoInterface && !ref.Go {
+			ref.ResolvedInterfaceMethods = c.anonymousInterfaceMembers[ref.Span]
+		}
 		visitExpression(ref.FixedLengthExpression)
 		if ref.Qualifier == "" {
 			if declaration, ok := activeTypeParameters[ref.Name]; ok {

@@ -83,6 +83,7 @@ type GoInterfaceMethod struct {
 	Name            string
 	GoName          string
 	Type            Type
+	GoDeclaration   *gotypes.Func
 	DeclarationSpan source.Span
 }
 

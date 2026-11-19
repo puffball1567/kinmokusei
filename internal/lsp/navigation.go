@@ -697,7 +697,10 @@ func formatTypeRef(ref ast.TypeRef) string {
 	if ref.GoInterface {
 		methods := make([]string, len(ref.ObjectFields))
 		for i, method := range ref.ObjectFields {
-			methods[i] = method.Name + ": " + formatTypeRef(method.Type)
+			methods[i] = formatTypeRef(method.Type)
+			if !method.GoEmbedded {
+				methods[i] = method.Name + ": " + methods[i]
+			}
 		}
 		return "interface { " + strings.Join(methods, "; ") + " }"
 	}

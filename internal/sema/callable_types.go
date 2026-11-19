@@ -116,7 +116,7 @@ func (c *Checker) inferNativeCallableConstraintArguments(parameter, value Type, 
 	}
 	left, leftOK := c.goTypeForNativeStorage(resolved)
 	right, rightOK := c.goTypeForNativeStorage(actual)
-	if leftOK && rightOK && gotypes.Identical(left, right) {
+	if leftOK && rightOK && gotypes.Identical(left.Underlying(), right.Underlying()) {
 		maps.Copy(bindings, trial)
 	}
 }

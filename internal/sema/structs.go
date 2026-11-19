@@ -191,6 +191,9 @@ func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
 		}
 		return gotypes.NewStruct(fields, tags), true
 	case Function:
+		if goTypeNameObject(value.GoType) != nil {
+			return value.GoType, true
+		}
 		parameters := make([]*gotypes.Var, len(value.Parameters))
 		for index, parameter := range value.Parameters {
 			parameterType, ok := c.goTypeForNativeStorage(parameter)
