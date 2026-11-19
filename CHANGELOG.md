@@ -11,6 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Support more generic constraint intersections over function and record types.
+  Exclude terms whose arity, variadic form, field identity, tags, or nested types
+  cannot match after substitution. Continue to diagnose unresolved overlaps and
+  conflicting source contracts.
+
 - Support class instance method expressions such as `Box<int>.read`. The explicit
   receiver retains its class type, including when the method is inherited, and
   virtual and abstract methods dispatch through that receiver. Preserve source

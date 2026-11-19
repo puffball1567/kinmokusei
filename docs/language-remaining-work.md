@@ -272,7 +272,7 @@ where applicable, editor support and user documentation.
 | 5 | Native enum method expressions | Released in v0.4.7: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
 | 6 | Native source interface constraints | Direct bounds are released in v0.4.7; development builds also compose named source interfaces with type sets, comparable and compatible Go method interfaces, preserving source contracts, dependent inference, generic owner checks, properties and editor support |
 | 7 | Source struct constraint terms | Implemented in development: exact named terms, generic instances, aliases, forward references, collection terms, dependent inference and generic method bounds; recursive comparable value bounds remain conservative |
-| 8 | Recursive/dependent constraint composition | Continue comparable-bound and substitution-dependent intersection auditing |
+| 8 | Recursive/dependent constraint composition | Development builds also exclude provably disjoint function and record terms, including nested signatures and field shapes. Intersections with substitution-dependent overlap and recursive comparable value bounds remain conservative |
 | 9 | Anonymous interface scope | Method-only anonymous bounds and runtime structural matching are released in v0.4.7; development builds add constraint composition with source contract preservation and independent Go comparison; anonymous property declarations and embeddings remain |
 | 10 | Constant, inference and multiple-result combinations | Broad partial support exists; add focused coverage for remaining combinations |
 

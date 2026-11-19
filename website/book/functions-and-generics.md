@@ -381,6 +381,18 @@ can also be distinguished, including stable mismatches inside collection element
 
 <<< ../snippets/parameter-constraint-intersections.km{ts}
 
+Development builds also narrow intersections of function and record terms.
+Function arity and variadic form stay fixed when type arguments change. Record
+identity includes the emitted field names, order, and tags. A fixed mismatch in
+a nested type can also establish that two terms are disjoint.
+
+<<< ../snippets/structural-constraint-intersections.km{ts}
+
+This prints `14 7`. `UnaryOnly<E>` keeps the one-argument function and
+`ValueOnly<E>` keeps the record with a single field. Parameter names do not
+distinguish function types. Use aliases to write function alternatives in a
+union and supply the generic arguments explicitly when inference cannot fix them.
+
 If terms might overlap after substitution, such as `E[]` and `int[]`, they remain
 rejected; instantiate those operands with concrete types first:
 
