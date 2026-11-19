@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Infer dependent type arguments from a callback bound's common signature.
+  Preserve verified text, nullable references and `Result` payloads when the
+  callback's parameters or results supply the type.
+
 - Allow direct invocation of a type parameter whose bound has one function
   signature and one source contract. Preserve variadics, multiple results,
   nullable and verified-text types, and `Result` handling with both source and

@@ -21,6 +21,10 @@ constraint Apply=~(v:int)=>void;
 constraint Checked=~(n:int)=>Result<int>;
 class Item{constructor(public value:int){}}
 constraint Load=~()=>Result<Item>;
+alias Reader<E>=()=>E;
+constraint Read<E>=~Reader<E>;
+constraint TryRead<E>=~()=>Result<E>;
+alias FindItem=()=>Result<Item|null>;
 
 function transform<F extends Transform>(fn:F,n:int):int{return fn(n);}
 function variadic<F extends Variadic>(fn:F,n:int):int{const xs=[n,n+2];return fn(xs...);}
@@ -33,6 +37,18 @@ export function CheckedCall<F extends Checked>(fn:F,n:int):Result<int>{const val
 export function CheckedPayload<F extends Load>(fn:F):Result<Item>{return fn();}
 function checked(n:int):Result<int>{if(n<0){return fail(errors.New(b"negative"));}return ok(n*2);}
 export function ResultValue(n:int):Result<int>{return CheckedCall(checked,n);}
+function read<E,F extends Read<E>>(fn:F):E{return fn();}
+function forward<A,G extends Read<A>>(fn:G):A{return read(fn);}
+function tryRead<E,F extends TryRead<E>>(fn:F):Result<E>{return fn();}
+export function Text():string{return forward(():string=>"金木犀");}
+export function Find(n:int):Result<Item|null>{
+ const fn:FindItem=():Result<Item|null>=>{
+  if(n<0){return fail(errors.New(b"negative"));}
+  if(n===0){return ok(null);}
+  return ok(new Item(n));
+ };
+ return tryRead(fn);
+}
 
 export function Values(n:int):int[]{
  const inc=Increment((v:int):int=>v+1);const double=Double((v:int):int=>v*2);
@@ -64,6 +80,12 @@ func deferred[F ~func(int)](fn F,n int){defer fn(n);n++}
 func launched[F transform](fn F,n int)int{done:=make(chan int,1);go func(){done<-fn(n)}();return <-done}
 func checked[F ~func(int)(int,error)](fn F,n int)(int,error){v,e:=fn(n);if e!=nil{return 0,e};return v+1,nil}
 func ResultValue(n int)(int,error){return checked(func(v int)(int,error){if v<0{return 0,errors.New("negative")};return v*2,nil},n)}
+func read[E any,F ~func()E](fn F)E{return fn()}
+func forward[A any,G ~func()A](fn G)A{return read(fn)}
+func tryRead[E any,F ~func()(E,error)](fn F)(E,error){return fn()}
+func Text()string{return forward(func()string{return "金木犀"})}
+type Item struct{Value int}
+func Find(n int)(*Item,error){return tryRead(func()(*Item,error){if n<0{return nil,errors.New("negative")};if n==0{return nil,nil};return &Item{Value:n},nil})}
 func Values(n int)[]int{
  in:=inc(func(v int)int{return v+1});dou:=double(func(v int)int{return v*2})
  sum:=func(xs ...int)int{var n int;for _,x:=range xs{n+=x};return n}
@@ -76,9 +98,12 @@ func Values(n int)[]int{
 import("errors";"fmt";"reflect";"strings";"testing";g "constrained-callback-calls.test";r "constrained-callback-calls.test/reference")
 func capture(f func())(p any){defer func(){p=recover()}();f();return nil}
 func TestCalls(t *testing.T){
+ if a,b:=g.Text(),r.Text();a!=b{t.Fatal(a,b)}
  for _,n:=range []int{-7,0,12}{
   if a,b:=g.Values(n),r.Values(n);!reflect.DeepEqual(a,b){t.Fatal(n,a,b)}
   a,ae:=g.ResultValue(n);b,be:=r.ResultValue(n);if a!=b||fmt.Sprint(ae)!=fmt.Sprint(be){t.Fatal(n,a,ae,b,be)}
+  ga,ge:=g.Find(n);ra,re:=r.Find(n)
+  if fmt.Sprint(ge)!=fmt.Sprint(re)||(ga==nil)!=(ra==nil)||ga!=nil&&ga.Value!=ra.Value{t.Fatal(n,ga,ge,ra,re)}
  }
 }
 func TestBoundaries(t *testing.T){

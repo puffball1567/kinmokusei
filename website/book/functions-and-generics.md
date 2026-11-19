@@ -400,6 +400,15 @@ retain variadics, multiple results, nullable and verified-text types, and normal
 `Result` handling. A `Result<T>` callback and a callback returning `(T, error)`
 have different source contracts even though Go uses the same result types.
 
+The common signature can also determine a type argument that appears only
+inside the callback. With `constraint Reader<E> = ~() => E` and
+`function read<E, F extends Reader<E>>(fn: F): E { return fn(); }`, a call to
+`read` with a callback returning `string` infers `E` as `string`. A callback
+returning `Item | null` infers `E` as `Item | null`. The same rule applies to
+callback parameters and `Result` payloads. If the bound has no common
+signature or the argument types do not agree, inference does not choose an
+arbitrary signature.
+
 If terms might overlap after substitution, such as `E[]` and `int[]`, they remain
 rejected; instantiate those operands with concrete types first:
 

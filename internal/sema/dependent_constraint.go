@@ -226,6 +226,7 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 					_ = c.inferNativeTypeArguments(shape, c.constraintArgumentShape(value), bindings)
 				}
 				c.inferNativeStructConstraintArguments(parameter.GoType.(*gotypes.TypeParam), value, bindings)
+				c.inferNativeCallableConstraintArguments(parameter, value, bindings)
 			}
 		}
 		after := 0
