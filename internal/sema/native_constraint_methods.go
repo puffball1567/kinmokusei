@@ -21,7 +21,8 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 			methods := map[string]methodSymbol{}
 			if !pointer {
 				for _, method := range argument.GoMethods {
-					methods[method.Name] = methodSymbol{goName: method.GoName, typeInfo: method.Type, visibility: ast.Public, declarationSpan: method.DeclarationSpan, goDeclaration: method.GoDeclaration}
+					methods[method.Name] = methodSymbol{goName: method.GoName, typeInfo: method.Type, visibility: ast.Public, declarationSpan: method.DeclarationSpan,
+						goDeclaration: method.GoDeclaration, fromAnonymousInterface: method.FromAnonymousInterface}
 				}
 			}
 			return methods, nil, true, true

@@ -57,19 +57,20 @@ type fieldSymbol struct {
 }
 
 type methodSymbol struct {
-	goInterfaceMethod bool
-	goDeclaration     *gotypes.Func
-	typeInfo          Type
-	visibility        ast.Visibility
-	static            bool
-	pointerReceiver   bool
-	goName            string
-	declarationSpan   source.Span
-	declaringClass    string
-	virtual           bool
-	abstract          bool
-	final             bool
-	virtualOwner      string
+	goInterfaceMethod      bool
+	fromAnonymousInterface bool
+	goDeclaration          *gotypes.Func
+	typeInfo               Type
+	visibility             ast.Visibility
+	static                 bool
+	pointerReceiver        bool
+	goName                 string
+	declarationSpan        source.Span
+	declaringClass         string
+	virtual                bool
+	abstract               bool
+	final                  bool
+	virtualOwner           string
 }
 
 type classSymbol struct {

@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Let named interfaces extend inline or aliased anonymous method interfaces.
+  Preserve inherited methods in class implementations, generic bounds, Go
+  interop, and editor navigation.
+
 - Embed Go method interfaces and other anonymous interfaces in an anonymous
   interface used as a value type or generic bound. Preserve method spelling,
   source contracts, and Go definitions for editor navigation.

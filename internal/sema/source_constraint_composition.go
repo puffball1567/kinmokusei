@@ -40,6 +40,7 @@ func sourceConstraintMethodType(methods map[string]methodSymbol, bindings native
 		method := methods[name]
 		bound.GoMethods = append(bound.GoMethods, GoInterfaceMethod{
 			Name: name, GoName: method.goName, Type: substituteNativeTypeParameters(method.typeInfo, bindings), DeclarationSpan: method.declarationSpan, GoDeclaration: method.goDeclaration,
+			FromAnonymousInterface: method.fromAnonymousInterface,
 		})
 	}
 	return bound
@@ -90,15 +91,22 @@ func (c *Checker) composeSourceConstraintMethods(decl *ast.InterfaceDecl, operan
 		}
 		for _, name := range sortedNativeConstraintMethodNames(incoming) {
 			method := incoming[name]
-			if previous, exists := byGoName[method.goName]; exists && !sameComposedMethodContract(previous.typeInfo, method.typeInfo) {
-				c.report(decl.NameSpan, fmt.Sprintf("constraint intersection has incompatible source signatures for method %s", method.goName))
-				valid = false
-				continue
+			if previous, exists := byGoName[method.goName]; exists {
+				method.fromAnonymousInterface = method.fromAnonymousInterface || previous.fromAnonymousInterface
+				if !sameComposedMethodContract(previous.typeInfo, method.typeInfo) || method.fromAnonymousInterface && !c.identicalMethodStorage(previous.typeInfo, method.typeInfo) {
+					c.report(decl.NameSpan, fmt.Sprintf("constraint intersection has incompatible source signatures for method %s", method.goName))
+					valid = false
+					continue
+				}
 			}
 			if previous, exists := methods[name]; exists {
 				if previous.goName != method.goName || !sameComposedMethodContract(previous.typeInfo, method.typeInfo) {
 					c.report(decl.NameSpan, fmt.Sprintf("constraint intersection has conflicting source member %s", name))
 					valid = false
+				} else {
+					previous.fromAnonymousInterface = method.fromAnonymousInterface
+					methods[name] = previous
+					byGoName[method.goName] = previous
 				}
 				continue
 			}
