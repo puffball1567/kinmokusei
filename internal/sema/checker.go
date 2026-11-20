@@ -96,6 +96,7 @@ type Checker struct {
 	resultErrorUses            map[*bool]resultErrorUse
 
 	nativeInterfaceDeclarations     map[string]*ast.InterfaceDecl
+	anonymousInterfaceMembers       map[source.Span][]ast.ObjectTypeField
 	nativeInterfaceAliases          map[string]ast.TypeRef
 	nativeInterfaceBounds           map[*gotypes.TypeParam]Type
 	nativeRawConstraintArguments    map[*gotypes.TypeParam][]Type

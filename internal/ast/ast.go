@@ -130,7 +130,10 @@ type TypeRef struct {
 	// Variadic marks a function type whose final Parameters entry is the
 	// source-level slice type of a rest parameter.
 	Variadic bool
-	Span     source.Span
+	// ResolvedInterfaceMethods lists the checked member set for editor completion
+	// when the source interface contains embedded elements.
+	ResolvedInterfaceMethods []ObjectTypeField
+	Span                     source.Span
 }
 
 type ObjectTypeField struct {

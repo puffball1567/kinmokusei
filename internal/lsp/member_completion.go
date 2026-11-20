@@ -558,7 +558,14 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	}
 	if ref.GoInterface {
 		if !static {
-			for _, method := range ref.ObjectFields {
+			methods := ref.ResolvedInterfaceMethods
+			if methods == nil {
+				methods = ref.ObjectFields
+			}
+			for _, method := range methods {
+				if method.GoEmbedded {
+					continue
+				}
 				add(completionItem{Label: method.Name, Kind: 2, Detail: method.Name + ": " + formatTypeRef(method.Type), SortText: "0_" + method.Name})
 			}
 		}
@@ -914,6 +921,10 @@ func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRe
 	}
 	for index := range result.ObjectFields {
 		result.ObjectFields[index].Type = substituteTypeRefParameters(result.ObjectFields[index].Type, bindings)
+	}
+	result.ResolvedInterfaceMethods = append([]ast.ObjectTypeField(nil), ref.ResolvedInterfaceMethods...)
+	for index := range result.ResolvedInterfaceMethods {
+		result.ResolvedInterfaceMethods[index].Type = substituteTypeRefParameters(result.ResolvedInterfaceMethods[index].Type, bindings)
 	}
 	return result
 }

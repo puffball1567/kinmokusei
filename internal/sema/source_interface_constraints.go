@@ -134,11 +134,21 @@ func (c *Checker) nativeSourceInterfaceArgumentSatisfies(bound, argument Type) b
 	for _, name := range sortedNativeConstraintMethodNames(methods) {
 		required := methods[name]
 		provided, ok := c.sourceConstraintArgumentMethod(argument, required.goName)
-		if !ok || !identicalMethodSignature(substituteNativeTypeParameters(required.typeInfo, bindings), provided) {
+		expected := substituteNativeTypeParameters(required.typeInfo, bindings)
+		if !ok || !identicalMethodSignature(expected, provided) {
+			return false
+		}
+		if required.goDeclaration != nil && !c.identicalMethodStorage(expected, provided) {
 			return false
 		}
 	}
 	return true
+}
+
+func (c *Checker) identicalMethodStorage(left, right Type) bool {
+	a, aOK := c.goTypeForNativeStorage(left)
+	b, bOK := c.goTypeForNativeStorage(right)
+	return aOK && bOK && gotypes.Identical(a, b)
 }
 
 // Infer dependent arguments using source signatures, then commit only after
@@ -180,5 +190,8 @@ func (c *Checker) checkSourceConstraintMember(expr *ast.MemberExpr, bound Type, 
 		return Type{Kind: Invalid}
 	}
 	expr.ResolvedName, expr.ResolvedDeclaration = method.goName, method.declarationSpan
+	if method.goDeclaration != nil {
+		c.recordGoReference(expr.NameSpan, method.goDeclaration)
+	}
 	return substituteNativeTypeParameters(method.typeInfo, bindings)
 }

@@ -58,6 +58,7 @@ type fieldSymbol struct {
 
 type methodSymbol struct {
 	goInterfaceMethod bool
+	goDeclaration     *gotypes.Func
 	typeInfo          Type
 	visibility        ast.Visibility
 	static            bool

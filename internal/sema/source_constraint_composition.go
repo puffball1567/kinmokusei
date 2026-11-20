@@ -39,7 +39,7 @@ func sourceConstraintMethodType(methods map[string]methodSymbol, bindings native
 	for _, name := range sortedNativeConstraintMethodNames(methods) {
 		method := methods[name]
 		bound.GoMethods = append(bound.GoMethods, GoInterfaceMethod{
-			Name: name, GoName: method.goName, Type: substituteNativeTypeParameters(method.typeInfo, bindings), DeclarationSpan: method.declarationSpan,
+			Name: name, GoName: method.goName, Type: substituteNativeTypeParameters(method.typeInfo, bindings), DeclarationSpan: method.declarationSpan, GoDeclaration: method.goDeclaration,
 		})
 	}
 	return bound

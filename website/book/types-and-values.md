@@ -320,6 +320,30 @@ interface Reader {
 
 A Kinmokusei class names its interface contracts with `implements`. Imported Go interfaces retain Go package identity and method-set rules. Interface assertions use `as?` or `as!`; Go interface type switches narrow case bindings.
 
+### Anonymous interface embeddings
+
+An anonymous interface can embed an exported Go method interface or another
+anonymous interface. Embedded methods are available on values and in generic
+bounds. Go methods keep their spelling and types, including `bstring` for a Go
+`string` result.
+
+```ts
+import go io from "io"
+
+alias Input = interface {
+  io.Reader
+  size(): int
+}
+
+function read(input: Input, buffer: byte[]): (int, error) {
+  return input.Read(buffer)
+}
+```
+
+Overlapping embedded methods can share a Go method name when their spelling
+and source signatures agree. A conflicting result type, nullable contract, or
+`Result` effect is a compile-time error.
+
 ## Pointers
 
 `*T` is the corresponding Go pointer. `&value` requires addressable storage; `*pointer` dereferences it. Pointer assignment copies an address. Nil dereference remains a runtime panic.

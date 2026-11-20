@@ -59,6 +59,17 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		}
 		var methods []ast.ObjectTypeField
 		for !p.at(token.RightBrace) && !p.at(token.EOF) {
+			if (p.at(token.Identifier) && !p.atNext(token.LeftParen)) || p.at(token.Interface) {
+				base, valid := p.parseType()
+				if !valid {
+					return ast.TypeRef{}, false
+				}
+				if _, valid = p.expectTerminator("expected ';' after embedded interface"); !valid {
+					p.synchronizeStatement()
+				}
+				methods = append(methods, ast.ObjectTypeField{GoEmbedded: true, Type: base, Span: base.Span})
+				continue
+			}
 			name, ok := p.expect(token.Identifier, "expected anonymous interface method name")
 			if !ok {
 				// Statement recovery may stop at return/let/etc. or just after

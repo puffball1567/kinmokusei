@@ -169,7 +169,9 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 					c.report(expression.Span, "Go method uses unsafe.Pointer; set [go.interop] unsafe = \"allow\" to use it")
 					return Type{Kind: Invalid, Name: "<invalid>"}
 				}
-				if receiver.GoType != nil {
+				if method.GoDeclaration != nil {
+					c.recordGoReference(expression.NameSpan, method.GoDeclaration)
+				} else if receiver.GoType != nil {
 					object, _, _ := gotypes.LookupFieldOrMethod(receiver.GoType, true, nil, expression.Name)
 					c.recordGoReference(expression.NameSpan, object)
 				}
