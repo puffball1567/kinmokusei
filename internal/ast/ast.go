@@ -133,7 +133,14 @@ type TypeRef struct {
 	// ResolvedInterfaceMethods lists the checked member set for editor completion
 	// when the source interface contains embedded elements.
 	ResolvedInterfaceMethods []ObjectTypeField
+	NamedResults             []ResultBinding
+	NamedResultsThroughTry   bool
 	Span                     source.Span
+}
+
+type ResultBinding struct {
+	Name string
+	Span source.Span
 }
 
 type ObjectTypeField struct {
@@ -160,6 +167,16 @@ func (t TypeRef) IsObject() bool       { return t.Object }
 func (t TypeRef) IsGoStruct() bool     { return t.GoStruct }
 func (t TypeRef) IsSpecified() bool {
 	return t.Name != "" || t.Qualifier != "" || t.IsFunction() || t.IsArray() || t.IsPointer() || t.IsObject() || t.IsGoStruct() || t.GoInterface || len(t.GoResults) != 0
+}
+
+// NamedResultType returns a slot's value type without its declaration metadata.
+func (t TypeRef) NamedResultType(index int) TypeRef {
+	if len(t.GoResults) != 0 {
+		return t.GoResults[index]
+	}
+	t.NamedResults = nil
+	t.NamedResultsThroughTry = false
+	return t
 }
 
 type Parameter struct {
@@ -472,6 +489,7 @@ type ReturnStmt struct {
 	ResultType       TypeRef
 	NonNullResult    bool // Validate a forwarded Result payload on success.
 	CrossesTry       bool
+	NamedResultCount int // Result slots assigned before leaving a try frame.
 	Span             source.Span
 }
 
@@ -498,13 +516,14 @@ func (*ThrowStmt) statement()             {}
 func (s *ThrowStmt) GetSpan() source.Span { return s.Span }
 
 type TryStmt struct {
-	Body          *BlockStmt
-	Catches       []*CatchClause
-	FinallyBody   *BlockStmt
-	HandlesReturn bool
-	ReturnType    TypeRef
-	Terminal      bool
-	Span          source.Span
+	Body             *BlockStmt
+	Catches          []*CatchClause
+	FinallyBody      *BlockStmt
+	HandlesReturn    bool
+	ReturnType       TypeRef
+	NamedResultCount int
+	Terminal         bool
+	Span             source.Span
 }
 
 type CatchClause struct {

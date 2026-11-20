@@ -171,14 +171,19 @@ func lowerCallableDefers(signature *goast.FuncType, body *goast.BlockStmt, conte
 }
 
 func unwrapSourceDefers(body *goast.BlockStmt, plain map[*goast.BlockStmt]goast.Stmt) {
-	replace := func(stmt goast.Stmt) goast.Stmt {
+	replaceGoStatements(body, true, func(stmt goast.Stmt) goast.Stmt {
 		if block, ok := stmt.(*goast.BlockStmt); ok && plain[block] != nil {
 			return plain[block]
 		}
 		return stmt
-	}
+	})
+}
+
+func replaceGoStatements(body *goast.BlockStmt, includeClosures bool, replace func(goast.Stmt) goast.Stmt) {
 	goast.Inspect(body, func(node goast.Node) bool {
 		switch node := node.(type) {
+		case *goast.FuncLit:
+			return includeClosures
 		case *goast.BlockStmt:
 			for i := range node.List {
 				node.List[i] = replace(node.List[i])

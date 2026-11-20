@@ -321,6 +321,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.ReturnStmt:
 		if c.exceptionDepth != 0 {
 			stmt.CrossesTry = true
+			if c.namedResultType != nil {
+				stmt.NamedResultCount = len(c.namedResultType.NamedResults)
+			}
 			if c.result.Kind == MultiValue {
 				stmt.ResultType = typeRefFromType(c.result, stmt.Span)
 			}
@@ -344,7 +347,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			return
 		}
 		if stmt.Value == nil {
-			if c.result.Kind != Void {
+			if c.namedResultType != nil {
+				c.checkBareNamedReturn(stmt.Span)
+			} else if c.result.Kind != Void {
 				c.report(stmt.Span, fmt.Sprintf("expected return value of type %s", c.result.Name))
 			}
 			c.reportOrDeferTasksBeforeReturn()

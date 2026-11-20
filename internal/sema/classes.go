@@ -442,6 +442,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		}
 		previousControl := c.enterCallableControl()
 		c.result = c.resolveType(method.ReturnType)
+		c.declareNamedResults(&method.ReturnType)
 		c.checkBlock(method.Body, false)
 		if !method.Abstract && c.result.Kind != Void && !definitelyReturns(method.Body) {
 			c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))

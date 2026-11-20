@@ -293,6 +293,7 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 				add(completionItem{Label: parameter.Name, Kind: 25, Detail: "type parameter " + parameter.Name, SortText: "0_" + parameter.Name})
 			}
 			addParameters(declaration.Parameters, add)
+			addNamedResultCompletions(declaration.ReturnType, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
 		case *ast.MethodDecl:
 			for _, parameter := range declaration.TypeParameters {
@@ -300,6 +301,7 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 			}
 			add(completionItem{Label: declaration.ReceiverName, Kind: 6, Detail: formatTypeRef(declaration.ReceiverType), SortText: "0_" + declaration.ReceiverName})
 			addParameters(declaration.Parameters, add)
+			addNamedResultCompletions(declaration.ReturnType, add)
 			addVisibleBlock(declaration.Body, path, offset, add)
 		case *ast.ClassDecl:
 			for _, parameter := range declaration.TypeParameters {
@@ -314,6 +316,7 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 						add(completionItem{Label: "this", Kind: 6, Detail: declaration.Name, SortText: "0_this"})
 					}
 					addParameters(method.Parameters, add)
+					addNamedResultCompletions(method.ReturnType, add)
 					addVisibleBlock(method.Body, path, offset, add)
 					return
 				}
@@ -338,6 +341,7 @@ func addLocalCompletions(program *ast.Program, path string, offset int, add func
 					}
 					add(completionItem{Label: "this", Kind: 6, Detail: detail, SortText: "0_this"})
 					addParameters(method.Parameters, add)
+					addNamedResultCompletions(method.ReturnType, add)
 					addVisibleBlock(method.Body, path, offset, add)
 					return
 				}

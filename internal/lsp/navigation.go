@@ -326,6 +326,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			for _, parameter := range declaration.Parameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 13, Span: parameter.Span, Selection: nameSpan(parameter.Span, parameter.Name)})
 			}
+			addNamedResultDeclarations(declaration.ReturnType, &info.Children)
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.MethodDecl:
@@ -337,6 +338,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			for _, parameter := range declaration.Parameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 13, Span: parameter.Span, Selection: nameSpan(parameter.Span, parameter.Name)})
 			}
+			addNamedResultDeclarations(declaration.ReturnType, &info.Children)
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.ClassDecl:
@@ -378,6 +380,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
+				addNamedResultDeclarations(method.ReturnType, &child.Children)
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -399,6 +402,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
+				addNamedResultDeclarations(method.ReturnType, &child.Children)
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -694,6 +698,13 @@ func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
 }
 
 func formatTypeRef(ref ast.TypeRef) string {
+	if len(ref.NamedResults) != 0 {
+		results := make([]string, len(ref.NamedResults))
+		for i, binding := range ref.NamedResults {
+			results[i] = binding.Name + ": " + formatTypeRef(ref.NamedResultType(i))
+		}
+		return "(" + strings.Join(results, ", ") + ")"
+	}
 	if ref.GoInterface {
 		methods := make([]string, len(ref.ObjectFields))
 		for i, method := range ref.ObjectFields {

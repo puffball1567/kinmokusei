@@ -373,7 +373,7 @@ func generateClass(class *kinmokuseiAST.ClassDecl) ([]goast.Decl, error) {
 		}
 		methodType := &goast.FuncType{Params: &goast.FieldList{List: parameters}}
 		methodType.Results = functionResults(method.ReturnType)
-		body, err := generateCallableBlock(method.Body, method.Parameters)
+		body, err := generateCallableBlock(method.Body, method.Parameters, method.ReturnType)
 		if err != nil {
 			return nil, err
 		}

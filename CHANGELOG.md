@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Declare named result slots in functions, methods, and block arrows, and
+  return their current values with `return`. Preserve zero initialization,
+  deferred mutations, and edits to result names in the language server.
+
 - Let named interfaces extend inline or aliased anonymous method interfaces.
   Preserve inherited methods in class implementations, generic bounds, Go
   interop, and editor navigation.

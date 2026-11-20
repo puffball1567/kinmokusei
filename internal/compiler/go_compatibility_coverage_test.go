@@ -119,9 +119,11 @@ var implementedGoCompatibilityContracts = []string{
 	"instance and static properties with getter/setter visibility, virtual and abstract instance contracts, final and partial overrides, generic class and diamond interface inheritance, DI, construction phases, source nullability, single-evaluation updates, ordered effects, shared values, public Go APIs, and failure behavior",
 	"static class fields and constants with explicit initialization, shared generic and inherited storage, visibility, addressability, package dependency order, module lexical scope, linked aliases, collection and callable values, narrow updates, typed constant evaluation and rounding, instance serialization isolation, and public Go variables/constants",
 	"typed class, member, accessor, constructor and parameter decorator registration with deterministic factory/application order, external modules, target and nominal type identities, class hierarchy ownership, repeatable Go initialization, opaque scalar values, checked extraction, fixed or variadic class construction, and checked instance/static method and accessor invocation with Result, per-slot result lists and virtual dispatch",
+	"named results with zero initialization, bare and explicit returns, closures, deferred mutations, nested cleanup, blank results, nullable values, generics, and linked functions",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"named-results.test":                  {implementedGoCompatibilityContracts[103]},
 	"reference-reads.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[27], implementedGoCompatibilityContracts[31]},
 	"mixed-non-null.test":                 {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[27], implementedGoCompatibilityContracts[29]},
 	"optional-chaining.test":              {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[0], implementedGoCompatibilityContracts[1]},

@@ -614,6 +614,7 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 	}
 	previousControl := c.enterCallableControl()
 	c.result = c.resolveType(method.ReturnType)
+	c.declareNamedResults(&method.ReturnType)
 	c.checkBlock(method.Body, false)
 	if c.result.Kind != Void && !definitelyReturns(method.Body) {
 		c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))
@@ -663,6 +664,7 @@ func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, ty
 	}
 	previousControl := c.enterCallableControl()
 	c.result = c.resolveType(method.ReturnType)
+	c.declareNamedResults(&method.ReturnType)
 	c.checkBlock(method.Body, false)
 	if c.result.Kind != Void && !definitelyReturns(method.Body) {
 		c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))

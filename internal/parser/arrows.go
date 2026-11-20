@@ -36,7 +36,7 @@ func (p *Parser) parseArrow() ast.Expression {
 	}
 	var returnType *ast.TypeRef
 	if p.match(token.Colon) {
-		parsed, valid := p.parseCallableReturnType()
+		parsed, valid := p.parseDeclaredReturnType(true)
 		if !valid {
 			return nil
 		}

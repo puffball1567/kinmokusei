@@ -10,6 +10,7 @@ import (
 // tracking, and nullable flow have separate lifetimes and are not reset here.
 type callableControlState struct {
 	result            Type
+	namedResultType   *ast.TypeRef
 	loopDepth         int
 	breakableDepth    int
 	exceptionDepth    int

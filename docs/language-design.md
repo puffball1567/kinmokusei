@@ -63,8 +63,8 @@ count as line breaks.
 
 A newline immediately after `return` ends a bare return; after `throw`, it
 ends a bare rethrow (valid only within a catch). Optional break/continue labels
-must be on the keyword's line. A value-returning function rejects a bare return
-at the source location. Keep a return/throw operand on the keyword's line, or
+must be on the keyword's line. A value-returning function permits a bare return
+when it declares named results. Keep a return/throw operand on the keyword's line, or
 start its grouping parenthesis there, to express a multiline value. This
 restricted-newline rule also applies to code that uses explicit semicolons.
 
