@@ -356,7 +356,8 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s must be public", decl.Name, contractName, name))
 			case actual.static:
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s cannot be static", decl.Name, contractName, name))
-			case !identicalMethodSignature(actual.typeInfo, requiredType):
+			case !identicalMethodSignature(actual.typeInfo, requiredType),
+				required.fromAnonymousInterface && !c.identicalMethodStorage(actual.typeInfo, requiredType):
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s has an incompatible signature", decl.Name, contractName, name))
 			}
 		}

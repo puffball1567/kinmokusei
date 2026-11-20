@@ -335,10 +335,18 @@ alias Input = interface {
   size(): int
 }
 
-function read(input: Input, buffer: byte[]): (int, error) {
+interface BufferedInput extends Input {
+  function remaining(): int
+}
+
+function read(input: BufferedInput, buffer: byte[]): (int, error) {
   return input.Read(buffer)
 }
 ```
+
+A named interface can extend an anonymous type inline or by using an alias,
+including a generic alias. Classes implementing the named interface must
+provide its inherited methods.
 
 Overlapping embedded methods can share a Go method name when their spelling
 and source signatures agree. A conflicting result type, nullable contract, or

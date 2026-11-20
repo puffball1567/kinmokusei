@@ -336,6 +336,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		}
 		expr.ResolvedName = method.goName
 		expr.ResolvedDeclaration = method.declarationSpan
+		if method.goDeclaration != nil {
+			c.recordGoReference(expr.NameSpan, method.goDeclaration)
+		}
 		expr.BoundMethod = true
 		return substituteNativeTypeParameters(method.typeInfo, nativeInterfaceBindings(contract, object))
 	}

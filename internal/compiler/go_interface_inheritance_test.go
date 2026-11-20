@@ -26,16 +26,19 @@ interface Left extends Named {}
 interface Right extends Named {}
 interface Combined extends Left,Right {function count():int;}
 interface Reader<T> extends api.Reader<T>,api.Batch<T> {}
-interface Bytes extends io.Reader {}
+interface Bytes extends interface{io.Reader;} {}
+alias Readable<T>=interface{read():T;};
+interface Snapshot<T> extends Readable<T> {}
 class Label implements Combined {constructor(protected value:int){}public virtual function string():bstring{return fmt.Sprint(this.value);}public function count():int{return this.value;}}
 class Double extends Label {constructor(value:int){super(value);}public override function string():bstring{return fmt.Sprint(this.value*2);}}
 class Cell<T> implements Reader<T>{constructor(private value:T){}public function read():T{return this.value;}public function all(...values:T[]):T[]{return values;}}
+class View<T> implements Snapshot<T>{constructor(private value:T){}public function read():T{return this.value;}}
 class ByteReader implements Bytes {constructor(private count:int){}public function read(buffer:byte[]):Result<int>{return ok(this.count+len(buffer));}}
 class Leaf{constructor(public value:int){}}
 alias Maybe=Leaf|null;
 function nullable(present:boolean,value:int):int{let leaf:Maybe=null;if(present){leaf=new Leaf(value);}const reader:Reader<Maybe>=new Cell<Maybe>(leaf);const result=reader.Read();if(result===null){return -1;}return result.value;}
 `,
-		"entry.km": `import {Named,Combined,Reader,Bytes,Double,Cell,ByteReader,nullable} from "./base";
+		"entry.km": `import {Named,Combined,Reader,Bytes,Snapshot,Double,Cell,View,ByteReader,nullable} from "./base";
 import go f from "fmt";
 import go io from "io";
 import go c from "go-interface-inheritance.test/contracts";
@@ -49,6 +52,8 @@ function GenericUpcast(value:int):c.Reader<int>{return new Cell<int>(value);}
 function ByteResult(value:int):int{const source:Bytes=new ByteReader(value);const [n,err]=source.Read([1,2]);return n;}
 function ByteUpcast(value:int):io.Reader{return new ByteReader(value);}
 function Objects(present:boolean,value:int):int{return nullable(present,value);}
+function snapshot<T,V extends Snapshot<T>>(v:V):T{return v.read();}
+function SnapshotText(value:string):string{const v:Snapshot<string>=new View<string>(value);return snapshot(v);}
 `,
 	}
 	for name, input := range files {
@@ -83,6 +88,11 @@ func ByteResult(value int)int{var source io.Reader=&ByteReader{value};n,_:=sourc
 func ByteUpcast(value int)io.Reader{return &ByteReader{value}}
 type Leaf struct{value int}
 func Objects(present bool,value int)int{var leaf *Leaf;if present{leaf=&Leaf{value}};var reader Reader[*Leaf]=&Cell[*Leaf]{leaf};result:=reader.Read();if result==nil{return -1};return result.value}
+type Snapshot[T any] interface{interface{Read()T}}
+type View[T any] struct{value T}
+func(v *View[T])Read()T{return v.value}
+func snapshot[T any,V Snapshot[T]](v V)T{return v.Read()}
+func SnapshotText(value string)string{var v Snapshot[string]=&View[string]{value};return snapshot(v)}
 `
 	comparison := `package gointerfaces_test
 import("testing";"fmt";"io";generated "go-interface-inheritance.test";reference "go-interface-inheritance.test/reference")
@@ -102,6 +112,7 @@ func TestContracts(t *testing.T){
   for _,present:=range []bool{false,true}{if generated.Objects(present,n)!=reference.Objects(present,n){t.Error("nullable generic class identity")}}
  }
  if generated.Nullable(nil)!=nil||reference.Nullable(nil)!=nil{t.Error("nil upcast")}
+ for _,value:=range []string{"","snapshot","金木犀"}{if generated.SnapshotText(value)!=reference.SnapshotText(value){t.Error("snapshot",value)}}
 }
 `
 	runGeneratedGoDifferentialTest(t, root, "go-interface-inheritance.test", generated, reference, comparison)

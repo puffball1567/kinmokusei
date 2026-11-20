@@ -138,7 +138,7 @@ func (c *Checker) nativeSourceInterfaceArgumentSatisfies(bound, argument Type) b
 		if !ok || !identicalMethodSignature(expected, provided) {
 			return false
 		}
-		if required.goDeclaration != nil && !c.identicalMethodStorage(expected, provided) {
+		if (required.goDeclaration != nil || required.fromAnonymousInterface) && !c.identicalMethodStorage(expected, provided) {
 			return false
 		}
 	}

@@ -80,11 +80,12 @@ type Type struct {
 }
 
 type GoInterfaceMethod struct {
-	Name            string
-	GoName          string
-	Type            Type
-	GoDeclaration   *gotypes.Func
-	DeclarationSpan source.Span
+	Name                   string
+	GoName                 string
+	Type                   Type
+	GoDeclaration          *gotypes.Func
+	DeclarationSpan        source.Span
+	FromAnonymousInterface bool
 }
 
 type GoStructField struct {
