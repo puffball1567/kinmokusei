@@ -69,6 +69,6 @@ generation; the checked JSON manifest is the supported input. See the
 
 ## Behavioral compatibility evidence
 
-The runtime contract registry contains 103/103 implemented Go-equivalent groups, each connected to an isolated independently handwritten Go scenario. This is contract coverage for implemented behavior, not a claim that every Go or planned Kinmokusei feature exists.
+The runtime contract registry contains 104 implemented Go-equivalent groups. Each group has an independent Go comparison.
 
 See [Quality promise](../project/quality) for the oracle and generated-artifact gates.

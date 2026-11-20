@@ -204,7 +204,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 			arrowType, arrowFound = ref, true
 			return
 		}
-		if ref, found := parameterType(arrow.Parameters, name); found {
+		if ref, found := callableBindingType(arrow.Parameters, arrow.ResolvedReturnType, name); found {
 			arrowType, arrowFound = ref, true
 		}
 	})
@@ -220,7 +220,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 			if ref, ok := visibleValueTypeInBlock(program, declaration.Body, path, offset, name); ok {
 				return ref, true
 			}
-			if ref, ok := parameterType(declaration.Parameters, name); ok {
+			if ref, ok := callableBindingType(declaration.Parameters, declaration.ReturnType, name); ok {
 				return ref, true
 			}
 			break
@@ -228,7 +228,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 			if ref, ok := visibleValueTypeInBlock(program, declaration.Body, path, offset, name); ok {
 				return ref, true
 			}
-			if ref, ok := parameterType(declaration.Parameters, name); ok {
+			if ref, ok := callableBindingType(declaration.Parameters, declaration.ReturnType, name); ok {
 				return ref, true
 			}
 			if declaration.ReceiverName == name {
@@ -252,7 +252,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 				if ref, ok := visibleValueTypeInBlock(program, method.Body, path, offset, name); ok {
 					return ref, true
 				}
-				if ref, ok := parameterType(method.Parameters, name); ok {
+				if ref, ok := callableBindingType(method.Parameters, method.ReturnType, name); ok {
 					return ref, true
 				}
 				break
@@ -265,7 +265,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 				if ref, ok := visibleValueTypeInBlock(program, method.Body, path, offset, name); ok {
 					return ref, true
 				}
-				if ref, ok := parameterType(method.Parameters, name); ok {
+				if ref, ok := callableBindingType(method.Parameters, method.ReturnType, name); ok {
 					return ref, true
 				}
 				break

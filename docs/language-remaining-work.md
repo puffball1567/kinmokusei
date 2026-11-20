@@ -1,7 +1,7 @@
 # Remaining language work: Go compatibility and OOP
 
 This is an implementation audit, not a claim of full Go compatibility. The
-103 runtime contract groups cover accepted features only. The baseline output
+104 runtime contract groups cover accepted features only. The baseline output
 remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
@@ -56,7 +56,7 @@ own type parameters remain follow-up work.
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
 Go programs, and document deliberate source-language differences. Neither the
-103 existing runtime contract groups nor statement coverage alone establishes
+104 existing runtime contract groups nor statement coverage alone establishes
 that milestone. OOP work continues alongside Go compatibility.
 
 ## Next patch release work areas
@@ -265,7 +265,7 @@ where applicable, editor support and user documentation.
 
 | # | Work area | Current boundary |
 |---|---|---|
-| 1 | Named results and bare returns | Not implemented; explicit result lists and return values work |
+| 1 | Named results and bare returns | Development builds support named results with valid zero values in functions, methods, and block arrows, including bare returns, defer, and try/finally |
 | 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
 | 3 | Instantiated generic function values | Released in v0.4.7 for full explicit lists; v0.4.12 adds destination-type inference and leading partial lists for source/Go functions, including higher-order callbacks, assignments, returns, typed aggregates, invocation checks for concrete non-null contracts, independent Go comparison and editor support; unresolved callback cycles, private inferred Go type arguments and generic instance method values remain unsupported |
 | 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types. Development builds add class instance expressions, including inherited and virtual methods, aliases, invocation boundaries and editor support. Method-local generics remain |
@@ -353,7 +353,7 @@ feature work without mixing unrelated changes into its implementation.
 | 7 | Constraint intersections and interface composition | Source/imported Go type sets, Go method interfaces, and comparable requirements compose; development builds also preserve named/anonymous source interface contracts through composition |
 | 8 | Remaining constant contexts | Scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` preserve values and types; bounds and size checks consume these constants; further contexts remain |
 | 9 | Source anonymous-interface syntax | `interface { name(parameters): result; }` lowers to a Go anonymous interface. Development builds allow embedded Go and anonymous method interfaces in value types and bounds |
-| 10 | Source-declared multiple results | Implemented for `(T, U)` signatures, explicit returns, forwarding, contextual callbacks, arrow result inference, try/catch/finally and sole-argument expansion including generic source/Go functions, instance methods, Task launches, append/copy/delete/min/max/complex, and permitted unsafe Add/Slice/String. Development builds also accept paired slice lengths and capacities in `make` and `makeSlice`. Named results and an audit of other builtin argument forms remain |
+| 10 | Source-declared multiple results | Implemented for `(T, U)` signatures, explicit returns, forwarding, contextual callbacks, arrow result inference, try/catch/finally and sole-argument expansion including generic source/Go functions, instance methods, Task launches, append/copy/delete/min/max/complex, and permitted unsafe Add/Slice/String. Development builds add named results with valid zero values and accept paired slice lengths and capacities in `make` and `makeSlice`. Audit remaining builtin argument forms |
 | 11 | Abstract classes and methods | Implemented: explicit abstract contracts, concrete overrides, generic DI and multi-level dispatch; construction boundary documented below |
 | 12 | Getter/setter properties | Instance/static accessors and interface contracts implemented, including independent visibility, generic inheritance, virtual/abstract/final instance overrides, DI, ordered updates and editor support |
 | 13 | Static fields and constants | Mutable fields and typed scalar `static const` members implemented, with inherited visibility, generic-independent scope, Go variables/constants and initialization checks |
@@ -668,7 +668,7 @@ these constants; differential coverage is in `nullable_array_constants_test.go`.
 | Source constraint composition | Source/imported Go type sets, comparable and Go method interfaces compose; development builds add named/anonymous source interface operands, preserving generic source signatures, properties, Result/text/nullability, inference, linked aliases and editor metadata | Raw Go generic method arguments retain interop restrictions; incompatible source signatures are rejected even when Go storage agrees. Intersections whose overlap depends on later substitution remain conservative |
 | Constant contexts | Indices, slicing, collection/channel sizes, generic scalar arguments, scalar reference chains, constant `min`/`max`, constant-string `len`, and fixed-array/array-pointer `len`/`cap` (including nullable pointers) are supported; nonconstant shifts preserve destination/peer types through assignments, returns, conversions, arithmetic, comparisons and native/Go generic calls (`shift_context_test.go`); machine-width and unsafe layout constants use selected target sizes in semantic and generated Go checking; type-parameter values and runtime bindings remain nonconstant. v0.4.7 builds accept integer constant expressions in array type lengths, fold them into Go array types and preserve LSP references (`array_type_lengths_test.go`) | Audit remaining contextual-expression combinations and constant contexts without treating immutable runtime bindings as Go constants |
 | Anonymous Go interfaces | Exported runtime method sets are supported through imported APIs, inference and source method-only `interface { ... }` type literals | Source fields, private method identities and richer anonymous-interface members remain rejected |
-| Source-declared multiple results | Source functions, methods, arrows and function types accept `(T, U)` signatures, explicit returns and forwarding, including try/catch/finally; arrow result inference preserves per-slot types; explicit values support contextual checks and class upcasts, while forwarding requires direct Go assignability | Inference rejects ambiguous nil/null slots and incompatible branches; named results and multiple-result properties are not supported |
+| Source-declared multiple results | Source functions, methods, arrows and function types accept `(T, U)` signatures, explicit returns and forwarding, including try/catch/finally; development builds add named slots with safe zero initialization and bare returns | Inference rejects ambiguous nil/null slots and incompatible branches. Multiple-result properties remain unsupported |
 
 These entries come from the parser, `internal/sema/checker.go`,
 `internal/sema/types.go`, and `internal/sema/go_audit.go`; they do not imply that

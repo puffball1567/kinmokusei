@@ -386,6 +386,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			}
 		}
 		prependParameterChecks(body, expr.Parameters)
+		prependNamedResultSlots(body, expr.ResolvedReturnType)
 		body.List = append([]goast.Stmt{sourceCallableMarker()}, body.List...)
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
 	case *kinmokuseiAST.ArrayLiteralExpr:

@@ -16,6 +16,7 @@ func addArrowDeclarations(program *ast.Program, declarations []declarationInfo) 
 			for _, parameter := range arrow.Parameters {
 				owner.Children = append(owner.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 13, Span: parameter.Span, Selection: nameSpan(parameter.Span, parameter.Name)})
 			}
+			addNamedResultDeclarations(arrow.ResolvedReturnType, &owner.Children)
 			collectBlockDeclarations(arrow.BlockBody, &owner.Children)
 			break
 		}
@@ -33,6 +34,7 @@ func addArrowCompletions(program *ast.Program, path string, offset int, add func
 	// bindings last while retaining unshadowed outer captures.
 	for i := 0; i < len(arrows); i++ {
 		addParameters(arrows[i].Parameters, add)
+		addNamedResultCompletions(arrows[i].ResolvedReturnType, add)
 		addVisibleBlock(arrows[i].BlockBody, path, offset, add)
 	}
 }

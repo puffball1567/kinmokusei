@@ -163,6 +163,9 @@ func generateTryStatement(stmt *kinmokuseiAST.TryStmt) (goast.Stmt, error) {
 		}}
 		captured := generatePanicCapture(&goast.BlockStmt{List: []goast.Stmt{call}}, returnRecoveryBody, recoveredName)
 		returnStatement := exceptionControlReturn(stmt.ReturnType, controlName)
+		if stmt.NamedResultCount != 0 {
+			returnStatement = &goast.ReturnStmt{Results: namedResultSlots(stmt.NamedResultCount)}
+		}
 		call = &goast.BlockStmt{List: []goast.Stmt{
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(returningName)}, Type: goast.NewIdent("bool")}}}},
 			&goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{&goast.ValueSpec{Names: []*goast.Ident{goast.NewIdent(controlName)}, Type: goast.NewIdent("__kinmokuseiReturn")}}}},

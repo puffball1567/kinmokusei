@@ -25,6 +25,7 @@ func (c *Checker) checkFunction(decl *ast.FunctionDecl) {
 		c.declareLocal(param.Name, t, false, nil, param.Span)
 	}
 	c.result = c.resolveType(decl.ReturnType)
+	c.declareNamedResults(&decl.ReturnType)
 	c.checkBlock(decl.Body, false)
 	if c.result.Kind != Void && !definitelyReturns(decl.Body) {
 		c.report(decl.Span, fmt.Sprintf("function %q may complete without returning %s", decl.Name, c.result.String()))
@@ -73,11 +74,15 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		result = c.resolveType(*expr.ReturnType)
 		c.rejectTaskAPIType(result, expr.ReturnType.Span, "arrow return types")
 		c.result = result
+		c.declareNamedResults(expr.ReturnType)
 	} else if expected.Kind == Function && expected.Result != nil {
 		result = *expected.Result
 		c.result = result
 	}
 	if expr.ExpressionBody != nil {
+		if c.namedResultType != nil {
+			c.report(expr.ExpressionBody.GetSpan(), "named results require an arrow function block body")
+		}
 		if result.Kind == Result {
 			c.report(expr.ExpressionBody.GetSpan(), "Result arrow functions require a block body with an explicit return")
 		}
@@ -124,6 +129,10 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 	c.publishClosureEffects(effects, expr.Span)
 	c.prepareGoTypeForEmission(&result, expr.Span)
 	resolved := typeRefFromType(result, expr.Span)
+	if expr.ReturnType != nil {
+		resolved.NamedResults = expr.ReturnType.NamedResults
+		resolved.NamedResultsThroughTry = expr.ReturnType.NamedResultsThroughTry
+	}
 	expr.ResolvedReturnType = resolved
 	callableParameters := make([]Type, len(parameters))
 	for index, parameter := range expr.Parameters {

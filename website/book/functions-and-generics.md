@@ -634,6 +634,28 @@ There is no hidden error discard and no tuple wrapper. Bind every result or use
 `_` explicitly, or forward a matching result list. Use `Result<T>` and `?` when
 the signature should expose a checked error effect instead of an ordinary list.
 
+### Named results
+
+Functions, methods, and block arrows can name their results. Each name is a
+mutable local initialized to the zero value of its type. A `return` with no
+operands returns the current values.
+
+```ts
+function double(value: int): (answer: int, err: error) {
+  answer = value * 2
+  return
+}
+```
+
+An explicit `return answer, err` is also valid. `finally` and deferred
+closures can update the result slots before the function returns. In a scope
+that shadows a result name, use an explicit return. `_` leaves a slot unnamed
+in the body. Result names do not affect function type identity.
+
+Named result types must have a valid zero value. For a non-null class result,
+use an ordinary return type and return an initialized object, or declare the
+named result as `Item | null` when absence is part of the API.
+
 ## Result functions
 
 `Result<T>` is a return effect, lowering to `(T, error)`; `Result<void>` lowers to `error`. The Result itself cannot be stored, nested, or used as a field/parameter. `ok`, `fail`, and `?` make the result paths explicit.
