@@ -88,6 +88,9 @@ func (c *Checker) restoreNativeRangeType(value Type) Type {
 	for i := range value.Parameters {
 		value.Parameters[i] = c.restoreNativeRangeType(value.Parameters[i])
 	}
+	for i := range value.Results {
+		value.Results[i] = c.restoreNativeRangeType(value.Results[i])
+	}
 	if value.Kind == GoPointer && value.GoType != nil {
 		if pointer, ok := gotypes.Unalias(value.GoType).(*gotypes.Pointer); ok {
 			if named, ok := gotypes.Unalias(pointer.Elem()).(*gotypes.Named); ok {

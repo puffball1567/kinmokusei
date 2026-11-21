@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Pass native structs directly to Go generic functions with interface
+  parameters. Infer type arguments from public and promoted methods, and
+  preserve native struct identity in instantiated inputs and results.
+
 - Assign or convert native struct values and pointers to Go runtime interfaces
   when their public method sets match, including promoted methods. Support
   forwarding result lists, assertions, and type switches with those interfaces.

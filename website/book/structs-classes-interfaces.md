@@ -78,8 +78,10 @@ function countBytes(data: byte[]): int {
 `ByteCounter` has a pointer-receiver method, so the interface receives
 `&counter` explicitly. The same method-set rules apply to arguments, return
 values, explicit conversions, and assertions back to a concrete struct type.
-For a generic Go function whose parameter is such an interface, assign the
-struct to the instantiated interface before passing it to the function.
+When a generic Go function takes an interface such as `Getter<T>`, the
+struct can be passed directly. If its public method `Get()` returns `int`,
+Go can infer `T` from that signature, including when `Get()` is promoted
+from an embedded field. Explicit type arguments also work.
 
 ## Declaring a class
 

@@ -572,7 +572,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, typeArguments)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
-	instantiatedSignature, err := inferGoGenericCall(signature, actualTypes, typeArguments, expr.Expanded, numericArguments)
+	instantiatedSignature, err := c.inferImportedGoGenericCall(signature, actualTypes, typeArguments, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot apply explicit Go type arguments to %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -582,6 +582,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("instantiated Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	converted = c.restoreNativeRangeType(converted)
 	if c.containsVerifiedText(converted, nil) {
 		c.report(expr.Span, "Go generic calls cannot preserve a verified native text contract; use bstring/raw storage")
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -605,7 +606,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, nil)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
-	instantiated, err := inferGoGenericCall(signature, actualTypes, nil, expr.Expanded, numericArguments)
+	instantiated, err := c.inferImportedGoGenericCall(signature, actualTypes, nil, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot infer Go type arguments for %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -615,6 +616,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("inferred Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	converted = c.restoreNativeRangeType(converted)
 	if c.containsVerifiedText(converted, nil) {
 		c.report(expr.Span, "Go generic calls cannot preserve a verified native text contract; use bstring/raw storage")
 		return Type{Kind: Invalid, Name: "<invalid>"}
