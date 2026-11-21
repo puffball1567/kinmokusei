@@ -121,9 +121,11 @@ var implementedGoCompatibilityContracts = []string{
 	"typed class, member, accessor, constructor and parameter decorator registration with deterministic factory/application order, external modules, target and nominal type identities, class hierarchy ownership, repeatable Go initialization, opaque scalar values, checked extraction, fixed or variadic class construction, and checked instance/static method and accessor invocation with Result, per-slot result lists and virtual dispatch",
 	"named results with zero initialization, bare and explicit returns, closures, deferred mutations, nested cleanup, blank results, nullable values, generics, and linked functions",
 	"native struct embedding and promotion across value and pointer receivers, linked generic aliases, method sets, nested selectors, closure capture, and shared storage",
+	"native struct values and pointers implementing Go runtime interfaces with promoted methods, assignment, conversion, multi-result forwarding, checked assertions, type switches, and generic Go signatures",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
+	"struct-go-interfaces.test":           {implementedGoCompatibilityContracts[105]},
 	"struct-embedding.test":               {implementedGoCompatibilityContracts[104]},
 	"named-results.test":                  {implementedGoCompatibilityContracts[103]},
 	"reference-reads.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[27], implementedGoCompatibilityContracts[31]},

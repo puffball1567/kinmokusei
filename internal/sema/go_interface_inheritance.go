@@ -88,8 +88,7 @@ func (c *Checker) inheritGoInterface(decl *ast.InterfaceDecl, symbol *interfaceS
 	return valid
 }
 
-func (c *Checker) embeddedGoInterfaceMethods(base Type, contract *gotypes.Interface, span source.Span, context string) ([]GoInterfaceMethod, bool) {
-	valid := true
+func goInterfaceContractOrigin(base Type, contract *gotypes.Interface) (*gotypes.Interface, nativeTypeBindings) {
 	// Convert the generic origin, then substitute source arguments. Converting
 	// only the Go instance would erase class identity and nullable qualifiers.
 	bindings := nativeTypeBindings{}
@@ -99,6 +98,12 @@ func (c *Checker) embeddedGoInterfaceMethods(base Type, contract *gotypes.Interf
 			bindings[named.TypeParams().At(i)] = argument
 		}
 	}
+	return contract, bindings
+}
+
+func (c *Checker) embeddedGoInterfaceMethods(base Type, contract *gotypes.Interface, span source.Span, context string) ([]GoInterfaceMethod, bool) {
+	valid := true
+	contract, bindings := goInterfaceContractOrigin(base, contract)
 	methods := make([]GoInterfaceMethod, 0, contract.NumMethods())
 	for i := 0; i < contract.NumMethods(); i++ {
 		required := contract.Method(i)

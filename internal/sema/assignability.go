@@ -26,7 +26,8 @@ func (c *Checker) requireAssignable(target, value Type, span source.Span) {
 				// Forwarding a Go result list cannot insert per-element class
 				// upcasts or other source coercions. Require storage assignability
 				// as well as the source contract.
-				if !c.isAssignable(target.Results[index], value.Results[index]) || !assignable(target.Results[index], value.Results[index]) {
+				expected, actual := target.Results[index], value.Results[index]
+				if !c.isDirectlyAssignable(expected, actual) {
 					c.report(span, fmt.Sprintf("cannot use result %d of %s as %s", index+1, value.String(), target.Results[index].String())+c.goInterfaceTextDiagnostic(target.Results[index], value.Results[index]))
 				}
 			}
@@ -97,6 +98,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	}
 	if target.Kind != TypeParameter && !exactType(target, value) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		return false
+	}
+	if c.nativeStructSatisfiesGoInterface(target, value) {
+		return true
 	}
 	if value.Kind == GoPointer && target.Kind != TypeParameter {
 		if contract := underlyingGoInterface(target.GoType); contract != nil && contract.NumMethods() == 0 {
@@ -190,3 +194,9 @@ func (c *Checker) isAssignable(target, value Type) bool {
 }
 
 func exactType(left, right Type) bool { return assignable(left, right) && assignable(right, left) }
+
+// Go can forward directly assignable results without inserting per-slot
+// adapters such as a source class upcast.
+func (c *Checker) isDirectlyAssignable(target, value Type) bool {
+	return c.isAssignable(target, value) && (assignable(target, value) || c.nativeStructSatisfiesGoInterface(target, value))
+}
