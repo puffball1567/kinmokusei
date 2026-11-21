@@ -285,6 +285,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 				if err != nil {
 					return nil, err
 				}
+				genericReceiver = embeddedReceiver(genericReceiver, member.EmbeddedPath)
 				if member.GenericReceiverAddress {
 					genericReceiver = &goast.UnaryExpr{Op: token.AND, X: genericReceiver}
 				}

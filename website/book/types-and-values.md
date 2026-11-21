@@ -299,6 +299,38 @@ A struct is a nominal Go-style value. Assignment, parameters, and results copy t
 
 Use `*Point` and `&point` when shared mutable identity should be explicit.
 
+### Embedded fields
+
+Write a named Kinmokusei struct type on its own inside another struct to embed
+it. A pointer to a named struct, a generic struct instance, and a transparent
+alias for a struct can also be embedded.
+
+```ts
+struct Coordinates {
+  public x: int
+  public function readX(): int { return this.x }
+}
+
+struct Position {
+  Coordinates
+}
+
+function positionX(): int {
+  const p = Position { Coordinates: Coordinates { x: 4 } }
+  return p.x + p.readX()
+}
+```
+
+`p.x` and `p.readX()` access promoted members. The shallowest declaration wins.
+If two fields at the same depth supply the same member, qualify the selector
+with the embedded field name. Struct literals use the embedded field's name,
+which follows the type or alias written in the declaration.
+
+Copying an outer struct copies a value embedding and shares the target of a
+pointer embedding. A pointer-receiver method on a value embedding requires an
+addressable outer value for a call. The pointer embedding also promotes those
+methods into the outer value's method set.
+
 ## Classes
 
 ```ts

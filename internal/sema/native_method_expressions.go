@@ -95,7 +95,7 @@ func (c *Checker) nativeMethodExpressionSet(receiver Type) map[string]methodSymb
 		}
 	case Struct:
 		if symbol := c.structs[base.Name]; symbol != nil {
-			methods, bindings = symbol.methods, nativeStructBindings(symbol, base)
+			methods, bindings = c.effectiveStructMethods(base, pointer)
 		}
 	case Interface:
 		// A pointer to an interface has no interface method set.
@@ -176,7 +176,10 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 		expr.MethodExpressionBoundary = c.functionValueBoundary(callable, expr.Span)
 		return method.typeInfo
 	}
-	if owner.Kind != Interface {
+	if embedded := method.embeddedMember; embedded != nil {
+		expr.EmbeddedPath = embedded.path
+		recordReceiverContracts(expr, embedded.owner(), embedded.receiver, method.typeInfo, *embedded.method)
+	} else if owner.Kind != Interface {
 		recordReceiverContracts(expr, owner, receiver, method.typeInfo, method)
 	}
 	// Go's initialization dependency graph follows concrete method bodies,

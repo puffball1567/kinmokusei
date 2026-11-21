@@ -740,7 +740,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkTypeParameters(declaration.TypeParameters)
 			for index := range declaration.Fields {
 				field := &declaration.Fields[index]
-				declare(field.NameSpan)
+				if !field.Embedded {
+					declare(field.NameSpan)
+				}
 				walkType(&field.Type)
 			}
 			for _, method := range declaration.Methods {

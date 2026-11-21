@@ -57,6 +57,7 @@ type fieldSymbol struct {
 }
 
 type methodSymbol struct {
+	embeddedMember         *embeddedStructMember
 	goInterfaceMethod      bool
 	fromAnonymousInterface bool
 	goDeclaration          *gotypes.Func
@@ -96,6 +97,7 @@ type classSymbol struct {
 type structSymbol struct {
 	declaration     *ast.StructDecl
 	fields          map[string]fieldSymbol
+	embedded        []string
 	methods         map[string]methodSymbol
 	typeInfo        Type
 	goNamed         *gotypes.Named

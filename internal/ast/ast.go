@@ -256,6 +256,7 @@ type CABIExport struct {
 }
 
 type FieldDecl struct {
+	Embedded    bool
 	Decorators  []*Decorator
 	Static      bool
 	Constant    bool
@@ -341,12 +342,21 @@ func (d *ClassDecl) GetSpan() source.Span { return d.Span }
 // StructDecl is a nominal Go-style value type. Unlike ClassDecl it has no
 // implicit reference identity or constructor allocation.
 type StructDecl struct {
-	Name           string
-	NameSpan       source.Span
-	TypeParameters []TypeParameter
-	Fields         []FieldDecl
-	Methods        []*MethodDecl
-	Span           source.Span
+	PromotedMembers []PromotedStructMember // Checked member completion metadata.
+	Name            string
+	NameSpan        source.Span
+	TypeParameters  []TypeParameter
+	Fields          []FieldDecl
+	Methods         []*MethodDecl
+	Span            source.Span
+}
+
+type PromotedStructMember struct {
+	Name        string
+	Type        TypeRef
+	Method      bool
+	Visibility  Visibility
+	Declaration source.Span
 }
 
 func (*StructDecl) declaration()           {}
@@ -1089,6 +1099,7 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
+	EmbeddedPath           []string // Go field selectors to the declaring struct.
 	BoundMethod            bool     // A resolved method value is always a non-nil callable.
 	NonNullRead            *TypeRef // Validate a source reference when this value is read.
 	Property               bool

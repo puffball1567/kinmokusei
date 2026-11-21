@@ -684,6 +684,17 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			return
 		}
 		bindings := genericStructTypeRefBindings(declaration, ref)
+		for _, member := range declaration.PromotedMembers {
+			if member.Visibility != ast.Public && !samePath(ref.Span.Path, member.Declaration.Path) {
+				continue
+			}
+			kind := 5
+			if member.Method {
+				kind = 2
+			}
+			memberType := substituteTypeRefParameters(member.Type, bindings)
+			add(completionItem{Label: member.Name, Kind: kind, Detail: member.Name + ": " + formatTypeRef(memberType), SortText: "0_" + member.Name})
+		}
 		for _, field := range declaration.Fields {
 			if memberVisible(program, owner, declaration.Name, field.Visibility) {
 				fieldType := substituteTypeRefParameters(field.Type, bindings)

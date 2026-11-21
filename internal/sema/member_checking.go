@@ -14,6 +14,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 
 func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	expr.BoundMethod = false
+	expr.EmbeddedPath = nil
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
 			if c.fieldInitializerStatic {
@@ -239,40 +240,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		structPointer = true
 	}
 	if structObject.Kind == Struct {
-		structure := c.structs[structObject.Name]
-		if structure == nil {
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		if field, ok := structure.fields[expr.Name]; ok {
-			expr.ResolvedName = field.goName
-			expr.ResolvedDeclaration = field.declarationSpan
-			expr.Addressable = structPointer || c.isAddressableExpression(expr.Object)
-			c.recordLayoutFieldReceiver(expr, object)
-			return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, structObject))
-		}
-		if method, ok := structure.methods[expr.Name]; ok {
-			c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
-			if method.pointerReceiver && !structPointer && !c.isAddressableExpression(expr.Object) {
-				c.report(expr.Span, fmt.Sprintf("pointer method %q requires an addressable %s value", expr.Name, structObject.String()))
-				return Type{Kind: Invalid, Name: "<invalid>"}
-			}
-			expr.ResolvedName = method.goName
-			expr.ResolvedDeclaration = method.declarationSpan
-			expr.BoundMethod = true
-			if len(method.typeInfo.TypeParameters) != 0 {
-				expr.GenericMethod = true
-				expr.ResolvedName = staticMethodGoName(structObject.Name, method.goName, method.visibility)
-				expr.GenericReceiverAddress = method.pointerReceiver && !structPointer
-				if c.directCallCallee != expr {
-					c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
-				}
-			}
-			callable := c.substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeStructBindings(structure, structObject))
-			recordReceiverContracts(expr, structObject, object, callable, method)
-			return callable
-		}
-		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", structObject.Name, expr.Name))
-		return Type{Kind: Invalid, Name: "<invalid>"}
+		return c.checkNativeStructMember(expr, object, structObject, structPointer)
 	}
 	nativeObject := object
 	nativePointer := false

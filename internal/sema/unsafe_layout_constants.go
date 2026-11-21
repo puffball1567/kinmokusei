@@ -33,10 +33,11 @@ func (c *Checker) checkUnsafeLayoutConstant(call *ast.CallExpr, name string, val
 			// a layout-identical struct with exported names. Preserve field
 			// order, types and tags; never apply this to imported Go members.
 			var ok bool
-			receiver, selected, ok = sourceLayoutProbe(receiver, selected)
+			receiver, ok = sourceLayoutProbe(receiver, field.EmbeddedPath, selected)
 			if !ok {
 				return
 			}
+			selected = "Selected"
 		}
 		pkg.Scope().Insert(gotypes.NewVar(0, pkg, "value", receiver))
 		operand = &goast.SelectorExpr{X: operand, Sel: goast.NewIdent(selected)}
@@ -78,31 +79,35 @@ func (c *Checker) recordLayoutFieldReceiver(field *ast.MemberExpr, receiver Type
 	c.goFieldReceivers[field] = storage
 }
 
-func sourceLayoutProbe(receiver gotypes.Type, name string) (gotypes.Type, string, bool) {
+func sourceLayoutProbe(receiver gotypes.Type, path []string, name string) (*gotypes.Struct, bool) {
 	underlying := receiver.Underlying()
 	if pointer, ok := underlying.(*gotypes.Pointer); ok {
 		underlying = pointer.Elem().Underlying()
 	}
 	structure, ok := underlying.(*gotypes.Struct)
 	if !ok {
-		return nil, "", false
+		return nil, false
 	}
 	fields := make([]*gotypes.Var, structure.NumFields())
 	tags := make([]string, len(fields))
-	selected := ""
+	found := false
 	for i := range fields {
 		field := structure.Field(i)
-		// Native structs have no embedded fields. Do not silently flatten a
-		// future source embedding extension or an imported promotion path.
-		if field.Embedded() {
-			return nil, "", false
+		exported, storage, embedded := fmt.Sprintf("Field%d", i), field.Type(), false
+		switch {
+		case len(path) == 0 && field.Name() == generatedIdentifier(name):
+			exported, found = "Selected", true
+		case len(path) != 0 && field.Name() == generatedIdentifier(path[0]):
+			inner, ok := sourceLayoutProbe(storage, path[1:], name)
+			if !ok {
+				return nil, false
+			}
+			exported = fmt.Sprintf("Embedded%d", len(path))
+			storage = gotypes.NewNamed(gotypes.NewTypeName(0, nil, exported, nil), inner, nil)
+			embedded, found = true, true
 		}
-		exported := fmt.Sprintf("Field%d", i)
-		fields[i] = gotypes.NewField(0, nil, exported, field.Type(), false)
+		fields[i] = gotypes.NewField(0, nil, exported, storage, embedded)
 		tags[i] = structure.Tag(i)
-		if field.Name() == name {
-			selected = exported
-		}
 	}
-	return gotypes.NewStruct(fields, tags), selected, selected != ""
+	return gotypes.NewStruct(fields, tags), found
 }

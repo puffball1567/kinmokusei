@@ -42,7 +42,8 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 		}
 	case Struct:
 		if symbol := c.structs[argument.Name]; symbol != nil {
-			return symbol.methods, nativeStructBindings(symbol, argument), pointer, true
+			methods, bindings := c.effectiveStructMethods(argument, pointer)
+			return methods, bindings, pointer, true
 		}
 	case Interface:
 		if symbol := c.interfaces[argument.Name]; symbol != nil {

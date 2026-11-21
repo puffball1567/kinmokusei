@@ -235,6 +235,7 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
 	c.recordTypeParameterMethods(program)
+	c.recordPromotedStructMembers(program)
 	program.GoReferences = c.goReferences
 	program.GoTypeExpressions = c.goTypeExpressions
 	program.GoTypeExpressionMethods = c.goTypeExpressionMethods

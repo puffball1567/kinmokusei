@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Embed named Kinmokusei structs or pointers to them as anonymous Go fields.
+  Promote unambiguous fields and methods, preserve value and pointer method
+  sets, and resolve promoted members in editor completion and navigation.
+
 - Declare named result slots in functions, methods, and block arrows, and
   return their current values with `return`. Preserve zero initialization,
   deferred mutations, and edits to result names in the language server.
