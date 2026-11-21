@@ -1,7 +1,7 @@
 # Remaining language work: Go compatibility and OOP
 
 This is an implementation audit, not a claim of full Go compatibility. The
-104 runtime contract groups cover accepted features only. The baseline output
+105 runtime contract groups cover accepted features only. The baseline output
 remains compatible with Go 1.23; later Go syntax cannot be assumed available.
 The [Go language specification](https://go.dev/ref/spec) is the reference for
 Go semantics, while [OOP design](oop-design.md) defines deliberate extensions.
@@ -56,7 +56,7 @@ own type parameters remain follow-up work.
 v0.5 marks completion of the audited Go language compatibility work. Close or
 explicitly classify each Go contract, test accepted behavior against independent
 Go programs, and document deliberate source-language differences. Neither the
-104 existing runtime contract groups nor statement coverage alone establishes
+105 existing runtime contract groups nor statement coverage alone establishes
 that milestone. OOP work continues alongside Go compatibility.
 
 ## Next patch release work areas
@@ -266,7 +266,7 @@ where applicable, editor support and user documentation.
 | # | Work area | Current boundary |
 |---|---|---|
 | 1 | Named results and bare returns | Development builds support named results with valid zero values in functions, methods, and block arrows, including bare returns, defer, and try/finally |
-| 2 | Source struct embedding and promoted members | Not implemented for source declarations; imported Go embeddings work |
+| 2 | Source struct embedding and promoted members | Development builds support named source structs and their pointers as embedded fields, including generic instances and aliases, promoted selectors and method sets, independent Go comparison, and editor support. Embedding imported Go types, interfaces, and distinct defined types in source declarations remains |
 | 3 | Instantiated generic function values | Released in v0.4.7 for full explicit lists; v0.4.12 adds destination-type inference and leading partial lists for source/Go functions, including higher-order callbacks, assignments, returns, typed aggregates, invocation checks for concrete non-null contracts, independent Go comparison and editor support; unresolved callback cycles, private inferred Go type arguments and generic instance method values remain unsupported |
 | 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types. Development builds add class instance expressions, including inherited and virtual methods, aliases, invocation boundaries and editor support. Method-local generics remain |
 | 5 | Native enum method expressions | Released in v0.4.7: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |

@@ -67,6 +67,10 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 	case *kinmokuseiAST.StructDecl:
 		fields := make([]*goast.Field, 0, len(decl.Fields))
 		for _, field := range decl.Fields {
+			if field.Embedded {
+				fields = append(fields, &goast.Field{Type: goType(field.Type)})
+				continue
+			}
 			name := field.GoName
 			if name == "" {
 				name = memberName(field.Name, field.Visibility)
