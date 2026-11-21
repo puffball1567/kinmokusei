@@ -72,7 +72,7 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 						continue
 					}
 				}
-				_ = c.inferNativeTypeArguments(formal, actuals[i], contexts)
+				c.inferGenericArgumentContext(formal, actuals[i], contexts)
 			}
 		}
 	}
@@ -111,7 +111,7 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 				continue
 			}
 		}
-		_ = c.inferNativeTypeArguments(expected, actual, bindings)
+		c.inferGenericArgumentContext(expected, actual, bindings)
 	}
 	c.inferNativeConstraintArguments(callable.TypeParameters, bindings)
 	defaultsApplied := false
@@ -174,6 +174,17 @@ func (c *Checker) checkGenericCallbackArguments(call *ast.CallExpr, callable Typ
 		}
 	}
 	return actuals
+}
+
+func (c *Checker) inferGenericArgumentContext(formal, actual Type, bindings nativeTypeBindings) {
+	if formal.Kind == GoNamed || formal.Kind == GoInterface && !isSourceAnonymousInterface(formal) {
+		if contract := underlyingGoInterface(formal.GoType); contract != nil && contract.IsMethodSet() {
+			// Method signatures can determine the input types of a later arrow.
+			// The ordinary call probe still verifies the instantiated signature.
+			c.inferNativeConstraintMethods(contract, actual, bindings)
+		}
+	}
+	_ = c.inferNativeTypeArguments(formal, actual, bindings)
 }
 
 // A common signature provides context for constructing the argument. Keep the

@@ -18,6 +18,11 @@ func TestNativeStructGoInterfacesMatchIndependentGo(t *testing.T) {
 		"contracts/contracts.go": `package contracts
 type Getter[T any] interface{Get() T}
 func Read[T any](v Getter[T])T{return v.Get()}
+func ReadPair[T any](v Getter[T])(T,int){return v.Get(),1}
+func Convert[U,T any](v Getter[T], f func(T)U)U{return f(v.Get())}
+func Sum[T ~int](values ...Getter[T])T{var x T;for _,v:=range values{x+=v.Get()};return x}
+func Take[T any](v T)T{return v}
+func Combine[T any](v Getter[T], fallback T)T{_ = fallback;return v.Get()}
 type Callback func(int)int
 type Caller interface{Call(Callback)int}
 `,
@@ -31,17 +36,22 @@ export struct Counter {
  }
 }
 export struct Getter<T>{public value:T;public function get():T{return this.value;}}
+export struct PointerGetter<T>{public value:T;public pointer function get():T{return this.value;}}
 export struct Tag{public value:bstring; public function string():bstring{return this.value;}}
 `,
-		"entry.km": `import {Counter,Getter,Tag} from "./models";
+		"entry.km": `import {Counter,Getter,PointerGetter,Tag} from "./models";
 import go fmt from "fmt";
 import go io from "io";
 import go contracts from "struct-go-interfaces.test/contracts";
 struct ValueWriter{Counter;}
 struct SharedWriter{*Counter;}
 struct CallbackRunner{public function call(fn:contracts.Callback):int{return fn(5);}}
+struct GetterView{Getter<int>;}
+struct SharedGetter{*PointerGetter<int>;}
+struct Count{public value:int;}
 function run(w:io.Writer,data:byte[]):(int,error){return w.Write(data);}
 function input(w:*ValueWriter,data:byte[]):(*ValueWriter,byte[]){return w,data;}
+function getters(a:Getter<int>,b:GetterView):(Getter<int>,GetterView){return a,b;}
 function tagged(value:bstring):(Tag,int){return Tag{value:value},3;}
 export function WrapTag(value:bstring):(fmt.Stringer,int){return tagged(value);}
 export function Counts(data:byte[]):int[]{
@@ -67,6 +77,20 @@ export function Generic(n:int):int{
  const a:contracts.Getter<int>=value;
  return a.Get()+contracts.Read(a);
 }
+export function GenericDirect(n:int):int[]{
+ const v=Getter<int>{value:n};
+ const view=GetterView{Getter:v};
+ let pointer=PointerGetter<int>{value:n+1};
+ const shared=SharedGetter{PointerGetter:&pointer};
+ const own=Count{value:n+3};
+ const ownGetter=Getter<Count>{value:own};
+ const [count,t]=contracts.ReadPair(ownGetter);
+ const all:contracts.Getter<int>[]=[v,view,shared];
+ return [contracts.Read(v),contracts.Read<int>(view),contracts.Read(&pointer),contracts.Read(shared),
+  contracts.Convert<int>(shared,(x)=>x*2),contracts.Sum(v,view,shared),contracts.Sum(all...),
+  contracts.Take<contracts.Getter<int>>(v).Get(),contracts.Sum(getters(v,view)),
+  count.value+t,contracts.Read(ownGetter).value,contracts.Combine(ownGetter,own).value];
+}
 export function Callback():int{const c:contracts.Caller=CallbackRunner{};return c.Call((n:int)=>n+1);}
 `,
 		"bad.km": `import go contracts from "struct-go-interfaces.test/contracts";
@@ -86,6 +110,27 @@ function wrong():contracts.Caller{return Wrong{};}
 	_, diagnostics, err = EmitGo([]string{filepath.Join(root, "bad.km")}, "structgointerfaces")
 	if err != nil || len(diagnostics) == 0 || !strings.Contains(diagnostics[0].Message, "cannot use Wrong") {
 		t.Fatalf("distinct callback type: %v %v", err, diagnostics)
+	}
+	for _, example := range []struct{ name, body, want string }{
+		{"wrong-interface-type", `const x=contracts.Read<int64>(Getter<int>{value:2});`, "cannot apply explicit Go type arguments"},
+		{"conflicting-inference", `const x=contracts.Combine(Getter<int>{value:2},int64(3));`, "cannot infer Go type arguments"},
+		{"pointer-receiver", `const x=contracts.Read(PointerGetter<int>{value:2});`, "cannot infer Go type arguments"},
+		{"incompatible-type-set", `const x=contracts.Sum(Getter<int64>{value:2});`, "cannot infer Go type arguments"},
+		{"spread-preserves-slice-type", `const items:Getter<int>[]=[Getter<int>{value:2}];const x=contracts.Sum<int>(items...);`, "cannot apply explicit Go type arguments"},
+		{"verified-signature", `const x=contracts.Read(Getter<string>{value:"x"});`, "cannot use Getter<string>"},
+	} {
+		t.Run(example.name, func(t *testing.T) {
+			path := filepath.Join(root, example.name+".km")
+			input := `import {Getter,PointerGetter} from "./models";import go contracts from "struct-go-interfaces.test/contracts";
+function reject():void{` + example.body + `}`
+			if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, diagnostics, err := EmitGo([]string{path}, "structgointerfaces")
+			if err != nil || len(diagnostics) == 0 || !strings.Contains(diagnostics[0].Message, example.want) {
+				t.Fatalf("generic argument diagnostics: %v %v", err, diagnostics)
+			}
+		})
 	}
 	reference := `package reference
 import("errors";"fmt";"io")
@@ -110,7 +155,22 @@ type getter[T any] struct{ value T }
 func(v getter[T])Get()T{return v.value}
 type getterContract[T any] interface{Get() T}
 func read[T any](v getterContract[T])T{return v.Get()}
+func pair[T any](v getterContract[T])(T,int){return v.Get(),1}
+func combine[T any](v getterContract[T], fallback T)T{_ = fallback;return v.Get()}
 func Generic(n int)int{v:=getter[int]{n};var a getterContract[int]=v;return a.Get()+read[int](v)}
+type pointerGetter[T any] struct{ value T }
+func(v *pointerGetter[T])Get()T{return v.value}
+type getterView struct{getter[int]}
+type sharedGetter struct{*pointerGetter[int]}
+type count struct{value int}
+func convert[U,T any](v getterContract[T],f func(T)U)U{return f(v.Get())}
+func sum[T ~int](values ...getterContract[T])T{var x T;for _,v:=range values{x+=v.Get()};return x}
+func take[T any](v T)T{return v}
+func GenericDirect(n int)[]int{
+ v:=getter[int]{n};view:=getterView{v};p:=pointerGetter[int]{n+1};shared:=sharedGetter{&p}
+ own:=count{n+3};ownGetter:=getter[count]{own};c,t:=pair(ownGetter)
+ return []int{read(v),read[int](view),read(&p),read(shared),convert[int](shared,func(x int)int{return x*2}),sum(v,view,shared),sum([]getterContract[int]{v,view,shared}...),take[getterContract[int]](v).Get(),sum(v,view),c.value+t,read(ownGetter).value,combine(ownGetter,own).value}
+}
 type intCallback func(int)int
 type caller interface{Call(intCallback)int}
 type callbackRunner struct{}
@@ -124,7 +184,10 @@ func TestStructInterfaces(t *testing.T){
   if got,want:=g.Counts(data),r.Counts(data);!reflect.DeepEqual(got,want){t.Fatal(data,got,want)}
  }
  for _,label:=range []string{"","text","\xff"}{got,n:=g.WrapTag(label);want,m:=r.WrapTag(label);if got.String()!=want.String()||n!=m{t.Fatal(label,got,n,want,m)}}
- for _,n:=range []int{-17,0,9}{if g.Generic(n)!=r.Generic(n){t.Fatal(n)}}
+ for _,n:=range []int{-17,0,9}{
+  if g.Generic(n)!=r.Generic(n){t.Fatal(n)}
+  if got,want:=g.GenericDirect(n),r.GenericDirect(n);!reflect.DeepEqual(got,want){t.Fatal(n,got,want)}
+ }
  if g.Callback()!=r.Callback(){t.Fatal("named callback")}
 }
 `
