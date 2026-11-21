@@ -49,6 +49,38 @@ struct Counter {
 
 Go-like automatic address/dereference method selection is supported when the value is addressable. Pointer methods on a temporary literal are rejected.
 
+### Using structs with Go interfaces
+
+A struct implements a Go runtime interface when its public methods match the
+interface's Go signatures and Kinmokusei type contracts. Embedded fields can
+[promote methods into the struct's method set](./types-and-values#embedded-fields).
+
+```ts
+import go io from "io"
+
+struct ByteCounter {
+  public total: int
+  public pointer function write(data: byte[]): (int, error) {
+    this.total += len(data)
+    return len(data), nil
+  }
+}
+
+function countBytes(data: byte[]): int {
+  let counter = ByteCounter { total: 0 }
+  const writer: io.Writer = &counter
+  const [written, err] = writer.Write(data)
+  if (err != nil) { return 0 }
+  return written
+}
+```
+
+`ByteCounter` has a pointer-receiver method, so the interface receives
+`&counter` explicitly. The same method-set rules apply to arguments, return
+values, explicit conversions, and assertions back to a concrete struct type.
+For a generic Go function whose parameter is such an interface, assign the
+struct to the instantiated interface before passing it to the function.
+
 ## Declaring a class
 
 ```ts

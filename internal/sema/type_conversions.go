@@ -65,7 +65,7 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 		c.report(expr.Type.Span, fmt.Sprintf("asserted type %s cannot be represented as a Go type", asserted.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	if !gotypes.AssertableTo(contract, assertedGoType) {
+	if !gotypes.AssertableTo(contract, assertedGoType) && !c.nativeStructSatisfiesGoInterface(value, asserted) {
 		c.report(expr.Span, fmt.Sprintf("Go interface %s cannot contain asserted type %s", value.String(), asserted.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
@@ -107,6 +107,9 @@ func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {
 	if underlyingGoInterface(converted.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		c.report(expr.Span, "Go interface conversion would erase a verified UTF-8 text storage contract; use bstring storage at the Go boundary")
 	}
+	if c.nativeStructSatisfiesGoInterface(converted, value) {
+		return converted
+	}
 	valueGo, valueOK := goTypeOf(value)
 	if isComplexType(converted) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {
 		return c.checkComplexConversion(expr, converted, value)
@@ -138,6 +141,9 @@ func (c *Checker) checkNativeTypeConversion(expr *ast.CallExpr, target Type) Typ
 	}
 	if target.Kind != TypeParameter && !isSourceAnonymousInterface(target) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		c.report(expr.Span, "Go interface conversion would erase a verified UTF-8 text storage contract; use bstring storage at the Go boundary")
+	}
+	if c.nativeStructSatisfiesGoInterface(target, value) {
+		return target
 	}
 	targetGo, targetOK := goTypeOf(target)
 	if isComplexType(target) || isComplexType(value) || isUntypedGoNumeric(value) || c.hasDeferredShift(expr.Arguments[0]) {

@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Assign or convert native struct values and pointers to Go runtime interfaces
+  when their public method sets match, including promoted methods. Support
+  forwarding result lists, assertions, and type switches with those interfaces.
+
 - Embed named Kinmokusei structs or pointers to them as anonymous Go fields.
   Promote unambiguous fields and methods, preserve value and pointer method
   sets, and resolve promoted members in editor completion and navigation.
