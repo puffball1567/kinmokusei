@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Embed named Go runtime interfaces in Kinmokusei structs. Delegate promoted
+  methods to the stored implementation, shadow them with explicit methods,
+  and retain Go interface identity and nil behavior.
+
 - Embed imported Go structs and their pointers in Kinmokusei structs, including
   instantiated Go generic structs. Promote exported fields and methods through
   mixed embedding chains, with Go interface assignment and editor navigation.

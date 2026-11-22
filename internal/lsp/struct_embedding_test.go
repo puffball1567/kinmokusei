@@ -67,3 +67,29 @@ function read(v: *Output): int { const f = (*Output).Len; return f(v); }
 		t.Fatalf("completion=%v", items)
 	}
 }
+
+func TestGoInterfaceEmbeddingEditor(t *testing.T) {
+	t.Parallel()
+	input := `import go io from "io"
+struct Forward { io.Writer; }
+function send(v: Forward, p: byte[]): (int, error) { return v.Write(p); }
+function take(v: Forward, p: byte[]): (int, error) { const f = Forward.Write; return f(v, p); }
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	member := positionOf(input, "Write(p)", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, member, ""),
+		requestAt("textDocument/definition", 3, uri, positionOf(input, "Write;", 0), ""),
+	)
+	for id := float64(2); id <= 3; id++ {
+		definition, ok := messages[id]["result"].(map[string]any)
+		if !ok || !strings.HasSuffix(definition["uri"].(string), "/io/io.go") {
+			t.Fatalf("definition=%v", messages[id])
+		}
+	}
+	items := completionLabels(completionItemsAt(t, path, input, member.Line, member.Character))
+	if items["Writer"] == nil || items["Write"] == nil || !strings.Contains(items["Write"]["detail"].(string), "error") {
+		t.Fatalf("completion=%v", items)
+	}
+}

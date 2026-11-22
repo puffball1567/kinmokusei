@@ -355,6 +355,40 @@ members by their Go spelling, such as `Len`. Writing `*bytes.Buffer` embeds a
 pointer and promotes pointer-receiver methods into the outer value's method
 set. Embedded generic Go structs take explicit type arguments.
 
+### Embedding a Go interface
+
+A named Go interface can serve as a delegate. A struct that embeds
+`io.Writer` accepts an implementation through its `Writer` field and
+promotes the implementation's `Write` method.
+
+```ts
+import go io from "io"
+
+struct CountingWriter {
+  io.Writer
+  public calls: int
+
+  public pointer function write(data: byte[]): (int, error) {
+    this.calls++
+    return this.Writer.Write(data)
+  }
+}
+
+function countWrites(target: io.Writer, data: byte[]): int {
+  let counter = CountingWriter { Writer: target, calls: 0 }
+  const writer: io.Writer = &counter
+  const [_, err] = writer.Write(data)
+  if (err != nil) { return -1 }
+  return counter.calls
+}
+```
+
+The declared `write` method takes precedence for Go calls on `&counter`.
+`this.Writer.Write(data)` explicitly delegates to the current implementation.
+A nil embedded interface follows Go's runtime behavior and panics when a
+promoted method dispatches through it. The field type must be a named Go
+interface usable as a runtime value.
+
 ## Classes
 
 ```ts
