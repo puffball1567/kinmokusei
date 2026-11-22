@@ -14,6 +14,7 @@ const (
 	Imaginary  Kind = "imaginary"
 	String     Kind = "string"
 	ByteString Kind = "byte string"
+	Regex      Kind = "regular expression"
 
 	Function    Kind = "function"
 	Const       Kind = "const"

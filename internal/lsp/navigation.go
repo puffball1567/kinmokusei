@@ -111,6 +111,18 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 		if member.ResolvedDeclaration.Path != "" {
 			return
 		}
+		ref, found := expressionCompletionType(program, member.Object)
+		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
+			ref, found = visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name)
+		}
+		if found && ref.BuiltinRegex {
+			for _, method := range ast.RegexMethods() {
+				if member.Name == method.Name {
+					detail = regexMethodDetail(method)
+					return
+				}
+			}
+		}
 		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
 			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ast.IsDecoratorBuiltinObjectTypeName(ref.Name) {
 				fields := ast.DecoratorContextFields()
@@ -133,6 +145,15 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 		}
 	})
 	return detail, detail != ""
+}
+
+func regexMethodDetail(method ast.RegexMethod) string {
+	signature := method.Signature
+	parameters := make([]string, len(signature.ParameterTypes))
+	for i, parameter := range signature.ParameterTypes {
+		parameters[i] = signature.ParameterNames[i] + ": " + parameter
+	}
+	return method.Name + "(" + strings.Join(parameters, ", ") + "): " + signature.Result
 }
 
 func (s *Server) definition(id json.RawMessage, raw json.RawMessage) error {
@@ -468,7 +489,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			result = append(result, declarationInfo{Name: declaration.Name, Detail: detail, Kind: kind, Span: declaration.Span, Selection: declaration.NameSpan})
 		}
 	}
-	addArrowDeclarations(program, result)
+	addExpressionDeclarations(program, result)
 	return result
 }
 

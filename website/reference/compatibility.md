@@ -69,6 +69,6 @@ generation; the checked JSON manifest is the supported input. See the
 
 ## Behavioral compatibility evidence
 
-The runtime contract registry contains 110 implemented Go-equivalent groups. Each group has an independent Go comparison.
+The runtime contract registry contains 111 implemented Go-equivalent groups. Each group has an independent Go comparison.
 
 See [Quality promise](../project/quality) for the oracle and generated-artifact gates.

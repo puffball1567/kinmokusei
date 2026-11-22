@@ -9,6 +9,9 @@ import (
 )
 
 func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
+	program.UsesRegex = false
+	program.RegexPatterns = nil
+	regexPatterns := map[string]int{}
 	var activeTypeParameters map[string]source.Span
 	var visitType func(*ast.TypeRef)
 	var visitExpression func(ast.Expression)
@@ -20,7 +23,10 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			ref.ResolvedInterfaceMethods = c.anonymousInterfaceMembers[ref.Span]
 		}
 		visitExpression(ref.FixedLengthExpression)
-		if ref.Qualifier == "" {
+		if ref.BuiltinRegex {
+			program.UsesRegex = true
+		} else if ref.Qualifier == "" {
+			visible := ref.Name != ast.RegexTypeName || c.isTopLevelAllowed(ref.Span, ref.Name)
 			if declaration, ok := activeTypeParameters[ref.Name]; ok {
 				ref.TypeParameter = true
 				ref.ResolvedDeclaration = declaration
@@ -35,17 +41,20 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				}
 				lowered.Go = true
 				ref.LoweredType = &lowered
-			} else if named, ok := c.nativeTypes[ref.Name]; ok {
+			} else if named, ok := c.nativeTypes[ref.Name]; ok && visible {
 				ref.NativeNamed = true
 				ref.ResolvedDeclaration = named.declaration.NameSpan
-			} else if contract, ok := c.interfaces[ref.Name]; ok {
+			} else if contract, ok := c.interfaces[ref.Name]; ok && visible {
 				ref.Interface = true
 				ref.ResolvedDeclaration = contract.declarationSpan
-			} else if class, ok := c.classes[ref.Name]; ok {
+			} else if class, ok := c.classes[ref.Name]; ok && visible {
 				ref.ResolvedDeclaration = class.declarationSpan
-			} else if structure, ok := c.structs[ref.Name]; ok {
+			} else if structure, ok := c.structs[ref.Name]; ok && visible {
 				ref.Struct = true
 				ref.ResolvedDeclaration = structure.declarationSpan
+			} else if ref.Name == ast.RegexTypeName && !ref.TypeParameter {
+				ref.BuiltinRegex = true
+				program.UsesRegex = true
 			}
 		} else if imported := c.lookupGoTypePackage(*ref); imported != nil {
 			ref.QualifierDeclaration = imported.declaration.AliasSpan
@@ -98,6 +107,27 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			visitType(*slot)
 		}
 		switch expression := expression.(type) {
+		case *ast.RegexExpr:
+			program.UsesRegex = true
+			index, found := regexPatterns[expression.Pattern]
+			if !found {
+				index = len(program.RegexPatterns)
+				regexPatterns[expression.Pattern] = index
+				program.RegexPatterns = append(program.RegexPatterns, expression.Pattern)
+			}
+			expression.Index = index
+		case *ast.MatchExpr:
+			visitExpression(expression.Value)
+			visitType(&expression.ResultType)
+			for i := range expression.Arms {
+				arm := &expression.Arms[i]
+				arm.Pattern.Walk(func(pattern *ast.MatchPattern) {
+					visitExpression(pattern.Literal)
+					visitType(&pattern.Binding.ResolvedType)
+				})
+				visitExpression(arm.Guard)
+				visitExpression(arm.Value)
+			}
 		case *ast.OptionalChainExpr:
 			visitExpression(expression.Object)
 			visitExpression(expression.Value)
@@ -529,6 +559,9 @@ func substituteNativeTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.
 }
 
 func typeRefFromType(t Type, span source.Span) ast.TypeRef {
+	if t.Kind == Regex {
+		return ast.TypeRef{Name: ast.RegexTypeName, BuiltinRegex: true, Span: span}
+	}
 	if t.Kind == MultiValue {
 		results := make([]ast.TypeRef, len(t.Results))
 		for i, result := range t.Results {

@@ -36,7 +36,7 @@ func (s *zeroValueCheck) check(value Type, depth int) bool {
 	s.remaining--
 	check := func(child Type) bool { return s.check(child, depth+1) }
 	switch value.Kind {
-	case Invalid, Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Byte, Float32, Float64, UntypedInt, Nullable, Array, Map, GoChannel:
+	case Invalid, Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Byte, Float32, Float64, UntypedInt, Nullable, Array, Map, GoChannel, Regex:
 		return true
 	case Class, Interface, Function, GoPointer, GoInterface:
 		return s.allowRawGoNil && !s.checker.requiresNativeNonNull(value, nil)

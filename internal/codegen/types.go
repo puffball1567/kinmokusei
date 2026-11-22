@@ -125,6 +125,9 @@ func goType(ref kinmokuseiAST.TypeRef) goast.Expr {
 	if ref.TypeParameter {
 		return goast.NewIdent(goName(ref.Name))
 	}
+	if ref.BuiltinRegex {
+		return goast.NewIdent(regexGoTypeName)
+	}
 	if ref.NativeNamed {
 		return indexedGoType(goast.NewIdent(ref.Name), ref.GenericArguments)
 	}

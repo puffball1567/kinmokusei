@@ -23,6 +23,10 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 
 func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
+	case *kinmokuseiAST.RegexExpr:
+		return goast.NewIdent(regexLiteralName(expr.Index)), nil
+	case *kinmokuseiAST.MatchExpr:
+		return generateMatch(expr)
 	case *kinmokuseiAST.OptionalChainExpr:
 		return generateOptionalChain(expr)
 	case *kinmokuseiAST.OptionalReceiverExpr:

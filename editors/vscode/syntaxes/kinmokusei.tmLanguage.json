@@ -24,6 +24,14 @@
     "strings": {
       "patterns": [
         {
+          "name": "string.regexp.kinmokusei",
+          "begin": "\\bre\"",
+          "end": "\"|$",
+          "patterns": [
+            {"name": "constant.character.escape.kinmokusei", "match": "\\\\."}
+          ]
+        },
+        {
           "name": "string.quoted.double.kinmokusei",
           "begin": "\"",
           "end": "\"",
@@ -61,6 +69,7 @@
           "name": "keyword.control.kinmokusei",
           "match": "\\b(return|throw|if|else|while|for|of|select|switch|case|default|break|continue|goto|fallthrough|defer|go|await|detach|try|catch|finally|super)\\b"
         },
+        {"name": "keyword.control.kinmokusei", "match": "\\bmatch(?=\\s*\\()"},
         {
           "name": "keyword.declaration.kinmokusei",
           "match": "\\b(function|const|let|class|struct|enum|type|alias|constraint|distinct|constructor|interface|import|from|export)\\b"
@@ -80,7 +89,8 @@
         {
           "name": "support.type.collection.kinmokusei",
           "match": "\\b(Map|Result|Task|GoChannel|GoSendChannel|GoReceiveChannel)\\b"
-        }
+        },
+        {"name": "support.type.kinmokusei", "match": "\\bRegex\\b"}
       ]
     },
     "builtins": {

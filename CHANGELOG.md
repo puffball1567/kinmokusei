@@ -11,6 +11,12 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Write checked regular-expression literals with `re"..."` and use `Regex`
+  to test text, extract capture groups, or replace matches.
+
+- Use exhaustive `match` expressions with literal, regex, record, sequence,
+  and nullable patterns. Bind values per arm and optionally add a guard.
+
 - Embed native distinct value types or pointers to them. Promote their
   declared methods and the fields of their underlying structs, retaining
   nominal identity and generic receiver contracts.

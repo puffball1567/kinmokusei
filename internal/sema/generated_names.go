@@ -3,6 +3,7 @@ package sema
 import (
 	"fmt"
 	gotoken "go/token"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -14,6 +15,10 @@ func (c *Checker) checkGeneratedNames(program *ast.Program) {
 	declared := map[string]source.Span{}
 	structMembers := map[string]map[string]source.Span{}
 	claim := func(name string, span source.Span) {
+		if program.UsesRegex && (name == "__kinmokuseiRegex" || name == "__kinmokuseiEmptyRegex" || strings.HasPrefix(name, "__kinmokuseiRegexLiteral")) {
+			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the Regex runtime", name))
+			return
+		}
 		if c.usesReferenceReads && (name == "__kinmokuseiReadPointer" || name == "__kinmokuseiReadInterface") {
 			c.report(span, fmt.Sprintf("generated Go name %q is reserved by the non-null runtime", name))
 			return

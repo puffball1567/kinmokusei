@@ -397,6 +397,9 @@ func (p *Parser) parsePrimary() ast.Expression {
 	tok := p.peek()
 	switch tok.Kind {
 	case token.Identifier, token.This, token.Super:
+		if tok.Kind == token.Identifier && tok.Lexeme == "match" && p.looksLikeMatch() {
+			return p.parseMatch()
+		}
 		p.advance()
 		return &ast.IdentifierExpr{Name: tok.Lexeme, Span: tok.Span}
 	case token.Integer:
@@ -414,6 +417,9 @@ func (p *Parser) parsePrimary() ast.Expression {
 	case token.ByteString:
 		p.advance()
 		return &ast.LiteralExpr{Kind: ast.ByteStringLiteral, Text: tok.Lexeme[1:], Span: tok.Span}
+	case token.Regex:
+		p.advance()
+		return regexExpression(tok)
 	case token.True, token.False:
 		p.advance()
 		return &ast.LiteralExpr{Kind: ast.BooleanLiteral, Text: tok.Lexeme, Span: tok.Span}

@@ -104,6 +104,10 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	}
 	observationAlias, snapshotAlias := "", ""
 	nonNullAlias := ""
+	regexAlias := ""
+	if program.UsesRegex {
+		regexAlias = runtimeImport("regexp", "__kinmokuseiRegexp")
+	}
 	if program.UsesNonNullKinds {
 		nonNullAlias = runtimeImport("reflect", "__kinmokuseiReflect")
 	}
@@ -127,6 +131,13 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	}
 	if len(imports) != 0 {
 		file.Decls = append(file.Decls, &goast.GenDecl{Tok: token.IMPORT, Specs: imports})
+	}
+	if program.UsesRegex {
+		declarations, err := regexRuntimeDeclarations(regexAlias, program.RegexPatterns)
+		if err != nil {
+			return nil, nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
 	}
 	if program.UsesTasks {
 		runtimeDeclarations, err := taskRuntimeDeclarations()

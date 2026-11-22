@@ -452,6 +452,22 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 	}
 	walkExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
+		case *ast.MatchExpr:
+			walkExpression(expression.Value)
+			for i := range expression.Arms {
+				arm := &expression.Arms[i]
+				arm.Pattern.Walk(func(pattern *ast.MatchPattern) {
+					if binding := pattern.Binding; binding.Name != "" && binding.Name != "_" {
+						declare(binding.Span)
+					}
+					for _, field := range pattern.Fields {
+						add(field.NameSpan, field.ResolvedDeclaration)
+					}
+					walkExpression(pattern.Literal)
+				})
+				walkExpression(arm.Guard)
+				walkExpression(arm.Value)
+			}
 		case *ast.OptionalChainExpr:
 			walkExpression(expression.Object)
 			walkExpression(expression.Value)
