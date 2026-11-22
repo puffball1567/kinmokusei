@@ -265,6 +265,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				}
 				method, exists := symbol.methods[expr.Name]
 				if !exists {
+					if promoted := c.structMemberSet(object, false)[expr.Name]; promoted.found() {
+						return c.checkSelectedStructMember(expr, object, nativeObject, nativePointer, promoted)
+					}
 					if underlying.Kind == Struct {
 						c.report(expr.Span, fmt.Sprintf("defined type %s has no field or method %q", nativeObject.String(), expr.Name))
 					} else {

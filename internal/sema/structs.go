@@ -576,11 +576,22 @@ func (c *Checker) typeContainsStructByValue(value Type, target string, visiting 
 		visiting[value.Name] = true
 		defer delete(visiting, value.Name)
 		if symbol := c.structs[value.Name]; symbol != nil {
+			bindings := nativeStructBindings(symbol, value)
 			for _, field := range symbol.fields {
-				if c.typeContainsStructByValue(field.typeInfo, target, visiting) {
+				if c.typeContainsStructByValue(substituteNativeTypeParameters(field.typeInfo, bindings), target, visiting) {
 					return true
 				}
 			}
+		}
+	case GoNamed:
+		if symbol := c.nativeDefinedSymbol(value); symbol != nil {
+			name := symbol.declaration.Name
+			if visiting[name] {
+				return false
+			}
+			visiting[name] = true
+			defer delete(visiting, name)
+			return c.typeContainsStructByValue(c.nativeDefinedUnderlying(symbol, value), target, visiting)
 		}
 	case FixedArray:
 		return value.Element != nil && c.typeContainsStructByValue(*value.Element, target, visiting)

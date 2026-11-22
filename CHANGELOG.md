@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Embed native distinct value types or pointers to them. Promote their
+  declared methods and the fields of their underlying structs, retaining
+  nominal identity and generic receiver contracts.
+
 - Pass native struct values and pointers to Go generic functions whose type
   parameters require methods. Preserve concrete result types, dependent type
   inference, method-set rules, and Go type-set constraints.

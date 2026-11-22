@@ -53,10 +53,9 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 			return symbol.methods, nativeInterfaceBindings(symbol, argument), true, true
 		}
 	case GoNamed:
-		if named, ok := gotypes.Unalias(argument.GoType).(*gotypes.Named); ok {
-			if symbol := c.nativeTypes[named.Obj().Name()]; symbol != nil && symbol.goNamed == named.Origin() && !symbol.declaration.Alias {
-				return symbol.methods, nativeDefinedTypeBindings(symbol, argument), pointer, true
-			}
+		if c.nativeDefinedSymbol(argument) != nil {
+			methods, bindings := c.effectiveStructMethods(argument, pointer)
+			return methods, bindings, pointer, true
 		}
 	}
 	return nil, nil, false, false
