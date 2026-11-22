@@ -83,6 +83,19 @@ struct can be passed directly. If its public method `Get()` returns `int`,
 Go can infer `T` from that signature, including when `Get()` is promoted
 from an embedded field. Explicit type arguments also work.
 
+A Go type parameter with a method constraint can retain the concrete struct
+type. For example, when an imported Go package provides this function,
+
+```go
+func Keep[T io.Writer](w T) T { return w }
+```
+
+`const kept = helpers.Keep(&counter)` binds a `*ByteCounter`, and
+`kept.total` reads its field. The explicit form
+`helpers.Keep<*ByteCounter>(&counter)` has the same result type. A value
+argument must satisfy the bound with its own method set. Additional constraints
+such as `comparable` and underlying type terms apply to the concrete type.
+
 ## Declaring a class
 
 ```ts

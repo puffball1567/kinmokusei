@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Pass native struct values and pointers to Go generic functions whose type
+  parameters require methods. Preserve concrete result types, dependent type
+  inference, method-set rules, and Go type-set constraints.
+
 - Embed named Go runtime interfaces in Kinmokusei structs. Delegate promoted
   methods to the stored implementation, shadow them with explicit methods,
   and retain Go interface identity and nil behavior.

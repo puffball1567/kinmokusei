@@ -566,13 +566,13 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		}
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	typeArguments, valid := c.explicitGoFunctionTypeArguments(expr.TypeArguments)
+	typeArguments, sourceArguments, valid := c.explicitGoFunctionTypeArguments(expr.TypeArguments)
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, typeArguments)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
-	instantiatedSignature, err := c.inferImportedGoGenericCall(signature, actualTypes, typeArguments, expr.Expanded, numericArguments)
+	instantiatedSignature, err := c.inferImportedGoGenericCall(signature, actualTypes, typeArguments, sourceArguments, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot apply explicit Go type arguments to %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -606,7 +606,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, nil)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
-	instantiated, err := c.inferImportedGoGenericCall(signature, actualTypes, nil, expr.Expanded, numericArguments)
+	instantiated, err := c.inferImportedGoGenericCall(signature, actualTypes, nil, nil, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot infer Go type arguments for %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -641,12 +641,12 @@ func (c *Checker) checkGenericNumericArguments(expr *ast.CallExpr, callable Type
 	}
 }
 
-func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explicitTypeArguments []gotypes.Type, expanded bool, numericArguments []gotypes.TypeAndValue) (*gotypes.Signature, error) {
+func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explicitTypeArguments []gotypes.Type, expanded bool, numericArguments []gotypes.TypeAndValue) (gotypes.Instance, error) {
 	packageInfo := gotypes.NewPackage("kinmokusei.synthetic/generic", "generic")
 	functionName := "__kinmokusei_generic_function"
 	functionIdentifier := goast.NewIdent(functionName)
 	if existing := packageInfo.Scope().Insert(gotypes.NewFunc(0, packageInfo, functionName, signature)); existing != nil {
-		return nil, fmt.Errorf("cannot create inference scope")
+		return gotypes.Instance{}, fmt.Errorf("cannot create inference scope")
 	}
 	arguments := make([]goast.Expr, len(actualTypes))
 	for i, actual := range actualTypes {
@@ -665,11 +665,11 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 		default:
 			goType, ok := goTypeOf(actual)
 			if !ok {
-				return nil, fmt.Errorf("argument %d has non-Go-representable type %s", i+1, actual.String())
+				return gotypes.Instance{}, fmt.Errorf("argument %d has non-Go-representable type %s", i+1, actual.String())
 			}
 			name := fmt.Sprintf("__kinmokusei_argument_%d", i)
 			if existing := packageInfo.Scope().Insert(gotypes.NewVar(0, packageInfo, name, goType)); existing != nil {
-				return nil, fmt.Errorf("cannot create inference argument %d", i+1)
+				return gotypes.Instance{}, fmt.Errorf("cannot create inference argument %d", i+1)
 			}
 			arguments[i] = goast.NewIdent(name)
 		}
@@ -681,7 +681,7 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 		for i, argumentType := range explicitTypeArguments {
 			name := fmt.Sprintf("__kinmokusei_type_argument_%d", i)
 			if existing := packageInfo.Scope().Insert(gotypes.NewTypeName(0, packageInfo, name, argumentType)); existing != nil {
-				return nil, fmt.Errorf("cannot create explicit type argument %d", i+1)
+				return gotypes.Instance{}, fmt.Errorf("cannot create explicit type argument %d", i+1)
 			}
 			typeExpressions[i] = goast.NewIdent(name)
 		}
@@ -701,15 +701,14 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 		Instances: map[*goast.Ident]gotypes.Instance{},
 	}
 	if err := gotypes.CheckExpr(gotoken.NewFileSet(), packageInfo, gotoken.NoPos, call, info); err != nil {
-		return nil, err
+		return gotypes.Instance{}, err
 	}
 	instance, ok := info.Instances[functionIdentifier]
 	if !ok {
-		return nil, fmt.Errorf("Go type checker did not report an inferred instance")
+		return gotypes.Instance{}, fmt.Errorf("Go type checker did not report an inferred instance")
 	}
-	instantiated, ok := instance.Type.(*gotypes.Signature)
-	if !ok {
-		return nil, fmt.Errorf("Go type checker returned %T instead of a function signature", instance.Type)
+	if _, ok := instance.Type.(*gotypes.Signature); !ok {
+		return gotypes.Instance{}, fmt.Errorf("Go type checker returned %T instead of a function signature", instance.Type)
 	}
-	return instantiated, nil
+	return instance, nil
 }

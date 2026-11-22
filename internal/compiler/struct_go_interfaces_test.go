@@ -16,6 +16,7 @@ func TestNativeStructGoInterfacesMatchIndependentGo(t *testing.T) {
 	files := map[string]string{
 		"go.mod": "module struct-go-interfaces.test\n\ngo 1.23\n",
 		"contracts/contracts.go": `package contracts
+import("fmt";"io")
 type Getter[T any] interface{Get() T}
 func Read[T any](v Getter[T])T{return v.Get()}
 func ReadPair[T any](v Getter[T])(T,int){return v.Get(),1}
@@ -25,6 +26,18 @@ func Take[T any](v T)T{return v}
 func Combine[T any](v Getter[T], fallback T)T{_ = fallback;return v.Get()}
 type Callback func(int)int
 type Caller interface{Call(Callback)int}
+func Keep[T io.Writer](v T)T{return v}
+func Together[T io.Writer](values ...T)[]T{return values}
+func KeepSlice[S ~[]T,T io.Writer](values S)S{return values}
+func Carry[E any,T Getter[E]](v T)(T,E){return v,v.Get()}
+func KeepComparable[T interface{comparable;Getter[int]}](v T)T{return v}
+func KeepShape[T interface{~struct{Value int "json:\"value\""};Getter[int]}](v T)T{return v}
+func KeepText[T fmt.Stringer](v T)T{return v}
+type Seal interface{seal()int}
+type seal int
+func(s seal)seal()int{return int(s)}
+func NewSeal(n int)Seal{return seal(n)}
+func SealedWriter[T interface{Seal;io.Writer}](v T)int{return v.seal()}
 `,
 		"models.km": `import go errors from "errors";
 export struct Counter {
@@ -49,6 +62,10 @@ struct CallbackRunner{public function call(fn:contracts.Callback):int{return fn(
 struct GetterView{Getter<int>;}
 struct SharedGetter{*PointerGetter<int>;}
 struct Count{public value:int;}
+struct SealedWriter{
+ contracts.Seal;
+ public function write(p:byte[]):(int,error){return len(p),nil;}
+}
 function run(w:io.Writer,data:byte[]):(int,error){return w.Write(data);}
 function input(w:*ValueWriter,data:byte[]):(*ValueWriter,byte[]){return w,data;}
 function getters(a:Getter<int>,b:GetterView):(Getter<int>,GetterView){return a,b;}
@@ -92,6 +109,25 @@ export function GenericDirect(n:int):int[]{
   count.value+t,contracts.Read(ownGetter).value,contracts.Combine(ownGetter,own).value];
 }
 export function Callback():int{const c:contracts.Caller=CallbackRunner{};return c.Call((n:int)=>n+1);}
+export function Constrained(data:byte[]):int[]{
+ let counter=Counter{count:7};
+ const result=contracts.Keep(&counter);
+ const [n,e]=result.write(data);
+ const shared=SharedWriter{Counter:result};
+ const inferred=contracts.Keep(shared);
+ const explicit=contracts.Keep<*Counter>(result);
+ const group=contracts.Together(result,explicit);
+ const expanded=contracts.Together(group...);
+ const collection=contracts.KeepSlice(expanded);
+ const [view,v]=contracts.Carry(GetterView{Getter:Getter<int>{value:13}});
+ const [direct,d]=contracts.Carry<int>(Getter<int>{value:17});
+ const c=contracts.KeepComparable(direct);
+ const shape=contracts.KeepShape(c);
+ let size=n;
+ if(e!=nil){size=len(e.Error());}
+ const sealed=contracts.SealedWriter(SealedWriter{Seal:contracts.NewSeal(size)});
+ return [size,counter.count,inferred.count,explicit.count,collection[1].count,view.value,v,d,shape.value,sealed];
+}
 `,
 		"bad.km": `import go contracts from "struct-go-interfaces.test/contracts";
 struct Wrong{ public function call(fn:(x:int)=>int):int{return fn(5);} }
@@ -129,6 +165,25 @@ function reject():void{` + example.body + `}`
 			_, diagnostics, err := EmitGo([]string{path}, "structgointerfaces")
 			if err != nil || len(diagnostics) == 0 || !strings.Contains(diagnostics[0].Message, example.want) {
 				t.Fatalf("generic argument diagnostics: %v %v", err, diagnostics)
+			}
+		})
+	}
+	for _, example := range []struct{ name, definition, want string }{
+		{"bound-pointer-method", `function bad():void{const v=contracts.Keep(Counter{count:0});}`, "cannot infer Go type arguments"},
+		{"native-shadowed-pointer-method", `struct Shadow{io.Writer;public pointer function write(p:byte[]):(int,error){return 0,nil;}}function bad(v:Shadow):void{const r=contracts.Keep(v);}`, "does not satisfy the Go method constraint"},
+		{"method-source-contract", `struct Text{public function string():string{return "hello";}}function bad(v:Text):void{const r=contracts.KeepText(v);}`, "does not satisfy the Go method constraint"},
+		{"constraint-comparability", `struct Slice{public data:int[];public function get():int{return len(this.data);}}function bad(v:Slice):void{const r=contracts.KeepComparable(v);}`, "comparable"},
+		{"constraint-underlying-shape", `struct Extra{public value:int;public flag:boolean;public function get():int{return this.value;}}function bad(v:Extra):void{const r=contracts.KeepShape(v);}`, "cannot infer Go type arguments"},
+	} {
+		t.Run(example.name, func(t *testing.T) {
+			path := filepath.Join(root, example.name+".km")
+			input := `import {Counter} from "./models";import go io from "io";import go contracts from "struct-go-interfaces.test/contracts";` + example.definition
+			if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			_, diagnostics, err := EmitGo([]string{path}, "structgointerfaces")
+			if err != nil || len(diagnostics) == 0 || !strings.Contains(diagnostics[0].Message, example.want) {
+				t.Fatalf("generic constraint diagnostics: %v %v", err, diagnostics)
 			}
 		})
 	}
@@ -176,12 +231,34 @@ type caller interface{Call(intCallback)int}
 type callbackRunner struct{}
 func(callbackRunner)Call(fn intCallback)int{return fn(5)}
 func Callback()int{var c caller=callbackRunner{};return c.Call(func(n int)int{return n+1})}
+func keep[T io.Writer](v T)T{return v}
+func together[T io.Writer](values ...T)[]T{return values}
+func keepSlice[S ~[]T,T io.Writer](values S)S{return values}
+func carry[E any,T getterContract[E]](v T)(T,E){return v,v.Get()}
+func keepComparable[T interface{comparable;getterContract[int]}](v T)T{return v}
+type shaped struct{Value int "json:\"value\""}
+func(v shaped)Get()int{return v.Value}
+func keepShape[T interface{~struct{Value int "json:\"value\""};getterContract[int]}](v T)T{return v}
+type sealed interface{seal()int}
+type seal int
+func(s seal)seal()int{return int(s)}
+type sealedWriter struct{sealed}
+func(sealedWriter)Write(p []byte)(int,error){return len(p),nil}
+func getSeal[T interface{sealed;io.Writer}](v T)int{return v.seal()}
+func Constrained(data []byte)[]int{
+ v:=counter{7};r:=keep(&v);n,e:=r.Write(data)
+ s:=keep(sharedWriter{r});explicit:=keep[*counter](r);group:=together(r,explicit);expanded:=together(group...);collection:=keepSlice(expanded)
+ view,a:=carry(getterView{getter[int]{13}});direct,b:=carry[int](getter[int]{17});c:=keepComparable(direct);shape:=keepShape(shaped{c.value})
+ if e!=nil{n=len(e.Error())}
+ return []int{n,v.count,s.count,explicit.count,collection[1].count,view.value,a,b,shape.Value,getSeal(sealedWriter{seal(n)})}
+}
 `
 	comparison := `package structgointerfaces_test
 import("reflect";"testing";g "struct-go-interfaces.test";r "struct-go-interfaces.test/reference")
 func TestStructInterfaces(t *testing.T){
  for _,data:=range [][]byte{nil,{}, {1}, {3,4,5}}{
   if got,want:=g.Counts(data),r.Counts(data);!reflect.DeepEqual(got,want){t.Fatal(data,got,want)}
+  if got,want:=g.Constrained(data),r.Constrained(data);!reflect.DeepEqual(got,want){t.Fatal(data,got,want)}
  }
  for _,label:=range []string{"","text","\xff"}{got,n:=g.WrapTag(label);want,m:=r.WrapTag(label);if got.String()!=want.String()||n!=m{t.Fatal(label,got,n,want,m)}}
  for _,n:=range []int{-17,0,9}{

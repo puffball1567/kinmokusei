@@ -27,26 +27,21 @@ func (c *Checker) nativeStructSatisfiesGoInterface(target, value Type) bool {
 		return false
 	}
 	origin, arguments := goInterfaceContractOrigin(target, contract)
+	return c.nativeStructMatchesGoMethods(value, contract, origin, arguments)
+}
+
+func (c *Checker) nativeStructMatchesGoMethods(value Type, contract, origin *gotypes.Interface, arguments nativeTypeBindings) bool {
 	methods, bindings, pointer := c.nativeStructMethodSet(value)
 	if methods == nil {
 		return false
 	}
-	var storageType gotypes.Type
 	for i := 0; i < contract.NumMethods(); i++ {
 		required := contract.Method(i)
 		if !required.Exported() {
 			// Only a real Go embedding can supply a private method belonging
 			// to another package. Its nominal storage retains that identity.
-			if storageType == nil {
-				var ok bool
-				storageType, ok = c.goTypeForNativeStorage(value)
-				if !ok || !nativeStorageGraphReady(storageType, map[gotypes.Type]bool{}) {
-					return false
-				}
-			}
-			object, _, _ := gotypes.LookupFieldOrMethod(storageType, false, required.Pkg(), required.Name())
-			provided, ok := object.(*gotypes.Func)
-			if !ok || !gotypes.Identical(provided.Type(), required.Type()) {
+			provided := c.embeddedPrivateGoMethod(value, required)
+			if provided == nil || !gotypes.Identical(provided.Type(), required.Type()) {
 				return false
 			}
 			continue
@@ -65,4 +60,14 @@ func (c *Checker) nativeStructSatisfiesGoInterface(target, value Type) bool {
 		}
 	}
 	return true
+}
+
+func (c *Checker) embeddedPrivateGoMethod(value Type, required *gotypes.Func) *gotypes.Func {
+	storage, ok := c.goTypeForNativeStorage(value)
+	if !ok || !nativeStorageGraphReady(storage, map[gotypes.Type]bool{}) {
+		return nil
+	}
+	object, _, _ := gotypes.LookupFieldOrMethod(storage, false, required.Pkg(), required.Name())
+	method, _ := object.(*gotypes.Func)
+	return method
 }
