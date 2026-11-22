@@ -151,6 +151,10 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 	}
 	expr.MethodExpressionReceiver = &ref
 	expr.ResolvedName, expr.ResolvedDeclaration = method.goName, method.declarationSpan
+	if method.goDeclaration != nil {
+		c.recordGoReference(expr.NameSpan, method.goDeclaration)
+		return method.typeInfo
+	}
 	owner := receiver
 	if owner.Kind == GoPointer && owner.Element != nil {
 		owner = *owner.Element

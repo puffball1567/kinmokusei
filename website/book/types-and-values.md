@@ -331,6 +331,30 @@ pointer embedding. A pointer-receiver method on a value embedding requires an
 addressable outer value for a call. The pointer embedding also promotes those
 methods into the outer value's method set.
 
+### Embedding an imported Go struct
+
+```ts
+import go bytes from "bytes"
+import go io from "io"
+
+struct Output {
+  bytes.Buffer
+}
+
+function sizeAfterWrite(data: bstring): int {
+  let output = Output { Buffer: bytes.Buffer {} }
+  const writer: io.Writer = &output
+  const [_, err] = io.WriteString(writer, data)
+  if (err != nil) { return -1 }
+  return output.Len()
+}
+```
+
+Use the type name `Buffer` as the key in a struct literal and access promoted
+members by their Go spelling, such as `Len`. Writing `*bytes.Buffer` embeds a
+pointer and promotes pointer-receiver methods into the outer value's method
+set. Embedded generic Go structs take explicit type arguments.
+
 ## Classes
 
 ```ts

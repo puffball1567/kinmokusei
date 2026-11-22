@@ -41,3 +41,29 @@ function use(x: Layer): int { return x.value + x.read() + x.Cell.value; }
 		t.Fatalf("method completion=%v", items)
 	}
 }
+
+func TestImportedGoStructEmbeddingEditor(t *testing.T) {
+	t.Parallel()
+	input := `import go bytes from "bytes"
+struct Output { bytes.Buffer; }
+function length(v: *Output): int { return v.Len(); }
+function read(v: *Output): int { const f = (*Output).Len; return f(v); }
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, positionOf(input, "Len", 0), ""),
+		requestAt("textDocument/definition", 3, uri, positionOf(input, "Len", 1), ""),
+	)
+	for id := float64(2); id <= 3; id++ {
+		definition, ok := messages[id]["result"].(map[string]any)
+		if !ok || !strings.HasSuffix(definition["uri"].(string), "/bytes/buffer.go") {
+			t.Fatalf("definition=%v", messages[id])
+		}
+	}
+	line := strings.Split(input, "\n")[2]
+	items := completionLabels(completionItemsAt(t, path, input, 2, strings.Index(line, "Len")))
+	if items["Len"] == nil || !strings.Contains(items["Len"]["detail"].(string), "int") || items["buf"] != nil {
+		t.Fatalf("completion=%v", items)
+	}
+}

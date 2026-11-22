@@ -200,15 +200,8 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 		c.report(expression.Span, fmt.Sprintf("Go type %s has no exported member %q", receiver.String(), expression.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	if !object.Exported() {
-		c.report(expression.Span, fmt.Sprintf("Go member %s.%s is not exported", receiver.String(), expression.Name))
-		return Type{Kind: Invalid, Name: "<invalid>"}
-	}
-	var result Type
-	var err error
-	switch object := object.(type) {
-	case *gotypes.Var:
-		result, err = kinmokuseiTypeFromGo(object.Type())
+	result := c.checkSelectedGoValueMember(expression, receiver, object)
+	if _, field := object.(*gotypes.Var); field {
 		expression.Addressable = addressable || indirect || goTypeIsPointer(receiver.GoType)
 		expression.GoField = true
 		expression.GoFieldViaPointer = goFieldEmbeddedViaPointer(receiver.GoType, index)
@@ -216,11 +209,17 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 			c.goFieldReceivers = map[*ast.MemberExpr]gotypes.Type{}
 		}
 		c.goFieldReceivers[expression] = receiver.GoType
-	case *gotypes.Func:
-		result, err = kinmokuseiFunctionFromGo(object.Type().(*gotypes.Signature))
-	default:
-		err = fmt.Errorf("member kind %T is not supported", object)
 	}
+	return result
+}
+
+func (c *Checker) checkSelectedGoValueMember(expression *ast.MemberExpr, receiver Type, object gotypes.Object) Type {
+	expression.Go = true
+	if !object.Exported() {
+		c.report(expression.Span, fmt.Sprintf("Go member %s.%s is not exported", receiver.String(), expression.Name))
+		return Type{Kind: Invalid, Name: "<invalid>"}
+	}
+	result, err := goValueMemberType(receiver, object)
 	if err != nil {
 		c.report(expression.Span, fmt.Sprintf("Go member %s.%s is not supported: %v", receiver.String(), expression.Name, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -229,10 +228,17 @@ func (c *Checker) checkGoValueMember(expression *ast.MemberExpr, receiver Type) 
 		c.report(expression.Span, fmt.Sprintf(`Go member %s.%s uses unsafe.Pointer; set [go.interop] unsafe = "allow" to use it`, receiver.String(), expression.Name))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	inheritGoQualifier(&result, receiver)
 	c.recordGoReference(expression.NameSpan, object)
 	expression.ResolvedName = expression.Name
 	return result
+}
+
+func goValueMemberType(receiver Type, object gotypes.Object) (Type, error) {
+	result, err := kinmokuseiTypeFromGo(object.Type())
+	if err == nil {
+		inheritGoQualifier(&result, receiver)
+	}
+	return result, err
 }
 
 func goFieldEmbeddedViaPointer(receiver gotypes.Type, index []int) bool {
