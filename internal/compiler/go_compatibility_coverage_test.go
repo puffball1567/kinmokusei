@@ -124,12 +124,13 @@ var implementedGoCompatibilityContracts = []string{
 	"native struct values and pointers implementing Go runtime interfaces with promoted methods, assignment, conversion, multi-result forwarding, checked assertions, type switches, and explicit or inferred Go generic calls with native type identity",
 	"embedding imported Go structs and pointers in native structs with nested promotion, aliases, instantiated generic receivers, Go interface satisfaction and inference, method expressions, and shared mutation",
 	"embedding named Go interfaces in native structs with dynamic delegation, shadowing, method values, method expressions, Go constraint inference, package-private method identity, and nil dispatch",
+	"native struct values and pointers in Go generic calls with method constraints, concrete identity, dependent type inference, type terms, comparable, and package-private promoted methods",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
 	"go-interface-embedding.test":         {implementedGoCompatibilityContracts[107]},
 	"imported-struct-embedding.test":      {implementedGoCompatibilityContracts[106]},
-	"struct-go-interfaces.test":           {implementedGoCompatibilityContracts[105]},
+	"struct-go-interfaces.test":           {implementedGoCompatibilityContracts[105], implementedGoCompatibilityContracts[108]},
 	"struct-embedding.test":               {implementedGoCompatibilityContracts[104]},
 	"named-results.test":                  {implementedGoCompatibilityContracts[103]},
 	"reference-reads.test":                {implementedGoCompatibilityContracts[14], implementedGoCompatibilityContracts[23], implementedGoCompatibilityContracts[27], implementedGoCompatibilityContracts[31]},

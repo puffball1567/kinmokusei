@@ -276,9 +276,10 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 	if err != nil {
 		return
 	}
+	inferred := instance.Type.(*gotypes.Signature)
 	for i, parameter := range parameters {
 		if bindings[parameter.GoType].Kind == Invalid {
-			if value, err := kinmokuseiTypeFromGo(instance.Results().At(i).Type()); err == nil {
+			if value, err := kinmokuseiTypeFromGo(inferred.Results().At(i).Type()); err == nil {
 				bindings[parameter.GoType] = c.restoreNativeRangeType(value)
 			}
 		}
