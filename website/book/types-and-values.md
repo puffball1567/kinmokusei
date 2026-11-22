@@ -389,6 +389,28 @@ A nil embedded interface follows Go's runtime behavior and panics when a
 promoted method dispatches through it. The field type must be a named Go
 interface usable as a runtime value.
 
+### Embedding a distinct type
+
+```ts
+type Count = distinct int
+
+public function read(this: Count): int { return int(this) }
+
+struct Tally {
+  Count
+}
+
+function total(): int {
+  const tally = Tally { Count: Count(4) }
+  return tally.read()
+}
+```
+
+The embedded field keeps its declared `Count` type. Use `*Count` when the
+outer value should share the target. If a distinct type is based on another
+struct, it keeps that struct's fields and embedded members. Its direct
+methods come from declarations on the distinct type itself.
+
 ## Classes
 
 ```ts

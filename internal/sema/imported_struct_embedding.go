@@ -16,6 +16,16 @@ func (c *Checker) checkStructEmbeddingType(value Type, span source.Span) bool {
 	if value.Kind == Struct {
 		return true
 	}
+	if defined := c.nativeDefinedSymbol(value); defined != nil {
+		// The origin may still be waiting for a source struct's layout.
+		// Looking at the origin avoids expanding an unfinished instance.
+		switch defined.goNamed.Underlying().(type) {
+		case *gotypes.Pointer, *gotypes.Interface:
+			c.report(span, "cannot embed a distinct type with pointer or interface storage")
+			return false
+		}
+		return true
+	}
 	if name := goTypeNameObject(value.GoType); value.Kind == GoNamed && name != nil &&
 		(name.Pkg() != nil || name == gotypes.Universe.Lookup("error")) {
 		shape := gotypes.Unalias(value.GoType).Underlying()
@@ -36,7 +46,7 @@ func (c *Checker) checkStructEmbeddingType(value Type, span source.Span) bool {
 			return true
 		}
 	}
-	c.report(span, "embedded field must name a Kinmokusei struct, a Go struct, a pointer to one of those structs, or a named Go interface")
+	c.report(span, "embedded field must name a Kinmokusei struct or distinct type, a Go struct or named interface, or a supported pointer to one")
 	return false
 }
 
@@ -78,17 +88,23 @@ func (e structEmbedding) visitGoMembers(add func(string, string, embeddedStructM
 		}
 		return
 	case *gotypes.Struct:
-		for i := 0; i < shape.NumFields(); i++ {
-			field := shape.Field(i)
-			addExported(field)
-			if field.Embedded() {
-				embed(goStructEmbeddingReceiver(field.Type(), owner), field.Name())
-			}
-		}
+		e.visitGoStructFields(shape, add, embed)
 	}
 	if named, ok := storage.(*gotypes.Named); ok {
 		for i := 0; i < named.NumMethods(); i++ {
 			addExported(named.Method(i))
+		}
+	}
+}
+
+func (e structEmbedding) visitGoStructFields(shape *gotypes.Struct, add func(string, string, embeddedStructMember), embed func(Type, string)) {
+	for i := 0; i < shape.NumFields(); i++ {
+		field := shape.Field(i)
+		if field.Exported() {
+			add(field.Name(), field.Name(), embeddedStructMember{structEmbedding: e, goMember: field})
+		}
+		if field.Embedded() {
+			embed(goStructEmbeddingReceiver(field.Type(), e.owner()), field.Name())
 		}
 	}
 }

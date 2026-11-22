@@ -15,7 +15,7 @@ func (c *Checker) checkNativeStructMember(expr *ast.MemberExpr, receiver, base T
 	if structure == nil {
 		return invalid
 	}
-	member := embeddedStructMember{structEmbedding: structEmbedding{receiver: receiver}}
+	member := embeddedStructMember{structEmbedding: structEmbedding{receiver: receiver}, bindings: nativeStructBindings(structure, base)}
 	if field, ok := structure.fields[expr.Name]; ok {
 		member.field = &field
 	} else if method, ok := structure.methods[expr.Name]; ok {
@@ -23,10 +23,15 @@ func (c *Checker) checkNativeStructMember(expr *ast.MemberExpr, receiver, base T
 	} else if len(structure.embedded) != 0 {
 		member = c.structMemberSet(receiver, false)[expr.Name]
 	}
-	if member.field == nil && member.method == nil && member.goMember == nil {
+	if !member.found() {
 		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", base.Name, expr.Name))
 		return invalid
 	}
+	return c.checkSelectedStructMember(expr, receiver, base, pointer, member)
+}
+
+func (c *Checker) checkSelectedStructMember(expr *ast.MemberExpr, receiver, base Type, pointer bool, member embeddedStructMember) Type {
+	invalid := Type{Kind: Invalid, Name: "<invalid>"}
 	if member.ambiguous || len(member.path) != 0 && !c.validPromotedStructMember(expr, receiver, member) {
 		if member.ambiguous {
 			c.report(expr.NameSpan, fmt.Sprintf("ambiguous promoted struct member %q", expr.Name))
@@ -38,14 +43,13 @@ func (c *Checker) checkNativeStructMember(expr *ast.MemberExpr, receiver, base T
 		return c.checkPromotedGoStructMember(expr, receiver, base, pointer, member)
 	}
 	owner := member.owner()
-	bindings := nativeStructBindings(c.structs[owner.Name], owner)
 	if member.field != nil {
 		field := member.field
 		expr.ResolvedName, expr.ResolvedDeclaration = field.goName, field.declarationSpan
 		expr.Addressable = pointer || member.throughPointer || c.isAddressableExpression(expr.Object)
 		expr.GoFieldViaPointer = member.throughPointer
 		c.recordLayoutFieldReceiver(expr, receiver)
-		return substituteNativeTypeParameters(field.typeInfo, bindings)
+		return substituteNativeTypeParameters(field.typeInfo, member.bindings)
 	}
 	method := *member.method
 	c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
@@ -62,7 +66,7 @@ func (c *Checker) checkNativeStructMember(expr *ast.MemberExpr, receiver, base T
 			c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
 		}
 	}
-	callable := c.substituteNativeMethodOwnerTypeParameters(method.typeInfo, bindings)
+	callable := c.substituteNativeMethodOwnerTypeParameters(method.typeInfo, member.bindings)
 	recordReceiverContracts(expr, owner, member.receiver, callable, method)
 	return callable
 }
@@ -129,9 +133,14 @@ func (e structEmbedding) owner() Type {
 
 type embeddedStructMember struct {
 	structEmbedding
+	bindings nativeTypeBindings
 	field    *fieldSymbol
 	method   *methodSymbol
 	goMember gotypes.Object
+}
+
+func (m embeddedStructMember) found() bool {
+	return m.field != nil || m.method != nil || m.goMember != nil
 }
 
 // A selector sees the shallowest declaration. Reaching the same struct by
@@ -176,28 +185,7 @@ func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embedd
 				}
 				next[key] = child
 			}
-			if owner.Kind != Struct {
-				branch.visitGoMembers(add, addChild)
-				continue
-			}
-			structure := c.structs[owner.Name]
-			if structure == nil {
-				continue
-			}
-			for name, field := range structure.fields {
-				add(name, field.goName, embeddedStructMember{structEmbedding: branch, field: &field})
-			}
-			for name, method := range structure.methods {
-				if !goNames || !method.typeInfo.Generic {
-					add(name, method.goName, embeddedStructMember{structEmbedding: branch, method: &method})
-				}
-			}
-			bindings := nativeStructBindings(structure, owner)
-			for _, fieldName := range structure.embedded {
-				field := structure.fields[fieldName]
-				value := substituteNativeTypeParameters(field.typeInfo, bindings)
-				addChild(value, field.goName)
-			}
+			c.visitStructEmbedding(branch, owner, goNames, add, addChild)
 		}
 		for name, member := range members {
 			result[name] = member
@@ -205,6 +193,55 @@ func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embedd
 		frontier = next
 	}
 	return result
+}
+
+func (c *Checker) visitStructEmbedding(branch structEmbedding, owner Type, goNames bool, add func(string, string, embeddedStructMember), embed func(Type, string)) {
+	shape := owner
+	var methods map[string]methodSymbol
+	var methodBindings nativeTypeBindings
+	if owner.Kind == Struct {
+		structure := c.structs[owner.Name]
+		if structure == nil {
+			return
+		}
+		methods, methodBindings = structure.methods, nativeStructBindings(structure, owner)
+	} else if defined := c.nativeDefinedSymbol(owner); defined != nil {
+		methods, methodBindings = defined.methods, nativeDefinedTypeBindings(defined, owner)
+		// A defined type retains its underlying fields, including embedded
+		// fields. Only its own declarations supply direct methods.
+		shape = c.nativeDefinedUnderlying(defined, owner)
+		if shape.Kind == Object {
+			for name, value := range shape.Fields {
+				field := fieldSymbol{typeInfo: value, visibility: ast.Public, goName: shape.FieldNames[name]}
+				add(name, field.goName, embeddedStructMember{structEmbedding: branch, field: &field})
+			}
+		} else if shape.Kind != Struct && owner.GoType != nil {
+			if layout, ok := owner.GoType.Underlying().(*gotypes.Struct); ok {
+				branch.visitGoStructFields(layout, add, embed)
+			}
+		}
+	} else {
+		branch.visitGoMembers(add, embed)
+		return
+	}
+	for name, method := range methods {
+		if !goNames || !method.typeInfo.Generic {
+			add(name, method.goName, embeddedStructMember{structEmbedding: branch, bindings: methodBindings, method: &method})
+		}
+	}
+	if shape.Kind != Struct {
+		return
+	}
+	if structure := c.structs[shape.Name]; structure != nil {
+		bindings := nativeStructBindings(structure, shape)
+		for name, field := range structure.fields {
+			add(name, field.goName, embeddedStructMember{structEmbedding: branch, bindings: bindings, field: &field})
+		}
+		for _, name := range structure.embedded {
+			field := structure.fields[name]
+			embed(substituteNativeTypeParameters(field.typeInfo, bindings), field.goName)
+		}
+	}
 }
 
 func sameStructMemberPath(member, emitted embeddedStructMember) bool {
@@ -218,8 +255,7 @@ func sameStructMemberPath(member, emitted embeddedStructMember) bool {
 }
 
 func (c *Checker) effectiveStructMethods(base Type, pointer bool) (map[string]methodSymbol, nativeTypeBindings) {
-	structure := c.structs[base.Name]
-	if len(structure.embedded) == 0 {
+	if structure := c.structs[base.Name]; base.Kind == Struct && structure != nil && len(structure.embedded) == 0 {
 		return structure.methods, nativeStructBindings(structure, base)
 	}
 	receiver := base
@@ -250,8 +286,7 @@ func (c *Checker) effectiveStructMethods(base Type, pointer bool) (map[string]me
 			method.embeddedMember = &member
 			method.pointerReceiver = method.pointerReceiver && !member.throughPointer
 		}
-		owner := member.owner()
-		method.typeInfo = substituteNativeTypeParameters(method.typeInfo, nativeStructBindings(c.structs[owner.Name], owner))
+		method.typeInfo = substituteNativeTypeParameters(method.typeInfo, member.bindings)
 		methods[name] = method
 	}
 	return methods, nil
@@ -297,9 +332,7 @@ func (c *Checker) recordPromotedStructMembers(program *ast.Program) {
 			if !generic && !sameStructMemberPath(member, emitted[generatedIdentifier(goName)]) {
 				continue
 			}
-			if owner := member.owner(); owner.Kind == Struct {
-				value = substituteNativeTypeParameters(value, nativeStructBindings(c.structs[owner.Name], owner))
-			}
+			value = substituteNativeTypeParameters(value, member.bindings)
 			info.Type = typeRefFromType(value, info.Declaration)
 			decl.PromotedMembers = append(decl.PromotedMembers, info)
 		}

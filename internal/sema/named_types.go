@@ -407,11 +407,9 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 		return symbol.typeInfo
 	}
 	if !symbol.declaration.Alias && underlying.Kind == GoNamed && !c.structGoTypesFinalized {
-		if object := goTypeNameObject(underlying.GoType); object != nil {
-			if dependency := c.nativeTypes[object.Name()]; dependency != nil && dependency.state != 2 {
-				symbol.state = 0
-				return symbol.typeInfo
-			}
+		if dependency := c.nativeDefinedSymbol(underlying); dependency != nil && dependency.state != 2 {
+			symbol.state = 0
+			return symbol.typeInfo
 		}
 	}
 	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null

@@ -20,7 +20,7 @@ The comparison covers values and errors, mutation, evaluation order/count, copy 
 
 ## Contract coverage
 
-The registry currently covers **109 of 109** implemented Go-equivalent runtime groups. Each group has an independent Go comparison.
+The registry currently covers **110 of 110** implemented Go-equivalent runtime groups. Each group has an independent Go comparison.
 
 A new accepted runtime feature must add its compatibility contract, independent reference, normal/boundary/failure cases, and all relevant observable comparisons in the same change.
 

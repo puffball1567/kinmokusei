@@ -103,10 +103,8 @@ func (c *Checker) nativeMethodExpressionSet(receiver Type) map[string]methodSymb
 			methods, bindings = symbol.methods, nativeInterfaceBindings(symbol, base)
 		}
 	case GoNamed:
-		if object := goTypeNameObject(base.GoType); object != nil && base.GoQualifier == "" {
-			if symbol := c.nativeTypes[object.Name()]; symbol != nil && !symbol.declaration.Alias {
-				methods, bindings = symbol.methods, nativeDefinedTypeBindings(symbol, base)
-			}
+		if c.nativeDefinedSymbol(base) != nil {
+			methods, bindings = c.effectiveStructMethods(base, pointer)
 		}
 	}
 	result := map[string]methodSymbol{}

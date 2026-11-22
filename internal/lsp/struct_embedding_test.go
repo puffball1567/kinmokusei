@@ -93,3 +93,26 @@ function take(v: Forward, p: byte[]): (int, error) { const f = Forward.Write; re
 		t.Fatalf("completion=%v", items)
 	}
 }
+
+func TestDistinctTypeEmbeddingEditor(t *testing.T) {
+	t.Parallel()
+	input := `type Count = distinct int
+public function read(this: Count): int { return int(this); }
+struct Tally { Count; }
+function use(v: Tally): int { return v.read(); }
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	member := positionOf(input, "read();", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, member, ""),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(1) {
+		t.Fatalf("definition=%v", messages[2])
+	}
+	items := completionLabels(completionItemsAt(t, path, input, member.Line, member.Character))
+	if items["read"] == nil || !strings.Contains(items["read"]["detail"].(string), "int") {
+		t.Fatalf("completion=%v", items)
+	}
+}

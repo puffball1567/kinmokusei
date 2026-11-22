@@ -111,15 +111,22 @@ func (c *Checker) constraintArgumentShape(value Type) Type {
 // Imported Go types remain unchanged so their package identities and qualifiers
 // continue through the normal interop path.
 func (c *Checker) nativeDefinedShape(value Type) (Type, bool) {
+	if symbol := c.nativeDefinedSymbol(value); symbol != nil {
+		return c.nativeDefinedUnderlying(symbol, value), true
+	}
+	return value, false
+}
+
+func (c *Checker) nativeDefinedSymbol(value Type) *nativeTypeSymbol {
 	if value.Kind != GoNamed || value.GoType == nil {
-		return value, false
+		return nil
 	}
 	if named, ok := gotypes.Unalias(value.GoType).(*gotypes.Named); ok {
 		if symbol := c.nativeTypes[named.Obj().Name()]; symbol != nil && named.Origin() == symbol.goNamed {
-			return c.nativeDefinedUnderlying(symbol, value), true
+			return symbol
 		}
 	}
-	return value, false
+	return nil
 }
 
 // Go satisfaction checks the storage type; this additional check protects the
