@@ -172,6 +172,34 @@ and emoji sequences may contain several code points. Go packages such as
 formatting explicitly; methods such as JavaScript's `.length`/`.slice()` and
 template interpolation are not implicit string APIs.
 
+## Regular expressions
+
+A literal such as `re"^([\p{L}]+)-(\d+)$"` produces a `Regex` value.
+Use `\"` for a double quote inside the literal. Other backslashes are passed
+to the regular-expression engine, so `\d` needs only one backslash. Inline
+flags such as `(?i)` are part of the pattern. Kinmokusei checks the pattern
+at compile time and compiles each distinct literal once in the generated Go
+package. The syntax follows Go's RE2 dialect.
+
+```ts
+const label: Regex = re"^([\p{L}]+)-(\d+)$"
+
+const valid = label.test("温泉-42")
+const parts = label.captures("温泉-42")
+const swapped = label.replaceAll("温泉-42", "${2}:${1}")
+```
+
+| Method | Result |
+| --- | --- |
+| `test(text)` | Whether any part of the text matches |
+| `captures(text)` | The first full match followed by its capture groups. No match yields a slice of length zero. |
+| `replaceAll(text, replacement)` | Text with every match replaced. Use `${1}` or `${name}` to insert a capture and `$$` for a literal dollar sign. |
+
+These methods take verified UTF-8 `string` values. Use `string(raw)` and
+handle its `Result<string>` when the input comes from unvalidated bytes.
+A zero-initialized `Regex` behaves like `re""`. You can also use the literal
+directly in a [match pattern](./control-flow#match-expressions).
+
 ## Slice and fixed array
 
 ```ts

@@ -431,6 +431,20 @@ func (linker *sourceLinker) linkStatement(statement ast.Statement, visible modul
 
 func (linker *sourceLinker) linkExpression(expression ast.Expression, visible moduleNames, locals localBindings) {
 	switch expression := expression.(type) {
+	case *ast.MatchExpr:
+		linker.linkExpression(expression.Value, visible, locals)
+		for i := range expression.Arms {
+			arm := &expression.Arms[i]
+			armLocals := cloneLocalBindings(locals)
+			arm.Pattern.Walk(func(pattern *ast.MatchPattern) {
+				linker.linkExpression(pattern.Literal, visible, locals)
+				if name := pattern.Binding.Name; name != "" && name != "_" {
+					linker.bindLocal(armLocals, name)
+				}
+			})
+			linker.linkExpression(arm.Guard, visible, armLocals)
+			linker.linkExpression(arm.Value, visible, armLocals)
+		}
 	case *ast.IdentifierExpr:
 		expression.Name = linker.referenceName(expression.Name, expression.Span, visible, locals)
 	case *ast.UnaryExpr:

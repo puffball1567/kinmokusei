@@ -193,23 +193,31 @@ func enclosingMemberOwner(program *ast.Program, path string, offset int) string 
 }
 
 func visibleValueType(program *ast.Program, path string, offset int, name string) (ast.TypeRef, bool) {
-	var arrowType ast.TypeRef
-	arrowFound := false
+	var expressionType ast.TypeRef
+	expressionFound := false
 	visitProgramExpressions(program, func(expression ast.Expression) {
+		if match, ok := expression.(*ast.MatchExpr); ok {
+			visitMatchBindingsAt(match, path, offset, func(binding ast.Binding) {
+				if binding.Name == name {
+					expressionType, expressionFound = binding.ResolvedType, binding.ResolvedType.IsSpecified()
+				}
+			})
+			return
+		}
 		arrow, ok := expression.(*ast.ArrowExpr)
 		if !ok || !spanContains(arrow.Span, path, offset) {
 			return
 		}
 		if ref, found := visibleValueTypeInBlock(program, arrow.BlockBody, path, offset, name); found {
-			arrowType, arrowFound = ref, true
+			expressionType, expressionFound = ref, true
 			return
 		}
 		if ref, found := callableBindingType(arrow.Parameters, arrow.ResolvedReturnType, name); found {
-			arrowType, arrowFound = ref, true
+			expressionType, expressionFound = ref, true
 		}
 	})
-	if arrowFound {
-		return arrowType, true
+	if expressionFound {
+		return expressionType, true
 	}
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
@@ -302,6 +310,10 @@ func variableType(program *ast.Program, variable *ast.VariableDecl) (ast.TypeRef
 
 func expressionCompletionType(program *ast.Program, expression ast.Expression) (ast.TypeRef, bool) {
 	switch expression := expression.(type) {
+	case *ast.RegexExpr:
+		return ast.TypeRef{Name: ast.RegexTypeName, BuiltinRegex: true, Span: expression.Span}, true
+	case *ast.MatchExpr:
+		return expression.ResultType, expression.ResultType.IsSpecified()
 	case *ast.OptionalReceiverExpr:
 		return expression.Type, expression.Type.IsSpecified()
 	case *ast.OptionalChainExpr:
@@ -544,6 +556,14 @@ func nestedVisibleValueType(program *ast.Program, statement ast.Statement, path 
 }
 
 func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner string, static bool, seen map[string]bool, add func(completionItem)) {
+	if ref.BuiltinRegex {
+		if !static {
+			for _, method := range ast.RegexMethods() {
+				add(completionItem{Label: method.Name, Kind: 2, Detail: regexMethodDetail(method), SortText: "0_" + method.Name})
+			}
+		}
+		return
+	}
 	if ref.TypeParameter {
 		if !static {
 			for _, method := range program.TypeParameterMethods[ref.ResolvedDeclaration] {

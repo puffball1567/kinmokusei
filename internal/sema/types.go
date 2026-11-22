@@ -54,6 +54,7 @@ const (
 	Task
 	Nullable
 	TypeParameter
+	Regex
 )
 
 type Type struct {
@@ -122,6 +123,7 @@ var builtins = map[string]Type{
 }
 
 func init() {
+	builtins[ast.RegexTypeName] = Type{Kind: Regex, Name: ast.RegexTypeName}
 	builtins[ast.DecoratorValueTypeName] = decoratorValueType()
 	for _, definition := range ast.DecoratorContextDefinitions() {
 		builtins[definition.Name] = decoratorContextType(definition.Name)
@@ -524,6 +526,8 @@ func goTypeOf(t Type) (gotypes.Type, bool) {
 		return t.GoType, true
 	}
 	switch t.Kind {
+	case Regex:
+		return regexGoType, true
 	case GoInterface:
 		methods := make([]*gotypes.Func, len(t.GoMethods))
 		for i, method := range t.GoMethods {

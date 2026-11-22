@@ -158,6 +158,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			}
 		}
 	}
+	if object.Kind == Regex {
+		return c.checkRegexMember(expr, write)
+	}
 	if object.Kind == Object {
 		field, ok := object.Fields[expr.Name]
 		if !ok {

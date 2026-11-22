@@ -232,8 +232,8 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkDecorators(program)
 	c.checkSourceExports(program)
 	c.checkCABIExports(program)
-	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
+	c.checkGeneratedNames(program)
 	c.recordTypeParameterMethods(program)
 	c.recordPromotedStructMembers(program)
 	program.GoReferences = c.goReferences
@@ -616,6 +616,10 @@ func (c *Checker) checkExpression(expr ast.Expression) (result Type) {
 		defer func() { c.checkReferenceRead(expr, result) }()
 	}
 	switch expr := expr.(type) {
+	case *ast.RegexExpr:
+		return c.checkRegexLiteral(expr)
+	case *ast.MatchExpr:
+		return c.checkMatch(expr, nil)
 	case *ast.OptionalChainExpr:
 		return c.checkOptionalChain(expr, nil)
 	case *ast.OptionalReceiverExpr:

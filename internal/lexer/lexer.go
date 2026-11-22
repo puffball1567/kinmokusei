@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -42,7 +43,12 @@ func (l *Lexer) next() token.Token {
 	r, size := l.peek()
 	if r == 'b' && l.peekNext('"') {
 		l.advance()
-		return l.scanString(start)
+		return l.scanString(start, token.ByteString)
+	}
+	if r == 'r' && strings.HasPrefix(l.input[l.offset:], "re\"") {
+		l.advance()
+		l.advance()
+		return l.scanString(start, token.Regex)
 	}
 	if isIdentifierStart(r) {
 		l.advance()
@@ -62,7 +68,7 @@ func (l *Lexer) next() token.Token {
 
 	switch r {
 	case '"':
-		return l.scanString(start)
+		return l.scanString(start, token.String)
 	case '(':
 		l.advance()
 		return l.makeToken(token.LeftParen, start)
@@ -242,7 +248,8 @@ func (l *Lexer) next() token.Token {
 	return tok
 }
 
-func (l *Lexer) scanString(start source.Position) token.Token {
+func (l *Lexer) scanString(start source.Position, kind token.Kind) token.Token {
+	quoteOffset := l.offset
 	l.advance()
 	terminated := false
 	for !l.eof() {
@@ -258,22 +265,26 @@ func (l *Lexer) scanString(start source.Position) token.Token {
 		if r == '\\' {
 			l.advance()
 			if !l.eof() {
+				if next, _ := l.peek(); next == '\n' || next == '\r' {
+					break
+				}
 				l.advance()
 			}
 			continue
 		}
 		l.advance()
 	}
-	tok := l.makeToken(token.String, start)
-	quoted := tok.Lexeme
-	if len(quoted) > 0 && quoted[0] == 'b' {
-		tok.Kind = token.ByteString
-		quoted = quoted[1:]
-	}
+	tok := l.makeToken(kind, start)
 	if !terminated {
-		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "unterminated string literal", Span: tok.Span})
-	} else if _, err := strconv.Unquote(quoted); err != nil {
-		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "invalid string literal escape", Span: tok.Span})
+		message := "unterminated string literal"
+		if kind == token.Regex {
+			message = "unterminated regular expression literal"
+		}
+		l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: message, Span: tok.Span})
+	} else if kind != token.Regex {
+		if _, err := strconv.Unquote(l.input[quoteOffset:l.offset]); err != nil {
+			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{Message: "invalid string literal escape", Span: tok.Span})
+		}
 	}
 	return tok
 }

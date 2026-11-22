@@ -1,6 +1,6 @@
 ---
 title: Control flow
-description: Learn boolean conditions, loops, ranges, value and type switches, channel select, labels, defer, and try/catch/finally.
+description: Learn conditions, loops, switches, pattern matching, channel select, labels, defer, and try/catch/finally.
 ---
 
 # Control flow
@@ -163,6 +163,48 @@ switch (input) {
 ```
 
 A type switch requires a Go interface subject. Typed cases use `const` or `let`, and each narrowed binding exists only in its case. `_` may ignore the value. Duplicate or impossible types, mixed value/type cases, and duplicate `nil`/`default` are rejected. Type switches do not support fallthrough.
+
+## Match expressions
+
+`match (value) { ... }` evaluates its subject once. Arms are tried in source
+order. Bindings in a matching arm are available to its optional `if (condition)`
+guard and the expression after `=>`. The first arm whose pattern and guard
+succeed supplies the result. Use a comma or a newline between arms.
+
+```ts
+struct Request {
+  public path: string
+  public params: int[]
+}
+
+function route(request: Request): string {
+  return match (request) {
+    case { path: "/health" } => "health"
+    case { path: re"^/items/\d+$", params: [const id] } if (id > 0) => "item"
+    default => "not found"
+  }
+}
+```
+
+| Pattern | Meaning |
+| --- | --- |
+| `1`, `"text"`, `true` | Compare a literal with a value of a compatible type |
+| `re"^/items/\d+$"` | Match a [regular expression](./types-and-values#regular-expressions) against a `string` |
+| `_`, `const name` | Accept any value and optionally give it a name |
+| `null`, `const name!` | Match null or bind a non-null value of a nullable type |
+| `{ x: const x, y: 0 }` | Check selected direct fields of a value struct or object |
+| `[const first, _]` | Match exactly two elements of an array or slice |
+
+Field and sequence patterns can be nested. Each arm produces one value of
+the surrounding expected type. When there is no surrounding type annotation,
+the first arm supplies the result type.
+
+Every possible subject value must be covered. Use a final `default` or
+`case _` for a fallback. Both boolean literals cover a boolean. The pair
+`null` and `const value!` covers a nullable type. A record with only
+unconditional field patterns or a fixed-length array with only unconditional
+element patterns also covers its subject type. Guarded arms do not count
+toward exhaustiveness.
 
 ## Channel `select`
 

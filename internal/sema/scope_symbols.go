@@ -206,6 +206,11 @@ func isBuiltinValueName(name string) bool {
 }
 
 func isBuiltinTypeName(name string) bool {
+	// Regex is a fallback in type positions, so existing source declarations
+	// can keep this spelling. A literal always has the compiler's Regex type.
+	if name == ast.RegexTypeName {
+		return false
+	}
 	if name == "Result" || name == "Task" {
 		return true
 	}

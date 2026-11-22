@@ -47,6 +47,9 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		}
 		return Type{Kind: Nullable, Name: "nullable", Element: &base}
 	}
+	if ref.BuiltinRegex {
+		return builtins[ast.RegexTypeName]
+	}
 	if ref.IsPointer() {
 		pointee := c.resolveTypeThroughNativeIndirection(*ref.Pointee)
 		if pointee.Kind == Invalid {

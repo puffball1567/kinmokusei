@@ -85,7 +85,7 @@ func evaluationMayHaveEffects(expression ast.Expression) bool {
 		return true
 	}
 	switch expr := expression.(type) {
-	case *ast.ArrowExpr, *ast.IdentifierExpr, *ast.LiteralExpr, nil:
+	case *ast.ArrowExpr, *ast.IdentifierExpr, *ast.LiteralExpr, *ast.RegexExpr, nil:
 		return false
 	case *ast.CallExpr:
 		if expr.NonNullConversion {
@@ -101,7 +101,7 @@ func evaluationMayHaveEffects(expression ast.Expression) bool {
 			return expressionListMayHaveEffects(expr.Arguments)
 		}
 		return true
-	case *ast.OptionalChainExpr, *ast.NewExpr, *ast.TaskStartExpr, *ast.AwaitExpr, *ast.PropagateExpr, *ast.GoTypeAssertionExpr:
+	case *ast.MatchExpr, *ast.OptionalChainExpr, *ast.NewExpr, *ast.TaskStartExpr, *ast.AwaitExpr, *ast.PropagateExpr, *ast.GoTypeAssertionExpr:
 		return true
 	case *ast.UnaryExpr:
 		return expr.Operator == "<-" || expr.Operator == ast.NonNullOperator || evaluationMayHaveEffects(expr.Operand)

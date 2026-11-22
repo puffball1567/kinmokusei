@@ -11,6 +11,9 @@ import (
 )
 
 func (c *Checker) checkExpressionExpected(expr ast.Expression, expected Type) Type {
+	if match, ok := expr.(*ast.MatchExpr); ok {
+		return c.checkMatch(match, &expected)
+	}
 	if chain, ok := expr.(*ast.OptionalChainExpr); ok {
 		return c.checkOptionalChain(chain, &expected)
 	}

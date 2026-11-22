@@ -189,11 +189,12 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 	for _, keyword := range []string{"abstract", "alias", "await", "break", "case", "catch", "class", "const", "constraint", "continue", "default", "defer", "detach", "distinct", "else", "enum", "extends", "fallthrough", "final", "finally", "for", "function", "go", "goto", "if", "implements", "import", "interface", "let", "new", "nil", "null", "override", "pointer", "private", "protected", "public", "return", "select", "static", "struct", "super", "switch", "throw", "try", "type", "virtual", "while"} {
 		add(completionItem{Label: keyword, Kind: 14, Detail: "keyword", SortText: "3_" + keyword})
 	}
+	add(completionItem{Label: "match", Kind: 14, Detail: "match expression", SortText: "3_match"})
 	builtinTypes := []string{"void", "boolean", "string", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float", "number", "float64", "complex64", "complex128", "byte", "error", "Exception", "Map", "Result", "Task", "GoChannel", "GoSendChannel", "GoReceiveChannel", ast.DecoratorValueTypeName}
 	for _, definition := range ast.DecoratorContextDefinitions() {
 		builtinTypes = append(builtinTypes, definition.Name)
 	}
-	builtinTypes = append(builtinTypes, "bstring")
+	builtinTypes = append(builtinTypes, "bstring", ast.RegexTypeName)
 	for _, name := range builtinTypes {
 		add(completionItem{Label: name, Kind: 7, Detail: "built-in type", SortText: "2_" + name})
 	}
@@ -282,7 +283,7 @@ func lexicalCompletions(program *ast.Program, path string, offset int, prefix st
 }
 
 func addLocalCompletions(program *ast.Program, path string, offset int, add func(completionItem)) {
-	defer addArrowCompletions(program, path, offset, add)
+	defer addExpressionCompletions(program, path, offset, add)
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
 			continue

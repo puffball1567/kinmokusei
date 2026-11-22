@@ -45,6 +45,8 @@ type Program struct {
 	UsesJSONSnapshot     bool
 	UsesNonNullKinds     bool
 	UsesReferenceReads   bool
+	UsesRegex            bool
+	RegexPatterns        []string
 }
 
 // NativeTypeMethodSet keeps callable expressions separate from constants in
@@ -120,6 +122,7 @@ type TypeRef struct {
 	Interface     bool
 	TypeParameter bool
 	NativeNamed   bool
+	BuiltinRegex  bool
 	// LoweredType is populated for generic aliases. The source alias remains
 	// available to language tooling while Go code generation uses its expanded
 	// underlying type, keeping generated modules compatible with Go 1.23.
