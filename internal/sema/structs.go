@@ -38,19 +38,7 @@ func (c *Checker) declareStruct(decl *ast.StructDecl) {
 		goName := memberGoName(field.Name, field.Visibility)
 		declarationSpan := field.NameSpan
 		if field.Embedded {
-			if fieldType.Kind == Invalid {
-				continue
-			}
-			embedded := fieldType
-			if embedded.Kind == GoPointer && embedded.Element != nil {
-				embedded = *embedded.Element
-			}
-			if embedded.Kind != Struct && !isImportedGoStruct(embedded) {
-				c.report(field.Type.Span, "embedded field must name a Kinmokusei struct, an imported Go struct, or a pointer to one")
-				continue
-			}
-			if arity := goTypeParameterCount(embedded.GoType); embedded.Kind == GoNamed && arity > len(embedded.TypeArguments) {
-				c.report(field.Type.Span, fmt.Sprintf("embedded Go struct %s requires %d type arguments", embedded.String(), arity))
+			if fieldType.Kind == Invalid || !c.checkStructEmbeddingType(fieldType, field.Type.Span) {
 				continue
 			}
 			goName = c.embeddedStructGoName(field.Type)

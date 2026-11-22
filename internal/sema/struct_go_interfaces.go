@@ -28,13 +28,28 @@ func (c *Checker) nativeStructSatisfiesGoInterface(target, value Type) bool {
 	}
 	origin, arguments := goInterfaceContractOrigin(target, contract)
 	methods, bindings, pointer := c.nativeStructMethodSet(value)
-	if len(methods) == 0 {
+	if methods == nil {
 		return false
 	}
+	var storageType gotypes.Type
 	for i := 0; i < contract.NumMethods(); i++ {
 		required := contract.Method(i)
 		if !required.Exported() {
-			return false
+			// Only a real Go embedding can supply a private method belonging
+			// to another package. Its nominal storage retains that identity.
+			if storageType == nil {
+				var ok bool
+				storageType, ok = c.goTypeForNativeStorage(value)
+				if !ok || !nativeStorageGraphReady(storageType, map[gotypes.Type]bool{}) {
+					return false
+				}
+			}
+			object, _, _ := gotypes.LookupFieldOrMethod(storageType, false, required.Pkg(), required.Name())
+			provided, ok := object.(*gotypes.Func)
+			if !ok || !gotypes.Identical(provided.Type(), required.Type()) {
+				return false
+			}
+			continue
 		}
 		provided, ok := nativeConstraintMethod(methods, bindings, pointer, required.Name())
 		if !ok {

@@ -5,18 +5,39 @@ import (
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-func isImportedGoStruct(value Type) bool {
-	if value.Kind != GoNamed {
-		return false
+func (c *Checker) checkStructEmbeddingType(value Type, span source.Span) bool {
+	pointer := value.Kind == GoPointer && value.Element != nil
+	if pointer {
+		value = *value.Element
 	}
-	name := goTypeNameObject(value.GoType)
-	if name == nil || name.Pkg() == nil {
-		return false
+	if value.Kind == Struct {
+		return true
 	}
-	_, structure := gotypes.Unalias(value.GoType).Underlying().(*gotypes.Struct)
-	return structure
+	if name := goTypeNameObject(value.GoType); value.Kind == GoNamed && name != nil &&
+		(name.Pkg() != nil || name == gotypes.Universe.Lookup("error")) {
+		shape := gotypes.Unalias(value.GoType).Underlying()
+		_, structure := shape.(*gotypes.Struct)
+		contract, iface := shape.(*gotypes.Interface)
+		switch {
+		case iface && !contract.Complete().IsMethodSet():
+			c.report(span, "embedded Go interface must be usable as a runtime value")
+			return false
+		case iface && pointer:
+			c.report(span, "cannot embed a pointer to a Go interface")
+			return false
+		case structure || iface:
+			if arity := goTypeParameterCount(value.GoType); arity > len(value.TypeArguments) {
+				c.report(span, fmt.Sprintf("embedded Go type %s requires %d type arguments", value.String(), arity))
+				return false
+			}
+			return true
+		}
+	}
+	c.report(span, "embedded field must name a Kinmokusei struct, a Go struct, a pointer to one of those structs, or a named Go interface")
+	return false
 }
 
 type structEmbeddingKey struct {
