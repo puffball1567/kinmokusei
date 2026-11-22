@@ -2,6 +2,7 @@ package sema
 
 import (
 	"fmt"
+	gotypes "go/types"
 	"slices"
 	"sort"
 
@@ -22,7 +23,7 @@ func (c *Checker) checkNativeStructMember(expr *ast.MemberExpr, receiver, base T
 	} else if len(structure.embedded) != 0 {
 		member = c.structMemberSet(receiver, false)[expr.Name]
 	}
-	if member.field == nil && member.method == nil {
+	if member.field == nil && member.method == nil && member.goMember == nil {
 		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", base.Name, expr.Name))
 		return invalid
 	}
@@ -33,6 +34,9 @@ func (c *Checker) checkNativeStructMember(expr *ast.MemberExpr, receiver, base T
 		return invalid
 	}
 	expr.EmbeddedPath = member.path
+	if member.goMember != nil {
+		return c.checkPromotedGoStructMember(expr, receiver, base, pointer, member)
+	}
 	owner := member.owner()
 	bindings := nativeStructBindings(c.structs[owner.Name], owner)
 	if member.field != nil {
@@ -70,6 +74,8 @@ func (c *Checker) validPromotedStructMember(expr *ast.MemberExpr, receiver Type,
 	} else if method := member.method; method != nil {
 		goName, visible = method.goName, method.visibility == ast.Public || method.declarationSpan.Path == expr.Span.Path
 		generic = method.typeInfo.Generic
+	} else if object := member.goMember; object != nil {
+		goName, visible = object.Name(), object.Exported()
 	}
 	if !visible {
 		c.report(expr.NameSpan, fmt.Sprintf("promoted struct member %q is private", expr.Name))
@@ -95,6 +101,11 @@ func (c *Checker) embeddedStructGoName(ref ast.TypeRef) string {
 		}
 		alias := c.nativeTypes[ref.Name]
 		if alias == nil || !alias.declaration.Alias || len(ref.GenericArguments) == 0 {
+			if ref.Qualifier == "" {
+				if imported, ok := c.goNamedImports[ref.Span.Path][ref.Name]; ok {
+					return imported.name
+				}
+			}
 			return ref.Name
 		}
 		seen[ref.Name] = true
@@ -118,8 +129,9 @@ func (e structEmbedding) owner() Type {
 
 type embeddedStructMember struct {
 	structEmbedding
-	field  *fieldSymbol
-	method *methodSymbol
+	field    *fieldSymbol
+	method   *methodSymbol
+	goMember gotypes.Object
 }
 
 // A selector sees the shallowest declaration. Reaching the same struct by
@@ -127,21 +139,17 @@ type embeddedStructMember struct {
 // bounds the search through diamonds and terminates on recursive pointers.
 func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embeddedStructMember {
 	root := structEmbedding{receiver: receiver}
-	frontier := map[string]structEmbedding{root.owner().Name: root}
-	seen := map[string]bool{}
+	frontier := map[structEmbeddingKey]structEmbedding{root.key(): root}
+	seen := map[structEmbeddingKey]bool{}
 	result := map[string]embeddedStructMember{}
 	for len(frontier) != 0 {
 		members := map[string]embeddedStructMember{}
-		next := map[string]structEmbedding{}
+		next := map[structEmbeddingKey]structEmbedding{}
 		for name := range frontier {
 			seen[name] = true
 		}
 		for _, branch := range frontier {
 			owner := branch.owner()
-			structure := c.structs[owner.Name]
-			if structure == nil {
-				continue
-			}
 			add := func(name, goName string, member embeddedStructMember) {
 				if goNames {
 					name = generatedIdentifier(goName)
@@ -153,6 +161,28 @@ func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embedd
 					member.ambiguous = true
 				}
 				members[name] = member
+			}
+			addChild := func(value Type, goName string) {
+				child := structEmbedding{
+					receiver: value, throughPointer: branch.throughPointer || value.Kind == GoPointer, ambiguous: branch.ambiguous,
+					path: append(slices.Clone(branch.path), goName),
+				}
+				key := child.key()
+				if seen[key] {
+					return
+				}
+				if _, duplicate := next[key]; duplicate {
+					child.ambiguous = true
+				}
+				next[key] = child
+			}
+			if owner.Kind != Struct {
+				branch.visitGoMembers(add, addChild)
+				continue
+			}
+			structure := c.structs[owner.Name]
+			if structure == nil {
+				continue
 			}
 			for name, field := range structure.fields {
 				add(name, field.goName, embeddedStructMember{structEmbedding: branch, field: &field})
@@ -166,16 +196,7 @@ func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embedd
 			for _, fieldName := range structure.embedded {
 				field := structure.fields[fieldName]
 				value := substituteNativeTypeParameters(field.typeInfo, bindings)
-				child := structEmbedding{receiver: value, throughPointer: branch.throughPointer || value.Kind == GoPointer, ambiguous: branch.ambiguous}
-				name := child.owner().Name
-				if seen[name] {
-					continue
-				}
-				if _, duplicate := next[name]; duplicate {
-					child.ambiguous = true
-				}
-				child.path = append(slices.Clone(branch.path), field.goName)
-				next[name] = child
+				addChild(value, field.goName)
 			}
 		}
 		for name, member := range members {
@@ -187,8 +208,13 @@ func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embedd
 }
 
 func sameStructMemberPath(member, emitted embeddedStructMember) bool {
-	return !emitted.ambiguous && slices.Equal(member.path, emitted.path) &&
-		(member.method != nil && emitted.method != nil || member.field != nil && emitted.field != nil)
+	if emitted.ambiguous || !slices.Equal(member.path, emitted.path) {
+		return false
+	}
+	if member.goMember != nil && emitted.goMember != nil {
+		return member.goMember.Name() == emitted.goMember.Name()
+	}
+	return member.method != nil && emitted.method != nil || member.field != nil && emitted.field != nil
 }
 
 func (c *Checker) effectiveStructMethods(base Type, pointer bool) (map[string]methodSymbol, nativeTypeBindings) {
@@ -203,7 +229,17 @@ func (c *Checker) effectiveStructMethods(base Type, pointer bool) (map[string]me
 	emitted := c.structMemberSet(receiver, true)
 	methods := map[string]methodSymbol{}
 	for name, member := range c.structMemberSet(receiver, false) {
-		if member.method == nil || member.method.typeInfo.Generic || member.ambiguous || member.method.pointerReceiver && !pointer && !member.throughPointer {
+		if member.ambiguous {
+			continue
+		}
+		if member.goMember != nil {
+			if method, ok := c.promotedGoMethod(member); ok && (pointer || !method.pointerReceiver) &&
+				sameStructMemberPath(member, emitted[method.goName]) {
+				methods[name] = method
+			}
+			continue
+		}
+		if member.method == nil || member.method.typeInfo.Generic || member.method.pointerReceiver && !pointer && !member.throughPointer {
 			continue
 		}
 		method := *member.method
@@ -249,12 +285,22 @@ func (c *Checker) recordPromotedStructMembers(program *ast.Program) {
 			} else if method := member.method; method != nil {
 				goName, value, generic = method.goName, method.typeInfo, method.typeInfo.Generic
 				info.Visibility, info.Declaration = method.visibility, method.declarationSpan
+			} else if object := member.goMember; object != nil {
+				var err error
+				value, err = goValueMemberType(member.owner(), object)
+				if err != nil || !c.allowUnsafeGo && goTypeContainsUnsafePointer(value.GoType, nil) {
+					continue
+				}
+				_, info.Method = object.(*gotypes.Func)
+				goName, info.Visibility = object.Name(), ast.Public
 			}
 			if !generic && !sameStructMemberPath(member, emitted[generatedIdentifier(goName)]) {
 				continue
 			}
-			owner := member.owner()
-			info.Type = typeRefFromType(substituteNativeTypeParameters(value, nativeStructBindings(c.structs[owner.Name], owner)), info.Declaration)
+			if owner := member.owner(); owner.Kind == Struct {
+				value = substituteNativeTypeParameters(value, nativeStructBindings(c.structs[owner.Name], owner))
+			}
+			info.Type = typeRefFromType(value, info.Declaration)
 			decl.PromotedMembers = append(decl.PromotedMembers, info)
 		}
 		sort.Slice(decl.PromotedMembers, func(i, j int) bool { return decl.PromotedMembers[i].Name < decl.PromotedMembers[j].Name })

@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Embed imported Go structs and their pointers in Kinmokusei structs, including
+  instantiated Go generic structs. Promote exported fields and methods through
+  mixed embedding chains, with Go interface assignment and editor navigation.
+
 - Pass native structs directly to Go generic functions with interface
   parameters. Infer type arguments from public and promoted methods, and
   preserve native struct identity in instantiated inputs and results.
