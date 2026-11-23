@@ -16,14 +16,19 @@ explicit compatibility with the Go ecosystem. Before contributing, read the
 - After the compatibility push run succeeds on the exact resulting `devel`
   commit, open a pull request from `devel` to `main`. This release pull request
   verifies and reuses that successful run instead of repeating the full suite.
-- Merge release pull requests with a merge commit. After the merge, run the
-  **Publish release** workflow from `main` with the intended version tag. It
-  tags the exact `main` head and starts artifact publication without changing
-  either protected branch.
+- Use `scripts/promote-main.sh <PR-number>` for every verified `devel` to
+  `main` promotion, including documentation updates. It merges the PR with a
+  merge commit, then fast-forwards `devel` to that same commit if the verified
+  `devel` head and the file tree match. An administrator runs the command
+  with the existing `devel` permissions. The command also accepts a recently
+  merged PR so that synchronization can be retried.
+- After a release promotion, run the **Publish release** workflow from
+  `main` with the intended version tag. It tags the exact `main` head and
+  starts artifact publication.
 - Use `hotfix/*` only for an urgent correction based on `main`. A hotfix pull
   request to `main` always runs the full compatibility suite. After publishing
-  the patch release, open a synchronization pull request from `main` to
-  `devel`; that pull request also runs the full suite.
+  a hotfix release, open a synchronization pull request from `main` to
+  `devel`. That pull request runs the full suite.
 - Pull requests to `main` are accepted only from this repository's `devel` or
   `hotfix/*` branches. Direct pushes to `main` are not permitted.
 
