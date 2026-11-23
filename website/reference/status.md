@@ -24,7 +24,7 @@ The current compiler/editor release is v0.4.13. It adds checked regular
 expressions, exhaustive `match`, TS-style switch clauses, named results and
 bare returns. It also adds struct embedding, native struct values in Go
 interface and generic calls, and richer source generic constraints. See
-[v0.4.13 highlights](../project/releases#v0413-highlights) for upgrade notes.
+[release overview](../project/releases) for v0.4.13 upgrade notes.
 
 Compiler self-update and the scalar-union, object-order and generated-name
 corrections released in v0.4.8 remain available.
