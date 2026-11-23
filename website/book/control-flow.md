@@ -255,6 +255,12 @@ Integer conversions and Go callers can supply an enum value outside its
 declared members. A `default` arm handles those values. If no arm accepts an
 undeclared value, the exhaustive enum match panics with its `.km` location.
 
+Match a [`Result<T>`](./errors-results-exceptions#matching-a-result) with
+`case ok(pattern)` and `case fail(pattern)`. A `Result<void>` has a success
+arm of the form `case ok()`. Each outcome must have full coverage without
+relying on guarded arms. Use `_` within a variant to explicitly discard its
+payload or error.
+
 ## Channel `select`
 
 ```ts

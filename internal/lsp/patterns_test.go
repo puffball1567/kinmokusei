@@ -6,6 +6,36 @@ import (
 	"testing"
 )
 
+func TestResultMatchEditor(t *testing.T) {
+	t.Parallel()
+	input := `function read(provider: () => Result<int>): int {
+  return match(provider()) {
+    case ok(const value) => value + 1
+    case fail(const failure) => len(failure.Error())
+  }
+}
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	use := positionOf(input, "failure.Error()", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, use, ""),
+		requestAt("textDocument/rename", 3, uri, use, `"newName":"cause"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(3) {
+		t.Fatalf("definition=%v", messages[2])
+	}
+	rename, ok := messages[3]["result"].(map[string]any)
+	if !ok || len(rename["changes"].(map[string]any)[uri].([]any)) != 2 {
+		t.Fatalf("rename=%v", messages[3])
+	}
+	items := completionLabels(completionItemsAt(t, path, input, use.Line, use.Character))
+	if items["failure"] == nil || items["failure"]["detail"] != "const failure: error" || items["value"] != nil {
+		t.Fatalf("arm-local completion=%v", items)
+	}
+}
+
 func TestEnumMatchEditor(t *testing.T) {
 	t.Parallel()
 	input := `enum Status { Waiting, Ready }
