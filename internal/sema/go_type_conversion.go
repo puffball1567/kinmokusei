@@ -3,6 +3,8 @@ package sema
 import (
 	"fmt"
 	gotypes "go/types"
+
+	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
 func kinmokuseiFunctionFromGo(signature *gotypes.Signature) (Type, error) {
@@ -58,6 +60,9 @@ func kinmokuseiTypeFromGo(goType gotypes.Type) (Type, error) {
 }
 
 func kinmokuseiTypeFromGoSeen(goType gotypes.Type, visiting map[gotypes.Type]bool) (Type, error) {
+	if goType == regexGoType {
+		return builtins[ast.RegexTypeName], nil
+	}
 	if parameter, ok := goType.(*gotypes.TypeParam); ok {
 		return Type{Kind: TypeParameter, Name: parameter.Obj().Name(), GoType: parameter}, nil
 	}

@@ -172,6 +172,34 @@ and emoji sequences may contain several code points. Go packages such as
 formatting explicitly; methods such as JavaScript's `.length`/`.slice()` and
 template interpolation are not implicit string APIs.
 
+## Regular expressions
+
+A literal such as `re"^([\p{L}]+)-(\d+)$"` produces a `Regex` value.
+Use `\"` for a double quote inside the literal. Other backslashes are passed
+to the regular-expression engine, so `\d` needs only one backslash. Inline
+flags such as `(?i)` are part of the pattern. Kinmokusei checks the pattern
+at compile time and compiles each distinct literal once in the generated Go
+package. The syntax follows Go's RE2 dialect.
+
+```ts
+const label: Regex = re"^([\p{L}]+)-(\d+)$"
+
+const valid = label.test("温泉-42")
+const parts = label.captures("温泉-42")
+const swapped = label.replaceAll("温泉-42", "${2}:${1}")
+```
+
+| Method | Result |
+| --- | --- |
+| `test(text)` | Whether any part of the text matches |
+| `captures(text)` | The first full match followed by its capture groups. No match yields a slice of length zero. |
+| `replaceAll(text, replacement)` | Text with every match replaced. Use `${1}` or `${name}` to insert a capture and `$$` for a literal dollar sign. |
+
+These methods take verified UTF-8 `string` values. Use `string(raw)` and
+handle its `Result<string>` when the input comes from unvalidated bytes.
+A zero-initialized `Regex` behaves like `re""`. You can also use the literal
+directly in a [match pattern](./control-flow#match-expressions).
+
 ## Slice and fixed array
 
 ```ts
@@ -299,6 +327,118 @@ A struct is a nominal Go-style value. Assignment, parameters, and results copy t
 
 Use `*Point` and `&point` when shared mutable identity should be explicit.
 
+### Embedded fields
+
+Write a named Kinmokusei struct type on its own inside another struct to embed
+it. A pointer to a named struct, a generic struct instance, and a transparent
+alias for a struct can also be embedded.
+
+```ts
+struct Coordinates {
+  public x: int
+  public function readX(): int { return this.x }
+}
+
+struct Position {
+  Coordinates
+}
+
+function positionX(): int {
+  const p = Position { Coordinates: Coordinates { x: 4 } }
+  return p.x + p.readX()
+}
+```
+
+`p.x` and `p.readX()` access promoted members. The shallowest declaration wins.
+If two fields at the same depth supply the same member, qualify the selector
+with the embedded field name. Struct literals use the embedded field's name,
+which follows the type or alias written in the declaration.
+
+Copying an outer struct copies a value embedding and shares the target of a
+pointer embedding. A pointer-receiver method on a value embedding requires an
+addressable outer value for a call. The pointer embedding also promotes those
+methods into the outer value's method set.
+
+### Embedding an imported Go struct
+
+```ts
+import go bytes from "bytes"
+import go io from "io"
+
+struct Output {
+  bytes.Buffer
+}
+
+function sizeAfterWrite(data: bstring): int {
+  let output = Output { Buffer: bytes.Buffer {} }
+  const writer: io.Writer = &output
+  const [_, err] = io.WriteString(writer, data)
+  if (err != nil) { return -1 }
+  return output.Len()
+}
+```
+
+Use the type name `Buffer` as the key in a struct literal and access promoted
+members by their Go spelling, such as `Len`. Writing `*bytes.Buffer` embeds a
+pointer and promotes pointer-receiver methods into the outer value's method
+set. Embedded generic Go structs take explicit type arguments.
+
+### Embedding a Go interface
+
+A named Go interface can serve as a delegate. A struct that embeds
+`io.Writer` accepts an implementation through its `Writer` field and
+promotes the implementation's `Write` method.
+
+```ts
+import go io from "io"
+
+struct CountingWriter {
+  io.Writer
+  public calls: int
+
+  public pointer function write(data: byte[]): (int, error) {
+    this.calls++
+    return this.Writer.Write(data)
+  }
+}
+
+function countWrites(target: io.Writer, data: byte[]): int {
+  let counter = CountingWriter { Writer: target, calls: 0 }
+  const writer: io.Writer = &counter
+  const [_, err] = writer.Write(data)
+  if (err != nil) { return -1 }
+  return counter.calls
+}
+```
+
+The declared `write` method takes precedence for Go calls on `&counter`.
+`this.Writer.Write(data)` explicitly delegates to the current implementation.
+A nil embedded interface follows Go's runtime behavior and panics when a
+promoted method dispatches through it. The field type must be a named Go
+interface usable as a runtime value.
+
+### Embedding a distinct type
+
+```ts
+type Count = distinct int
+
+public function read(this: Count): int { return int(this) }
+
+struct Tally {
+  Count
+}
+
+function total(): int {
+  const tally = Tally { Count: Count(4) }
+  return tally.read()
+}
+```
+
+The embedded field keeps its declared `Count` type. Use `*Count` when the
+outer value should share the target. If a distinct type is based on another
+struct, it keeps that struct's fields and embedded members. Its direct
+methods come from declarations on the distinct type itself.
+
 ## Classes
 
 ```ts
@@ -319,6 +459,38 @@ interface Reader {
 ```
 
 A Kinmokusei class names its interface contracts with `implements`. Imported Go interfaces retain Go package identity and method-set rules. Interface assertions use `as?` or `as!`; Go interface type switches narrow case bindings.
+
+### Anonymous interface embeddings
+
+An anonymous interface can embed an exported Go method interface or another
+anonymous interface. Embedded methods are available on values and in generic
+bounds. Go methods keep their spelling and types, including `bstring` for a Go
+`string` result.
+
+```ts
+import go io from "io"
+
+alias Input = interface {
+  io.Reader
+  size(): int
+}
+
+interface BufferedInput extends Input {
+  function remaining(): int
+}
+
+function read(input: BufferedInput, buffer: byte[]): (int, error) {
+  return input.Read(buffer)
+}
+```
+
+A named interface can extend an anonymous type inline or by using an alias,
+including a generic alias. Classes implementing the named interface must
+provide its inherited methods.
+
+Overlapping embedded methods can share a Go method name when their spelling
+and source signatures agree. A conflicting result type, nullable contract, or
+`Result` effect is a compile-time error.
 
 ## Pointers
 

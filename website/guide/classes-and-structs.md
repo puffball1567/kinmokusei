@@ -190,8 +190,19 @@ arguments must be explicit and satisfy their constraints; a type parameter from
 the enclosing generic function can be used. Concrete aliases such as
 `alias IntBox = Box<int>;` still work. Uninstantiated receivers and methods with
 their own type parameters are not supported in this form.
-Class instance method expressions are not yet supported;
-existing class static calls keep their ordinary meaning.
+
+::: info Available since v0.4.13
+Class instance methods also support explicit-receiver expressions.
+:::
+
+<<< ../snippets/class-method-expressions.km{ts}
+
+This prints `14 14`. A class is already a reference type, so the receiver is
+spelled `Counter` or `Box<int>`. Inherited expressions take the class written
+in the expression as their receiver type. Virtual and abstract methods still
+dispatch to the implementation for the supplied instance. Class visibility
+rules apply when a method is referenced. Static calls retain their existing
+signatures. Instance fields and properties still require an instance.
 
 Concrete native method references participate in global initialization
 dependencies even when the function is stored without calling it. Cycles are

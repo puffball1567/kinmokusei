@@ -95,7 +95,7 @@ intentionally breaking; existing users should follow the
 - Source-positioned lexical, syntax, and type diagnostics.
 - `version`, `check` with text or machine-readable JSON diagnostics, plus `build`, `run`, `emit-go`, `emit-c-abi`, checked incoming `ffi generate`, ABI compatibility checks, transactional `install --go-module` and dependency commands, and `interop audit`.
 - An embedded source-written `kinmokusei/http` kernel with bounded context-aware fetch, a Go `ServeMux`-compatible `App`, method routes, path/query/header/context/cookie access, direct `http.Handler` use, and structured-task compatibility.
-- A 103/103 implemented Go-equivalent runtime contract registry backed by isolated handwritten-Go differential tests; new accepted runtime features must extend the registry and oracle together.
+- A 111/111 implemented Go-equivalent runtime contract registry backed by isolated handwritten-Go differential tests. New runtime features extend both the registry and its tests.
 - Explicit fixed-width scalar/enum and normalized-boolean C ABI exports with status/out parameters, panic isolation, headers, canonical manifests and fingerprints. Checked incoming C FFI supports ownership-aware scalars, strings, buffers, typed-array results, POD structs, enums, tagged unions, opaque handles and callbacks. See the [C ABI and FFI guide](website/guide/c-ffi.md) for supported combinations, lifetimes and thread policies.
 - `gofmt`-formatted Go AST output, generated-Go validation, and `.kinmokusei/gen/` modules.
 - LSP lifecycle, transactional incremental document synchronization, stale-version suppression, asynchronous semantic requests, explicit request cancellation, content-modified result suppression, UTF-16 diagnostics, hover, semantic definition/references, scope-safe rename for values, types, enums and their members, classes, native structs and their literal fields, methods, interface implementation families, and import aliases, document symbols, lexical/import/Go package and value API completion, visibility-aware Kinmokusei enum/class/struct/interface member completion, and signature help for Kinmokusei callables, constructors, compiler built-ins, Go package functions, and Go value methods.
@@ -106,11 +106,10 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
-v0.4.12 adds optional chaining, lazy defaults and contextual generic function
-values, and strengthens null/zero-value safety across collections, Result and
-Go boundaries. It also corrects evaluation/defer/iterator behavior, preserves
-manifest formatting and strengthens C ABI compatibility checks. See the
-[v0.4.12 release summary](website/project/releases.md#v0412-highlights).
+v0.4.13 adds checked regular-expression literals, exhaustive pattern matching,
+and TS-style switch clauses. It adds named results, structural generic bounds,
+and struct embedding across Kinmokusei and Go. See the
+[v0.4.13 release summary](website/project/releases.md#v0413-highlights).
 
 v0.4.10 preserves native contracts in generic class downcasts, adds generic
 observations and JSON snapshots, and provides staged input construction through

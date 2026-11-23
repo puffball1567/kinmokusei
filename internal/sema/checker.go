@@ -96,8 +96,10 @@ type Checker struct {
 	resultErrorUses            map[*bool]resultErrorUse
 
 	nativeInterfaceDeclarations     map[string]*ast.InterfaceDecl
+	anonymousInterfaceMembers       map[source.Span][]ast.ObjectTypeField
 	nativeInterfaceAliases          map[string]ast.TypeRef
 	nativeInterfaceBounds           map[*gotypes.TypeParam]Type
+	nativeRawConstraintArguments    map[*gotypes.TypeParam][]Type
 	nativeInterfacesReady           bool
 	nativeInterfaceArgumentsReady   bool
 	pendingNativeInterfaceArguments []nativeInterfaceApplication
@@ -142,9 +144,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 		goTypeExpressionMethods: map[source.Span]map[string]ast.CallableSignature{},
 		nativeTypeMethodSets:    map[source.Span]ast.NativeTypeMethodSet{},
 
-		nativeInterfaceDeclarations: map[string]*ast.InterfaceDecl{},
-		nativeInterfaceAliases:      map[string]ast.TypeRef{},
-		nativeInterfaceBounds:       map[*gotypes.TypeParam]Type{},
+		nativeInterfaceDeclarations:  map[string]*ast.InterfaceDecl{},
+		nativeInterfaceAliases:       map[string]ast.TypeRef{},
+		nativeInterfaceBounds:        map[*gotypes.TypeParam]Type{},
+		nativeRawConstraintArguments: map[*gotypes.TypeParam][]Type{},
 
 		memberFlow: map[memberFlowKey]memberFlowState{}, memberTypes: map[memberFlowKey]Type{},
 		functionTypeParameters: map[*ast.FunctionDecl]map[string]Type{},
@@ -173,8 +176,11 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.finalizeNativeStructGoTypes(program)
 	c.structGoTypesFinalized = true
 	c.declareNativeTypes(program)
+	c.declareNativeConstraints(program)
+	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareInterfaces(program)
 	c.nativeInterfacesReady = true
+	c.declareNativeConstraints(program)
 	c.finalizeDeferredTypeParameterConstraints(program)
 	c.declareClasses(program)
 	c.declareTopLevel(program)
@@ -226,9 +232,10 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkDecorators(program)
 	c.checkSourceExports(program)
 	c.checkCABIExports(program)
-	c.checkGeneratedNames(program)
 	c.markResolvedTypeRefs(program)
+	c.checkGeneratedNames(program)
 	c.recordTypeParameterMethods(program)
+	c.recordPromotedStructMembers(program)
 	program.GoReferences = c.goReferences
 	program.GoTypeExpressions = c.goTypeExpressions
 	program.GoTypeExpressionMethods = c.goTypeExpressionMethods
@@ -315,6 +322,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 	case *ast.ReturnStmt:
 		if c.exceptionDepth != 0 {
 			stmt.CrossesTry = true
+			if c.namedResultType != nil {
+				stmt.NamedResultCount = len(c.namedResultType.NamedResults)
+			}
 			if c.result.Kind == MultiValue {
 				stmt.ResultType = typeRefFromType(c.result, stmt.Span)
 			}
@@ -338,7 +348,9 @@ func (c *Checker) checkStatement(stmt ast.Statement) {
 			return
 		}
 		if stmt.Value == nil {
-			if c.result.Kind != Void {
+			if c.namedResultType != nil {
+				c.checkBareNamedReturn(stmt.Span)
+			} else if c.result.Kind != Void {
 				c.report(stmt.Span, fmt.Sprintf("expected return value of type %s", c.result.Name))
 			}
 			c.reportOrDeferTasksBeforeReturn()
@@ -604,6 +616,10 @@ func (c *Checker) checkExpression(expr ast.Expression) (result Type) {
 		defer func() { c.checkReferenceRead(expr, result) }()
 	}
 	switch expr := expr.(type) {
+	case *ast.RegexExpr:
+		return c.checkRegexLiteral(expr)
+	case *ast.MatchExpr:
+		return c.checkMatch(expr, nil)
 	case *ast.OptionalChainExpr:
 		return c.checkOptionalChain(expr, nil)
 	case *ast.OptionalReceiverExpr:

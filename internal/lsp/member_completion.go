@@ -193,23 +193,31 @@ func enclosingMemberOwner(program *ast.Program, path string, offset int) string 
 }
 
 func visibleValueType(program *ast.Program, path string, offset int, name string) (ast.TypeRef, bool) {
-	var arrowType ast.TypeRef
-	arrowFound := false
+	var expressionType ast.TypeRef
+	expressionFound := false
 	visitProgramExpressions(program, func(expression ast.Expression) {
+		if match, ok := expression.(*ast.MatchExpr); ok {
+			visitMatchBindingsAt(match, path, offset, func(binding ast.Binding) {
+				if binding.Name == name {
+					expressionType, expressionFound = binding.ResolvedType, binding.ResolvedType.IsSpecified()
+				}
+			})
+			return
+		}
 		arrow, ok := expression.(*ast.ArrowExpr)
 		if !ok || !spanContains(arrow.Span, path, offset) {
 			return
 		}
 		if ref, found := visibleValueTypeInBlock(program, arrow.BlockBody, path, offset, name); found {
-			arrowType, arrowFound = ref, true
+			expressionType, expressionFound = ref, true
 			return
 		}
-		if ref, found := parameterType(arrow.Parameters, name); found {
-			arrowType, arrowFound = ref, true
+		if ref, found := callableBindingType(arrow.Parameters, arrow.ResolvedReturnType, name); found {
+			expressionType, expressionFound = ref, true
 		}
 	})
-	if arrowFound {
-		return arrowType, true
+	if expressionFound {
+		return expressionType, true
 	}
 	for _, declaration := range program.Declarations {
 		if !spanContains(declaration.GetSpan(), path, offset) {
@@ -220,7 +228,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 			if ref, ok := visibleValueTypeInBlock(program, declaration.Body, path, offset, name); ok {
 				return ref, true
 			}
-			if ref, ok := parameterType(declaration.Parameters, name); ok {
+			if ref, ok := callableBindingType(declaration.Parameters, declaration.ReturnType, name); ok {
 				return ref, true
 			}
 			break
@@ -228,7 +236,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 			if ref, ok := visibleValueTypeInBlock(program, declaration.Body, path, offset, name); ok {
 				return ref, true
 			}
-			if ref, ok := parameterType(declaration.Parameters, name); ok {
+			if ref, ok := callableBindingType(declaration.Parameters, declaration.ReturnType, name); ok {
 				return ref, true
 			}
 			if declaration.ReceiverName == name {
@@ -252,7 +260,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 				if ref, ok := visibleValueTypeInBlock(program, method.Body, path, offset, name); ok {
 					return ref, true
 				}
-				if ref, ok := parameterType(method.Parameters, name); ok {
+				if ref, ok := callableBindingType(method.Parameters, method.ReturnType, name); ok {
 					return ref, true
 				}
 				break
@@ -265,7 +273,7 @@ func visibleValueType(program *ast.Program, path string, offset int, name string
 				if ref, ok := visibleValueTypeInBlock(program, method.Body, path, offset, name); ok {
 					return ref, true
 				}
-				if ref, ok := parameterType(method.Parameters, name); ok {
+				if ref, ok := callableBindingType(method.Parameters, method.ReturnType, name); ok {
 					return ref, true
 				}
 				break
@@ -302,6 +310,10 @@ func variableType(program *ast.Program, variable *ast.VariableDecl) (ast.TypeRef
 
 func expressionCompletionType(program *ast.Program, expression ast.Expression) (ast.TypeRef, bool) {
 	switch expression := expression.(type) {
+	case *ast.RegexExpr:
+		return ast.TypeRef{Name: ast.RegexTypeName, BuiltinRegex: true, Span: expression.Span}, true
+	case *ast.MatchExpr:
+		return expression.ResultType, expression.ResultType.IsSpecified()
 	case *ast.OptionalReceiverExpr:
 		return expression.Type, expression.Type.IsSpecified()
 	case *ast.OptionalChainExpr:
@@ -544,6 +556,14 @@ func nestedVisibleValueType(program *ast.Program, statement ast.Statement, path 
 }
 
 func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner string, static bool, seen map[string]bool, add func(completionItem)) {
+	if ref.BuiltinRegex {
+		if !static {
+			for _, method := range ast.RegexMethods() {
+				add(completionItem{Label: method.Name, Kind: 2, Detail: regexMethodDetail(method), SortText: "0_" + method.Name})
+			}
+		}
+		return
+	}
 	if ref.TypeParameter {
 		if !static {
 			for _, method := range program.TypeParameterMethods[ref.ResolvedDeclaration] {
@@ -558,7 +578,14 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 	}
 	if ref.GoInterface {
 		if !static {
-			for _, method := range ref.ObjectFields {
+			methods := ref.ResolvedInterfaceMethods
+			if methods == nil {
+				methods = ref.ObjectFields
+			}
+			for _, method := range methods {
+				if method.GoEmbedded {
+					continue
+				}
 				add(completionItem{Label: method.Name, Kind: 2, Detail: method.Name + ": " + formatTypeRef(method.Type), SortText: "0_" + method.Name})
 			}
 		}
@@ -677,6 +704,17 @@ func collectTypeMemberCompletions(program *ast.Program, ref ast.TypeRef, owner s
 			return
 		}
 		bindings := genericStructTypeRefBindings(declaration, ref)
+		for _, member := range declaration.PromotedMembers {
+			if member.Visibility != ast.Public && !samePath(ref.Span.Path, member.Declaration.Path) {
+				continue
+			}
+			kind := 5
+			if member.Method {
+				kind = 2
+			}
+			memberType := substituteTypeRefParameters(member.Type, bindings)
+			add(completionItem{Label: member.Name, Kind: kind, Detail: member.Name + ": " + formatTypeRef(memberType), SortText: "0_" + member.Name})
+		}
 		for _, field := range declaration.Fields {
 			if memberVisible(program, owner, declaration.Name, field.Visibility) {
 				fieldType := substituteTypeRefParameters(field.Type, bindings)
@@ -914,6 +952,10 @@ func substituteTypeRefParameters(ref ast.TypeRef, bindings map[string]ast.TypeRe
 	}
 	for index := range result.ObjectFields {
 		result.ObjectFields[index].Type = substituteTypeRefParameters(result.ObjectFields[index].Type, bindings)
+	}
+	result.ResolvedInterfaceMethods = append([]ast.ObjectTypeField(nil), ref.ResolvedInterfaceMethods...)
+	for index := range result.ResolvedInterfaceMethods {
+		result.ResolvedInterfaceMethods[index].Type = substituteTypeRefParameters(result.ResolvedInterfaceMethods[index].Type, bindings)
 	}
 	return result
 }

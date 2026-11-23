@@ -88,7 +88,7 @@ func (p *Parser) parseFunctionTail(start, name token.Token, abstract bool) *ast.
 		p.synchronizeDeclaration()
 		return nil
 	}
-	returnType, ok := p.parseCallableReturnType()
+	returnType, ok := p.parseDeclaredReturnType(false)
 	if !ok {
 		p.synchronizeDeclaration()
 		return nil

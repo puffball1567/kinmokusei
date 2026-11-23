@@ -45,13 +45,16 @@ type Program struct {
 	UsesJSONSnapshot     bool
 	UsesNonNullKinds     bool
 	UsesReferenceReads   bool
+	UsesRegex            bool
+	RegexPatterns        []string
 }
 
 // NativeTypeMethodSet keeps callable expressions separate from constants in
 // the same source namespace. Pointer receivers have no enum constants.
 type NativeTypeMethodSet struct {
-	Methods   []ObjectTypeField
-	Constants []ObjectTypeField
+	IncludeClassStatics bool
+	Methods             []ObjectTypeField
+	Constants           []ObjectTypeField
 }
 
 type ImportDecl struct {
@@ -119,6 +122,7 @@ type TypeRef struct {
 	Interface     bool
 	TypeParameter bool
 	NativeNamed   bool
+	BuiltinRegex  bool
 	// LoweredType is populated for generic aliases. The source alias remains
 	// available to language tooling while Go code generation uses its expanded
 	// underlying type, keeping generated modules compatible with Go 1.23.
@@ -129,7 +133,17 @@ type TypeRef struct {
 	// Variadic marks a function type whose final Parameters entry is the
 	// source-level slice type of a rest parameter.
 	Variadic bool
-	Span     source.Span
+	// ResolvedInterfaceMethods lists the checked member set for editor completion
+	// when the source interface contains embedded elements.
+	ResolvedInterfaceMethods []ObjectTypeField
+	NamedResults             []ResultBinding
+	NamedResultsThroughTry   bool
+	Span                     source.Span
+}
+
+type ResultBinding struct {
+	Name string
+	Span source.Span
 }
 
 type ObjectTypeField struct {
@@ -156,6 +170,16 @@ func (t TypeRef) IsObject() bool       { return t.Object }
 func (t TypeRef) IsGoStruct() bool     { return t.GoStruct }
 func (t TypeRef) IsSpecified() bool {
 	return t.Name != "" || t.Qualifier != "" || t.IsFunction() || t.IsArray() || t.IsPointer() || t.IsObject() || t.IsGoStruct() || t.GoInterface || len(t.GoResults) != 0
+}
+
+// NamedResultType returns a slot's value type without its declaration metadata.
+func (t TypeRef) NamedResultType(index int) TypeRef {
+	if len(t.GoResults) != 0 {
+		return t.GoResults[index]
+	}
+	t.NamedResults = nil
+	t.NamedResultsThroughTry = false
+	return t
 }
 
 type Parameter struct {
@@ -235,6 +259,7 @@ type CABIExport struct {
 }
 
 type FieldDecl struct {
+	Embedded    bool
 	Decorators  []*Decorator
 	Static      bool
 	Constant    bool
@@ -320,12 +345,21 @@ func (d *ClassDecl) GetSpan() source.Span { return d.Span }
 // StructDecl is a nominal Go-style value type. Unlike ClassDecl it has no
 // implicit reference identity or constructor allocation.
 type StructDecl struct {
-	Name           string
-	NameSpan       source.Span
-	TypeParameters []TypeParameter
-	Fields         []FieldDecl
-	Methods        []*MethodDecl
-	Span           source.Span
+	PromotedMembers []PromotedStructMember // Checked member completion metadata.
+	Name            string
+	NameSpan        source.Span
+	TypeParameters  []TypeParameter
+	Fields          []FieldDecl
+	Methods         []*MethodDecl
+	Span            source.Span
+}
+
+type PromotedStructMember struct {
+	Name        string
+	Type        TypeRef
+	Method      bool
+	Visibility  Visibility
+	Declaration source.Span
 }
 
 func (*StructDecl) declaration()           {}
@@ -468,6 +502,7 @@ type ReturnStmt struct {
 	ResultType       TypeRef
 	NonNullResult    bool // Validate a forwarded Result payload on success.
 	CrossesTry       bool
+	NamedResultCount int // Result slots assigned before leaving a try frame.
 	Span             source.Span
 }
 
@@ -494,13 +529,14 @@ func (*ThrowStmt) statement()             {}
 func (s *ThrowStmt) GetSpan() source.Span { return s.Span }
 
 type TryStmt struct {
-	Body          *BlockStmt
-	Catches       []*CatchClause
-	FinallyBody   *BlockStmt
-	HandlesReturn bool
-	ReturnType    TypeRef
-	Terminal      bool
-	Span          source.Span
+	Body             *BlockStmt
+	Catches          []*CatchClause
+	FinallyBody      *BlockStmt
+	HandlesReturn    bool
+	ReturnType       TypeRef
+	NamedResultCount int
+	Terminal         bool
+	Span             source.Span
 }
 
 type CatchClause struct {
@@ -675,12 +711,23 @@ func (s *SelectStmt) GetSpan() source.Span { return s.Span }
 type ValueSwitchCase struct {
 	Values       []Expression
 	Default      bool
+	ColonBody    bool
 	FallsThrough bool
 	Body         *BlockStmt
 	Span         source.Span
 }
 
 func (c *ValueSwitchCase) GetSpan() source.Span { return c.Span }
+
+func (c *ValueSwitchCase) ExplicitFallthrough() *BranchStmt {
+	if c.Body != nil && len(c.Body.Statements) != 0 {
+		last := c.Body.Statements[len(c.Body.Statements)-1]
+		if branch, ok := last.(*BranchStmt); ok && branch.Kind == FallthroughBranch {
+			return branch
+		}
+	}
+	return nil
+}
 
 // ValueSwitchStmt maps directly to a Go expression switch. The subject is
 // evaluated once and case expressions are considered from left to right.
@@ -1066,6 +1113,7 @@ func (*GoCompositeLiteralExpr) expression()            {}
 func (e *GoCompositeLiteralExpr) GetSpan() source.Span { return e.Span }
 
 type MemberExpr struct {
+	EmbeddedPath           []string // Go field selectors to the declaring struct.
 	BoundMethod            bool     // A resolved method value is always a non-nil callable.
 	NonNullRead            *TypeRef // Validate a source reference when this value is read.
 	Property               bool
@@ -1092,6 +1140,8 @@ type MemberExpr struct {
 
 	// MethodExpressionReceiver is a checked native type, not a runtime value.
 	MethodExpressionReceiver    *TypeRef
+	MethodExpressionSignature   *TypeRef
+	MethodExpressionBoundary    *FunctionValueBoundary
 	ReceiverContractArguments   []NativeContract
 	ReceiverContractTypes       []TypeRef
 	ReceiverContractHelper      string

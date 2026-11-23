@@ -19,6 +19,9 @@ func TestParameterConstraintIntersectionsMatchIndependentGo(t *testing.T) {
 type Storage[E any] interface{~[]E|~[2]E|~map[string]E}
 type Sequence[E any] interface{~[]E|~[3]E}
 type Slice[E any] interface{Storage[E];Sequence[E]}
+type Callbacks[E any] interface{~func(E)E|~func(E,int)E}
+type Unary[E any] interface{Callbacks[E];~func(E)E}
+func Apply[E any,F Unary[E]](fn F,value E)E{return fn(value)}
 `,
 		"bounds.km": `import go contracts from "parameter-intersections.test/contracts";
 export constraint Slice<E>=contracts.Storage<E>&contracts.Sequence<E>;
@@ -28,9 +31,14 @@ export type Named<E>=distinct E[];
 type Other<E>=distinct E[];
 constraint Names<E>=Named<E>|Other<E>;
 export constraint Exact<E>=Names<E>&Named<E>;
+export alias Callback<E>=(value:E)=>E;
+export constraint Unary<E>=contracts.Callbacks<E>&~Callback<E>;
+export constraint Rows<E>=~{value:E}|~{value:E,detail:int};
+export constraint PlainRow<E>=Rows<E>&~{value:E};
+export struct Cell<E>{public value:E;}
 `,
-		"bridge.km": `export {Slice as Slices,Array,Mapping,Exact,Named} from "./bounds";`,
-		"entry.km": `import {Slices,Array,Mapping,Exact,Named} from "./bridge";
+		"bridge.km": `export {Slice as Slices,Array,Mapping,Exact,Named,Unary,Callback,PlainRow,Cell} from "./bounds";`,
+		"entry.km": `import {Slices,Array,Mapping,Exact,Named,Unary,PlainRow,Cell} from "./bridge";
 import go contracts from "parameter-intersections.test/contracts";
 function replace<E,S extends Slices<E>>(xs:S,value:E):S{xs[0]=value;return xs;}
 function imported<E,S extends contracts.Slice<E>>(xs:S):E{return xs[0];}
@@ -43,6 +51,12 @@ alias Maybe=Item|null;
 class First<E>{public function get<S extends Slices<E>>(xs:S):E{return xs[0];}}
 export function Objects():int[]{const item=new Item(42);const xs:Maybe[]=[null];replace<Maybe,Maybe[]>(xs,item);const value=new First<Maybe>().get<Maybe[]>(xs);let identity=0;let result=0;if(value===item){identity=1;}if(value!==null){result=value.value;}replace<Maybe,Maybe[]>(xs,null);let empty=0;if(new First<Maybe>().get<Maybe[]>(xs)===null){empty=1;}return [result,identity,empty];}
 export function Nil():void{const xs:int[]=nil;replace(xs,1);}
+function invoke<E,F extends Unary<E>>(fn:F,value:E):E{return fn(value);}
+function keepRow<E,R extends PlainRow<E>>(row:R):R{return row;}
+export function Structural(n:int):int[]{
+ const row=keepRow<int,Cell<int>>(Cell<int>{value:n});
+ return [invoke((v)=>v+1,row.value),contracts.Apply((v)=>v*2,row.value),row.value];
+}
 `,
 	}
 	for name, input := range files {
@@ -73,11 +87,20 @@ func Values()[]int{xs:=named[int]{3,4};changed:=replace(xs,8);pair:=[2]int{1,2};
 type item struct{value int}
 func Objects()[]int{object:=&item{42};xs:=[]*item{nil};replace(xs,object);value:=first[*item](xs);identity,result:=0,0;if value==object{identity=1};if value!=nil{result=value.value};replace(xs,nil);empty:=0;if first[*item](xs)==nil{empty=1};return []int{result,identity,empty}}
 func Nil(){var xs []int;replace(xs,1)}
+type callbacks[E any]interface{~func(E)E|~func(E,int)E}
+type unary[E any]interface{callbacks[E];~func(E)E}
+type rows[E any]interface{~struct{Value E ` + "`json:\"value\"`" + `}|~struct{Detail int ` + "`json:\"detail\"`" + `;Value E ` + "`json:\"value\"`" + `}}
+type plainRow[E any]interface{rows[E];~struct{Value E ` + "`json:\"value\"`" + `}}
+type cell[E any]struct{Value E ` + "`json:\"value\"`" + `}
+func invoke[E any,F unary[E]](fn F,value E)E{return fn(value)}
+func keepRow[E any,R plainRow[E]](row R)R{return row}
+func Structural(n int)[]int{row:=keepRow[int](cell[int]{n});return []int{invoke(func(v int)int{return v+1},row.Value),invoke(func(v int)int{return v*2},row.Value),row.Value}}
 `
 	comparison := `package intersections_test
 import("testing";"reflect";g "parameter-intersections.test";r "parameter-intersections.test/reference")
 func panics(f func())(yes bool){defer func(){yes=recover()!=nil}();f();return}
 func TestIntersections(t *testing.T){for _,pair:=range [][2]func()[]int{{g.Values,r.Values},{g.Objects,r.Objects}}{if got,want:=pair[0](),pair[1]();!reflect.DeepEqual(got,want){t.Fatalf("got=%v want=%v",got,want)}};if !panics(g.Nil)||!panics(r.Nil){t.Fatal("nil indexing must panic")}}
+func TestStructural(t *testing.T){for _,n:=range []int{-8,0,17}{if got,want:=g.Structural(n),r.Structural(n);!reflect.DeepEqual(got,want){t.Fatal(n,got,want)}}}
 `
 	runGeneratedGoDifferentialTest(t, root, "parameter-intersections.test", generated, reference, comparison)
 	for _, body := range []string{

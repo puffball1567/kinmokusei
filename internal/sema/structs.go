@@ -36,9 +36,35 @@ func (c *Checker) declareStruct(decl *ast.StructDecl) {
 		c.rejectResultValueType(fieldType, field.Type.Span, "struct fields")
 		c.rejectTaskAPIType(fieldType, field.Type.Span, "struct fields")
 		goName := memberGoName(field.Name, field.Visibility)
+		declarationSpan := field.NameSpan
+		if field.Embedded {
+			if fieldType.Kind == Invalid || !c.checkStructEmbeddingType(fieldType, field.Type.Span) {
+				continue
+			}
+			goName = c.embeddedStructGoName(field.Type)
+			if goName == "" {
+				c.report(field.Type.Span, "embedded field must have a named Go storage type")
+				continue
+			}
+			if gotoken.IsExported(goName) {
+				field.Visibility = ast.Public
+			}
+			ref := field.Type
+			if ref.Pointee != nil {
+				ref = *ref.Pointee
+			}
+			// The selector's source name follows the written type or alias.
+			// Treat that name as one symbol for definition and rename requests.
+			if alias := c.nativeTypes[ref.Name]; alias != nil {
+				declarationSpan = alias.declaration.NameSpan
+			} else if declared := c.structs[ref.Name]; declared != nil {
+				declarationSpan = declared.declarationSpan
+			}
+			symbol.embedded = append(symbol.embedded, field.Name)
+		}
 		field.GoName = goName
 		symbol.fields[field.Name] = fieldSymbol{
-			typeInfo: fieldType, visibility: field.Visibility, goName: goName, declarationSpan: field.NameSpan,
+			typeInfo: fieldType, visibility: field.Visibility, goName: goName, declarationSpan: declarationSpan,
 		}
 		symbol.typeInfo.Fields[field.Name] = fieldType
 		symbol.typeInfo.FieldNames[field.Name] = goName
@@ -70,6 +96,7 @@ func (c *Checker) finalizeNativeStructGoTypes(program *ast.Program) {
 		tags := make([]string, 0, len(decl.Fields))
 		valid := true
 		seen := map[string]bool{}
+		goNames := map[string]bool{}
 		for _, field := range decl.Fields {
 			if seen[field.Name] {
 				valid = false
@@ -86,9 +113,16 @@ func (c *Checker) finalizeNativeStructGoTypes(program *ast.Program) {
 				valid = false
 				continue
 			}
-			fields = append(fields, gotypes.NewField(gotoken.NoPos, nil, stored.goName, fieldType, false))
+			goName := generatedIdentifier(stored.goName)
+			if goNames[goName] {
+				c.report(field.NameSpan, fmt.Sprintf("struct fields share the generated Go name %q", goName))
+				valid = false
+				continue
+			}
+			goNames[goName] = true
+			fields = append(fields, gotypes.NewField(gotoken.NoPos, nil, goName, fieldType, field.Embedded))
 			tag := ""
-			if field.Visibility == ast.Public {
+			if field.Visibility == ast.Public && !field.Embedded {
 				tag = `json:"` + field.Name + `"`
 			}
 			tags = append(tags, tag)
@@ -191,6 +225,9 @@ func (c *Checker) goTypeForNativeStorage(value Type) (gotypes.Type, bool) {
 		}
 		return gotypes.NewStruct(fields, tags), true
 	case Function:
+		if goTypeNameObject(value.GoType) != nil {
+			return value.GoType, true
+		}
 		parameters := make([]*gotypes.Var, len(value.Parameters))
 		for index, parameter := range value.Parameters {
 			parameterType, ok := c.goTypeForNativeStorage(parameter)
@@ -321,6 +358,14 @@ func (c *Checker) declareStructMethod(symbol *structSymbol, method *ast.MethodDe
 	result := c.resolveType(method.ReturnType)
 	c.rejectTaskAPIType(result, method.ReturnType.Span, "method return types")
 	method.GoName = memberGoName(method.Name, method.Visibility)
+	if len(methodTypeParameters) == 0 {
+		for _, fieldName := range symbol.embedded {
+			if generatedIdentifier(symbol.fields[fieldName].goName) == generatedIdentifier(method.GoName) {
+				c.report(method.NameSpan, fmt.Sprintf("struct method %q conflicts with embedded field %q in Go", method.Name, fieldName))
+				return
+			}
+		}
+	}
 	methodType := Type{Kind: Function, Name: "function", Parameters: parameters, Variadic: hasVariadicParameter(method.Parameters), Result: &result}
 	if len(methodTypeParameters) != 0 {
 		methodType.TypeParameters = methodTypeParameters
@@ -531,11 +576,22 @@ func (c *Checker) typeContainsStructByValue(value Type, target string, visiting 
 		visiting[value.Name] = true
 		defer delete(visiting, value.Name)
 		if symbol := c.structs[value.Name]; symbol != nil {
+			bindings := nativeStructBindings(symbol, value)
 			for _, field := range symbol.fields {
-				if c.typeContainsStructByValue(field.typeInfo, target, visiting) {
+				if c.typeContainsStructByValue(substituteNativeTypeParameters(field.typeInfo, bindings), target, visiting) {
 					return true
 				}
 			}
+		}
+	case GoNamed:
+		if symbol := c.nativeDefinedSymbol(value); symbol != nil {
+			name := symbol.declaration.Name
+			if visiting[name] {
+				return false
+			}
+			visiting[name] = true
+			defer delete(visiting, name)
+			return c.typeContainsStructByValue(c.nativeDefinedUnderlying(symbol, value), target, visiting)
 		}
 	case FixedArray:
 		return value.Element != nil && c.typeContainsStructByValue(*value.Element, target, visiting)
@@ -611,6 +667,7 @@ func (c *Checker) checkStructMethod(method *ast.MethodDecl, receiverName, struct
 	}
 	previousControl := c.enterCallableControl()
 	c.result = c.resolveType(method.ReturnType)
+	c.declareNamedResults(&method.ReturnType)
 	c.checkBlock(method.Body, false)
 	if c.result.Kind != Void && !definitelyReturns(method.Body) {
 		c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))
@@ -660,6 +717,7 @@ func (c *Checker) checkNativeTypeMethod(method *ast.MethodDecl, receiverName, ty
 	}
 	previousControl := c.enterCallableControl()
 	c.result = c.resolveType(method.ReturnType)
+	c.declareNamedResults(&method.ReturnType)
 	c.checkBlock(method.Body, false)
 	if c.result.Kind != Void && !definitelyReturns(method.Body) {
 		c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))

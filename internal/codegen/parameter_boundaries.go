@@ -44,11 +44,12 @@ func prependParameterChecks(body *goast.BlockStmt, parameters []ast.Parameter) {
 	body.List = append(checks, body.List...)
 }
 
-func generateCallableBlock(block *ast.BlockStmt, parameters []ast.Parameter) (*goast.BlockStmt, error) {
+func generateCallableBlock(block *ast.BlockStmt, parameters []ast.Parameter, result ast.TypeRef) (*goast.BlockStmt, error) {
 	body, err := generateBlock(block)
 	if err != nil {
 		return nil, err
 	}
 	prependParameterChecks(body, parameters)
+	prependNamedResultSlots(body, result)
 	return body, nil
 }

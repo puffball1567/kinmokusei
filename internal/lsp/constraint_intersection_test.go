@@ -56,6 +56,8 @@ func TestParameterConstraintIntersectionDiagnostics(t *testing.T) {
 		{`constraint A<E>=~E[]|~[2]E;constraint B<E>=A<E>&~E[];function first<E,S extends B<E>>(xs:S):E{return xs[0];}function use(xs:int[]):int{return first(xs);}`, ""},
 		{`constraint A<E>=~E[]&~int[];`, "unmatched parameter-dependent"},
 		{`constraint A<E>=~GoSendChannel<E>&~GoReceiveChannel<E>;`, "no common types"},
+		{`constraint A<E>=~{value:E,left:int}|~{value:E,right:int};constraint B<E>=A<E>&~{value:E,left:int};`, ""},
+		{`constraint A<E>=~(v:E)=>int&~(other:int)=>int;`, "unmatched parameter-dependent"},
 	} {
 		var output bytes.Buffer
 		if err := Serve(strings.NewReader(framed(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`, openDocument(uri, test.input), `{"jsonrpc":"2.0","id":2,"method":"shutdown"}`, `{"jsonrpc":"2.0","method":"exit"}`)), &output); err != nil {

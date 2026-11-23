@@ -1,0 +1,31 @@
+import go { Println } from "fmt"
+
+constraint Readable<E> = Reader<E> & comparable
+constraint Tagged<E> = Readable<E> & interface { tag(): int }
+
+interface Reader<E> {
+  function read(): E
+}
+
+struct Label {
+  public value: string
+  public function read(): string { return this.value }
+  public function tag(): int { return len(this.value) }
+}
+
+function read<E, T extends Readable<E>>(value: T): E {
+  return value.read()
+}
+
+function tag<E, T extends Tagged<E>>(value: T): int {
+  return value.tag()
+}
+
+function same<E, T extends Readable<E>>(left: T, right: T): boolean {
+  return left === right
+}
+
+const main = (): void => {
+  const label = Label{ value: "gold" }
+  Println(read(label), tag(label), same(label, label))
+}

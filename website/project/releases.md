@@ -36,6 +36,31 @@ with independent runtime comparisons and documented deliberate language
 differences. Statement coverage and package import counts are not measures of
 complete language compatibility. OOP improvements continue during v0.4.x.
 
+## v0.4.13 highlights
+
+Use matching v0.4.13 compiler and editor artifacts.
+
+- Checked `re"..."` literals produce a `Regex` with methods to test text,
+  extract captures and replace matches.
+- Exhaustive `match` expressions support literal and regex tests, record and
+  sequence patterns, nullable bindings and guards.
+- [Go-style and TS-style value switches](../book/control-flow#value-switch)
+  use different clause forms. Go-style braced cases use `fallthrough`.
+  TS-style colon clauses continue at the end of a case and use `break` to exit.
+- Embed source and Go structs, native distinct value types, and named Go
+  interfaces. Native structs can satisfy Go interfaces and method bounds in
+  Go generic calls while preserving their concrete types.
+- Use named results and bare returns, explicit-receiver class method
+  expressions, source interface and struct constraints, and calls through
+  constrained callback types.
+
+### Upgrading from v0.4.12
+
+On supported Linux and macOS installations, run
+`keika update --version v0.4.13`. Release archives and the matching VSIX are
+available on the [v0.4.13 release](https://github.com/puffball1567/kinmokusei/releases/tag/v0.4.13).
+Libraries using these features can declare `min-kinmokusei = "0.4.13"`.
+
 ## v0.4.12 highlights
 
 Use matching v0.4.12 compiler and editor artifacts.

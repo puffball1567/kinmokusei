@@ -9,6 +9,13 @@ import (
 )
 
 func functionResults(ref kinmokuseiAST.TypeRef) *goast.FieldList {
+	if len(ref.NamedResults) != 0 {
+		fields := make([]*goast.Field, len(ref.NamedResults))
+		for i, binding := range ref.NamedResults {
+			fields[i] = &goast.Field{Names: []*goast.Ident{namedResultIdentifier(binding, i)}, Type: goType(ref.NamedResultType(i))}
+		}
+		return &goast.FieldList{List: fields}
+	}
 	if len(ref.GoResults) != 0 {
 		fields := make([]*goast.Field, len(ref.GoResults))
 		for i, result := range ref.GoResults {
@@ -73,6 +80,9 @@ func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
 }
 
 func generateExceptionReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
+	if stmt.NamedResultCount != 0 {
+		return generateNamedExceptionReturn(stmt)
+	}
 	returnPanic := exceptionReturnPanic
 
 	if stmt.ResultKind == kinmokuseiAST.NormalReturn {

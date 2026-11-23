@@ -155,6 +155,32 @@ function equal<T extends comparable>(left: T, right: T): boolean {
 
 Slices, maps, and functions do not satisfy it. Source constraints can also name exact and underlying type sets, for example `constraint Integer = int | ~int64`. Generic constraints such as `constraint Slice<E> = ~E[]` support dependent bounds and inference. Constraint declarations are compile-time contracts, not runtime interface values.
 
+### Source struct terms
+
+::: info Available since v0.4.13
+Source structs can be exact constraint terms, including generic instances,
+aliases and forward references.
+:::
+
+<<< ../snippets/struct-constraints.km{ts}
+
+This prints `7 9`: returning a struct copies its value. `Boxes<E>` also lets
+inference recover `E`, preserving nullable and verified-text arguments. The
+same bounds work on generic types and method-local type parameters.
+
+A named term matches that type, not every struct with the same fields. Go's
+`~` rule also applies: `~Box<int>` is invalid because a named struct does not
+name its own underlying type. A different named struct fails the exact bound:
+
+<<< ../snippets-invalid/struct-constraints.km{ts}
+
+Field selection such as `value.value` on an abstract `T extends Boxes<E>` is
+not available. Add a method contract when generic code needs to inspect the
+value; a concrete `Box<int>` result supports ordinary field access as above.
+Recursive by-value storage and unresolved recursive comparability are rejected.
+
+### Composing constraints
+
 `constraint Narrow = A & B` restricts a type parameter to types shared by both
 source type sets. Use named intermediate constraints to combine unions and
 intersections; a single declaration cannot mix `|` and `&`.
@@ -195,10 +221,32 @@ results, variadics and nullable parameter/result contracts remain checked.
 Private, static and generic methods do not count; pointer-only struct methods
 require a pointer argument. A nullable receiver must be narrowed first.
 
-Direct bounds such as `T extends Reader<E>` are supported. Combining a source
-runtime interface into `constraint C = Reader<int> & comparable` remains
-unsupported. See the [manual](../book/functions-and-generics#source-interface-bounds)
-for the Go-interoperability boundary.
+See the [manual](../book/functions-and-generics#source-interface-bounds) for
+the Go-interoperability boundary.
+
+### Composed interface bounds
+
+::: info Available since v0.4.13
+Named and method-only anonymous source interfaces can be operands in
+`constraint` declarations, alongside type sets, `comparable` and Go interfaces.
+:::
+
+<<< ../snippets/source-constraint-composition.km{ts}
+
+This prints `gold 4 true`. `Readable<E>` requires both the source `read()`
+contract and comparability. `Tagged<E>` reuses it and adds an anonymous method
+contract. The compiler preserves verified text and nullable types while
+inferring `E`; generic method bounds and getters/setters work too.
+
+Use `&` for method contracts; a multi-term `|` union cannot contain them.
+Repeated methods must agree on their source contracts, including Result
+effects. Matching Go storage alone does not make conflicting contracts valid:
+
+<<< ../snippets-invalid/source-constraint-composition.km{ts}
+
+Go operands retain exported Go member names and their interop restrictions.
+Source-only argument shapes in raw Go generic method contracts remain rejected,
+including after specializing a generic method's owner.
 
 ### Anonymous interface bounds
 
@@ -221,8 +269,8 @@ names; bound-method references support definition lookup and rename.
 
 An imported Go method can satisfy the bound only if its source-visible signature
 matches. For example, Go `String() string` matches `String(): bstring`, not
-`String(): string`. Anonymous interface operands in `constraint` type-set
-composition remain unsupported; use a direct `extends interface { ... }` bound.
+`String(): string`. v0.4.13 also support these anonymous interfaces
+in [composed bounds](#composed-interface-bounds).
 Anonymous getter/setter or embedded-interface entries are not part of this form.
 
 ## Generic named types

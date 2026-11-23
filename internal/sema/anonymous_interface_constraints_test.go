@@ -66,7 +66,7 @@ func TestAnonymousInterfaceConstraints(t *testing.T) {
 		{"nested method nullable contract", `class Item{}struct S{public function read():interface{item():Item|null;}{return nil;}}function use<T extends interface{read():interface{item():Item;};}>(v:T):boolean{return true;}const n=use(S{});`, "does not satisfy"},
 		{"nested Go raw contract", `import go fmt from "fmt";struct S{public function read():fmt.Stringer{return nil;}}function use<T extends interface{read():interface{String():bstring;};}>(v:T):boolean{return true;}const n=use(S{});`, ""},
 		{"nested Go cannot promise text", `import go fmt from "fmt";struct S{public function read():fmt.Stringer{return nil;}}function use<T extends interface{read():interface{String():string;};}>(v:T):boolean{return true;}const n=use(S{});`, "does not satisfy"},
-		{"composition remains diagnosed", `constraint Bad=interface{read():string;}&comparable;`, "use a direct interface bound"},
+		{"composition", `constraint Good=interface{read():string;}&comparable;`, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			got := strings.Join(checkSource(t, test.input), "\n")

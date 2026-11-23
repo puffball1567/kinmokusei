@@ -16,6 +16,7 @@ type Slice[E any] interface{~[]E}
 type Numbers []int
 type Lookup map[string]int
 type Channel chan int
+func Sizes(n int16,c uint64)(int16,uint64){return n,c}
 `,
 		"allocate.km": `import go native from "collection-make.test/native";
 export constraint Slice<E>=native.Slice<E>;
@@ -24,12 +25,13 @@ export constraint Sending<E>=~GoChannel<E>|~GoSendChannel<E>;
 export constraint Receiving<E>=~GoChannel<E>|~GoReceiveChannel<E>;
 constraint Zero=~int;
 export function allocate<E extends Zero,T extends Slice<E>>(n:int,c:int):T{return make[T](n,c);}
+export function pair<E extends Zero,T extends Slice<E>>(n:int16,c:uint64):T{return make[T](native.Sizes(n,c));}
 export function mapping<V,T extends Mapping<V>>(n:int):T{return make[T](n);}
 export function sending<E,T extends Sending<E>>(n:int):T{return make[T](n);}
 export function receiving<E,T extends Receiving<E>>(n:int):T{return make[T](n);}
 `,
-		"exports.km": `export {Slice,allocate,mapping,sending,receiving} from "./allocate";`,
-		"entry.km": `import {Slice,allocate,mapping,sending,receiving} from "./exports";
+		"exports.km": `export {Slice,allocate,pair,mapping,sending,receiving} from "./allocate";`,
+		"entry.km": `import {Slice,allocate,pair,mapping,sending,receiving} from "./exports";
 import go native from "collection-make.test/native";
 type Numbers=distinct int[];
 type Lookup=distinct Map<string,int>;
@@ -45,6 +47,14 @@ export function SliceLength(n:int,c:int):int{return len(make[Numbers](n,c));}
 export function Channel(n:int):int{return cap(make[GoChannel<int>](n));}
 export function MapHint(n:int):int{return len(make[Lookup](n));}
 export function Wide(n:uint64):int{return len(make[int[]](n,n));}
+export function Paired(n:int16,c:uint64):int[]{
+ let calls=0;
+ const sizes=():(int16,uint64)=>{calls++;return n,c;};
+ const first=makeSlice<int>(sizes());
+ const second:Numbers=pair<int,Numbers>(n,c);
+ return [len(first),cap(first),len(second),cap(second),calls];
+}
+export function InvalidPair(n:int16,c:uint64):int{return len(make[native.Numbers](native.Sizes(n,c)));}
 export function Shadow():int{const make=(n:int):int=>n+1;return make(4);}
 export function Names(kinmokuseiMakeLength:int,kinmokuseiMakeCapacity:int):int[]{const a=make[int[]](1,kinmokuseiMakeLength);const b=makeSlice[int](1,kinmokuseiMakeLength);const c=make[int[]](kinmokuseiMakeLength,kinmokuseiMakeCapacity);return [len(a),cap(a),len(b),cap(b),len(c),cap(c)];}
 `,
@@ -79,6 +89,15 @@ func SliceLength(n,c int)int{return len(make(numbers,n,c))}
 func Channel(n int)int{return cap(make(chan int,n))}
 func MapHint(n int)int{return len(make(lookup,n))}
 func Wide(n uint64)int{return len(make([]int,n,n))}
+func Paired(n int16,c uint64)[]int{
+ calls:=0
+ sizes:=func()(int16,uint64){calls++;return n,c}
+ length,capacity:=sizes()
+ first:=make([]int,length,capacity)
+ second:=make(numbers,n,c)
+ return []int{len(first),cap(first),len(second),cap(second),calls}
+}
+func InvalidPair(n int16,c uint64)int{return len(make(numbers,n,c))}
 func Shadow()int{make:=func(n int)int{return n+1};return make(4)}
 func Names(n,c int)[]int{a:=make([]int,1,n);b:=make([]int,1,n);d:=make([]int,n,c);return []int{len(a),cap(a),len(b),cap(b),len(d),cap(d)}}
 `
@@ -87,6 +106,14 @@ import("testing";"reflect";g "collection-make.test";r "collection-make.test/refe
 func capture(f func()int)(value int,panicked bool){defer func(){panicked=recover()!=nil}();value=f();return}
 func TestMake(t *testing.T){for _,pair:=range [][2][]int{{g.Slices(),r.Slices()},{g.Maps(),r.Maps()},{g.Channels(),r.Channels()},{g.Objects(),r.Objects()},{g.Ordered(),r.Ordered()},{g.Names(3,4),r.Names(3,4)}}{if !reflect.DeepEqual(pair[0],pair[1]){t.Fatalf("got %v want %v",pair[0],pair[1])}};if g.Shadow()!=r.Shadow(){t.Fatal("shadow")}}
 func TestSizes(t *testing.T){for _,sizes:=range [][2]int{{0,0},{1,3},{-1,2},{2,1},{0,-1}}{n,c:=sizes[0],sizes[1];gv,gp:=capture(func()int{return g.SliceLength(n,c)});rv,rp:=capture(func()int{return r.SliceLength(n,c)});if gv!=rv||gp!=rp{t.Fatal("slice",sizes,gv,gp,rv,rp)}};for _,n:=range []int{-1,0,2}{for _,pair:=range [][2]func(int)int{{g.Channel,r.Channel},{g.MapHint,r.MapHint}}{gv,gp:=capture(func()int{return pair[0](n)});rv,rp:=capture(func()int{return pair[1](n)});if gv!=rv||gp!=rp{t.Fatal("size",n,gv,gp,rv,rp)}}};for _,n:=range []uint64{0,2,^uint64(0)}{gv,gp:=capture(func()int{return g.Wide(n)});rv,rp:=capture(func()int{return r.Wide(n)});if gv!=rv||gp!=rp{t.Fatal("wide",n,gv,gp,rv,rp)}}}
+func TestPairedSizes(t *testing.T){
+ for _,n:=range []int16{0,1,2}{if got,want:=g.Paired(n,3),r.Paired(n,3);!reflect.DeepEqual(got,want){t.Fatal("sizes",n,got,want)}}
+ for _,sizes:=range []struct{n int16;c uint64}{{0,0},{1,3},{-1,2},{2,1},{0,^uint64(0)}}{
+  got,gp:=capture(func()int{return g.InvalidPair(sizes.n,sizes.c)})
+  want,wp:=capture(func()int{return r.InvalidPair(sizes.n,sizes.c)})
+  if got!=want||gp!=wp{t.Fatal("size validation",sizes,got,gp,want,wp)}
+ }
+}
 `
 	runGeneratedGoDifferentialTest(t, root, "collection-make.test", generated, reference, comparison)
 }

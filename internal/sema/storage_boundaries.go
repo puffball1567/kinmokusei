@@ -69,7 +69,7 @@ func (c *Checker) checkMultipleStorageSlot(slot *ast.Expression, expected, actua
 	for i, target := range expected.Results {
 		// Do not let the helper's typed results hide an invalid transfer in a
 		// different slot, including a class upcast that Go cannot forward.
-		if !c.isAssignable(target, actual.Results[i]) || !assignable(target, actual.Results[i]) {
+		if !c.isDirectlyAssignable(target, actual.Results[i]) {
 			return actual
 		}
 		checks[i] = c.needsStorageBoundary(target, actual.Results[i], nil)

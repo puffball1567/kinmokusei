@@ -63,8 +63,8 @@ count as line breaks.
 
 A newline immediately after `return` ends a bare return; after `throw`, it
 ends a bare rethrow (valid only within a catch). Optional break/continue labels
-must be on the keyword's line. A value-returning function rejects a bare return
-at the source location. Keep a return/throw operand on the keyword's line, or
+must be on the keyword's line. A value-returning function permits a bare return
+when it declares named results. Keep a return/throw operand on the keyword's line, or
 start its grouping parenthesis there, to express a multiline value. This
 restricted-newline rule also applies to code that uses explicit semicolons.
 
@@ -1546,24 +1546,21 @@ package-private, and generated output has no compiler-runtime dependency.
 
 ## Value switches
 
-An ordinary switch compares one value against case expressions:
+An ordinary switch compares one value against case expressions.
 
-```ts
-switch (status) {
-  case 200 { handleOK(); }
-  case 400, 404 { handleClientError(); }
-  default { handleOther(); }
-}
-```
+| Form | Case syntax | At the end of a case body |
+| --- | --- | --- |
+| Go-style switch | `case value { ... }`, `default { ... }` | Exit the switch. A final explicit `fallthrough;` in a non-final case enters the next body. |
+| TS-style switch | `case value: ...`, `default: ...` | Enter the next body, if present. Use `break` to exit the switch. |
 
 The subject is evaluated exactly once. Case expressions are evaluated in source
-order only until a match is found. Cases do not fall through implicitly.
-Explicit `fallthrough;` as the final direct statement of a non-final case enters
-the next clause unconditionally without evaluating that clause's case
-expressions. It may also enter a following `default` clause, and a non-final
-`default` may fall through to the clause after it. `fallthrough` is rejected in
-the final case, nested blocks, `if`, type switches, and `select`. `break` exits
-the switch explicitly when an early exit from a case block is useful. The subject
+order only until a match is found. Use the same clause form across the switch.
+Both forms give each body its own local scope. A block after a colon, as in
+`case value: { ... }`, follows the TS-style rule.
+Fallthrough enters the next clause without evaluating its case expressions,
+including when it enters or leaves a non-final `default`. `break` exits the
+switch. Explicit `fallthrough` is rejected in the final case, nested blocks,
+`if`, type switches, and `select`. The subject
 and every case must be comparable under the same rules as generated Go.
 Duplicate constant cases, incompatible values, non-comparable types, and
 multiple defaults are source errors. Class cases compare explicit reference

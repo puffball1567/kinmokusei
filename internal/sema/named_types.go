@@ -159,6 +159,9 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	if symbol == nil || symbol.goNamed == nil || symbol.goNamed.Underlying() != nil {
 		return
 	}
+	if c.sourceConstraintCompletionDeferred(symbol) {
+		return
+	}
 	decl := symbol.constraintDeclaration
 	if decl == nil {
 		return
@@ -179,6 +182,8 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	defer c.popTypeParameterScope()
 	var terms []*gotypes.Term
 	var methods []*gotypes.Func
+	var operands []constraintOperand
+	hasSourceMethods := false
 	restricted := false
 	valid := true
 	if !decl.Intersection && len(decl.Terms) > 100 {
@@ -191,6 +196,8 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 			valid = false
 			continue
 		}
+		operands = append(operands, operand)
+		hasSourceMethods = hasSourceMethods || operand.sourceMethods != nil
 		if !decl.Intersection && len(decl.Terms) > 1 && (!operand.restricted || len(operand.methods) != 0 || operand.comparable) {
 			c.report(term.Span, "constraint union operands must be type sets without method or comparable requirements; use '&' to compose interfaces")
 			valid = false
@@ -244,8 +251,17 @@ func (c *Checker) completeNativeConstraint(symbol *interfaceSymbol) {
 	if valid && symbol.constraintComparable {
 		embedded = append(embedded, gotypes.Universe.Lookup("comparable").Type())
 	}
+	if valid && hasSourceMethods {
+		var compatible bool
+		symbol.constraintSourceMethods, compatible = c.composeSourceConstraintMethods(decl, operands)
+		valid = valid && compatible
+		for _, operand := range operands {
+			symbol.constraintRawMethods = append(symbol.constraintRawMethods, operand.rawMethodContracts()...)
+		}
+	}
 	if !valid {
 		methods = nil
+		symbol.constraintSourceMethods = nil
 	}
 	constraint := gotypes.NewInterfaceType(methods, embedded)
 	constraint.Complete()
@@ -391,11 +407,9 @@ func (c *Checker) resolveNativeType(symbol *nativeTypeSymbol) Type {
 		return symbol.typeInfo
 	}
 	if !symbol.declaration.Alias && underlying.Kind == GoNamed && !c.structGoTypesFinalized {
-		if object := goTypeNameObject(underlying.GoType); object != nil {
-			if dependency := c.nativeTypes[object.Name()]; dependency != nil && dependency.state != 2 {
-				symbol.state = 0
-				return symbol.typeInfo
-			}
+		if dependency := c.nativeDefinedSymbol(underlying); dependency != nil && dependency.state != 2 {
+			symbol.state = 0
+			return symbol.typeInfo
 		}
 	}
 	invalidBoundary := underlying.Kind == Invalid || underlying.Kind == Void || underlying.Kind == MultiValue || underlying.Kind == Result || underlying.Kind == Task || underlying.Kind == GoPackage || underlying.Kind == GoTypeName || underlying.Kind == Nil || underlying.Kind == Null

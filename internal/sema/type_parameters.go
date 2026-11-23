@@ -108,15 +108,26 @@ func (c *Checker) finalizeDeferredTypeParameterConstraints(program *ast.Program)
 		}
 		c.completeNativeTypeParameterBounds(parameters, byName, inferredComparable, true)
 	}
+	completeMethods := func(methods []*ast.MethodDecl, owner map[string]Type) {
+		c.pushTypeParameterScope(owner)
+		defer c.popTypeParameterScope()
+		for _, method := range methods {
+			if scope := c.methodTypeParameters[method]; scope != nil {
+				c.completeNativeTypeParameterBounds(method.TypeParameters, scope, nil, true)
+			}
+		}
+	}
 	for _, declaration := range program.Declarations {
 		switch declaration := declaration.(type) {
 		case *ast.ClassDecl:
 			if symbol := c.classes[declaration.Name]; symbol != nil {
 				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+				completeMethods(declaration.Methods, symbol.typeParamScope)
 			}
 		case *ast.StructDecl:
 			if symbol := c.structs[declaration.Name]; symbol != nil {
 				complete(declaration.TypeParameters, symbol.typeParameters, nil)
+				completeMethods(declaration.Methods, symbol.typeParamScope)
 			}
 		case *ast.InterfaceDecl:
 			if symbol := c.interfaces[declaration.Name]; symbol != nil {
@@ -154,9 +165,20 @@ func (c *Checker) resolveNativeTypeParameterConstraint(ref ast.TypeRef, paramete
 		return nil, false
 	}
 	if ref.Qualifier == "" {
-		_, parameter := c.lookupTypeParameter(ref.Name)
-		if symbol := c.interfaces[ref.Name]; !parameter && symbol != nil && c.isTopLevelAllowed(ref.Span, ref.Name) && symbol.constraint {
-			return c.instantiateNativeConstraint(ref, symbol)
+		_, shadowed := c.lookupTypeParameter(ref.Name)
+		if symbol := c.interfaces[ref.Name]; !shadowed && symbol != nil && c.isTopLevelAllowed(ref.Span, ref.Name) && symbol.constraint {
+			bound, valid := c.instantiateNativeConstraint(ref, symbol)
+			if valid && symbol.constraintSourceMethods != nil {
+				bindings := nativeTypeBindings{}
+				arguments := make([]Type, len(ref.GenericArguments))
+				for i, argument := range ref.GenericArguments {
+					arguments[i] = c.resolveType(argument)
+					bindings[symbol.typeParameters[i].GoType] = arguments[i]
+				}
+				c.nativeInterfaceBounds[parameter] = sourceConstraintMethodType(symbol.constraintSourceMethods, bindings)
+				c.nativeRawConstraintArguments[parameter] = c.rawConstraintMethodArguments(symbol.goNamed, arguments)
+			}
+			return bound, valid
 		}
 	}
 	resolved := c.resolveType(ref)
@@ -240,18 +262,31 @@ func (c *Checker) validateNativeTypeArguments(parameters, arguments []Type, refs
 	for index := range parameters {
 		if index < len(arguments) {
 			if parameter, ok := parameters[index].GoType.(*gotypes.TypeParam); ok {
+				rawArguments := c.nativeRawConstraintArguments[parameter]
+				instantiated := make([]Type, len(rawArguments))
+				for i, argument := range rawArguments {
+					instantiated[i] = substituteNativeTypeParameters(argument, nativeBindings)
+				}
+				if !c.checkRawConstraintMethodArguments(instantiated, fallback) {
+					valid = false
+					continue
+				}
 				if !c.checkConstraintMethodBindings(parameter.Constraint(), nativeBindings, fallback) {
 					valid = false
 					continue
 				}
 				shape, hasShape := c.parameterRangeShape(parameter)
 				matchesShape := !hasShape || sameConstraintNullability(substituteNativeTypeParameters(shape, nativeBindings), c.constraintArgumentShape(arguments[index]))
-				if !matchesShape || !c.collectionArgumentNullabilityMatches(parameter, arguments[index], nativeBindings) {
+				mismatch := c.constraintArgumentContractMismatch(parameter, arguments[index], nativeBindings)
+				if !matchesShape {
+					mismatch = constraintNullabilityMismatch
+				}
+				if mismatch != "" {
 					span := fallback
 					if index < len(refs) {
 						span = refs[index].Span
 					}
-					c.report(span, fmt.Sprintf("nullable type information does not match %s type parameter constraint for %s", parameters[index].Name, owner))
+					c.report(span, fmt.Sprintf("%s does not match %s type parameter constraint for %s", mismatch, parameters[index].Name, owner))
 					valid = false
 					continue
 				}

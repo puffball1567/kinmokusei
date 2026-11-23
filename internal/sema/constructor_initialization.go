@@ -251,7 +251,11 @@ func (a constructorInitializationAnalyzer) statement(statement ast.Statement, in
 			flow := a.blockWithRangeProof(clause.Body, caseInitial, nonEmpty)
 			states = append(states, flow.breaks...)
 			if clause.FallsThrough {
-				incomingFallthrough = intersectFieldInitializationStates(flow.fallthroughs)
+				fallthroughs := flow.fallthroughs
+				if flow.continuing != nil {
+					fallthroughs = append(fallthroughs, flow.continuing)
+				}
+				incomingFallthrough = intersectFieldInitializationStates(fallthroughs)
 			} else {
 				incomingFallthrough = nil
 				if flow.continuing != nil {

@@ -23,6 +23,10 @@ func generateExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 
 func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, error) {
 	switch expr := expr.(type) {
+	case *kinmokuseiAST.RegexExpr:
+		return goast.NewIdent(regexLiteralName(expr.Index)), nil
+	case *kinmokuseiAST.MatchExpr:
+		return generateMatch(expr)
 	case *kinmokuseiAST.OptionalChainExpr:
 		return generateOptionalChain(expr)
 	case *kinmokuseiAST.OptionalReceiverExpr:
@@ -205,6 +209,10 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 				}
 				arguments[index] = generated
 			}
+			if expr.MultipleArgumentCount == 2 {
+				// Bind the producer's results together so it runs exactly once.
+				return orderedSliceMake(collectionType, arguments), nil
+			}
 			if expr.Builtin != kinmokuseiAST.MakeMapCall && len(arguments) == 2 {
 				// Evaluate size expressions in source order before invoking Go's make
 				// intrinsic so behavior does not vary between Go toolchains.
@@ -213,7 +221,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 						arguments[index] = &goast.CallExpr{Fun: goast.NewIdent("int"), Args: []goast.Expr{arguments[index]}}
 					}
 				}
-				return orderedSliceMake(collectionType, arguments[0], arguments[1]), nil
+				return orderedSliceMake(collectionType, arguments), nil
 			}
 			args := append([]goast.Expr{collectionType}, arguments...)
 			return &goast.CallExpr{Fun: goast.NewIdent("make"), Args: args}, nil
@@ -281,6 +289,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 				if err != nil {
 					return nil, err
 				}
+				genericReceiver = embeddedReceiver(genericReceiver, member.EmbeddedPath)
 				if member.GenericReceiverAddress {
 					genericReceiver = &goast.UnaryExpr{Op: token.AND, X: genericReceiver}
 				}
@@ -382,6 +391,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			}
 		}
 		prependParameterChecks(body, expr.Parameters)
+		prependNamedResultSlots(body, expr.ResolvedReturnType)
 		body.List = append([]goast.Stmt{sourceCallableMarker()}, body.List...)
 		return &goast.FuncLit{Type: fnType, Body: body}, nil
 	case *kinmokuseiAST.ArrayLiteralExpr:
@@ -453,7 +463,11 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			return generateReceiverContractValue(expr)
 		}
 		if expr.MethodExpressionReceiver != nil {
-			return &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}, nil
+			value := &goast.SelectorExpr{X: goType(*expr.MethodExpressionReceiver), Sel: goast.NewIdent(goName(expr.ResolvedName))}
+			if expr.MethodExpressionSignature != nil {
+				return generateFunctionValueBoundary(*expr.MethodExpressionSignature, expr.MethodExpressionBoundary, expr.Span, value)
+			}
+			return value, nil
 		}
 		if expr.Property {
 			object, err := generatePropertyReceiver(expr)
@@ -499,9 +513,9 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 					name.Name = nativeBindingName(name.Name)
 				}
 				bound := &goast.CallExpr{Fun: indexedGoType(object, arguments), Args: nativeContractExpressions(expr.NativeContractArguments)}
-				return generateFunctionValueBoundary(expr, bound)
+				return generateFunctionValueBoundary(expr.ResolvedType, expr.FunctionBoundary, expr.Span, bound)
 			}
-			return generateFunctionValueBoundary(expr, indexedGoType(object, arguments))
+			return generateFunctionValueBoundary(expr.ResolvedType, expr.FunctionBoundary, expr.Span, indexedGoType(object, arguments))
 		}
 		index, err := generateExpression(expr.Index)
 		if err != nil {

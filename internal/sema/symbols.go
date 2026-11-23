@@ -57,18 +57,21 @@ type fieldSymbol struct {
 }
 
 type methodSymbol struct {
-	goInterfaceMethod bool
-	typeInfo          Type
-	visibility        ast.Visibility
-	static            bool
-	pointerReceiver   bool
-	goName            string
-	declarationSpan   source.Span
-	declaringClass    string
-	virtual           bool
-	abstract          bool
-	final             bool
-	virtualOwner      string
+	embeddedMember         *embeddedStructMember
+	goInterfaceMethod      bool
+	fromAnonymousInterface bool
+	goDeclaration          *gotypes.Func
+	typeInfo               Type
+	visibility             ast.Visibility
+	static                 bool
+	pointerReceiver        bool
+	goName                 string
+	declarationSpan        source.Span
+	declaringClass         string
+	virtual                bool
+	abstract               bool
+	final                  bool
+	virtualOwner           string
 }
 
 type classSymbol struct {
@@ -94,6 +97,7 @@ type classSymbol struct {
 type structSymbol struct {
 	declaration     *ast.StructDecl
 	fields          map[string]fieldSymbol
+	embedded        []string
 	methods         map[string]methodSymbol
 	typeInfo        Type
 	goNamed         *gotypes.Named
@@ -103,18 +107,20 @@ type structSymbol struct {
 }
 
 type interfaceSymbol struct {
-	constraintDeclaration *ast.InterfaceDecl
-	constraintResolving   bool
-	constraintValid       bool
-	constraintTermTypes   []Type
-	constraintComparable  bool
-	methods               map[string]methodSymbol
-	bases                 []Type
-	typeParameters        []Type
-	typeParamScope        map[string]Type
-	declarationSpan       source.Span
-	goNamed               *gotypes.Named
-	constraint            bool
+	constraintDeclaration   *ast.InterfaceDecl
+	constraintResolving     bool
+	constraintValid         bool
+	constraintTermTypes     []Type
+	constraintComparable    bool
+	constraintSourceMethods map[string]methodSymbol
+	constraintRawMethods    []*gotypes.Func
+	methods                 map[string]methodSymbol
+	bases                   []Type
+	typeParameters          []Type
+	typeParamScope          map[string]Type
+	declarationSpan         source.Span
+	goNamed                 *gotypes.Named
+	constraint              bool
 }
 
 type nativeTypeSymbol struct {

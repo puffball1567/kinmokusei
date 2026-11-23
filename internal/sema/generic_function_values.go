@@ -76,7 +76,7 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 			c.report(expr.Span, fmt.Sprintf("generic Go function value requires all %d type arguments, got %d", signature.TypeParams().Len(), len(refs)))
 			return invalid
 		}
-		arguments, ok := c.explicitGoFunctionTypeArguments(refs)
+		arguments, _, ok := c.explicitGoFunctionTypeArguments(refs)
 		if !ok {
 			return invalid
 		}
@@ -97,7 +97,7 @@ func (c *Checker) checkGenericFunctionValue(expr *ast.IndexExpr, callable Type) 
 	}
 	expr.Instantiated = true
 	expr.ResolvedType = typeRefFromType(instantiated, expr.Span)
-	c.recordFunctionValueBoundary(expr, instantiated)
+	expr.FunctionBoundary = c.functionValueBoundary(instantiated, expr.Span)
 	return instantiated
 }
 
@@ -122,19 +122,20 @@ func (c *Checker) nativeFunctionTypeBindings(callable Type, refs []ast.TypeRef) 
 	return bindings
 }
 
-func (c *Checker) explicitGoFunctionTypeArguments(refs []ast.TypeRef) ([]gotypes.Type, bool) {
+func (c *Checker) explicitGoFunctionTypeArguments(refs []ast.TypeRef) ([]gotypes.Type, []Type, bool) {
 	arguments := make([]gotypes.Type, len(refs))
+	sourceTypes := make([]Type, len(refs))
 	for i, ref := range refs {
 		resolved := c.resolveType(ref)
 		if resolved.Kind == Invalid {
-			return nil, false
+			return nil, nil, false
 		}
 		argument, ok := goTypeOf(resolved)
 		if !ok {
 			c.report(ref.Span, fmt.Sprintf("type argument %s cannot be represented as a Go type", resolved.String()))
-			return nil, false
+			return nil, nil, false
 		}
-		arguments[i] = argument
+		arguments[i], sourceTypes[i] = argument, resolved
 	}
-	return arguments, true
+	return arguments, sourceTypes, true
 }

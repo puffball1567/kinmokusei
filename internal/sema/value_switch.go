@@ -25,11 +25,10 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 	for index := range stmt.Cases {
 		clause := &stmt.Cases[index]
 		clause.FallsThrough = false
-		if clause.Body != nil && len(clause.Body.Statements) != 0 {
-			if branch, ok := clause.Body.Statements[len(clause.Body.Statements)-1].(*ast.BranchStmt); ok && branch.Kind == ast.FallthroughBranch && index+1 < len(stmt.Cases) {
-				clause.FallsThrough = true
-				c.validFallthrough[branch] = true
-			}
+		hasNext := index+1 < len(stmt.Cases)
+		if branch := clause.ExplicitFallthrough(); branch != nil && hasNext {
+			clause.FallsThrough = true
+			c.validFallthrough[branch] = true
 		}
 		caseEntry := caseEntries[index]
 		if fallthroughFlow != nil {
@@ -45,14 +44,18 @@ func (c *Checker) checkValueSwitch(stmt *ast.ValueSwitchStmt) {
 		c.breakableDepth++
 		c.checkBlock(clause.Body, true)
 		c.breakableDepth--
+		reachesEnd := !statementDefinitelyStopsBlock(clause.Body)
+		if clause.ColonBody && hasNext && reachesEnd {
+			clause.FallsThrough = true
+		}
 		caseFlow := c.snapshotNullableFlow()
-		if clause.FallsThrough && valueSwitchCaseFallthroughReachable(clause) {
+		if valueSwitchCaseFallthroughReachable(clause) {
 			fallthroughFlow = &caseFlow
 		} else {
 			fallthroughFlow = nil
 		}
 		if !clause.FallsThrough && !definitelyReturns(clause.Body) {
-			continuing = append(continuing, c.snapshotNullableFlow())
+			continuing = append(continuing, caseFlow)
 		}
 	}
 	if !defaultSeen {

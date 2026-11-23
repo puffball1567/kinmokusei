@@ -11,12 +11,14 @@ import (
 // An unrestricted operand contributes methods but no finite type-set terms.
 // An empty restricted set is distinct from an unrestricted method interface.
 type constraintOperand struct {
-	terms      []*gotypes.Term
-	shapes     []Type
-	methods    []*gotypes.Func
-	comparable bool // explicit comparable embedding, not implied by numeric terms
-	restricted bool
-	valid      bool
+	terms         []*gotypes.Term
+	shapes        []Type
+	methods       []*gotypes.Func
+	sourceMethods map[string]methodSymbol
+	rawMethods    []*gotypes.Func
+	comparable    bool // explicit comparable embedding, not implied by numeric terms
+	restricted    bool
+	valid         bool
 }
 
 func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOperand {
@@ -34,9 +36,8 @@ func (c *Checker) resolveConstraintOperand(term ast.TypeSetTerm) constraintOpera
 	if resolved.Kind == Invalid {
 		return constraintOperand{}
 	}
-	if isSourceAnonymousInterface(resolved) {
-		c.report(term.Span, "source anonymous interface operands are not yet supported in type-set composition; use a direct interface bound")
-		return constraintOperand{}
+	if resolved.Kind == Interface || isSourceAnonymousInterface(resolved) {
+		return c.sourceInterfaceConstraintOperand(term, resolved)
 	}
 	// Source value interfaces have additional conformance, method-name and
 	// nullable-signature rules. Do not erase those rules into a Go method set.

@@ -182,7 +182,7 @@ func nativeReceiverDeclarations(method *goast.FuncDecl, owner string, goParamete
 
 func generateReceiverContractValue(member *ast.MemberExpr) (goast.Expr, error) {
 	bound := &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(nativeBindingName(member.ReceiverContractHelper)), member.ReceiverContractTypes), Args: nativeContractExpressions(member.ReceiverContractArguments)}
-	if member.MethodExpressionReceiver != nil && !member.ReceiverContractDereference {
+	if member.MethodExpressionReceiver != nil && !member.ReceiverContractDereference && len(member.EmbeddedPath) == 0 {
 		return bound, nil
 	}
 	functionType := goType(*member.ReceiverContractType).(*goast.FuncType)
@@ -193,7 +193,13 @@ func generateReceiverContractValue(member *ast.MemberExpr) (goast.Expr, error) {
 		arguments = append(arguments, name)
 	}
 	if member.MethodExpressionReceiver != nil {
-		arguments[0] = &goast.StarExpr{X: arguments[0]}
+		arguments[0] = embeddedReceiver(arguments[0], member.EmbeddedPath)
+		if member.GenericReceiverAddress {
+			arguments[0] = &goast.UnaryExpr{Op: token.AND, X: arguments[0]}
+		}
+		if member.ReceiverContractDereference {
+			arguments[0] = &goast.StarExpr{X: arguments[0]}
+		}
 		call := &goast.CallExpr{Fun: bound, Args: arguments}
 		if len(functionType.Params.List) > 0 {
 			if _, variadic := functionType.Params.List[len(functionType.Params.List)-1].Type.(*goast.Ellipsis); variadic {
@@ -210,6 +216,7 @@ func generateReceiverContractValue(member *ast.MemberExpr) (goast.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	receiver = embeddedReceiver(receiver, member.EmbeddedPath)
 	if member.GenericReceiverAddress {
 		receiver = &goast.UnaryExpr{Op: token.AND, X: receiver}
 	}
@@ -228,6 +235,13 @@ func generateReceiverContractValue(member *ast.MemberExpr) (goast.Expr, error) {
 	}
 	factory := &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{List: []*goast.Field{{Names: []*goast.Ident{goast.NewIdent("__kinmokuseiReceiver")}, Type: goType(*member.ReceiverContractReceiver)}}}, Results: &goast.FieldList{List: []*goast.Field{{Type: functionType}}}}, Body: &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{&goast.FuncLit{Type: functionType, Body: &goast.BlockStmt{List: []goast.Stmt{invoke}}}}}}}}
 	return &goast.CallExpr{Fun: factory, Args: []goast.Expr{receiver}}, nil
+}
+
+func embeddedReceiver(receiver goast.Expr, path []string) goast.Expr {
+	for _, field := range path {
+		receiver = &goast.SelectorExpr{X: receiver, Sel: goast.NewIdent(goName(field))}
+	}
+	return receiver
 }
 
 func classContractLocals(owner string, parameters []ast.TypeParameter, receiver string) []goast.Stmt {

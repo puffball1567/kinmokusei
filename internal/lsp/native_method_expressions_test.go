@@ -19,6 +19,7 @@ func TestNativeMethodExpressionSignatures(t *testing.T) {
 		{`struct S{public function read(n:int):int{return n;}}function f(v:*S):int{return ((*S)) /* type */ . read(v, |`, "*S"},
 		{`struct Box<T>{public function read(n:T):T{return n;}}function f(v:Box<int>):int{return Box<int>.read(v, |`, "Box<int>"},
 		{`struct Box<T>{public function read(n:T):T{return n;}}function f(v:*Box<int>):int{return (*Box[int]).read(v, |`, "*Box<int>"},
+		{`class Box<T>{public function read(n:T):T{return n;}}function f(v:Box<int>):int{return Box<int>.read(v, |`, "Box<int>"},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			input := strings.Replace(test.input, "|", "", 1)
@@ -48,6 +49,9 @@ func TestNativeMethodExpressionCompletions(t *testing.T) {
 		{`struct Box<T>{public item:T;public function read():T{return this.item;}public pointer function set(v:T):void{this.item=v;}}const read=Box<int>.|;`, "read", "set"},
 		{`struct Box<T>{public item:T;public function read():T{return this.item;}public pointer function set(v:T):void{this.item=v;}}const read=(*Box[int]).|;`, "set", "item"},
 		{`struct Box<T>{public function read():int{return 1;}}function f():void{const Box=[{other:1}];const i=0;const value=Box[i].|;}`, "", "read"},
+		{`class C{public static n:int=1;private function hidden():int{return 2;}public function read():int{return 1;}}const read=C.|;`, "read", "hidden"},
+		{`class C{public static n:int=1;public function read():int{return 1;}}const read=C.|;`, "n", ""},
+		{`class C<T>{public function read(v:T):T{return v;}}const read=C<int>.|;`, "read", ""},
 	} {
 		t.Run(test.input, func(t *testing.T) {
 			input := strings.Replace(test.input, "|", "", 1)
@@ -116,7 +120,11 @@ const first=S.read;
 const second=(*S).read;`, `enum S{A,B}
 public function read(this:S):int{return int(this);}
 const first=S.read;
-const second=(*S).read;`}
+const second=(*S).read;`, `class S {
+ public function read():int{return 1;}
+}
+const first=S.read;
+const second=S.read;`}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {
 			uri := fileURI(filepath.Join(t.TempDir(), "entry.km"))

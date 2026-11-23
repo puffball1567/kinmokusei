@@ -1,0 +1,26 @@
+import go { Println } from "fmt"
+
+alias Unary<E> = (value: int) => E
+alias Binary<E> = (value: int, fallback: int) => E
+constraint Callbacks<E> = ~Unary<E> | ~Binary<E>
+constraint UnaryOnly<E> = Callbacks<E> & ~Unary<E>
+
+constraint Rows<E> = ~{ value: E } | ~{ value: E, extra: int }
+constraint ValueOnly<E> = Rows<E> & ~{ value: E }
+
+struct Cell<E> {
+  public value: E
+}
+
+function invoke<E, F extends UnaryOnly<E>>(callback: F, value: int): E {
+  return callback(value)
+}
+
+function keepRow<E, R extends ValueOnly<E>>(row: R): R {
+  return row
+}
+
+function main(): void {
+  const cell = keepRow<int, Cell<int>>(Cell<int>{ value: 7 })
+  Println(invoke((value) => value * 2, cell.value), cell.value)
+}

@@ -1,6 +1,9 @@
 package sema
 
-import gotypes "go/types"
+import (
+	gotypes "go/types"
+	"maps"
+)
 
 // Check source success payloads before Go storage comparison can erase nullable
 // qualifiers. The normal assignability check still enforces named identity.
@@ -47,4 +50,73 @@ func (c *Checker) callableType(value Type) Type {
 		return converted
 	}
 	return value
+}
+
+// Go permits a type-parameter call when its type set has one underlying
+// signature. Use the source terms to recover contracts absent from Go storage.
+func (c *Checker) constrainedCallableType(value Type) (Type, bool) {
+	parameter, ok := value.GoType.(*gotypes.TypeParam)
+	if !ok {
+		return Type{}, false
+	}
+	var callable Type
+	var signature *gotypes.Signature
+	for _, term := range c.collectionTerms(parameter) {
+		shape := c.callableType(term)
+		if shape.Kind != Function || shape.Result == nil {
+			return Type{}, false
+		}
+		storage, ok := c.constraintTermStorage(shape)
+		if !ok {
+			return Type{}, false
+		}
+		underlying, ok := storage.Underlying().(*gotypes.Signature)
+		if !ok {
+			return Type{}, false
+		}
+		if signature == nil {
+			callable, signature = shape, underlying
+		} else if !gotypes.Identical(signature, underlying) || !sameComposedMethodContract(callable, shape) {
+			return Type{}, false
+		}
+	}
+	if signature == nil {
+		return Type{}, false
+	}
+	// Verify membership against the full Go bound as well as its normalized
+	// source metadata. This also handles imported and dependent constraints.
+	bound := gotypes.NewInterfaceType(nil, []gotypes.Type{gotypes.NewUnion([]*gotypes.Term{gotypes.NewTerm(true, signature)})}).Complete()
+	if !gotypes.Satisfies(parameter, bound) {
+		return Type{}, false
+	}
+	return callable, true
+}
+
+// Infer dependent arguments from the common callback signature before Go's
+// storage inference drops source qualifiers from its parameters and results.
+func (c *Checker) inferNativeCallableConstraintArguments(parameter, value Type, bindings nativeTypeBindings) {
+	actual := c.callableType(value)
+	if value.Kind == TypeParameter {
+		actual, _ = c.constrainedCallableType(value)
+	}
+	if actual.Kind != Function {
+		return
+	}
+	formal, ok := c.constrainedCallableType(parameter)
+	if !ok {
+		return
+	}
+	trial := maps.Clone(bindings)
+	if c.inferNativeTypeArguments(formal, actual, trial) != nil {
+		return
+	}
+	resolved := substituteNativeTypeParameters(formal, trial)
+	if !sameComposedMethodContract(resolved, actual) {
+		return
+	}
+	left, leftOK := c.goTypeForNativeStorage(resolved)
+	right, rightOK := c.goTypeForNativeStorage(actual)
+	if leftOK && rightOK && gotypes.Identical(left.Underlying(), right.Underlying()) {
+		maps.Copy(bindings, trial)
+	}
 }

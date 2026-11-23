@@ -22,7 +22,7 @@ func TestConstraintMethodComposition(t *testing.T) {
 		{"method union", `import go io from "io"; constraint A=io.Reader|io.Closer;`, "use '&' to compose interfaces"},
 		{"tilde interface", `import go fmt from "fmt"; constraint A=~fmt.Stringer;`, "must name concrete types"},
 		{"imported type set", `import go cmp from "cmp"; constraint A=cmp.Ordered&~int;`, ""},
-		{"source interface", `interface Reader{function read():int;} constraint A=Reader;`, "must be a concrete type, not an interface"},
+		{"source interface", `interface Reader{function read():int;} constraint A=Reader;`, ""},
 		{"cycle", `import go fmt from "fmt"; constraint A=B&fmt.Stringer; constraint B=A;`, "constraint declaration cycle"},
 		{"pure method not numeric", `import go fmt from "fmt"; constraint A=fmt.Stringer; function bad<T extends A>(x:T):T{return x+x;}`, "numeric"},
 		{"constraint not value", `import go io from "io"; constraint A=io.Reader&io.Closer; function bad(x:A):void{}`, "can only be used after 'extends'"},

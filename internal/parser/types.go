@@ -7,6 +7,59 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
+// Result names belong to a callable declaration, not its function type.
+func (p *Parser) parseDeclaredReturnType(arrow bool) (ast.TypeRef, bool) {
+	if !p.at(token.LeftParen) || !p.atNext(token.Identifier) || p.current+2 >= len(p.tokens) || p.tokens[p.current+2].Kind != token.Colon {
+		return p.parseCallableReturnType()
+	}
+	// A function type also begins with `(name: Type)`. On an arrow, its
+	// annotation must leave a second arrow token for the enclosing body.
+	checkpoint := p.checkpoint()
+	if result, ok := p.parseCallableReturnType(); ok {
+		if !arrow {
+			return result, true
+		}
+		end := p.checkpoint()
+		_, hasBody := p.expectFatArrow("expected '=>' after arrow signature")
+		p.restore(end)
+		if hasBody {
+			return result, true
+		}
+	}
+	p.restore(checkpoint)
+	start := p.advance()
+	var names []ast.ResultBinding
+	var types []ast.TypeRef
+	for {
+		name, ok := p.expect(token.Identifier, "expected result name")
+		if !ok {
+			return ast.TypeRef{}, false
+		}
+		if _, ok = p.expect(token.Colon, "expected ':' after result name"); !ok {
+			return ast.TypeRef{}, false
+		}
+		result, ok := p.parseType()
+		if !ok {
+			return ast.TypeRef{}, false
+		}
+		names = append(names, ast.ResultBinding{Name: name.Lexeme, Span: name.Span})
+		types = append(types, result)
+		if !p.match(token.Comma) {
+			break
+		}
+	}
+	end, ok := p.expect(token.RightParen, "expected ')' after named results")
+	if !ok {
+		return ast.TypeRef{}, false
+	}
+	if len(types) == 1 {
+		result := types[0]
+		result.NamedResults = names
+		return result, true
+	}
+	return ast.TypeRef{GoResults: types, NamedResults: names, Span: start.Span.Merge(end.Span)}, true
+}
+
 // parseCallableReturnType accepts the source tuple form `(T, U)` for
 // functions and methods. A parenthesized function type remains handled by
 // parseType, so speculative parsing only commits when a comma is present.
@@ -59,6 +112,17 @@ func (p *Parser) parseTypeInternal(allowNullable bool) (ast.TypeRef, bool) {
 		}
 		var methods []ast.ObjectTypeField
 		for !p.at(token.RightBrace) && !p.at(token.EOF) {
+			if (p.at(token.Identifier) && !p.atNext(token.LeftParen)) || p.at(token.Interface) {
+				base, valid := p.parseType()
+				if !valid {
+					return ast.TypeRef{}, false
+				}
+				if _, valid = p.expectTerminator("expected ';' after embedded interface"); !valid {
+					p.synchronizeStatement()
+				}
+				methods = append(methods, ast.ObjectTypeField{GoEmbedded: true, Type: base, Span: base.Span})
+				continue
+			}
 			name, ok := p.expect(token.Identifier, "expected anonymous interface method name")
 			if !ok {
 				// Statement recovery may stop at return/let/etc. or just after

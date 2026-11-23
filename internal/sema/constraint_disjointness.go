@@ -2,9 +2,8 @@ package sema
 
 import gotypes "go/types"
 
-// Prove only stable mismatches. Substituting a type parameter can change an
-// element, but cannot turn a slice into an array, change an array's length or
-// change channel direction. Unknown pairs must remain deferred/rejected.
+// Prove only mismatches that survive substitution, such as array lengths,
+// function arity, and struct field identity. Unknown pairs remain conservative.
 func constraintTermsProvablyDisjoint(left, right *gotypes.Term) bool {
 	a, b := gotypes.Unalias(left.Type()), gotypes.Unalias(right.Type())
 	if _, ok := a.(*gotypes.TypeParam); ok {
@@ -63,9 +62,44 @@ func constraintTypesProvablyDistinct(left, right gotypes.Type) bool {
 	case *gotypes.Map:
 		other, ok := right.(*gotypes.Map)
 		return !ok || constraintTypesProvablyDistinct(left.Key(), other.Key()) || constraintTypesProvablyDistinct(left.Elem(), other.Elem())
+	case *gotypes.Signature:
+		other, ok := right.(*gotypes.Signature)
+		if !ok || left.Variadic() != other.Variadic() {
+			return true
+		}
+		// Generic signatures require comparing bound parameters modulo renaming.
+		if left.TypeParams().Len() != 0 || other.TypeParams().Len() != 0 {
+			return false
+		}
+		return constraintTuplesProvablyDistinct(left.Params(), other.Params()) || constraintTuplesProvablyDistinct(left.Results(), other.Results())
+	case *gotypes.Struct:
+		other, ok := right.(*gotypes.Struct)
+		if !ok || left.NumFields() != other.NumFields() {
+			return true
+		}
+		for i := 0; i < left.NumFields(); i++ {
+			field, compared := left.Field(i), other.Field(i)
+			if field.Id() != compared.Id() || field.Embedded() != compared.Embedded() || left.Tag(i) != other.Tag(i) || constraintTypesProvablyDistinct(field.Type(), compared.Type()) {
+				return true
+			}
+		}
+		return false
 	default:
 		// In particular, do not unfold recursive named types or attempt to
 		// solve structural interface identity here.
 		return false
 	}
+}
+
+func constraintTuplesProvablyDistinct(left, right *gotypes.Tuple) bool {
+	if left.Len() != right.Len() {
+		return true
+	}
+	for i := 0; i < left.Len(); i++ {
+		// Parameter and result names do not participate in Go type identity.
+		if constraintTypesProvablyDistinct(left.At(i).Type(), right.At(i).Type()) {
+			return true
+		}
+	}
+	return false
 }

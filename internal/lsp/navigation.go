@@ -111,6 +111,18 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 		if member.ResolvedDeclaration.Path != "" {
 			return
 		}
+		ref, found := expressionCompletionType(program, member.Object)
+		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
+			ref, found = visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name)
+		}
+		if found && ref.BuiltinRegex {
+			for _, method := range ast.RegexMethods() {
+				if member.Name == method.Name {
+					detail = regexMethodDetail(method)
+					return
+				}
+			}
+		}
 		if receiver, ok := member.Object.(*ast.IdentifierExpr); ok {
 			if ref, found := visibleValueType(program, doc.Path, member.NameSpan.Start.Offset, receiver.Name); found && ast.IsDecoratorBuiltinObjectTypeName(ref.Name) {
 				fields := ast.DecoratorContextFields()
@@ -133,6 +145,15 @@ func builtinHover(program *ast.Program, doc document, offset int) (string, bool)
 		}
 	})
 	return detail, detail != ""
+}
+
+func regexMethodDetail(method ast.RegexMethod) string {
+	signature := method.Signature
+	parameters := make([]string, len(signature.ParameterTypes))
+	for i, parameter := range signature.ParameterTypes {
+		parameters[i] = signature.ParameterNames[i] + ": " + parameter
+	}
+	return method.Name + "(" + strings.Join(parameters, ", ") + "): " + signature.Result
 }
 
 func (s *Server) definition(id json.RawMessage, raw json.RawMessage) error {
@@ -326,6 +347,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			for _, parameter := range declaration.Parameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 13, Span: parameter.Span, Selection: nameSpan(parameter.Span, parameter.Name)})
 			}
+			addNamedResultDeclarations(declaration.ReturnType, &info.Children)
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.MethodDecl:
@@ -337,6 +359,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			for _, parameter := range declaration.Parameters {
 				info.Children = append(info.Children, declarationInfo{Name: parameter.Name, Detail: parameter.Name + ": " + formatTypeRef(parameter.Type), Kind: 13, Span: parameter.Span, Selection: nameSpan(parameter.Span, parameter.Name)})
 			}
+			addNamedResultDeclarations(declaration.ReturnType, &info.Children)
 			collectBlockDeclarations(declaration.Body, &info.Children)
 			result = append(result, info)
 		case *ast.ClassDecl:
@@ -378,6 +401,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
+				addNamedResultDeclarations(method.ReturnType, &child.Children)
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -399,6 +423,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 				for _, parameter := range method.TypeParameters {
 					child.Children = append(child.Children, declarationInfo{Name: parameter.Name, Detail: "type parameter " + parameter.Name, Kind: 26, Span: parameter.Span, Selection: parameter.NameSpan})
 				}
+				addNamedResultDeclarations(method.ReturnType, &child.Children)
 				collectBlockDeclarations(method.Body, &child.Children)
 				info.Children = append(info.Children, child)
 			}
@@ -464,7 +489,7 @@ func collectDeclarations(program *ast.Program) []declarationInfo {
 			result = append(result, declarationInfo{Name: declaration.Name, Detail: detail, Kind: kind, Span: declaration.Span, Selection: declaration.NameSpan})
 		}
 	}
-	addArrowDeclarations(program, result)
+	addExpressionDeclarations(program, result)
 	return result
 }
 
@@ -694,10 +719,20 @@ func formatInterfaceOrConstraint(declaration *ast.InterfaceDecl) string {
 }
 
 func formatTypeRef(ref ast.TypeRef) string {
+	if len(ref.NamedResults) != 0 {
+		results := make([]string, len(ref.NamedResults))
+		for i, binding := range ref.NamedResults {
+			results[i] = binding.Name + ": " + formatTypeRef(ref.NamedResultType(i))
+		}
+		return "(" + strings.Join(results, ", ") + ")"
+	}
 	if ref.GoInterface {
 		methods := make([]string, len(ref.ObjectFields))
 		for i, method := range ref.ObjectFields {
-			methods[i] = method.Name + ": " + formatTypeRef(method.Type)
+			methods[i] = formatTypeRef(method.Type)
+			if !method.GoEmbedded {
+				methods[i] = method.Name + ": " + methods[i]
+			}
 		}
 		return "interface { " + strings.Join(methods, "; ") + " }"
 	}

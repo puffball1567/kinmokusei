@@ -16,11 +16,17 @@ func (c *Checker) zeroValueSafe(value Type) bool {
 	return state.check(value, 0)
 }
 
+func (c *Checker) namedResultZeroSafe(value Type) bool {
+	state := zeroValueCheck{checker: c, allowRawGoNil: true, remaining: 32768, records: map[string]uint8{}, storage: map[gotypes.Type]uint8{}}
+	return state.check(value, 0)
+}
+
 type zeroValueCheck struct {
-	checker   *Checker
-	remaining int
-	records   map[string]uint8
-	storage   map[gotypes.Type]uint8
+	checker       *Checker
+	allowRawGoNil bool
+	remaining     int
+	records       map[string]uint8
+	storage       map[gotypes.Type]uint8
 }
 
 func (s *zeroValueCheck) check(value Type, depth int) bool {
@@ -30,10 +36,10 @@ func (s *zeroValueCheck) check(value Type, depth int) bool {
 	s.remaining--
 	check := func(child Type) bool { return s.check(child, depth+1) }
 	switch value.Kind {
-	case Invalid, Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Byte, Float32, Float64, UntypedInt, Nullable, Array, Map, GoChannel:
+	case Invalid, Boolean, String, BString, Int, Int8, Int16, Int32, Int64, Uint, Uint16, Uint32, Uint64, Byte, Float32, Float64, UntypedInt, Nullable, Array, Map, GoChannel, Regex:
 		return true
 	case Class, Interface, Function, GoPointer, GoInterface:
-		return false
+		return s.allowRawGoNil && !s.checker.requiresNativeNonNull(value, nil)
 	case FixedArray:
 		return value.Length == 0 || value.Element != nil && check(*value.Element)
 	case Object:
@@ -98,6 +104,8 @@ func (s *zeroValueCheck) check(value Type, depth int) bool {
 		safe = underlying.Info()&(gotypes.IsBoolean|gotypes.IsNumeric|gotypes.IsString) != 0
 	case *gotypes.Slice, *gotypes.Map, *gotypes.Chan:
 		safe = true
+	case *gotypes.Pointer, *gotypes.Interface, *gotypes.Signature:
+		safe = s.allowRawGoNil
 	case *gotypes.Array:
 		safe = underlying.Len() == 0 || s.goField(underlying.Elem(), depth+1)
 	case *gotypes.Struct:
@@ -127,8 +135,10 @@ func (c *Checker) checkZeroSliceAllocation(name string, expr *ast.CallExpr, elem
 	if len(expr.Arguments) == 0 || safe {
 		return
 	}
-	if length, known := c.integerContextValue(expr.Arguments[0]); known && length.Sign() == 0 {
-		return
+	if expr.MultipleArgumentCount == 0 {
+		if length, known := c.integerContextValue(expr.Arguments[0]); known && length.Sign() == 0 {
+			return
+		}
 	}
 	c.report(expr.Arguments[0].GetSpan(), fmt.Sprintf("%s cannot initialize elements of %s with their zero value; use a nullable element type or length 0 and append initialized values", name, element.String()))
 }

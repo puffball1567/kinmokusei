@@ -11,6 +11,101 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-11-23
+
+- Use TypeScript-style `case ...:` and `default:` in value switches. A case
+  that reaches its end continues into the next clause, and `break` exits the
+  switch. Go-style braced clauses use explicit `fallthrough`.
+
+- Write checked regular-expression literals with `re"..."` and use `Regex`
+  to test text, extract capture groups, or replace matches.
+
+- Use exhaustive `match` expressions with literal, regex, record, sequence,
+  and nullable patterns. Bind values per arm and optionally add a guard.
+
+- Embed native distinct value types or pointers to them. Promote their
+  declared methods and the fields of their underlying structs, retaining
+  nominal identity and generic receiver contracts.
+
+- Pass native struct values and pointers to Go generic functions whose type
+  parameters require methods. Preserve concrete result types, dependent type
+  inference, method-set rules, and Go type-set constraints.
+
+- Embed named Go runtime interfaces in Kinmokusei structs. Delegate promoted
+  methods to the stored implementation, shadow them with explicit methods,
+  and retain Go interface identity and nil behavior.
+
+- Embed imported Go structs and their pointers in Kinmokusei structs, including
+  instantiated Go generic structs. Promote exported fields and methods through
+  mixed embedding chains, with Go interface assignment and editor navigation.
+
+- Pass native structs directly to Go generic functions with interface
+  parameters. Infer type arguments from public and promoted methods, and
+  preserve native struct identity in instantiated inputs and results.
+
+- Assign or convert native struct values and pointers to Go runtime interfaces
+  when their public method sets match, including promoted methods. Support
+  forwarding result lists, assertions, and type switches with those interfaces.
+
+- Embed named Kinmokusei structs or pointers to them as anonymous Go fields.
+  Promote unambiguous fields and methods, preserve value and pointer method
+  sets, and resolve promoted members in editor completion and navigation.
+
+- Declare named result slots in functions, methods, and block arrows, and
+  return their current values with `return`. Preserve zero initialization,
+  deferred mutations, and edits to result names in the language server.
+
+- Let named interfaces extend inline or aliased anonymous method interfaces.
+  Preserve inherited methods in class implementations, generic bounds, Go
+  interop, and editor navigation.
+
+- Embed Go method interfaces and other anonymous interfaces in an anonymous
+  interface used as a value type or generic bound. Preserve method spelling,
+  source contracts, and Go definitions for editor navigation.
+
+- Use a callback constraint's common signature to infer inline arrow parameter
+  types and instantiate generic function arguments. Preserve source contracts
+  and check that the resulting callback satisfies the full constraint.
+
+- Infer dependent type arguments from a callback bound's common signature.
+  Preserve verified text, nullable references and `Result` payloads when the
+  callback's parameters or results supply the type.
+
+- Allow direct invocation of a type parameter whose bound has one function
+  signature and one source contract. Preserve variadics, multiple results,
+  nullable and verified-text types, and `Result` handling with both source and
+  Go constraints. Keep `defer` and Task calls on their existing lowering paths.
+
+- Support more generic constraint intersections over function and record types.
+  Exclude terms whose arity, variadic form, field identity, tags, or nested types
+  cannot match after substitution. Continue to diagnose unresolved overlaps and
+  conflicting source contracts.
+
+- Support class instance method expressions such as `Box<int>.read`. The explicit
+  receiver retains its class type, including when the method is inherited, and
+  virtual and abstract methods dispatch through that receiver. Preserve source
+  callable contracts and check non-null arguments and results when Go invokes
+  the function. Add editor support and an executable guide example.
+
+- Compose named and method-only anonymous source interfaces with type sets,
+  `comparable`, other source constraints and compatible Go method contracts.
+  Preserve source member names, dependent inference, generic owner bounds,
+  properties, text/nullability and Result effects. Diagnose conflicting source
+  contracts and retain Go boundary checks after generic owner substitution.
+  Add independent Go execution comparisons, editor coverage and documentation.
+
+- Support source struct terms in generic constraints, including forward
+  declarations, generic instances, aliases, dependent inference and inline
+  generic method bounds. Preserve nullable and verified-text contracts through
+  inference and structural record matching. Reject unresolved/cyclic value
+  storage before Go type-set checks, and retain diagnostics for recursive
+  comparable bounds. Add independent Go execution comparisons and editor tests.
+
+- Accept a single call returning two integers as the length and capacity of
+  `make<Collection>` and `makeSlice<Element>` slice allocations. Preserve named
+  and generic slice types, evaluate the producer once, and retain Go's runtime
+  size checks and Kinmokusei's zero-value initialization rules.
+
 ## [0.4.12] - 2026-11-17
 
 - Infer generic function values from a destination function type, including
@@ -1339,7 +1434,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.12...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.13...HEAD
+[0.4.13]: https://github.com/puffball1567/kinmokusei/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/puffball1567/kinmokusei/compare/v0.4.11...v0.4.12
 [0.4.11]: https://github.com/puffball1567/kinmokusei/compare/v0.4.10...v0.4.11
 [0.4.10]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...v0.4.10

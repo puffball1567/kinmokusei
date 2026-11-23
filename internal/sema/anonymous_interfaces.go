@@ -5,6 +5,7 @@ import (
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func isSourceAnonymousInterface(value Type) bool {
@@ -48,30 +49,51 @@ func anonymousInterfaceContractMethods(value Type) (map[string]Type, bool) {
 // before constructing go/types interfaces, which panic on duplicate methods.
 func (c *Checker) resolveAnonymousInterface(ref ast.TypeRef) Type {
 	result := Type{Kind: GoInterface, Name: "interface{}"}
-	names := map[string]bool{}
+	names := map[string]GoInterfaceMethod{}
 	valid := true
+	add := func(method GoInterfaceMethod, span source.Span, embedded bool) {
+		storageName := method.GoName
+		if storageName == "" {
+			storageName = method.Name
+		}
+		if previous, exists := names[storageName]; exists {
+			if !embedded || previous.Name != method.Name || !sameComposedMethodContract(previous.Type, method.Type) || !c.identicalMethodStorage(previous.Type, method.Type) {
+				c.report(span, fmt.Sprintf("anonymous interface has conflicting Go method name %q", storageName))
+				valid = false
+			}
+			return
+		}
+		names[storageName] = method
+		result.GoMethods = append(result.GoMethods, method)
+	}
 	for _, method := range ref.ObjectFields {
+		if method.GoEmbedded {
+			continue
+		}
 		name := method.Name
 		goName := method.GoName
 		if !ref.Go {
 			goName = memberGoName(name, ast.Public)
 		}
-		storageName := name
-		if goName != "" {
-			storageName = goName
-		}
-		if names[storageName] {
-			c.report(method.Span, fmt.Sprintf("anonymous interface has conflicting Go method name %q", storageName))
-			valid = false
-		}
-		names[storageName] = true
 		callable := c.resolveType(method.Type)
 		callable.ParameterNames = append([]string(nil), method.ParameterNames...)
 		if callable.Kind != Function || callable.Result == nil {
 			c.report(method.Span, fmt.Sprintf("anonymous interface method %q requires a callable signature", name))
 			valid = false
 		}
-		result.GoMethods = append(result.GoMethods, GoInterfaceMethod{Name: name, GoName: goName, Type: callable, DeclarationSpan: method.NameSpan})
+		add(GoInterfaceMethod{Name: name, GoName: goName, Type: callable, DeclarationSpan: method.NameSpan}, method.Span, false)
+	}
+	hasEmbeddings := false
+	for _, field := range ref.ObjectFields {
+		if !field.GoEmbedded {
+			continue
+		}
+		hasEmbeddings = true
+		methods, ok := c.anonymousInterfaceEmbedding(field.Type)
+		valid = valid && ok
+		for _, method := range methods {
+			add(method, field.Span, true)
+		}
 	}
 	if !valid {
 		return Type{Kind: Invalid}
@@ -83,7 +105,36 @@ func (c *Checker) resolveAnonymousInterface(ref ast.TypeRef) Type {
 	}
 	result.GoType = storage
 	result.Name = goTypeDisplayName(storage)
+	if hasEmbeddings && ref.Span.Path != "" {
+		if c.anonymousInterfaceMembers == nil {
+			c.anonymousInterfaceMembers = map[source.Span][]ast.ObjectTypeField{}
+		}
+		if _, exists := c.anonymousInterfaceMembers[ref.Span]; !exists {
+			c.anonymousInterfaceMembers[ref.Span] = typeRefFromType(result, ref.Span).ObjectFields
+		}
+	}
 	return result
+}
+
+func (c *Checker) anonymousInterfaceEmbedding(ref ast.TypeRef) ([]GoInterfaceMethod, bool) {
+	base := c.resolveType(ref)
+	if base.Kind == Invalid {
+		return nil, false
+	}
+	if isSourceAnonymousInterface(base) {
+		return base.GoMethods, true
+	}
+	if base.Kind == GoNamed || base.Kind == GoInterface {
+		if contract := underlyingGoInterface(base.GoType); contract != nil && contract.IsMethodSet() {
+			if count := goTypeParameterCount(base.GoType); count > len(base.TypeArguments) {
+				c.report(ref.Span, fmt.Sprintf("embedded Go interface %s requires %d type arguments", base.String(), count))
+				return nil, false
+			}
+			return c.embeddedGoInterfaceMethods(base, contract, ref.Span, "anonymous interface cannot embed "+base.String())
+		}
+	}
+	c.report(ref.Span, "anonymous interface embedding requires a Go method interface or another anonymous interface")
+	return nil, false
 }
 
 func (c *Checker) anonymousInterfaceStorage(value Type) (gotypes.Type, bool) {

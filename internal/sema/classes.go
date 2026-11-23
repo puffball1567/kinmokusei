@@ -356,7 +356,8 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s must be public", decl.Name, contractName, name))
 			case actual.static:
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s cannot be static", decl.Name, contractName, name))
-			case !identicalMethodSignature(actual.typeInfo, requiredType):
+			case !identicalMethodSignature(actual.typeInfo, requiredType),
+				required.fromAnonymousInterface && !c.identicalMethodStorage(actual.typeInfo, requiredType):
 				c.report(decl.Span, fmt.Sprintf("class %s does not implement %s: method %s has an incompatible signature", decl.Name, contractName, name))
 			}
 		}
@@ -420,6 +421,8 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		previousDependency := c.globalDependencyOwner
 		if method.Static {
 			c.globalDependencyOwner = staticMemberDependency(decl.Name, method.GoName)
+		} else {
+			c.globalDependencyOwner = nativeMethodDependency(method.NameSpan)
 		}
 		if method.Static && method.Accessor != "" {
 			c.typeParameterScopes = nil
@@ -439,6 +442,7 @@ func (c *Checker) checkClass(decl *ast.ClassDecl) {
 		}
 		previousControl := c.enterCallableControl()
 		c.result = c.resolveType(method.ReturnType)
+		c.declareNamedResults(&method.ReturnType)
 		c.checkBlock(method.Body, false)
 		if !method.Abstract && c.result.Kind != Void && !definitelyReturns(method.Body) {
 			c.report(method.Span, fmt.Sprintf("method %q may complete without returning %s", method.Name, c.result.String()))

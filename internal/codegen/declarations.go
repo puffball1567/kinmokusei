@@ -24,7 +24,7 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 			fnType.TypeParams = &goast.FieldList{List: typeParameters}
 		}
 		fnType.Results = functionResults(decl.ReturnType)
-		body, err := generateCallableBlock(decl.Body, decl.Parameters)
+		body, err := generateCallableBlock(decl.Body, decl.Parameters, decl.ReturnType)
 		if err != nil {
 			return nil, err
 		}
@@ -67,6 +67,10 @@ func generateDeclaration(decl kinmokuseiAST.Declaration) ([]goast.Decl, error) {
 	case *kinmokuseiAST.StructDecl:
 		fields := make([]*goast.Field, 0, len(decl.Fields))
 		for _, field := range decl.Fields {
+			if field.Embedded {
+				fields = append(fields, &goast.Field{Type: goType(field.Type)})
+				continue
+			}
 			name := field.GoName
 			if name == "" {
 				name = memberName(field.Name, field.Visibility)
@@ -210,7 +214,7 @@ func generateNativeStructMethod(method *kinmokuseiAST.MethodDecl, receiverName s
 		parameters = append(parameters, goParameterField(parameter))
 	}
 	methodType := &goast.FuncType{Params: &goast.FieldList{List: parameters}, Results: functionResults(method.ReturnType)}
-	body, err := generateCallableBlock(method.Body, method.Parameters)
+	body, err := generateCallableBlock(method.Body, method.Parameters, method.ReturnType)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +240,7 @@ func generateGenericMethodHelper(owner string, ownerTypeParameters []kinmokuseiA
 	for _, parameter := range ownerTypeParameters {
 		functionType.TypeParams.List = append(functionType.TypeParams.List, goTypeParameterField(parameter, false))
 	}
-	body, err := generateCallableBlock(method.Body, method.Parameters)
+	body, err := generateCallableBlock(method.Body, method.Parameters, method.ReturnType)
 	if err != nil {
 		return nil, err
 	}

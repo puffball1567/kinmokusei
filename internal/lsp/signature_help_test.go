@@ -83,11 +83,16 @@ func TestSignatureHelpNativeVariadicDeclarations(t *testing.T) {
 
 func TestSignatureHelpInsideValueSwitch(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "switch.km")
-	text := `function combine(left: int, right: int): int { return left + right; }
-function classify(value: int): int { switch (combine(value, 1)) { case combine(value, 2) { return 1; } default { return 0; } } }`
-	label, active, _ := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "2)", 0)))
-	if label != "combine(left: int, right: int): int" || active != 1 {
-		t.Fatalf("signature = %q active=%v", label, active)
+	for _, clauses := range []string{
+		`case combine(value, 2) { return 1; } default { return 0; }`,
+		`case combine(value, 2): return 1; default: return 0;`,
+	} {
+		text := `function combine(left: int, right: int): int { return left + right; }
+function classify(value: int): int { switch (combine(value, 1)) { ` + clauses + ` } }`
+		label, active, _ := signatureResult(t, signatureHelpAt(t, path, text, positionOf(text, "2)", 0)))
+		if label != "combine(left: int, right: int): int" || active != 1 {
+			t.Fatalf("clauses=%s signature=%q active=%v", clauses, label, active)
+		}
 	}
 }
 

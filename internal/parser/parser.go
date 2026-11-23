@@ -222,7 +222,7 @@ func (p *Parser) synchronizeStatement() {
 			return
 		}
 		switch p.peek().Kind {
-		case token.Const, token.Let, token.Return, token.If, token.While, token.For, token.Break, token.Continue, token.Goto, token.Fallthrough, token.Defer, token.Go, token.Detach:
+		case token.Const, token.Let, token.Return, token.If, token.While, token.For, token.Break, token.Continue, token.Goto, token.Fallthrough, token.Defer, token.Go, token.Detach, token.Case, token.Default:
 			return
 		}
 		p.advance()

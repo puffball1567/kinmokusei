@@ -48,3 +48,45 @@ func TestAnonymousInterfaceConstraintIncompleteSignature(t *testing.T) {
 		}
 	}
 }
+
+func TestAnonymousInterfaceEmbeddingEditor(t *testing.T) {
+	t.Parallel()
+	input := `import go io from "io"
+alias Input = interface { io.ReadCloser; size(): int; }
+function use(v: Input, buf: byte[]): (int, error) { return v.Read(buf); }
+function generic<T extends Input>(v: T, buf: byte[]): (int, error) { return v.Read(buf); }
+interface Document extends Input { function kind(): int; }
+function inherited(v: Document, buf: byte[]): (int, error) { return v.Read(buf); }
+function sizeOf(v: Document): int { return v.size(); }
+`
+	path := filepath.Join(t.TempDir(), "embedded.km")
+	uri := fileURI(path)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, positionOf(input, "Read(buf)", 0), ""),
+		requestAt("textDocument/definition", 3, uri, positionOf(input, "Read(buf)", 1), ""),
+		requestAt("textDocument/definition", 4, uri, positionOf(input, "Read(buf)", 2), ""),
+		requestAt("textDocument/definition", 5, uri, positionOf(input, "size()", 1), ""),
+	)
+	for _, id := range []float64{2, 3, 4} {
+		definition, ok := messages[id]["result"].(map[string]any)
+		if !ok || !strings.HasSuffix(definition["uri"].(string), "/io/io.go") {
+			t.Fatalf("definition=%v", messages[id])
+		}
+	}
+	definition, ok := messages[5]["result"].(map[string]any)
+	if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(1) {
+		t.Fatalf("source definition=%v", messages[5])
+	}
+	label, _, _ := signatureResult(t, signatureHelpAt(t, path, input, positionOf(input, "buf);", 0)))
+	if !strings.HasPrefix(label, "v.Read(p: byte[])") {
+		t.Fatalf("signature=%q", label)
+	}
+	items := completionLabels(completionItemsAt(t, path, input, 2, strings.Index(strings.Split(input, "\n")[2], "Read")))
+	if items["Close"] == nil || items["Read"] == nil || items["size"] == nil {
+		t.Fatalf("completion=%v", items)
+	}
+	items = completionLabels(completionItemsAt(t, path, input, 5, strings.Index(strings.Split(input, "\n")[5], "Read")))
+	if items["Close"] == nil || items["Read"] == nil || items["size"] == nil || items["kind"] == nil {
+		t.Fatalf("inherited completion=%v", items)
+	}
+}

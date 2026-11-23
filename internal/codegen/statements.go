@@ -441,6 +441,9 @@ func generateValueSwitchCase(clause *kinmokuseiAST.ValueSwitchCase) (*goast.Case
 		return nil, err
 	}
 	generated.Body = body.List
+	if clause.ColonBody && clause.FallsThrough && clause.ExplicitFallthrough() == nil {
+		generated.Body = append(generated.Body, &goast.BranchStmt{Tok: token.FALLTHROUGH})
+	}
 	return generated, nil
 }
 

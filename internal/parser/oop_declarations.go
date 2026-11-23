@@ -260,6 +260,7 @@ func (p *Parser) parseStruct(start token.Token) *ast.StructDecl {
 	}
 	declaration := &ast.StructDecl{Name: name.Lexeme, NameSpan: name.Span, TypeParameters: typeParameters}
 	for !p.at(token.RightBrace) && !p.at(token.EOF) {
+		explicitVisibility := p.at(token.Public) || p.at(token.Private)
 		visibility := ast.Private
 		if p.match(token.Public) {
 			visibility = ast.Public
@@ -283,6 +284,28 @@ func (p *Parser) parseStruct(start token.Token) *ast.StructDecl {
 		}
 		if pointerReceiver {
 			p.report(p.peek(), "pointer must modify a struct method")
+		}
+		if p.at(token.Star) || p.at(token.Identifier) && !p.atNext(token.Colon) {
+			start := p.peek()
+			fieldType, valid := p.parseType()
+			if !valid {
+				p.synchronizeStatement()
+				continue
+			}
+			name := fieldType
+			if name.Pointee != nil {
+				name = *name.Pointee
+			}
+			if explicitVisibility {
+				p.report(start, "embedded fields use the visibility of their type name")
+			}
+			end, valid := p.expectTerminator("expected ';' after embedded field")
+			if !valid {
+				p.synchronizeStatement()
+				end = p.previous()
+			}
+			declaration.Fields = append(declaration.Fields, ast.FieldDecl{Embedded: true, Name: name.Name, NameSpan: name.NameSpan, Type: fieldType, Span: start.Span.Merge(end.Span)})
+			continue
 		}
 		fieldName, valid := p.expect(token.Identifier, "expected a struct field")
 		if !valid {

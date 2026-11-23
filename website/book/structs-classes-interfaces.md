@@ -49,6 +49,53 @@ struct Counter {
 
 Go-like automatic address/dereference method selection is supported when the value is addressable. Pointer methods on a temporary literal are rejected.
 
+### Using structs with Go interfaces
+
+A struct implements a Go runtime interface when its public methods match the
+interface's Go signatures and Kinmokusei type contracts. Embedded fields can
+[promote methods into the struct's method set](./types-and-values#embedded-fields).
+
+```ts
+import go io from "io"
+
+struct ByteCounter {
+  public total: int
+  public pointer function write(data: byte[]): (int, error) {
+    this.total += len(data)
+    return len(data), nil
+  }
+}
+
+function countBytes(data: byte[]): int {
+  let counter = ByteCounter { total: 0 }
+  const writer: io.Writer = &counter
+  const [written, err] = writer.Write(data)
+  if (err != nil) { return 0 }
+  return written
+}
+```
+
+`ByteCounter` has a pointer-receiver method, so the interface receives
+`&counter` explicitly. The same method-set rules apply to arguments, return
+values, explicit conversions, and assertions back to a concrete struct type.
+When a generic Go function takes an interface such as `Getter<T>`, the
+struct can be passed directly. If its public method `Get()` returns `int`,
+Go can infer `T` from that signature, including when `Get()` is promoted
+from an embedded field. Explicit type arguments also work.
+
+A Go type parameter with a method constraint can retain the concrete struct
+type. For example, when an imported Go package provides this function,
+
+```go
+func Keep[T io.Writer](w T) T { return w }
+```
+
+`const kept = helpers.Keep(&counter)` binds a `*ByteCounter`, and
+`kept.total` reads its field. The explicit form
+`helpers.Keep<*ByteCounter>(&counter)` has the same result type. A value
+argument must satisfy the bound with its own method set. Additional constraints
+such as `comparable` and underlying type terms apply to the concrete type.
+
 ## Declaring a class
 
 ```ts

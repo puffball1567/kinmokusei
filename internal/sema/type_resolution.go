@@ -47,6 +47,9 @@ func (c *Checker) resolveType(ref ast.TypeRef) Type {
 		}
 		return Type{Kind: Nullable, Name: "nullable", Element: &base}
 	}
+	if ref.BuiltinRegex {
+		return builtins[ast.RegexTypeName]
+	}
 	if ref.IsPointer() {
 		pointee := c.resolveTypeThroughNativeIndirection(*ref.Pointee)
 		if pointee.Kind == Invalid {
@@ -491,15 +494,8 @@ func (c *Checker) nativeDefinedUnderlyingSeen(symbol *nativeTypeSymbol, instanti
 	visiting[symbol.declaration.Name] = true
 	defer delete(visiting, symbol.declaration.Name)
 	underlying := substituteNativeTypeParameters(symbol.underlying, nativeDefinedTypeBindings(symbol, instantiated))
-	if underlying.Kind != GoNamed || underlying.GoQualifier != "" {
-		return underlying
-	}
-	object := goTypeNameObject(underlying.GoType)
-	if object == nil {
-		return underlying
-	}
-	dependency := c.nativeTypes[object.Name()]
-	if dependency == nil || dependency.declaration.Alias {
+	dependency := c.nativeDefinedSymbol(underlying)
+	if dependency == nil {
 		return underlying
 	}
 	return c.nativeDefinedUnderlyingSeen(dependency, underlying, visiting)

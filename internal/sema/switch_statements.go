@@ -165,7 +165,7 @@ func (c *Checker) checkTypeSwitch(stmt *ast.TypeSwitchStmt) {
 					}
 				}
 				caseTypes = append(caseTypes, goCaseType)
-				if contract != nil && !gotypes.AssertableTo(contract, goCaseType) {
+				if contract != nil && !gotypes.AssertableTo(contract, goCaseType) && !c.nativeStructSatisfiesGoInterface(value, caseType) {
 					c.report(clause.Type.Span, fmt.Sprintf("Go interface %s cannot contain type switch case %s", value.String(), caseType.String()))
 				}
 			}

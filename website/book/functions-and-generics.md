@@ -329,9 +329,19 @@ function choose<T extends comparable>(value: T, fallback: T): T {
 
 `comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. A source declaration such as `constraint Numeric = ~int | ~float64` names a union of permitted types. Constraint references can be reused in other unions; overlapping terms and cycles are rejected.
 
-Constraint terms that need a source struct's value storage before it is finalized
-are currently diagnosed, including generic struct instances. Imported Go concrete
-types do not have this source declaration-order limitation.
+::: info Available since v0.4.13
+Source struct terms now support forward references, generic instances, aliases,
+and dependent inference, including generic method bounds.
+:::
+
+<<< ../snippets/struct-constraints.km{ts}
+
+This prints `7 9`. `Box<E>` is an exact named term; it does not accept a different
+struct with matching fields. Nullable and verified-text arguments are preserved
+when inferring `E`. Arrays and slices containing source structs can also appear
+in constraint terms. `~Box<int>` is invalid under Go's underlying-type rule.
+Field selection on a constrained type parameter remains unavailable; compose a
+method contract to expose operations, or use the concrete struct type.
 
 Recursive source bounds whose array/struct comparability depends on the same
 unresolved parameter are currently diagnosed. For example, with
@@ -370,6 +380,42 @@ different array lengths, channel directions, and distinct nominal declarations
 can also be distinguished, including stable mismatches inside collection elements:
 
 <<< ../snippets/parameter-constraint-intersections.km{ts}
+
+v0.4.13 also narrow intersections of function and record terms.
+Function arity and variadic form stay fixed when type arguments change. Record
+identity includes the emitted field names, order, and tags. A fixed mismatch in
+a nested type can also establish that two terms are disjoint.
+
+<<< ../snippets/structural-constraint-intersections.km{ts}
+
+This prints `14 7`. `UnaryOnly<E>` keeps the one-argument function and
+`ValueOnly<E>` keeps the record with a single field. Parameter names do not
+distinguish function types. Use aliases to write function alternatives in a
+union and supply the generic arguments explicitly when inference cannot fix them.
+
+The example calls `callback(value)` directly through the type parameter `F`.
+Every type in its bound must have the same underlying function signature and the
+same source contracts. Named function types can share that signature. Calls
+retain variadics, multiple results, nullable and verified-text types, and normal
+`Result` handling. A `Result<T>` callback and a callback returning `(T, error)`
+have different source contracts even though Go uses the same result types.
+
+The common signature can also determine a type argument that appears only
+inside the callback. With `constraint Reader<E> = ~() => E` and
+`function read<E, F extends Reader<E>>(fn: F): E { return fn(); }`, a call to
+`read` with a callback returning `string` infers `E` as `string`. A callback
+returning `Item | null` infers `E` as `Item | null`. The same rule applies to
+callback parameters and `Result` payloads. If the bound has no common
+signature or the argument types do not agree, inference does not choose an
+arbitrary signature.
+
+This signature also supplies the types of an inline arrow's parameters.
+In `invoke((value) => value * 2, cell.value)`, the bound supplies `int` for
+`value`, and the arrow body determines the result type `E`. An existing generic
+function can use a fully determined signature as its instantiation context.
+The constructed callback must still satisfy the original bound. For example,
+a bound listing only exact named types requires one of those types as the type
+argument.
 
 If terms might overlap after substitution, such as `E[]` and `int[]`, they remain
 rejected; instantiate those operands with concrete types first:
@@ -430,9 +476,8 @@ Compatible `Result<T>`/`Result<void>` methods implement `(T, error)`/`error`
 returns, and variadic signatures must agree.
 
 This addition concerns source generic declarations, not direct imported Go
-generic calls. Native source interfaces still cannot be constraint operands
-(for example `constraint Named = LabelView`); direct source interface bounds
-are described below.
+generic calls. Direct source interface bounds and development-build constraint
+composition are described below.
 
 Use `&`, not a union, to combine method contracts:
 
@@ -472,10 +517,28 @@ Method parameters and results must match invariantly, including nested
 nullable, text and native type contracts; constraint checking does not insert
 implicit validation wrappers.
 
-Direct bounds (`T extends Reader<E>`) are supported. Source runtime interfaces
-are not yet operands in source type-set declarations such as
-`constraint C = Reader<int> & comparable`. Such combinations are diagnosed,
-not silently weakened.
+### Composing source interface contracts
+
+::: info Available since v0.4.13
+Named and method-only anonymous source interfaces can also be constraint
+operands, including generic aliases, forward references and reused constraints.
+:::
+
+<<< ../snippets/source-constraint-composition.km{ts}
+
+This prints `gold 4 true`. The composed contract retains source method names,
+properties, nullable/text signatures, Result effects, multiple results and
+variadics. Method matching remains structural; type-set and `comparable`
+requirements are checked as well. The same rules apply to generic owners,
+method-local parameters and instantiated function values.
+
+Use `&` to combine contracts. Methods with matching emitted Go names must have
+compatible source signatures; incompatible Result effects are rejected instead
+of selecting a contract by operand order. Properties combined from separate
+interfaces must retain identical getter/setter types. Go method operands keep
+their exported Go spelling and raw signatures. Nonpublic methods and unsupported
+Go signatures are diagnosed; raw Go generic method arguments still cannot erase
+source-only types after owner substitution.
 
 ### Reusing Go type sets
 
@@ -492,7 +555,8 @@ type sets using `&`.
 An explicit `comparable` requirement survives constraint reuse. It may be named
 on its own or combined with `&`, but cannot appear in a multi-term `|` union,
 including indirectly through an imported or source constraint. Empty
-intersections are errors. Native source interfaces are not constraint operands.
+intersections are errors. v0.4.13 also allow source interface
+operands as described above.
 
 For example, an ordered type cannot also have boolean as its underlying type:
 
@@ -569,6 +633,28 @@ const [value, err] = strconv.Atoi(text);
 There is no hidden error discard and no tuple wrapper. Bind every result or use
 `_` explicitly, or forward a matching result list. Use `Result<T>` and `?` when
 the signature should expose a checked error effect instead of an ordinary list.
+
+### Named results
+
+Functions, methods, and block arrows can name their results. Each name is a
+mutable local initialized to the zero value of its type. A `return` with no
+operands returns the current values.
+
+```ts
+function double(value: int): (answer: int, err: error) {
+  answer = value * 2
+  return
+}
+```
+
+An explicit `return answer, err` is also valid. `finally` and deferred
+closures can update the result slots before the function returns. In a scope
+that shadows a result name, use an explicit return. `_` leaves a slot unnamed
+in the body. Result names do not affect function type identity.
+
+Named result types must have a valid zero value. For a non-null class result,
+use an ordinary return type and return an initialized object, or declare the
+named result as `Item | null` when absence is part of the API.
 
 ## Result functions
 

@@ -78,6 +78,19 @@ func (c *Checker) declareInterfaces(program *ast.Program) {
 			if base.Kind == Invalid {
 				continue
 			}
+			if base.Kind == GoInterface {
+				for _, method := range base.GoMethods {
+					inherited := methodSymbol{typeInfo: method.Type, visibility: ast.Public, goName: method.GoName, declarationSpan: method.DeclarationSpan,
+						goDeclaration: method.GoDeclaration, goInterfaceMethod: method.GoDeclaration != nil, fromAnonymousInterface: true}
+					if inherited.goName == "" {
+						inherited.goName = method.Name
+						inherited.goInterfaceMethod = true
+					}
+					c.inheritSourceInterfaceMethod(decl.Name, symbol, method.Name, inherited, ref.Span)
+				}
+				symbol.bases = append(symbol.bases, base)
+				continue
+			}
 			if base.Kind == GoNamed && underlyingGoInterface(base.GoType) != nil {
 				if seen[base.String()] {
 					c.report(ref.Span, fmt.Sprintf("duplicate extended interface %s", base.String()))
@@ -114,14 +127,7 @@ func (c *Checker) declareInterfaces(program *ast.Program) {
 			for _, methodName := range names {
 				inherited := parent.methods[methodName]
 				inherited.typeInfo = substituteNativeTypeParameters(inherited.typeInfo, bindings)
-				c.checkInheritedGoMethodConflict(name, symbol, inherited, ref.Span)
-				if existing, exists := symbol.methods[methodName]; exists {
-					if !identicalMethodSignature(existing.typeInfo, inherited.typeInfo) {
-						c.report(ref.Span, fmt.Sprintf("interface %s inherits incompatible signatures for method %s", name, methodName))
-					}
-					continue
-				}
-				symbol.methods[methodName] = inherited
+				c.inheritSourceInterfaceMethod(name, symbol, methodName, inherited, ref.Span)
 			}
 		}
 		c.checkInterfacePropertyContracts(decl, symbol)

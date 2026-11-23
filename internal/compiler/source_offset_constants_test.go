@@ -30,6 +30,8 @@ alias A=Record;
 type Defined=distinct Record;
 struct Node{private next:*Node;public value:int;}
 struct ZeroTail{private first:byte;public empty:[0]int64;}
+struct innerOffset{private prefix:byte;private hidden:int64;public value:int64;}
+struct OuterOffset{private prefix:byte;innerOffset;}
 class Limits{public static const value:int=ValueOffset;}
 function genericOffset<T>(box:Box<T>):int{const n=u.Offsetof(box.value);const p=&n;return int(*p);}
 function genericPrefix<T>(box:Box<T>):int{const n=u.Offsetof(box.pad);const p=&n;return int(*p);}
@@ -38,6 +40,7 @@ export const PublicOffset=ValueOffset;
 export function Offsets():int[]{const packet:A=A{pad:1,value:2,tail:3};const defined=Defined(packet);const p:*A=nil;const d:*Defined=nil;const zero:*ZeroTail=nil;const object:{z:int64,a:byte}={z:2,a:1};return [ValueOffset,TailOffset,int(u.Offsetof(packet.pad)),int(u.Offsetof(defined.value)),int(u.Offsetof(p.value)),int(u.Offsetof(d.tail)),int(u.Offsetof(zero.empty)),int(u.Offsetof(object.z)),Limits.value];}
 export function Generics():int[]{const a:Box<int64>=Box<int64>{pad:1,value:2};const b:Box<byte>=Box<byte>{pad:1,value:2};const c:SliceBox<int64>=SliceBox<int64>{pad:1,values:[]};return [genericOffset(a),genericOffset(b),genericPrefix(a),genericHeader(c),int(u.Offsetof(a.value))];}
 export function Ignored():int[]{let calls=0;const get=():*A=>{calls++;return nil;};const offset=u.Offsetof(get().value);const nodes=goChannel<Node>();const received=u.Offsetof((<-nodes).value);const node:*Node=nil;const chain=u.Offsetof(node.next.value);return [calls,int(offset),int(received),int(chain)];}
+export function PromotedOffset():int[]{const v:*OuterOffset=nil;return [int(u.Offsetof(v.value)),int(u.Offsetof(v.hidden)),int(u.Offsetof(v.innerOffset)),int(u.Offsetof(v.prefix))];}
 `,
 	}
 	for name, input := range files {
@@ -67,11 +70,14 @@ type alias=packet
 type defined packet
 type node struct{next *node;value int}
 type zeroTail struct{first byte;empty [0]int64}
+type innerOffset struct{prefix byte;hidden int64;Value int64}
+type outerOffset struct{prefix byte;innerOffset}
 type box[T any] struct{pad byte;value T}
 type sliceBox[T any] struct{pad byte;values []T}
 func genericOffset[T any](b box[T])int{n:=unsafe.Offsetof(b.value);p:=&n;return int(*p)}
 func genericPrefix[T any](b box[T])int{n:=unsafe.Offsetof(b.pad);p:=&n;return int(*p)}
 func genericHeader[T any](b sliceBox[T])int{const n=unsafe.Offsetof(b.values);return int(n)}
+func PromotedOffset()[]int{var v *outerOffset;return []int{int(unsafe.Offsetof(v.Value)),int(unsafe.Offsetof(v.hidden)),int(unsafe.Offsetof(v.innerOffset)),int(unsafe.Offsetof(v.prefix))}}
 func Offsets()[]int{a:=alias{1,2,3};b:=defined(a);var p *alias;var d *defined;var z *zeroTail;object:=struct{a byte;z int64}{1,2};return []int{ValueOffset,TailOffset,int(unsafe.Offsetof(a.pad)),int(unsafe.Offsetof(b.value)),int(unsafe.Offsetof(p.value)),int(unsafe.Offsetof(d.tail)),int(unsafe.Offsetof(z.empty)),int(unsafe.Offsetof(object.z)),ValueOffset}}
 func Generics()[]int{a:=box[int64]{1,2};b:=box[byte]{1,2};c:=sliceBox[int64]{1,nil};return []int{genericOffset(a),genericOffset(b),genericPrefix(a),genericHeader(c),int(unsafe.Offsetof(a.value))}}
 func Ignored()[]int{calls:=0;get:=func()*alias{calls++;return nil};const offset=unsafe.Offsetof(get().value);nodes:=make(chan node);const received=unsafe.Offsetof((<-nodes).value);var n *node;const chain=unsafe.Offsetof(n.next.value);return []int{calls,int(offset),int(received),int(chain)}}
@@ -79,7 +85,7 @@ func Ignored()[]int{calls:=0;get:=func()*alias{calls++;return nil};const offset=
 	comparison := `package sourceoffsets_test
 import("testing";"reflect";g "source-offset-constants.test";r "source-offset-constants.test/reference")
 const offset=g.PublicOffset
-func TestOffsets(t *testing.T){for _,pair:=range [][2][]int{{g.Offsets(),r.Offsets()},{g.Generics(),r.Generics()},{g.Ignored(),r.Ignored()}}{if !reflect.DeepEqual(pair[0],pair[1]){t.Fatal(pair)}};if offset!=r.ValueOffset{t.Fatal(offset)}}
+func TestOffsets(t *testing.T){for _,pair:=range [][2][]int{{g.Offsets(),r.Offsets()},{g.Generics(),r.Generics()},{g.Ignored(),r.Ignored()},{g.PromotedOffset(),r.PromotedOffset()}}{if !reflect.DeepEqual(pair[0],pair[1]){t.Fatal(pair)}};if offset!=r.ValueOffset{t.Fatal(offset)}}
 `
 	runGeneratedGoDifferentialTest(t, root, "source-offset-constants.test", generated, reference, comparison)
 }

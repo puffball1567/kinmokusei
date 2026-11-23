@@ -384,6 +384,13 @@ func (c *Checker) substituteNativeMethodOwnerTypeParameters(value Type, bindings
 			if sourceBound, source := c.nativeInterfaceBounds[parameter.GoType.(*gotypes.TypeParam)]; source {
 				c.nativeInterfaceBounds[methodParameters[i].GoType.(*gotypes.TypeParam)] = substituteNativeTypeParameters(sourceBound, native)
 			}
+			if arguments := c.nativeRawConstraintArguments[parameter.GoType.(*gotypes.TypeParam)]; len(arguments) != 0 {
+				instantiated := make([]Type, len(arguments))
+				for j, argument := range arguments {
+					instantiated[j] = substituteNativeTypeParameters(argument, native)
+				}
+				c.nativeRawConstraintArguments[methodParameters[i].GoType.(*gotypes.TypeParam)] = instantiated
+			}
 			if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 				c.setParameterRangeShape(methodParameters[i].GoType.(*gotypes.TypeParam), substituteNativeTypeParameters(shape, native))
 			}
@@ -470,7 +477,7 @@ func substituteNativeTypeParametersSeen(value Type, bindings nativeTypeBindings,
 			result.Name = goTypeDisplayName(converted)
 		}
 	}
-	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.Kind == Function || value.Kind == Object || value.Kind == Nullable || value.Kind == Result || value.Kind == Task {
+	if value.Kind == Array || value.Kind == FixedArray || value.Kind == Map || value.Kind == Function && goTypeNameObject(value.GoType) == nil || value.Kind == Object || value.Kind == Nullable || value.Kind == Result || value.Kind == Task {
 		result.GoType = nil
 	}
 	if value.Kind == GoPointer && result.Element != nil {
@@ -504,11 +511,16 @@ func substituteNativeTypeParametersSeen(value Type, bindings nativeTypeBindings,
 // Keep the Go storage type in sync with substituted source arguments, also for
 // native structs nested in invariant collection types or recursive pointers.
 func instantiateSubstitutedNamedType(value Type) Type {
-	if (value.Kind != GoNamed && value.Kind != Struct) || len(value.TypeArguments) == 0 {
+	if len(value.TypeArguments) == 0 || (value.Kind != GoNamed && value.Kind != Struct && value.Kind != Function) {
 		return value
 	}
-	named, ok := value.GoType.(*gotypes.Named)
-	if !ok || named.Obj() == nil {
+	var origin gotypes.Type
+	switch named := value.GoType.(type) {
+	case *gotypes.Named:
+		origin = named.Origin()
+	case *gotypes.Alias:
+		origin = named.Origin()
+	default:
 		return value
 	}
 	arguments := make([]gotypes.Type, len(value.TypeArguments))
@@ -519,7 +531,7 @@ func instantiateSubstitutedNamedType(value Type) Type {
 		}
 		arguments[index] = converted
 	}
-	instantiated, err := gotypes.Instantiate(nil, named.Origin(), arguments, true)
+	instantiated, err := gotypes.Instantiate(nil, origin, arguments, true)
 	if err != nil {
 		return value
 	}
@@ -529,7 +541,7 @@ func instantiateSubstitutedNamedType(value Type) Type {
 		for index, argument := range value.TypeArguments {
 			names[index] = argument.String()
 		}
-		value.Name = named.Obj().Name() + "<" + strings.Join(names, ", ") + ">"
+		value.Name = goTypeNameObject(origin).Name() + "<" + strings.Join(names, ", ") + ">"
 	}
 	return value
 }
@@ -554,13 +566,13 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		}
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	typeArguments, valid := c.explicitGoFunctionTypeArguments(expr.TypeArguments)
+	typeArguments, sourceArguments, valid := c.explicitGoFunctionTypeArguments(expr.TypeArguments)
 	if !valid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, typeArguments)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
-	instantiatedSignature, err := inferGoGenericCall(signature, actualTypes, typeArguments, expr.Expanded, numericArguments)
+	instantiatedSignature, err := c.inferImportedGoGenericCall(signature, actualTypes, typeArguments, sourceArguments, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot apply explicit Go type arguments to %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -570,6 +582,7 @@ func (c *Checker) checkExplicitGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("instantiated Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	converted = c.restoreNativeRangeType(converted)
 	if c.containsVerifiedText(converted, nil) {
 		c.report(expr.Span, "Go generic calls cannot preserve a verified native text contract; use bstring/raw storage")
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -593,7 +606,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 	}
 	actualTypes := c.checkGoGenericCallbackArguments(expr, signature, nil)
 	actualTypes, numericArguments, multiple := c.genericCallInputs(expr, actualTypes)
-	instantiated, err := inferGoGenericCall(signature, actualTypes, nil, expr.Expanded, numericArguments)
+	instantiated, err := c.inferImportedGoGenericCall(signature, actualTypes, nil, nil, expr.Expanded, numericArguments)
 	if err != nil {
 		c.report(expr.Span, fmt.Sprintf("cannot infer Go type arguments for %s: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -603,6 +616,7 @@ func (c *Checker) checkInferredGenericCall(expr *ast.CallExpr, callableName stri
 		c.report(expr.Span, fmt.Sprintf("inferred Go call to %s is not supported: %v", callableName, err))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
+	converted = c.restoreNativeRangeType(converted)
 	if c.containsVerifiedText(converted, nil) {
 		c.report(expr.Span, "Go generic calls cannot preserve a verified native text contract; use bstring/raw storage")
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -627,12 +641,12 @@ func (c *Checker) checkGenericNumericArguments(expr *ast.CallExpr, callable Type
 	}
 }
 
-func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explicitTypeArguments []gotypes.Type, expanded bool, numericArguments []gotypes.TypeAndValue) (*gotypes.Signature, error) {
+func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explicitTypeArguments []gotypes.Type, expanded bool, numericArguments []gotypes.TypeAndValue) (gotypes.Instance, error) {
 	packageInfo := gotypes.NewPackage("kinmokusei.synthetic/generic", "generic")
 	functionName := "__kinmokusei_generic_function"
 	functionIdentifier := goast.NewIdent(functionName)
 	if existing := packageInfo.Scope().Insert(gotypes.NewFunc(0, packageInfo, functionName, signature)); existing != nil {
-		return nil, fmt.Errorf("cannot create inference scope")
+		return gotypes.Instance{}, fmt.Errorf("cannot create inference scope")
 	}
 	arguments := make([]goast.Expr, len(actualTypes))
 	for i, actual := range actualTypes {
@@ -651,11 +665,11 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 		default:
 			goType, ok := goTypeOf(actual)
 			if !ok {
-				return nil, fmt.Errorf("argument %d has non-Go-representable type %s", i+1, actual.String())
+				return gotypes.Instance{}, fmt.Errorf("argument %d has non-Go-representable type %s", i+1, actual.String())
 			}
 			name := fmt.Sprintf("__kinmokusei_argument_%d", i)
 			if existing := packageInfo.Scope().Insert(gotypes.NewVar(0, packageInfo, name, goType)); existing != nil {
-				return nil, fmt.Errorf("cannot create inference argument %d", i+1)
+				return gotypes.Instance{}, fmt.Errorf("cannot create inference argument %d", i+1)
 			}
 			arguments[i] = goast.NewIdent(name)
 		}
@@ -667,7 +681,7 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 		for i, argumentType := range explicitTypeArguments {
 			name := fmt.Sprintf("__kinmokusei_type_argument_%d", i)
 			if existing := packageInfo.Scope().Insert(gotypes.NewTypeName(0, packageInfo, name, argumentType)); existing != nil {
-				return nil, fmt.Errorf("cannot create explicit type argument %d", i+1)
+				return gotypes.Instance{}, fmt.Errorf("cannot create explicit type argument %d", i+1)
 			}
 			typeExpressions[i] = goast.NewIdent(name)
 		}
@@ -687,15 +701,14 @@ func inferGoGenericCall(signature *gotypes.Signature, actualTypes []Type, explic
 		Instances: map[*goast.Ident]gotypes.Instance{},
 	}
 	if err := gotypes.CheckExpr(gotoken.NewFileSet(), packageInfo, gotoken.NoPos, call, info); err != nil {
-		return nil, err
+		return gotypes.Instance{}, err
 	}
 	instance, ok := info.Instances[functionIdentifier]
 	if !ok {
-		return nil, fmt.Errorf("Go type checker did not report an inferred instance")
+		return gotypes.Instance{}, fmt.Errorf("Go type checker did not report an inferred instance")
 	}
-	instantiated, ok := instance.Type.(*gotypes.Signature)
-	if !ok {
-		return nil, fmt.Errorf("Go type checker returned %T instead of a function signature", instance.Type)
+	if _, ok := instance.Type.(*gotypes.Signature); !ok {
+		return gotypes.Instance{}, fmt.Errorf("Go type checker returned %T instead of a function signature", instance.Type)
 	}
-	return instantiated, nil
+	return instance, nil
 }

@@ -30,6 +30,13 @@ func TestGoInterfaceInheritanceSemanticMatrix(t *testing.T) {
 		{"duplicate", `import go fmt from "fmt"; interface Named extends fmt.Stringer,fmt.Stringer {}`, "duplicate extended interface"},
 		{"nullable rejected", `import go fmt from "fmt"; interface Named extends fmt.Stringer|null {}`, "interface extends expects"},
 		{"pointer rejected", `import go fmt from "fmt"; interface Named extends *fmt.Stringer {}`, "interface extends expects"},
+		{"anonymous base", `interface Reader extends interface{read():string;}{} class Text implements Reader{public function read():string{return "ok";}} function f(v:Reader):string{return v.read();}`, ""},
+		{"generic anonymous alias base", `alias Raw<T>=interface{read():T;}; interface Reader<T> extends Raw<T>{} interface Leaf extends Reader<string>{} function f(v:Leaf):string{return v.read();}`, ""},
+		{"anonymous base Go upcast", `import go fmt from "fmt"; interface Named extends interface{fmt.Stringer;}{} class Value implements Named{public function string():bstring{return b"ok";}} function use(value:Named):fmt.Stringer{return value;} function direct():fmt.Stringer{return new Value();}`, ""},
+		{"anonymous base mismatch", `interface Reader extends interface{read():bstring;}{} class Bad implements Reader{public function read():string{return "ok";}}`, "incompatible signature"},
+		{"anonymous Result conflict", `interface A extends interface{load():Result<int>;}{} interface B{function load():(int,error);} interface Both extends A,B{}`, "incompatible signatures"},
+		{"anonymous Result conflict reversed", `interface A extends interface{load():Result<int>;}{} interface B{function load():(int,error);} interface Both extends B,A{}`, "incompatible signatures"},
+		{"anonymous nullable base", `interface Bad extends interface{read():string;}|null{}`, "interface extends expects"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			diagnostics := checkSource(t, test.source)
@@ -49,6 +56,8 @@ type Loader[E any] interface { Load() (E, error) }
 type Hidden interface { hidden() }
 type Unsafe interface { Pointer() unsafe.Pointer }
 type Anonymous interface { Read(interface{Read() int}) }
+type Callback func(int) int
+type Caller interface { Call(Callback) int }
 type Integers interface { ~int }
 type Property[E any] interface { GetValue() E; SetValue(E) }
 `, 0)
@@ -74,6 +83,10 @@ type Property[E any] interface { GetValue() E; SetValue(E) }
 		{"hidden", `interface Hidden extends c.Hidden{}`, "unexported Go method"},
 		{"unsafe", `interface Unsafe extends c.Unsafe{}`, "uses unsafe.Pointer"},
 		{"anonymous", `interface Anonymous extends c.Anonymous{}`, ""},
+		{"anonymous inherited raw contract", `interface Combined<T> extends interface{c.Reader<T>;}{} function use(v:Combined<string>):void{}`, "inherited Go methods cannot establish a UTF-8 contract"},
+		{"anonymous inherited callback storage", `interface Caller extends interface{c.Caller;}{} class Bad implements Caller{public function Call(fn:(v:int)=>int):int{return fn(0);}}`, "incompatible signature"},
+		{"anonymous inherited callback constraint", `interface Caller extends interface{call(fn:c.Callback):int;}{} class Bad{public function call(fn:(v:int)=>int):int{return fn(0);}} function use<T extends Caller>(v:T):void{} function bad():void{use(new Bad());}`, "type parameter constraint"},
+		{"anonymous inherited composed constraint", `interface Caller extends interface{call(fn:c.Callback):int;}{} constraint C=Caller&comparable; class Bad{public function call(fn:(v:int)=>int):int{return fn(0);}} function use<T extends C>(v:T):void{} function bad():void{use(new Bad());}`, "type parameter constraint"},
 		{"type set", `interface Integers extends c.Integers{}`, "runtime Go interface"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

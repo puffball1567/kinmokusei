@@ -21,7 +21,8 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 			methods := map[string]methodSymbol{}
 			if !pointer {
 				for _, method := range argument.GoMethods {
-					methods[method.Name] = methodSymbol{goName: method.GoName, typeInfo: method.Type, visibility: ast.Public, declarationSpan: method.DeclarationSpan}
+					methods[method.Name] = methodSymbol{goName: method.GoName, typeInfo: method.Type, visibility: ast.Public, declarationSpan: method.DeclarationSpan,
+						goDeclaration: method.GoDeclaration, fromAnonymousInterface: method.FromAnonymousInterface}
 				}
 			}
 			return methods, nil, true, true
@@ -41,7 +42,8 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 		}
 	case Struct:
 		if symbol := c.structs[argument.Name]; symbol != nil {
-			return symbol.methods, nativeStructBindings(symbol, argument), pointer, true
+			methods, bindings := c.effectiveStructMethods(argument, pointer)
+			return methods, bindings, pointer, true
 		}
 	case Interface:
 		if symbol := c.interfaces[argument.Name]; symbol != nil {
@@ -51,10 +53,9 @@ func (c *Checker) nativeConstraintMethods(argument Type) (map[string]methodSymbo
 			return symbol.methods, nativeInterfaceBindings(symbol, argument), true, true
 		}
 	case GoNamed:
-		if named, ok := gotypes.Unalias(argument.GoType).(*gotypes.Named); ok {
-			if symbol := c.nativeTypes[named.Obj().Name()]; symbol != nil && symbol.goNamed == named.Origin() && !symbol.declaration.Alias {
-				return symbol.methods, nativeDefinedTypeBindings(symbol, argument), pointer, true
-			}
+		if c.nativeDefinedSymbol(argument) != nil {
+			methods, bindings := c.effectiveStructMethods(argument, pointer)
+			return methods, bindings, pointer, true
 		}
 	}
 	return nil, nil, false, false

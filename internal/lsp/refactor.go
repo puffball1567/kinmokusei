@@ -420,6 +420,11 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 		}
 		add(ref.QualifierSpan, ref.QualifierDeclaration)
 		add(ref.NameSpan, ref.ResolvedDeclaration)
+		for _, result := range ref.NamedResults {
+			if result.Name != "_" {
+				declare(result.Span)
+			}
+		}
 		walkExpression(ref.FixedLengthExpression)
 		for index := range ref.GenericArguments {
 			walkType(&ref.GenericArguments[index])
@@ -434,7 +439,7 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkType(&ref.GoResults[index])
 		}
 		for index := range ref.ObjectFields {
-			if ref.GoInterface && !ref.Go {
+			if ref.GoInterface && !ref.Go && !ref.ObjectFields[index].GoEmbedded {
 				declare(ref.ObjectFields[index].NameSpan)
 			}
 			walkType(&ref.ObjectFields[index].Type)
@@ -447,6 +452,22 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 	}
 	walkExpression = func(expression ast.Expression) {
 		switch expression := expression.(type) {
+		case *ast.MatchExpr:
+			walkExpression(expression.Value)
+			for i := range expression.Arms {
+				arm := &expression.Arms[i]
+				arm.Pattern.Walk(func(pattern *ast.MatchPattern) {
+					if binding := pattern.Binding; binding.Name != "" && binding.Name != "_" {
+						declare(binding.Span)
+					}
+					for _, field := range pattern.Fields {
+						add(field.NameSpan, field.ResolvedDeclaration)
+					}
+					walkExpression(pattern.Literal)
+				})
+				walkExpression(arm.Guard)
+				walkExpression(arm.Value)
+			}
 		case *ast.OptionalChainExpr:
 			walkExpression(expression.Object)
 			walkExpression(expression.Value)
@@ -735,7 +756,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 			walkTypeParameters(declaration.TypeParameters)
 			for index := range declaration.Fields {
 				field := &declaration.Fields[index]
-				declare(field.NameSpan)
+				if !field.Embedded {
+					declare(field.NameSpan)
+				}
 				walkType(&field.Type)
 			}
 			for _, method := range declaration.Methods {

@@ -155,21 +155,23 @@ func generateAwait(expr *kinmokuseiAST.AwaitExpr) (goast.Expr, error) {
 	return &goast.CallExpr{Fun: &goast.FuncLit{Type: &goast.FuncType{Params: &goast.FieldList{}, Results: results}, Body: body}}, nil
 }
 
-func orderedSliceMake(sliceType, length, capacity goast.Expr) goast.Expr {
+// A single size expression produces both sizes. Two separate expressions need
+// separate assignments to preserve evaluation order before the make intrinsic.
+func orderedSliceMake(sliceType goast.Expr, sizes []goast.Expr) goast.Expr {
 	lengthName := goast.NewIdent("__kinmokusei_make_length")
 	capacityName := goast.NewIdent("__kinmokusei_make_capacity")
 	returnType := &goast.FieldList{List: []*goast.Field{{Type: sliceType}}}
-	body := &goast.BlockStmt{List: []goast.Stmt{
-		&goast.AssignStmt{
-			Lhs: []goast.Expr{lengthName}, Tok: token.DEFINE, Rhs: []goast.Expr{length},
-		},
-		&goast.AssignStmt{
-			Lhs: []goast.Expr{capacityName}, Tok: token.DEFINE, Rhs: []goast.Expr{capacity},
-		},
-		&goast.ReturnStmt{Results: []goast.Expr{&goast.CallExpr{
-			Fun: goast.NewIdent("make"), Args: []goast.Expr{sliceType, lengthName, capacityName},
-		}}},
-	}}
+	var bindings []goast.Stmt
+	if len(sizes) == 1 {
+		bindings = []goast.Stmt{&goast.AssignStmt{Lhs: []goast.Expr{lengthName, capacityName}, Tok: token.DEFINE, Rhs: sizes}}
+	} else {
+		bindings = []goast.Stmt{
+			&goast.AssignStmt{Lhs: []goast.Expr{lengthName}, Tok: token.DEFINE, Rhs: sizes[:1]},
+			&goast.AssignStmt{Lhs: []goast.Expr{capacityName}, Tok: token.DEFINE, Rhs: sizes[1:]},
+		}
+	}
+	allocate := &goast.CallExpr{Fun: goast.NewIdent("make"), Args: []goast.Expr{sliceType, lengthName, capacityName}}
+	body := &goast.BlockStmt{List: append(bindings, &goast.ReturnStmt{Results: []goast.Expr{allocate}})}
 	return &goast.CallExpr{Fun: &goast.FuncLit{
 		Type: &goast.FuncType{Params: &goast.FieldList{}, Results: returnType}, Body: body,
 	}}

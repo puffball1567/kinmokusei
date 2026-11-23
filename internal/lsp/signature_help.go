@@ -730,6 +730,14 @@ func visitProgramExpressions(program *ast.Program, visit func(ast.Expression)) {
 		}
 		visit(value)
 		switch value := value.(type) {
+		case *ast.MatchExpr:
+			expression(value.Value)
+			for i := range value.Arms {
+				arm := &value.Arms[i]
+				arm.Pattern.Walk(func(pattern *ast.MatchPattern) { expression(pattern.Literal) })
+				expression(arm.Guard)
+				expression(arm.Value)
+			}
 		case *ast.OptionalChainExpr:
 			expression(value.Object)
 			expression(value.Value)

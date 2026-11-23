@@ -58,7 +58,7 @@ func (c *Checker) completeNativeTypeParameterBounds(parameters []ast.TypeParamet
 				deferred = true
 			}
 		})
-		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint)) {
+		if deferred && (!deferredOnly || c.sourceInterfaceBoundIsDeferred(*parameter.Constraint) || c.sourceConstraintBoundDeferred(*parameter.Constraint)) {
 			c.deferredParameterBounds[identity] = true
 			state[name] = 2
 			return
@@ -225,6 +225,8 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 				if shape, ok := c.parameterRangeShape(parameter.GoType.(*gotypes.TypeParam)); ok {
 					_ = c.inferNativeTypeArguments(shape, c.constraintArgumentShape(value), bindings)
 				}
+				c.inferNativeStructConstraintArguments(parameter.GoType.(*gotypes.TypeParam), value, bindings)
+				c.inferNativeCallableConstraintArguments(parameter, value, bindings)
 			}
 		}
 		after := 0
@@ -274,9 +276,10 @@ func (c *Checker) inferNativeConstraintArguments(parameters []Type, bindings nat
 	if err != nil {
 		return
 	}
+	inferred := instance.Type.(*gotypes.Signature)
 	for i, parameter := range parameters {
 		if bindings[parameter.GoType].Kind == Invalid {
-			if value, err := kinmokuseiTypeFromGo(instance.Results().At(i).Type()); err == nil {
+			if value, err := kinmokuseiTypeFromGo(inferred.Results().At(i).Type()); err == nil {
 				bindings[parameter.GoType] = c.restoreNativeRangeType(value)
 			}
 		}

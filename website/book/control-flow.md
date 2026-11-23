@@ -1,11 +1,12 @@
 ---
 title: Control flow
-description: Learn boolean conditions, loops, ranges, value and type switches, channel select, labels, defer, and try/catch/finally.
+description: Learn conditions, loops, switches, pattern matching, channel select, labels, defer, and try/catch/finally.
 ---
 
 # Control flow
 
-Control-flow syntax is explicit: conditions use parentheses, bodies use braces, and conditions must be `boolean`. There is no truthiness and no implicit fallthrough.
+Conditions use parentheses and must be `boolean`. Statements usually use
+braced bodies. Value switches also support colon-delimited case bodies.
 
 ## `if` and `else`
 
@@ -114,37 +115,63 @@ range iteration, retains ordinary function-call exception handling.
 
 ## Value switch
 
-```ts
-switch (method) {
-  case "GET", "HEAD" { return "read"; }
-  case "POST" { return "write"; }
-  default { return "unsupported"; }
-}
-```
+The subject evaluates once. The first matching case starts execution, and
+`default` is selected when no case matches. Each case has its own local scope.
+Use one form throughout a switch.
 
-The subject evaluates once. Case expressions are tested in source order and stop after the first match. A case body does not enter the next case automatically.
+### Go-style switch
 
-Mutations and Task consumption in a case expression affect subsequent case
-tests and the selected body. `default` is entered after every test fails,
-regardless of where it appears in the source. A grouped case can match before
-its last expression: in `case 0, await task`, the Task is not consumed if the
-subject matches `0`. The checker includes each possible first-match path.
-
-Explicit `fallthrough;` must be the final direct statement of a non-final value-switch case:
+Put a braced body directly after each case label. At the end of the body,
+execution leaves the switch. To enter the next body, put `fallthrough` as the
+last direct statement of a non-final case.
 
 ```ts
-switch (value) {
+switch (n) {
   case 0 {
-    initialize();
-    fallthrough;
+    text += "A"
   }
-  case 1 { run(); }
-  default { stop(); }
+  case 1 {
+    text += "B"
+  }
+  default {
+    text += "D"
+  }
 }
 ```
 
-Fallthrough does not evaluate the next case expressions. The next body joins
-direct selection and fallthrough paths; nullable proofs must hold on both.
+When `n` is `0`, this appends `"A"`.
+
+### TS-style switch
+
+Put a colon after each case label. At the end of the body, execution continues
+into the next body. Use `break` to leave the switch. You can add a block after
+the colon, as in `case 0: { ... }`, and it still follows the TS-style rule.
+
+```ts
+switch (n) {
+  case 0:
+    text += "A"
+  case 1:
+    text += "B"
+    break
+  default:
+    text += "D"
+}
+```
+
+When `n` is `0`, this appends `"AB"`. The `break` in `case 1` exits the
+switch before the `default` body.
+
+### Case evaluation and control flow
+
+Case expressions are tested in source order until the first match. Mutations
+and Task consumption in a case expression affect subsequent tests and the
+selected body. In a grouped case such as `case 0, await task`, a match on `0`
+skips the await.
+
+Fallthrough enters the next body without evaluating its label. The checker
+joins direct selection and fallthrough paths, and nullable proofs must hold on
+both. `return` and `throw` transfer control as usual.
 
 ## Go interface type switch
 
@@ -163,6 +190,48 @@ switch (input) {
 ```
 
 A type switch requires a Go interface subject. Typed cases use `const` or `let`, and each narrowed binding exists only in its case. `_` may ignore the value. Duplicate or impossible types, mixed value/type cases, and duplicate `nil`/`default` are rejected. Type switches do not support fallthrough.
+
+## Match expressions
+
+`match (value) { ... }` evaluates its subject once. Arms are tried in source
+order. Bindings in a matching arm are available to its optional `if (condition)`
+guard and the expression after `=>`. The first arm whose pattern and guard
+succeed supplies the result. Use a comma or a newline between arms.
+
+```ts
+struct Request {
+  public path: string
+  public params: int[]
+}
+
+function route(request: Request): string {
+  return match (request) {
+    case { path: "/health" } => "health"
+    case { path: re"^/items/\d+$", params: [const id] } if (id > 0) => "item"
+    default => "not found"
+  }
+}
+```
+
+| Pattern | Meaning |
+| --- | --- |
+| `1`, `"text"`, `true` | Compare a literal with a value of a compatible type |
+| `re"^/items/\d+$"` | Match a [regular expression](./types-and-values#regular-expressions) against a `string` |
+| `_`, `const name` | Accept any value and optionally give it a name |
+| `null`, `const name!` | Match null or bind a non-null value of a nullable type |
+| `{ x: const x, y: 0 }` | Check selected direct fields of a value struct or object |
+| `[const first, _]` | Match exactly two elements of an array or slice |
+
+Field and sequence patterns can be nested. Each arm produces one value of
+the surrounding expected type. When there is no surrounding type annotation,
+the first arm supplies the result type.
+
+Every possible subject value must be covered. Use a final `default` or
+`case _` for a fallback. Both boolean literals cover a boolean. The pair
+`null` and `const value!` covers a nullable type. A record with only
+unconditional field patterns or a fixed-length array with only unconditional
+element patterns also covers its subject type. Guarded arms do not count
+toward exhaustiveness.
 
 ## Channel `select`
 

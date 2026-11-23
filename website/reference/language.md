@@ -272,7 +272,6 @@ while (condition) { }
 for (let i = 0; i < limit; i++) { }
 for (const value of values) { }
 for (const [key, value] of map) { }
-switch (value) { case item { } default { } }
 break; continue; goto label; label: statement;
 defer call();
 ```
@@ -286,7 +285,34 @@ Leaving those blocks does not run their source defers. Each nested function or
 arrow owns its own defers; `finally` still runs when its exception block exits.
 See the [executable example](../examples/control-flow-boundaries#defer-inside-exception-blocks).
 
-Value switch cases accept comma-separated expressions. Cases stop after the first match unless the final statement is explicit `fallthrough;`; fallthrough is not available in a type switch.
+### Go-style switch
+
+```ts
+switch (value) {
+  case item { handle(); }
+  default { fallback(); }
+}
+```
+
+Reaching the end of a case body exits the switch. Use a final `fallthrough;`
+in a non-final case to enter the next body.
+
+### TS-style switch
+
+```ts
+switch (value) {
+  case item: handle(); break;
+  default: fallback();
+}
+```
+
+Reaching the end of a case body enters the next body. `break` exits the
+switch. The colon also selects this behavior in `case item: { handle(); }`.
+
+### Shared value switch rules
+
+Use the same form for all clauses in a switch. Each body has its own local
+scope. Value switch cases accept comma-separated expressions.
 
 An untyped subject defaults before its cases are checked (`int` for integer
 constants, `float` for floating-point constants). Constant cases include scalar
@@ -301,6 +327,8 @@ rejected by Kinmokusei.
 
 <<< ../snippets-invalid/switch-rounded-duplicate.km{ts}
 
+### Go interface type switch
+
 ```ts
 switch (reader) {
   case const text as *strings.Reader { return text.Len(); }
@@ -310,6 +338,8 @@ switch (reader) {
 ```
 
 A type switch requires a Go interface subject. Each typed binding is scoped to its case and may be `const`, `let`, or `_`. Duplicate/impossible types, duplicate `nil`/`default`, and mixing typed/value cases are rejected.
+
+### Labels and jumps
 
 Labels may target loops, switches, selects, or ordinary statements as appropriate. `goto` cannot enter a nested block, jump over a declaration, cross a `try`/`catch`/`finally` boundary, or leave a task unconsumed. Updates are statements, not expressions.
 

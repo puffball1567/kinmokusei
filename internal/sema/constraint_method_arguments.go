@@ -10,26 +10,43 @@ import (
 // those signatures have source-shape metadata, reject arguments whose round
 // trip would erase nullability or native class/interface identity.
 func (c *Checker) checkConstraintMethodArguments(origin *gotypes.Named, arguments []Type, span source.Span) bool {
+	return c.checkRawConstraintMethodArguments(c.rawConstraintMethodArguments(origin, arguments), span)
+}
+
+func (c *Checker) rawConstraintMethodArguments(origin *gotypes.Named, arguments []Type) []Type {
 	contract := underlyingGoInterface(origin)
 	if contract == nil || contract.NumMethods() == 0 {
-		return true
+		return nil
 	}
+	methods := constraintMethods(contract)
+	if symbol := c.interfaces[origin.Obj().Name()]; symbol != nil && symbol.goNamed == origin && symbol.constraintSourceMethods != nil {
+		// Source method shapes survive substitution. Keep the Go interop guard
+		// only for operands whose methods still have raw Go signatures.
+		methods = symbol.constraintRawMethods
+	}
+	var result []Type
 	for i, argument := range arguments {
 		if i >= origin.TypeParams().Len() {
 			break
 		}
 		parameter := origin.TypeParams().At(i)
 		used := false
-		for j := 0; j < contract.NumMethods(); j++ {
-			signature := contract.Method(j).Type()
+		for _, method := range methods {
+			signature := method.Type()
 			// Replacing one identity detects its use even inside nested named
 			// generic types, without following recursive named underlyings.
 			replaced := substituteConstraintType(signature, map[gotypes.Type]gotypes.Type{parameter: gotypes.Typ[gotypes.Int]})
 			used = used || !gotypes.Identical(signature, replaced)
 		}
-		if !used {
-			continue
+		if used {
+			result = append(result, argument)
 		}
+	}
+	return result
+}
+
+func (c *Checker) checkRawConstraintMethodArguments(arguments []Type, span source.Span) bool {
+	for _, argument := range arguments {
 		storage, ok := goTypeOf(argument)
 		if ok && goShapedConstraintMethodArgument(argument) {
 			if restored, err := kinmokuseiTypeFromGo(storage); err == nil && sameConstraintNullability(argument, restored) {

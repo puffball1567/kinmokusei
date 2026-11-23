@@ -124,7 +124,7 @@ func TestSourceTypeSetConstraintFailureMatrix(t *testing.T) {
 		{"overlap exact and underlying", `constraint Bad = ~int | int;`, "overlaps an earlier term"},
 		{"duplicate exact", `constraint Bad = string | string;`, "overlaps an earlier term"},
 		{"tilde named type", `type Score = distinct int; constraint Bad = ~Score;`, "must name its own underlying type"},
-		{"interface term", `interface Reader { function read(): int; } constraint Bad = Reader;`, "must be a concrete type, not an interface"},
+		{"underlying interface term", `interface Reader { function read(): int; } constraint Bad = ~Reader;`, "not interfaces"},
 		{"too many terms", "constraint Bad = " + fixedArrayConstraintTerms(101) + ";", "cannot contain more than 100 terms"},
 	}
 	for _, test := range tests {

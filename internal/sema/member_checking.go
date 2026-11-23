@@ -14,6 +14,7 @@ func (c *Checker) checkMember(expr *ast.MemberExpr) Type {
 
 func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 	expr.BoundMethod = false
+	expr.EmbeddedPath = nil
 	if identifier, ok := expr.Object.(*ast.IdentifierExpr); ok {
 		if c.inFieldInitializer && identifier.Name == "this" {
 			if c.fieldInitializerStatic {
@@ -78,7 +79,8 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.Constant = true
 			return c.resolveNativeType(c.nativeTypes[identifier.Name])
 		}
-		if class := c.classes[identifier.Name]; !shadowed && class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
+		_, typeParameter := c.lookupTypeParameter(identifier.Name)
+		if class := c.classes[identifier.Name]; !shadowed && !typeParameter && class != nil && c.isTopLevelAllowed(identifier.Span, identifier.Name) {
 			if field, exists := class.fields[expr.Name]; exists && field.static {
 				field = c.resolveStaticFieldType(field)
 				expr.Static, expr.Addressable = true, true
@@ -106,7 +108,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			}
 			method, exists := class.methods[expr.Name]
 			if !exists || !method.static {
-				c.report(expr.Span, fmt.Sprintf("class %s has no static method %q", identifier.Name, expr.Name))
+				if receiver, ref, found := c.nativeMethodExpressionReceiver(identifier); found {
+					return c.checkNativeMethodExpression(expr, receiver, ref)
+				}
 				return Type{Kind: Invalid, Name: "<invalid>"}
 			}
 			if !c.canAccessClassMember(method.visibility, method.declaringClass) {
@@ -153,6 +157,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				return c.checkSourceConstraintMember(expr, bound, write)
 			}
 		}
+	}
+	if object.Kind == Regex {
+		return c.checkRegexMember(expr, write)
 	}
 	if object.Kind == Object {
 		field, ok := object.Fields[expr.Name]
@@ -208,6 +215,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.BoundMethod = true
 			expr.VirtualDispatch = method.virtual
 			expr.VirtualOwner = method.virtualOwner
+			if !method.virtual && !method.static {
+				c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
+			}
 			if len(method.typeInfo.TypeParameters) != 0 {
 				expr.GenericMethod = true
 				expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)
@@ -233,40 +243,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		structPointer = true
 	}
 	if structObject.Kind == Struct {
-		structure := c.structs[structObject.Name]
-		if structure == nil {
-			return Type{Kind: Invalid, Name: "<invalid>"}
-		}
-		if field, ok := structure.fields[expr.Name]; ok {
-			expr.ResolvedName = field.goName
-			expr.ResolvedDeclaration = field.declarationSpan
-			expr.Addressable = structPointer || c.isAddressableExpression(expr.Object)
-			c.recordLayoutFieldReceiver(expr, object)
-			return substituteNativeTypeParameters(field.typeInfo, nativeStructBindings(structure, structObject))
-		}
-		if method, ok := structure.methods[expr.Name]; ok {
-			c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
-			if method.pointerReceiver && !structPointer && !c.isAddressableExpression(expr.Object) {
-				c.report(expr.Span, fmt.Sprintf("pointer method %q requires an addressable %s value", expr.Name, structObject.String()))
-				return Type{Kind: Invalid, Name: "<invalid>"}
-			}
-			expr.ResolvedName = method.goName
-			expr.ResolvedDeclaration = method.declarationSpan
-			expr.BoundMethod = true
-			if len(method.typeInfo.TypeParameters) != 0 {
-				expr.GenericMethod = true
-				expr.ResolvedName = staticMethodGoName(structObject.Name, method.goName, method.visibility)
-				expr.GenericReceiverAddress = method.pointerReceiver && !structPointer
-				if c.directCallCallee != expr {
-					c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
-				}
-			}
-			callable := c.substituteNativeMethodOwnerTypeParameters(method.typeInfo, nativeStructBindings(structure, structObject))
-			recordReceiverContracts(expr, structObject, object, callable, method)
-			return callable
-		}
-		c.report(expr.Span, fmt.Sprintf("struct %s has no field %q or method with that name", structObject.Name, expr.Name))
-		return Type{Kind: Invalid, Name: "<invalid>"}
+		return c.checkNativeStructMember(expr, object, structObject, structPointer)
 	}
 	nativeObject := object
 	nativePointer := false
@@ -291,6 +268,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 				}
 				method, exists := symbol.methods[expr.Name]
 				if !exists {
+					if promoted := c.structMemberSet(object, false)[expr.Name]; promoted.found() {
+						return c.checkSelectedStructMember(expr, object, nativeObject, nativePointer, promoted)
+					}
 					if underlying.Kind == Struct {
 						c.report(expr.Span, fmt.Sprintf("defined type %s has no field or method %q", nativeObject.String(), expr.Name))
 					} else {
@@ -330,6 +310,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 		}
 		expr.ResolvedName = method.goName
 		expr.ResolvedDeclaration = method.declarationSpan
+		if method.goDeclaration != nil {
+			c.recordGoReference(expr.NameSpan, method.goDeclaration)
+		}
 		expr.BoundMethod = true
 		return substituteNativeTypeParameters(method.typeInfo, nativeInterfaceBindings(contract, object))
 	}
@@ -380,6 +363,7 @@ func (c *Checker) checkSuperMember(expr *ast.MemberExpr) Type {
 	expr.VirtualOwner = method.virtualOwner
 	expr.ResolvedDeclaration = method.declarationSpan
 	expr.BoundMethod = true
+	c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 	if len(method.typeInfo.TypeParameters) != 0 {
 		expr.GenericMethod = true
 		expr.ResolvedName = staticMethodGoName(method.declaringClass, method.goName, method.visibility)
