@@ -272,7 +272,7 @@ while (condition) { }
 for (let i = 0; i < limit; i++) { }
 for (const value of values) { }
 for (const [key, value] of map) { }
-switch (value) { case item { } default { } }
+switch (value) { case item: handle(); break; default: fallback(); }
 break; continue; goto label; label: statement;
 defer call();
 ```
@@ -286,7 +286,11 @@ Leaving those blocks does not run their source defers. Each nested function or
 arrow owns its own defers; `finally` still runs when its exception block exits.
 See the [executable example](../examples/control-flow-boundaries#defer-inside-exception-blocks).
 
-Value switch cases accept comma-separated expressions. Cases stop after the first match unless the final statement is explicit `fallthrough;`; fallthrough is not available in a type switch.
+Value switch cases accept comma-separated expressions. In a colon-delimited
+switch, reaching a clause's end enters the next body directly. `break` exits
+the switch. Braced clauses fall through only with a final explicit
+`fallthrough;`. All clauses in a switch use the same form, and each body has
+its own local scope.
 
 An untyped subject defaults before its cases are checked (`int` for integer
 constants, `float` for floating-point constants). Constant cases include scalar

@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Use TypeScript-style `case ...:` and `default:` in value switches. A case
+  that reaches its end continues into the next clause, and `break` exits the
+  switch. Existing braced clauses keep explicit fallthrough.
+
 - Write checked regular-expression literals with `re"..."` and use `Regex`
   to test text, extract capture groups, or replace matches.
 

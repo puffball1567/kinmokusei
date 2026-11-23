@@ -711,12 +711,23 @@ func (s *SelectStmt) GetSpan() source.Span { return s.Span }
 type ValueSwitchCase struct {
 	Values       []Expression
 	Default      bool
+	ColonBody    bool
 	FallsThrough bool
 	Body         *BlockStmt
 	Span         source.Span
 }
 
 func (c *ValueSwitchCase) GetSpan() source.Span { return c.Span }
+
+func (c *ValueSwitchCase) ExplicitFallthrough() *BranchStmt {
+	if c.Body != nil && len(c.Body.Statements) != 0 {
+		last := c.Body.Statements[len(c.Body.Statements)-1]
+		if branch, ok := last.(*BranchStmt); ok && branch.Kind == FallthroughBranch {
+			return branch
+		}
+	}
+	return nil
+}
 
 // ValueSwitchStmt maps directly to a Go expression switch. The subject is
 // evaluated once and case expressions are considered from left to right.

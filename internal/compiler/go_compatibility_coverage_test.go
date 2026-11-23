@@ -85,7 +85,7 @@ var implementedGoCompatibilityContracts = []string{
 	"goto, forward and backward labels, labeled break and continue, labeled loops and switches, and control-transfer result behavior",
 	"explicit comparable constraints on native generic functions, structs, interfaces, and defined types with inferred and explicit calls and constrained map keys",
 	"checked map lookup declarations and reassignment across ordinary, generic, defined, and imported named Go maps, including nil, empty, present-zero, and missing cases with single evaluation",
-	"value-switch fallthrough chains, default placement, unconditional next-clause entry, return flow, and generated Go behavior",
+	"explicit and implicit value-switch fallthrough chains, default placement, unconditional next-clause entry, return flow, and generated Go behavior",
 	"signed narrow int8/int16 constants, conversions, arithmetic, overflow, division, bitwise operations, shifts, updates, ordering, collections, defined types, generics, Go API shape, and panic behavior",
 	"machine-width uint plus uint8/byte alias identity across constants, conversions, arithmetic, overflow, division, bitwise operations, shifts, updates, collections, defined types, generics, Go API shape, and panic behavior",
 	"native integer enums with automatic and explicit values, signed and unsigned fixed-width boundaries, namespace members, conversions, switches, map keys, generics, ordering, value and pointer receiver methods, linked modules, and Go API shape",
