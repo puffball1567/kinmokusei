@@ -189,7 +189,7 @@ const sized = makeMap[string, int](capacity);
 
 Length is evaluated before capacity, exactly once, independently of Go toolchain intrinsic lowering.
 
-::: info Development build
+::: info Available since v0.4.13
 For slice allocation, a single call returning two integers can supply both
 length and capacity. The first result is the length. The producer runs once,
 and invalid dynamic sizes panic as in Go. For element types with unsafe zero

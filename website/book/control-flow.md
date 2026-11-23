@@ -115,47 +115,63 @@ range iteration, retains ordinary function-call exception handling.
 
 ## Value switch
 
+The subject evaluates once. The first matching case starts execution, and
+`default` is selected when no case matches. Each case has its own local scope.
+Use one form throughout a switch.
+
+### Go-style switch
+
+Put a braced body directly after each case label. At the end of the body,
+execution leaves the switch. To enter the next body, put `fallthrough` as the
+last direct statement of a non-final case.
+
 ```ts
-switch (method) {
-  case "GET":
-  case "HEAD":
-    read()
-    break
-  case "POST":
-    write()
+switch (n) {
+  case 0 {
+    text += "A"
+  }
+  case 1 {
+    text += "B"
+  }
+  default {
+    text += "D"
+  }
+}
+```
+
+When `n` is `0`, this appends `"A"`.
+
+### TS-style switch
+
+Put a colon after each case label. At the end of the body, execution continues
+into the next body. Use `break` to leave the switch. You can add a block after
+the colon, as in `case 0: { ... }`, and it still follows the TS-style rule.
+
+```ts
+switch (n) {
+  case 0:
+    text += "A"
+  case 1:
+    text += "B"
     break
   default:
-    reject()
+    text += "D"
 }
 ```
 
-The subject evaluates once. The first matching case starts execution. Reaching
-the end of a colon clause runs the next clause's body without evaluating its
-label. Use `break` to exit the switch. `return` and `throw` still transfer
-control as usual. Each case has its own local scope.
+When `n` is `0`, this appends `"AB"`. The `break` in `case 1` exits the
+switch before the `default` body.
 
-Mutations and Task consumption in a case expression affect subsequent case
-tests and the selected body. `default` is entered after every test fails,
-regardless of where it appears in the source. A grouped case can match before
-its last expression: in `case 0, await task`, the Task is not consumed if the
-subject matches `0`. The checker includes each possible first-match path.
+### Case evaluation and control flow
 
-The braced form uses explicit fallthrough. Place `fallthrough;` as the final
-direct statement of a non-final case. Use one clause form throughout a switch.
+Case expressions are tested in source order until the first match. Mutations
+and Task consumption in a case expression affect subsequent tests and the
+selected body. In a grouped case such as `case 0, await task`, a match on `0`
+skips the await.
 
-```ts
-switch (value) {
-  case 0 {
-    initialize();
-    fallthrough;
-  }
-  case 1 { run(); }
-  default { stop(); }
-}
-```
-
-For both forms, the next body joins direct selection and fallthrough paths.
-Nullable proofs must hold on both paths.
+Fallthrough enters the next body without evaluating its label. The checker
+joins direct selection and fallthrough paths, and nullable proofs must hold on
+both. `return` and `throw` transfer control as usual.
 
 ## Go interface type switch
 

@@ -106,11 +106,10 @@ cannot. Nullable flow and constructor initialization are checked conservatively,
 and structured tasks require explicit consumption. A JSON API using direct
 `net/http` and `encoding/json` interop already compiles and runs.
 
-v0.4.12 adds optional chaining, lazy defaults and contextual generic function
-values, and strengthens null/zero-value safety across collections, Result and
-Go boundaries. It also corrects evaluation/defer/iterator behavior, preserves
-manifest formatting and strengthens C ABI compatibility checks. See the
-[v0.4.12 release summary](website/project/releases.md#v0412-highlights).
+v0.4.13 adds checked regular-expression literals, exhaustive pattern matching,
+and TS-style switch clauses. It adds named results, structural generic bounds,
+and struct embedding across Kinmokusei and Go. See the
+[v0.4.13 release summary](website/project/releases.md#v0413-highlights).
 
 v0.4.10 preserves native contracts in generic class downcasts, adds generic
 observations and JSON snapshots, and provides staged input construction through

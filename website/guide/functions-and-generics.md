@@ -157,7 +157,7 @@ Slices, maps, and functions do not satisfy it. Source constraints can also name 
 
 ### Source struct terms
 
-::: info Development build
+::: info Available since v0.4.13
 Source structs can be exact constraint terms, including generic instances,
 aliases and forward references.
 :::
@@ -226,7 +226,7 @@ the Go-interoperability boundary.
 
 ### Composed interface bounds
 
-::: info Development build
+::: info Available since v0.4.13
 Named and method-only anonymous source interfaces can be operands in
 `constraint` declarations, alongside type sets, `comparable` and Go interfaces.
 :::
@@ -269,7 +269,7 @@ names; bound-method references support definition lookup and rename.
 
 An imported Go method can satisfy the bound only if its source-visible signature
 matches. For example, Go `String() string` matches `String(): bstring`, not
-`String(): string`. Development builds also support these anonymous interfaces
+`String(): string`. v0.4.13 also support these anonymous interfaces
 in [composed bounds](#composed-interface-bounds).
 Anonymous getter/setter or embedded-interface entries are not part of this form.
 
