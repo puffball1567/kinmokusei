@@ -77,6 +77,7 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			expr.ResolvedName = enumMemberGoName(identifier.Name, member.Name)
 			expr.Static = true
 			expr.Constant = true
+			c.checkGeneratedNameShadowing(generatedIdentifier(expr.ResolvedName), "enum member", expr.Span)
 			return c.resolveNativeType(c.nativeTypes[identifier.Name])
 		}
 		_, typeParameter := c.lookupTypeParameter(identifier.Name)

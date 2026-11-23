@@ -6,6 +6,38 @@ import (
 	"testing"
 )
 
+func TestEnumMatchEditor(t *testing.T) {
+	t.Parallel()
+	input := `enum Status { Waiting, Ready }
+function ready(status: Status): boolean {
+  return match(status) {
+    case Status.Ready => true
+    default => false
+  }
+}
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	use := positionOf(input, "Ready =>", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, use, ""),
+		requestAt("textDocument/rename", 3, uri, use, `"newName":"Active"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(0) {
+		t.Fatalf("definition=%v", messages[2])
+	}
+	rename, ok := messages[3]["result"].(map[string]any)
+	if !ok || len(rename["changes"].(map[string]any)[uri].([]any)) != 2 {
+		t.Fatalf("rename=%v", messages[3])
+	}
+	completionInput := strings.Replace(input, "Status.Ready =>", "Status. =>", 1)
+	items := completionLabels(completionItemsAt(t, path, completionInput, use.Line, use.Character))
+	if items["Ready"] == nil || items["Waiting"] == nil {
+		t.Fatalf("enum pattern completion=%v", items)
+	}
+}
+
 func TestRegexAndMatchEditor(t *testing.T) {
 	t.Parallel()
 	input := `struct Rule { public pattern: Regex }

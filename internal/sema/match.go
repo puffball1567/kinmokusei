@@ -2,12 +2,15 @@ package sema
 
 import (
 	"fmt"
+	"go/constant"
+	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
 func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 	expr.ResultType = ast.TypeRef{}
+	expr.EnumExhaustive = false
 	value := c.singleValue(c.checkExpression(expr.Value), expr.Value.GetSpan())
 	value = c.checkSwitchTag(expr.Value, value)
 	switch value.Kind {
@@ -71,8 +74,7 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 		c.popScope()
 		continuing = append(continuing, c.snapshotNullableFlow())
 	}
-	if !covered.exhaustive() {
-		c.report(expr.Span, "non-exhaustive match; add a default arm or cover every possible value")
+	if !covered.exhaustive() && !c.checkMatchExhaustiveness(expr, value) {
 		continuing = append(continuing, remaining)
 	}
 	c.restoreNullableFlow(c.mergeNullableFlow(entry, continuing...))
@@ -128,6 +130,46 @@ func (c *matchCoverage) add(pattern *ast.MatchPattern, value Type, total bool) {
 	}
 }
 
+func (c *Checker) matchEnum(value Type) *enumSymbol {
+	if symbol := c.nativeDefinedSymbol(value); symbol != nil {
+		return c.enums[symbol.declaration.Name]
+	}
+	return nil
+}
+
+func (c *Checker) checkMatchExhaustiveness(expr *ast.MatchExpr, value Type) bool {
+	enum := c.matchEnum(value)
+	if enum == nil {
+		c.report(expr.Span, "non-exhaustive match; add a default arm or cover every possible value")
+		return false
+	}
+	c.ensureEnumChecked(enum.declaration)
+	covered := make(map[string]bool, len(enum.declaration.Members))
+	for _, arm := range expr.Arms {
+		if arm.Guard != nil || arm.Pattern.Kind != ast.MatchLiteral {
+			continue
+		}
+		if info, known := c.scalarConstant(arm.Pattern.Literal); known {
+			if integer := constant.ToInt(info.Value); integer.Kind() == constant.Int {
+				covered[integer.ExactString()] = true
+			}
+		}
+	}
+	var missing []string
+	for _, member := range enum.declaration.Members {
+		if member.ResolvedValue != "" && !covered[member.ResolvedValue] {
+			missing = append(missing, member.Name)
+			covered[member.ResolvedValue] = true // report one name for each missing value
+		}
+	}
+	if len(missing) != 0 {
+		c.report(expr.Span, "non-exhaustive match; missing enum members: "+strings.Join(missing, ", ")+"; add an unguarded arm or a default")
+		return false
+	}
+	expr.EnumExhaustive = true
+	return true
+}
+
 func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted bool) bool {
 	switch p.Kind {
 	case ast.MatchWildcard:
@@ -176,6 +218,14 @@ func (c *Checker) checkMatchLiteral(literal ast.Expression, value Type) {
 		return
 	}
 	actual := c.checkExpressionExpected(literal, value)
+	if member, ok := literal.(*ast.MemberExpr); ok && actual.Kind != Invalid {
+		enum := c.matchEnum(actual)
+		if enum == nil || !member.Constant || enum.members[member.Name] == nil ||
+			member.ResolvedDeclaration != enum.members[member.Name].NameSpan {
+			c.report(member.Span, "qualified match pattern must name an enum member")
+			return
+		}
+	}
 	c.requireAssignable(value, actual, literal.GetSpan())
 	if value.Kind != Invalid && !value.IsComparable() {
 		c.report(literal.GetSpan(), fmt.Sprintf("match literal cannot be compared with %s", value.String()))

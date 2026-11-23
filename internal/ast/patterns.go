@@ -27,10 +27,11 @@ func (*RegexExpr) expression()            {}
 func (e *RegexExpr) GetSpan() source.Span { return e.Span }
 
 type MatchExpr struct {
-	Value      Expression
-	Arms       []MatchArm
-	ResultType TypeRef
-	Span       source.Span
+	Value          Expression
+	Arms           []MatchArm
+	ResultType     TypeRef
+	EnumExhaustive bool // all declared enum values are covered without a fallback
+	Span           source.Span
 }
 
 func (*MatchExpr) expression()            {}

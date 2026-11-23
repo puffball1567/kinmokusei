@@ -25,6 +25,13 @@ func TestRegexAndMatchDiagnostics(t *testing.T) {
 		{"unknown record field", `struct Item { public id: int; } function f(x: Item): int { return match(x) { case { ids: _ } => 1, default => 0 } }`, "has no direct record pattern field"},
 		{"repeated field", `function f(x: { id: int }): int { return match(x) { case { id: _, id: _ } => 1 } }`, "duplicate record pattern field"},
 		{"raw nil pattern", `function f(x: int): int { return match(x) { case null => 0, default => 1 } }`, "null match pattern requires a nullable value"},
+		{"wrong enum type", `enum State { On } enum Other { On } function f(x: State): int { return match(x) { case Other.On => 1, default => 0 } }`, "cannot use Other as State"},
+		{"unknown enum member", `enum State { On } function f(x: State): int { return match(x) { case State.Off => 1, default => 0 } }`, `has no member "Off"`},
+		{"runtime selector", `function f(x: int, item: { code: int }): int { return match(x) { case item.code => 1, default => 0 } }`, "qualified match pattern must name an enum member"},
+		{"shadowed enum", `enum State { On } function f(x: State, State: { On: State }): int { return match(x) { case State.On => 1, default => 0 } }`, "qualified match pattern must name an enum member"},
+		{"shadowed generated member", `enum State { On } function f(x: State, StateOn: State): int { return match(x) { case State.On => 1 } }`, `shadows generated enum member "StateOn"`},
+		{"missing enum values", `enum State { On, Enabled = 0, Off, Unknown } function f(x: State): int { return match(x) { case State.Off => 0 } }`, "missing enum members: On, Unknown;"},
+		{"guarded enum case", `enum State { On } function f(x: State, enabled: boolean): int { return match(x) { case State.On if (enabled) => 1 } }`, "missing enum members: On;"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
