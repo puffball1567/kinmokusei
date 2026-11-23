@@ -49,6 +49,7 @@ func TestBranchTargetsAllowSurvivingTasks(t *testing.T) {
 	for name, body := range map[string]string{
 		"outer task":                   `const task=go work();while(flag){break;}await task;`,
 		"goto retains outer scope":     `const task=go work();switch(1){default{goto done;}}done:await task;`,
+		"colon goto retains scope":     `const task=go work();switch(1){default:goto done;}done:await task;`,
 		"loop task outside switch":     `while(flag){const task=go work();switch(1){default{break;}}await task;break;}`,
 		"loop task outside inner loop": `while(flag){const task=go work();while(flag){break;}await task;break;}`,
 		"consumed before break":        `while(flag){const task=go work();await task;if(flag){break;}}`,

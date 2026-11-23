@@ -1550,20 +1550,26 @@ An ordinary switch compares one value against case expressions:
 
 ```ts
 switch (status) {
-  case 200 { handleOK(); }
-  case 400, 404 { handleClientError(); }
-  default { handleOther(); }
+  case 200:
+    handleOK();
+    break;
+  case 400, 404:
+    handleClientError();
+    break;
+  default:
+    handleOther();
 }
 ```
 
 The subject is evaluated exactly once. Case expressions are evaluated in source
-order only until a match is found. Cases do not fall through implicitly.
-Explicit `fallthrough;` as the final direct statement of a non-final case enters
-the next clause unconditionally without evaluating that clause's case
-expressions. It may also enter a following `default` clause, and a non-final
-`default` may fall through to the clause after it. `fallthrough` is rejected in
-the final case, nested blocks, `if`, type switches, and `select`. `break` exits
-the switch explicitly when an early exit from a case block is useful. The subject
+order only until a match is found. Colon-delimited clauses fall through when
+execution reaches the end of the body. Braced clauses use explicit
+`fallthrough;` as the final direct statement of a non-final case. Use the same
+clause form across the switch. Both forms give each body its own local scope.
+Fallthrough enters the next clause without evaluating its case expressions,
+including when it enters or leaves a non-final `default`. `break` exits the
+switch. Explicit `fallthrough` is rejected in the final case, nested blocks,
+`if`, type switches, and `select`. The subject
 and every case must be comparable under the same rules as generated Go.
 Duplicate constant cases, incompatible values, non-comparable types, and
 multiple defaults are source errors. Class cases compare explicit reference

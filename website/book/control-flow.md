@@ -5,7 +5,8 @@ description: Learn conditions, loops, switches, pattern matching, channel select
 
 # Control flow
 
-Control-flow syntax is explicit: conditions use parentheses, bodies use braces, and conditions must be `boolean`. There is no truthiness and no implicit fallthrough.
+Conditions use parentheses and must be `boolean`. Statements usually use
+braced bodies. Value switches also support colon-delimited case bodies.
 
 ## `if` and `else`
 
@@ -116,13 +117,22 @@ range iteration, retains ordinary function-call exception handling.
 
 ```ts
 switch (method) {
-  case "GET", "HEAD" { return "read"; }
-  case "POST" { return "write"; }
-  default { return "unsupported"; }
+  case "GET":
+  case "HEAD":
+    read()
+    break
+  case "POST":
+    write()
+    break
+  default:
+    reject()
 }
 ```
 
-The subject evaluates once. Case expressions are tested in source order and stop after the first match. A case body does not enter the next case automatically.
+The subject evaluates once. The first matching case starts execution. Reaching
+the end of a colon clause runs the next clause's body without evaluating its
+label. Use `break` to exit the switch. `return` and `throw` still transfer
+control as usual. Each case has its own local scope.
 
 Mutations and Task consumption in a case expression affect subsequent case
 tests and the selected body. `default` is entered after every test fails,
@@ -130,7 +140,8 @@ regardless of where it appears in the source. A grouped case can match before
 its last expression: in `case 0, await task`, the Task is not consumed if the
 subject matches `0`. The checker includes each possible first-match path.
 
-Explicit `fallthrough;` must be the final direct statement of a non-final value-switch case:
+The braced form uses explicit fallthrough. Place `fallthrough;` as the final
+direct statement of a non-final case. Use one clause form throughout a switch.
 
 ```ts
 switch (value) {
@@ -143,8 +154,8 @@ switch (value) {
 }
 ```
 
-Fallthrough does not evaluate the next case expressions. The next body joins
-direct selection and fallthrough paths; nullable proofs must hold on both.
+For both forms, the next body joins direct selection and fallthrough paths.
+Nullable proofs must hold on both paths.
 
 ## Go interface type switch
 

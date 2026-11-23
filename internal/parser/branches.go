@@ -133,14 +133,12 @@ func (p *Parser) parseSwitch(start token.Token) ast.Statement {
 					clauses = append(clauses, parsedSwitchClause{typeCase: clause})
 					hasTypeCase = true
 				}
-			} else if clause := p.parseValueSwitchCase(caseStart); clause != nil {
+			} else if clause := p.parseValueSwitchCase(caseStart, false); clause != nil {
 				clauses = append(clauses, parsedSwitchClause{valueCase: clause})
 			}
 		} else if p.match(token.Default) {
-			clauseStart := p.previous()
-			body := p.parseBlock()
-			if body != nil {
-				clauses = append(clauses, parsedSwitchClause{valueCase: &ast.ValueSwitchCase{Default: true, Body: body, Span: clauseStart.Span.Merge(body.Span)}})
+			if clause := p.parseValueSwitchCase(p.previous(), true); clause != nil {
+				clauses = append(clauses, parsedSwitchClause{valueCase: clause})
 			}
 		} else {
 			p.report(p.peek(), "expected 'case' or 'default' in switch")
@@ -159,6 +157,11 @@ func (p *Parser) parseSwitch(start token.Token) ast.Statement {
 		stmt := &ast.ValueSwitchStmt{Value: value, Span: span}
 		for _, clause := range clauses {
 			if clause.valueCase != nil {
+				if len(stmt.Cases) != 0 && clause.valueCase.ColonBody != stmt.Cases[0].ColonBody {
+					p.diagnostics = append(p.diagnostics, diagnostic.Diagnostic{
+						Message: "value switch cannot mix ':' clauses and braced clauses", Span: clause.valueCase.Span,
+					})
+				}
 				stmt.Cases = append(stmt.Cases, *clause.valueCase)
 			}
 		}
@@ -173,6 +176,11 @@ func (p *Parser) parseSwitch(start token.Token) ast.Statement {
 		valueClause := clause.valueCase
 		if valueClause == nil {
 			continue
+		}
+		if valueClause.ColonBody {
+			p.diagnostics = append(p.diagnostics, diagnostic.Diagnostic{
+				Message: "':' clauses are only supported in value switches", Span: valueClause.Span,
+			})
 		}
 		if valueClause.Default {
 			stmt.Cases = append(stmt.Cases, ast.TypeSwitchCase{Default: true, Body: valueClause.Body, Span: valueClause.Span})
@@ -213,9 +221,9 @@ func (p *Parser) parseTypeSwitchBindingCase(start token.Token) *ast.TypeSwitchCa
 	return &ast.TypeSwitchCase{Constant: constant, Name: name.Lexeme, NameSpan: name.Span, Type: caseType, Body: body, Span: start.Span.Merge(body.Span)}
 }
 
-func (p *Parser) parseValueSwitchCase(start token.Token) *ast.ValueSwitchCase {
-	clause := &ast.ValueSwitchCase{}
-	for {
+func (p *Parser) parseValueSwitchCase(start token.Token, defaultCase bool) *ast.ValueSwitchCase {
+	clause := &ast.ValueSwitchCase{Default: defaultCase}
+	for !defaultCase {
 		value := p.parseExpressionBeforeBlock()
 		if value == nil {
 			return nil
@@ -224,18 +232,40 @@ func (p *Parser) parseValueSwitchCase(start token.Token) *ast.ValueSwitchCase {
 		if !p.match(token.Comma) {
 			break
 		}
-		if p.at(token.LeftBrace) {
+		if p.at(token.LeftBrace) || p.at(token.Colon) {
 			p.report(p.peek(), "expected switch case value after ','")
 			return nil
 		}
 	}
-	body := p.parseBlock()
-	if body == nil {
+	clause.ColonBody = p.match(token.Colon)
+	if clause.ColonBody {
+		clause.Body = p.parseColonSwitchBody(p.previous())
+	} else {
+		clause.Body = p.parseBlock()
+	}
+	if clause.Body == nil {
 		return nil
 	}
-	clause.Body = body
-	clause.Span = start.Span.Merge(body.Span)
+	clause.Span = start.Span.Merge(clause.Body.Span)
 	return clause
+}
+
+func (p *Parser) parseColonSwitchBody(start token.Token) *ast.BlockStmt {
+	body := &ast.BlockStmt{}
+	for !p.at(token.Case) && !p.at(token.Default) && !p.at(token.RightBrace) && !p.at(token.EOF) {
+		if p.match(token.Semicolon) {
+			continue
+		}
+		before := p.current
+		if statement := p.parseStatement(); statement != nil {
+			body.Statements = append(body.Statements, statement)
+		}
+		if p.current == before {
+			p.advance()
+		}
+	}
+	body.Span = start.Span.Merge(p.previous().Span)
+	return body
 }
 
 func (p *Parser) parseSelectBindings() ([]ast.Binding, bool) {

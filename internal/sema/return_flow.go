@@ -2,9 +2,9 @@ package sema
 
 import "github.com/puffball1567/kinmokusei/internal/ast"
 
-// A switch/select cannot prove a function returns if a break can leave it.
+// A break that leaves a construct prevents it from proving termination.
 // Inspect statement bodies only: a callback has an independent control flow.
-func hasSwitchExit(target ast.Statement) bool {
+func hasBreakExit(target ast.Statement) bool {
 	span := target.GetSpan()
 	var visit func(ast.Statement, int) bool
 	visit = func(statement ast.Statement, depth int) bool {
@@ -88,11 +88,7 @@ func statementDefinitelyStopsBlock(statement ast.Statement) bool {
 	case *ast.LabeledStmt:
 		return statementDefinitelyStopsBlock(statement.Statement)
 	case *ast.BlockStmt:
-		for _, nested := range statement.Statements {
-			if statementDefinitelyStopsBlock(nested) {
-				return true
-			}
-		}
+		return statementsDefinitelyStopBlock(statement.Statements)
 	case *ast.IfStmt:
 		if statement.Else == nil || !statementDefinitelyStopsBlock(statement.Then) {
 			return false
@@ -111,6 +107,8 @@ func statementDefinitelyStopsBlock(statement ast.Statement) bool {
 			}
 		}
 		return true
+	case *ast.ForStmt:
+		return statement.Condition == nil && !hasBreakExit(statement)
 	case *ast.SelectStmt, *ast.ValueSwitchStmt, *ast.TypeSwitchStmt:
 		// A break stops its case, not the surrounding block. Reuse the existing
 		// all-path return proof for compound breakable statements.
@@ -119,16 +117,29 @@ func statementDefinitelyStopsBlock(statement ast.Statement) bool {
 	return false
 }
 
-func valueSwitchCaseFallthroughReachable(clause *ast.ValueSwitchCase) bool {
-	if clause == nil || !clause.FallsThrough || clause.Body == nil || len(clause.Body.Statements) == 0 {
-		return false
-	}
-	for _, statement := range clause.Body.Statements[:len(clause.Body.Statements)-1] {
-		if statementDefinitelyStopsBlock(statement) {
-			return false
+func statementsDefinitelyStopBlock(statements []ast.Statement) bool {
+	stopped := false
+	for _, statement := range statements {
+		if _, labeled := statement.(*ast.LabeledStmt); labeled {
+			// A goto can reach this label after an earlier control transfer.
+			stopped = false
+		}
+		if !stopped {
+			stopped = statementDefinitelyStopsBlock(statement)
 		}
 	}
-	return true
+	return stopped
+}
+
+func valueSwitchCaseFallthroughReachable(clause *ast.ValueSwitchCase) bool {
+	if clause == nil || !clause.FallsThrough || clause.Body == nil {
+		return false
+	}
+	if clause.ExplicitFallthrough() == nil {
+		return true
+	}
+	statements := clause.Body.Statements
+	return !statementsDefinitelyStopBlock(statements[:len(statements)-1])
 }
 
 func definitelyReturns(block *ast.BlockStmt) bool {
@@ -171,7 +182,7 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 				return true
 			}
 		case *ast.SelectStmt:
-			if hasSwitchExit(stmt) {
+			if hasBreakExit(stmt) {
 				return false
 			}
 			if len(stmt.Cases) == 0 {
@@ -192,7 +203,7 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 				return true
 			}
 		case *ast.TypeSwitchStmt:
-			if hasSwitchExit(stmt) {
+			if hasBreakExit(stmt) {
 				return false
 			}
 			hasDefault := false
@@ -212,7 +223,7 @@ func definitelyReturns(block *ast.BlockStmt) bool {
 }
 
 func valueSwitchDefinitelyReturns(statement *ast.ValueSwitchStmt) bool {
-	if statement == nil || len(statement.Cases) == 0 || hasSwitchExit(statement) {
+	if statement == nil || len(statement.Cases) == 0 || hasBreakExit(statement) {
 		return false
 	}
 	caseReturns := make([]bool, len(statement.Cases))

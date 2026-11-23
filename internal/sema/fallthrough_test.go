@@ -12,6 +12,8 @@ func TestFallthroughSemanticSuccessMatrix(t *testing.T) {
 		{"return proof through next case", `function value(input: int): int { switch (input) { case 0 { fallthrough; } case 1 { return 1; } default { return 2; } } }`},
 		{"constructor initialization", `class Item {} class Holder { private item: Item; constructor(input: int) { switch (input) { case 0 { fallthrough; } case 1 { this.item = new Item(); } default { this.item = new Item(); } } } }`},
 		{"nested value switch", `function value(outer: int, inner: int): int { switch (outer) { case 0 { switch (inner) { case 0 { fallthrough; } default { return 1; } } } default { return 2; } } return 3; }`},
+		{"implicit fallthrough return proof", `function value(input: int): int { switch (input) { case 0: case 1: return 1; default: return 2; } }`},
+		{"implicit fallthrough constructor initialization", `class Item {} class Holder { private item: Item; constructor(input: int) { switch (input) { case 0: case 1: this.item = new Item(); break; default: this.item = new Item(); } } }`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if diagnostics := checkSource(t, test.source); len(diagnostics) != 0 {
@@ -36,6 +38,8 @@ func TestFallthroughSemanticFailureMatrix(t *testing.T) {
 		{"select", `function bad(): void { select { default { fallthrough; } } }`, placement},
 		{"constructor direct case still uninitialized", `class Item {} class Holder { private item: Item; constructor(input: int) { switch (input) { case 0 { this.item = new Item(); fallthrough; } case 1 {} default { this.item = new Item(); } } } }`, `non-null field "item"`},
 		{"direct next case does not inherit nullable fact", `class User { constructor(public name: string) {} } function bad(user: User | null, input: int): string { switch (input) { case 0 { if (user === null) { return ""; } fallthrough; } case 1 { return user.name; } default { return ""; } } }`, `must be checked against null`},
+		{"implicit fallthrough bypasses the next condition", `class User { constructor(public name: string) {} } function bad(user: User | null, input: boolean): string { switch (input) { case false: case user !== null: return user.name; default: return ""; } }`, `must be checked against null`},
+		{"implicit fallthrough does not initialize the direct path", `class Item {} class Holder { private item: Item; constructor(input: int) { switch (input) { case 0: this.item = new Item(); case 1: break; default: this.item = new Item(); } } }`, `non-null field "item"`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			diagnostics := strings.Join(checkSource(t, test.source), "\n")
