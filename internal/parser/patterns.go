@@ -126,12 +126,25 @@ func (p *Parser) parseMatchPattern() *ast.MatchPattern {
 	pattern := &ast.MatchPattern{Span: start.Span}
 	switch start.Kind {
 	case token.Identifier:
+		p.advance()
 		if start.Lexeme == "_" {
-			p.advance()
 			return pattern
 		}
-		p.report(start, "expected a literal, '_', or a 'const' binding in match pattern")
-		return nil
+		if !p.match(token.Dot) {
+			p.report(start, "expected a literal, 'Enum.Member', '_', or a 'const' binding in match pattern")
+			return nil
+		}
+		name := p.peek()
+		if !token.IsIdentifierName(name.Kind) {
+			p.report(name, "expected enum member name after '.' in match pattern")
+			return nil
+		}
+		p.advance()
+		pattern.Kind = ast.MatchLiteral
+		pattern.Literal = &ast.MemberExpr{
+			Object: &ast.IdentifierExpr{Name: start.Lexeme, Span: start.Span},
+			Name:   name.Lexeme, NameSpan: name.Span, Span: start.Span.Merge(name.Span),
+		}
 	case token.Const:
 		p.advance()
 		name, ok := p.expect(token.Identifier, "expected binding name after 'const' in match pattern")

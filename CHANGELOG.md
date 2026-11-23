@@ -11,6 +11,14 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Match enum members with `case Enum.Member => ...`, including inside record
+  and sequence patterns. The compiler reports omitted declared values when a
+  match has no fallback. A fallback can handle undeclared integer values
+  supplied by conversions or Go callers.
+
+- Diagnose local bindings that shadow the generated Go constant of an enum
+  member used through `Enum.Member`.
+
 ## [0.4.13] - 2026-11-23
 
 - Use TypeScript-style `case ...:` and `default:` in value switches. A case

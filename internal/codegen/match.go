@@ -1,8 +1,10 @@
 package codegen
 
 import (
+	"fmt"
 	goast "go/ast"
 	"go/token"
+	"path/filepath"
 	"strconv"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
@@ -48,7 +50,12 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 		}
 	}
 	if !unconditional {
-		body.List = append(body.List, &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral("unreachable match")}}})
+		message := "unreachable match"
+		if expr.EnumExhaustive {
+			message = fmt.Sprintf("match received an undeclared enum value at %s:%d:%d",
+				filepath.Base(expr.Span.Path), expr.Span.Start.Line, expr.Span.Start.Column)
+		}
+		body.List = append(body.List, &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral(message)}}})
 	}
 	return &goast.CallExpr{Fun: &goast.FuncLit{
 		Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: goType(expr.ResultType)}}}},

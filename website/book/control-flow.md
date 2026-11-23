@@ -216,6 +216,7 @@ function route(request: Request): string {
 | Pattern | Meaning |
 | --- | --- |
 | `1`, `"text"`, `true` | Compare a literal with a value of a compatible type |
+| `Status.Ready` | Match a declared enum member by its integer value |
 | `re"^/items/\d+$"` | Match a [regular expression](./types-and-values#regular-expressions) against a `string` |
 | `_`, `const name` | Accept any value and optionally give it a name |
 | `null`, `const name!` | Match null or bind a non-null value of a nullable type |
@@ -226,12 +227,33 @@ Field and sequence patterns can be nested. Each arm produces one value of
 the surrounding expected type. When there is no surrounding type annotation,
 the first arm supplies the result type.
 
-Every possible subject value must be covered. Use a final `default` or
+A match requires an exhaustive set of arms. Use a final `default` or
 `case _` for a fallback. Both boolean literals cover a boolean. The pair
 `null` and `const value!` covers a nullable type. A record with only
 unconditional field patterns or a fixed-length array with only unconditional
 element patterns also covers its subject type. Guarded arms do not count
 toward exhaustiveness.
+
+For an enum subject, unguarded arms covering each distinct declared value
+satisfy the exhaustiveness check. Members that share an integer value are
+covered by the same arm.
+
+```ts
+enum Status { Waiting, Ready, Failed }
+
+function label(status: Status): string {
+  return match (status) {
+    case Status.Waiting => "waiting"
+    case Status.Ready => "ready"
+    case Status.Failed => "failed"
+    default => "unknown status"
+  }
+}
+```
+
+Integer conversions and Go callers can supply an enum value outside its
+declared members. A `default` arm handles those values. If no arm accepts an
+undeclared value, the exhaustive enum match panics with its `.km` location.
 
 ## Channel `select`
 
