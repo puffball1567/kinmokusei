@@ -11,9 +11,11 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-11-23
+
 - Use TypeScript-style `case ...:` and `default:` in value switches. A case
   that reaches its end continues into the next clause, and `break` exits the
-  switch. Existing braced clauses keep explicit fallthrough.
+  switch. Go-style braced clauses use explicit `fallthrough`.
 
 - Write checked regular-expression literals with `re"..."` and use `Regex`
   to test text, extract capture groups, or replace matches.
@@ -1432,7 +1434,8 @@ changes source/public APIs and requires the migration described below.
 - Release archives built with Go 1.27 and checked against supported Go 1.23,
   Go 1.26, and Go 1.27 toolchains.
 
-[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.12...HEAD
+[Unreleased]: https://github.com/puffball1567/kinmokusei/compare/v0.4.13...HEAD
+[0.4.13]: https://github.com/puffball1567/kinmokusei/compare/v0.4.12...v0.4.13
 [0.4.12]: https://github.com/puffball1567/kinmokusei/compare/v0.4.11...v0.4.12
 [0.4.11]: https://github.com/puffball1567/kinmokusei/compare/v0.4.10...v0.4.11
 [0.4.10]: https://github.com/puffball1567/kinmokusei/compare/v0.4.9...v0.4.10

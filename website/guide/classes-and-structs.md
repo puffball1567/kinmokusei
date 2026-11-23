@@ -191,7 +191,7 @@ the enclosing generic function can be used. Concrete aliases such as
 `alias IntBox = Box<int>;` still work. Uninstantiated receivers and methods with
 their own type parameters are not supported in this form.
 
-::: info Development build
+::: info Available since v0.4.13
 Class instance methods also support explicit-receiver expressions.
 :::
 

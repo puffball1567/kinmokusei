@@ -1546,26 +1546,17 @@ package-private, and generated output has no compiler-runtime dependency.
 
 ## Value switches
 
-An ordinary switch compares one value against case expressions:
+An ordinary switch compares one value against case expressions.
 
-```ts
-switch (status) {
-  case 200:
-    handleOK();
-    break;
-  case 400, 404:
-    handleClientError();
-    break;
-  default:
-    handleOther();
-}
-```
+| Form | Case syntax | At the end of a case body |
+| --- | --- | --- |
+| Go-style switch | `case value { ... }`, `default { ... }` | Exit the switch. A final explicit `fallthrough;` in a non-final case enters the next body. |
+| TS-style switch | `case value: ...`, `default: ...` | Enter the next body, if present. Use `break` to exit the switch. |
 
 The subject is evaluated exactly once. Case expressions are evaluated in source
-order only until a match is found. Colon-delimited clauses fall through when
-execution reaches the end of the body. Braced clauses use explicit
-`fallthrough;` as the final direct statement of a non-final case. Use the same
-clause form across the switch. Both forms give each body its own local scope.
+order only until a match is found. Use the same clause form across the switch.
+Both forms give each body its own local scope. A block after a colon, as in
+`case value: { ... }`, follows the TS-style rule.
 Fallthrough enters the next clause without evaluating its case expressions,
 including when it enters or leaves a non-final `default`. `break` exits the
 switch. Explicit `fallthrough` is rejected in the final case, nested blocks,

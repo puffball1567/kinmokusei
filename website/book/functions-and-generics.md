@@ -329,7 +329,7 @@ function choose<T extends comparable>(value: T, fallback: T): T {
 
 `comparable` follows Go comparability, including contained array/struct fields. Slices, maps, and functions do not satisfy it. A source declaration such as `constraint Numeric = ~int | ~float64` names a union of permitted types. Constraint references can be reused in other unions; overlapping terms and cycles are rejected.
 
-::: info Development build
+::: info Available since v0.4.13
 Source struct terms now support forward references, generic instances, aliases,
 and dependent inference, including generic method bounds.
 :::
@@ -381,7 +381,7 @@ can also be distinguished, including stable mismatches inside collection element
 
 <<< ../snippets/parameter-constraint-intersections.km{ts}
 
-Development builds also narrow intersections of function and record terms.
+v0.4.13 also narrow intersections of function and record terms.
 Function arity and variadic form stay fixed when type arguments change. Record
 identity includes the emitted field names, order, and tags. A fixed mismatch in
 a nested type can also establish that two terms are disjoint.
@@ -519,7 +519,7 @@ implicit validation wrappers.
 
 ### Composing source interface contracts
 
-::: info Development build
+::: info Available since v0.4.13
 Named and method-only anonymous source interfaces can also be constraint
 operands, including generic aliases, forward references and reused constraints.
 :::
@@ -555,7 +555,7 @@ type sets using `&`.
 An explicit `comparable` requirement survives constraint reuse. It may be named
 on its own or combined with `&`, but cannot appear in a multi-term `|` union,
 including indirectly through an imported or source constraint. Empty
-intersections are errors. Development builds also allow source interface
+intersections are errors. v0.4.13 also allow source interface
 operands as described above.
 
 For example, an ordered type cannot also have boolean as its underlying type:
