@@ -126,11 +126,12 @@ var implementedGoCompatibilityContracts = []string{
 	"embedding named Go interfaces in native structs with dynamic delegation, shadowing, method values, method expressions, Go constraint inference, package-private method identity, and nil dispatch",
 	"native struct values and pointers in Go generic calls with method constraints, concrete identity, dependent type inference, type terms, comparable, and package-private promoted methods",
 	"embedded native distinct types with nominal field identity, aliases, value and pointer methods, generic receiver contracts, underlying struct fields, and nested promotion",
-	"checked regular expressions and match expressions with capture groups, replacement, single evaluation, arm guards, record and sequence destructuring, literal and nullable coverage, and linked bindings",
+	"checked regular expressions and match expressions with capture groups, replacement, single evaluation, arm guards, record and sequence destructuring, literal, nullable, and enum coverage, and linked bindings",
 }
 
 var differentialGoCompatibilityScenarios = map[string][]string{
 	"regex-match.test":                    {implementedGoCompatibilityContracts[110]},
+	"enum-match.test":                     {implementedGoCompatibilityContracts[72], implementedGoCompatibilityContracts[110]},
 	"distinct-type-embedding.test":        {implementedGoCompatibilityContracts[109]},
 	"go-interface-embedding.test":         {implementedGoCompatibilityContracts[107]},
 	"imported-struct-embedding.test":      {implementedGoCompatibilityContracts[106]},
