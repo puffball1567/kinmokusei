@@ -67,13 +67,13 @@ class Parser implements Loader {
 	}
 	text := string(generated)
 	for _, want := range []string{
-		"func parse(text string) (int, error)",
+		"func parse(text string) (__kinmokuseiResultZero int, __kinmokuseiResultError error)",
 		"var value, __kinmokusei_result_error_",
 		"var __kinmokusei_result_value_",
 		"var value int = __kinmokusei_result_value_",
 		"if __kinmokusei_result_error_",
 		"return value * 2, nil",
-		"return *new(int), errors.New(\"rejected\")",
+		"return __kinmokuseiResultZero, errors.New(\"rejected\")",
 		"func ensure(ready bool) error",
 		"var value, err = parse(text)",
 		"var err = ensure(ready)",

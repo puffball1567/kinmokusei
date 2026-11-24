@@ -38,9 +38,66 @@ func functionResults(ref kinmokuseiAST.TypeRef) *goast.FieldList {
 	return &goast.FieldList{List: []*goast.Field{{Type: goType(ref)}}}
 }
 
-func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt, resultZero func(kinmokuseiAST.TypeRef) goast.Expr) (goast.Stmt, error) {
+const resultZeroSlot = "__kinmokuseiResultZero"
+
+// Reserve the typed zero in the Go signature before lowering source defers.
+// The name of the success type may be hidden by a parameter or local binding
+// inside the body. A nested callable owns its own result slots.
+func bindResultZeroSlots(file *goast.File) {
+	goast.Inspect(file, func(node goast.Node) bool {
+		switch callable := node.(type) {
+		case *goast.FuncDecl:
+			if callable.Body != nil {
+				bindResultZeroSlot(callable.Type, callable.Body)
+			}
+		case *goast.FuncLit:
+			bindResultZeroSlot(callable.Type, callable.Body)
+		}
+		return true
+	})
+}
+
+func bindResultZeroSlot(signature *goast.FuncType, body *goast.BlockStmt) {
+	results := signature.Results
+	if results == nil || len(results.List) != 2 {
+		return
+	}
+	var failures []*goast.ReturnStmt
+	goast.Inspect(body, func(node goast.Node) bool {
+		if returned, ok := node.(*goast.ReturnStmt); ok && len(returned.Results) == 2 {
+			if value, ok := returned.Results[0].(*goast.Ident); ok && value.Name == resultZeroSlot {
+				failures = append(failures, returned)
+			}
+		}
+		_, nested := node.(*goast.FuncLit)
+		return !nested
+	})
+	if len(failures) == 0 {
+		return
+	}
+	if resultTypeAcceptsNil(results.List[0].Type) {
+		for _, returned := range failures {
+			returned.Results[0] = goast.NewIdent("nil")
+		}
+		return
+	}
+	results.List[0].Names = []*goast.Ident{goast.NewIdent(resultZeroSlot)}
+	results.List[1].Names = []*goast.Ident{goast.NewIdent("__kinmokuseiResultError")}
+}
+
+func resultTypeAcceptsNil(result goast.Expr) bool {
+	switch result := result.(type) {
+	case *goast.StarExpr, *goast.MapType, *goast.ChanType, *goast.InterfaceType, *goast.FuncType:
+		return true
+	case *goast.ArrayType:
+		return result.Len == nil
+	}
+	return false
+}
+
+func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
 	if stmt.ResultKind == kinmokuseiAST.ResultMatchReturn {
-		return generateMatchResultReturn(stmt, resultZero)
+		return generateMatchResultReturn(stmt)
 	}
 	if stmt.CrossesTry {
 		return generateExceptionReturn(stmt)
@@ -74,7 +131,7 @@ func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt, resultZero func(kinmok
 		}
 		results := []goast.Expr{}
 		if stmt.ResultType.Name != "void" {
-			results = append(results, resultZero(stmt.ResultType))
+			results = append(results, goast.NewIdent(resultZeroSlot))
 		}
 		results = append(results, errorValue)
 		return &goast.ReturnStmt{Results: results}, nil
@@ -216,7 +273,7 @@ func generatePropagationStatements(expr *kinmokuseiAST.PropagateExpr, variable *
 	} else {
 		results := []goast.Expr{}
 		if expr.ResultType.Name != "void" {
-			results = append(results, zeroValue(expr.ResultType))
+			results = append(results, goast.NewIdent(resultZeroSlot))
 		}
 		results = append(results, goast.NewIdent(errorName))
 		exit = &goast.ReturnStmt{Results: results}
