@@ -10,6 +10,38 @@ import (
 )
 
 func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
+	body, err := generateMatchBody(expr, func(arm *ast.MatchArm) (goast.Stmt, error) {
+		result, err := generateExpression(arm.Value)
+		if err != nil {
+			return nil, err
+		}
+		return &goast.ReturnStmt{Results: []goast.Expr{result}}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &goast.CallExpr{Fun: &goast.FuncLit{
+		Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: goType(expr.ResultType)}}}},
+		Body: body,
+	}}, nil
+}
+
+func generateMatchResultReturn(stmt *ast.ReturnStmt) (goast.Stmt, error) {
+	expr, ok := stmt.Value.(*ast.MatchExpr)
+	if !ok {
+		return nil, fmt.Errorf("Result match return requires a match expression")
+	}
+	return generateMatchBody(expr, func(arm *ast.MatchArm) (goast.Stmt, error) {
+		if arm.ResultReturn == nil {
+			return nil, fmt.Errorf("Result match arm is missing a checked return")
+		}
+		returned := *arm.ResultReturn
+		returned.CrossesTry = stmt.CrossesTry
+		return generateStatement(&returned)
+	})
+}
+
+func generateMatchBody(expr *ast.MatchExpr, generateArmReturn func(*ast.MatchArm) (goast.Stmt, error)) (*goast.BlockStmt, error) {
 	scrutinee, err := generateExpression(expr.Value)
 	if err != nil {
 		return nil, err
@@ -42,11 +74,10 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 		if err != nil {
 			return nil, err
 		}
-		result, err := generateExpression(arm.Value)
+		returnResult, err := generateArmReturn(arm)
 		if err != nil {
 			return nil, err
 		}
-		returnResult := &goast.ReturnStmt{Results: []goast.Expr{result}}
 		if arm.Guard == nil {
 			pattern.bindings = append(pattern.bindings, returnResult)
 		} else {
@@ -72,10 +103,7 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 		}
 		body.List = append(body.List, &goast.ExprStmt{X: &goast.CallExpr{Fun: goast.NewIdent("panic"), Args: []goast.Expr{stringLiteral(message)}}})
 	}
-	return &goast.CallExpr{Fun: &goast.FuncLit{
-		Type: &goast.FuncType{Params: &goast.FieldList{}, Results: &goast.FieldList{List: []*goast.Field{{Type: goType(expr.ResultType)}}}},
-		Body: body,
-	}}, nil
+	return body, nil
 }
 
 type matchPatternCode struct {

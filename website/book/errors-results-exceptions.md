@@ -101,6 +101,25 @@ the guard or arm expression. `case fail(_)` explicitly ignores the error.
 The same patterns work with `match (await task)` when the task returns a
 `Result`.
 
+### Returning a Result from match
+
+In a function returning `Result<T>`, an explicit `return match (...)` checks
+each arm against that same result type. An arm can return `ok(...)`,
+`fail(...)`, another call of the same `Result<T>` type, or a nested match.
+
+```ts
+function doubledPort(text: string): Result<int> {
+  return match (parsePort(text)) {
+    case ok(const port) => ok(port * 2)
+    case fail(const err) => fail(err)
+  }
+}
+```
+
+The selected arm returns through the function's Go result signature.
+`Result<T>` returns `(T, error)`. `Result<void>` returns `error` and uses `ok()`
+for success.
+
 ## Propagating Go operations
 
 Postfix `?` works on a compatible Go `(T, error)` or single `error` call inside a `Result` function:

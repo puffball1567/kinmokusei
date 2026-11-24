@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Return `Result<T>` directly from a `match`, with `ok(...)`, `fail(...)`,
+  or a matching `Result` producer in each arm. `Result<void>` uses `ok()`.
+
 - Use `case const name as Type` in `match` to narrow Go interfaces or downcast
   a class, including in nested patterns. `case nil` can match a nil Go interface.
 

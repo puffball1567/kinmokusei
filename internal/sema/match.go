@@ -8,7 +8,7 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
-func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
+func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type, returnResult bool) Type {
 	expr.ResultType = ast.TypeRef{}
 	expr.EnumExhaustive = false
 	value := c.checkMatchSubject(expr)
@@ -23,6 +23,7 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 	var resultCovered resultMatchCoverage
 	for i := range expr.Arms {
 		arm := &expr.Arms[i]
+		arm.ResultReturn = nil
 		c.restoreNullableFlow(remaining)
 		c.pushScope()
 		total := false
@@ -50,7 +51,12 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 			}
 			c.restoreNullableFlow(whenTrue)
 		}
-		if result.Kind != Invalid {
+		if returnResult {
+			returned := &ast.ReturnStmt{Value: arm.Value, Span: arm.Value.GetSpan()}
+			c.checkResultReturn(returned)
+			arm.ResultReturn = returned
+			arm.Value = returned.Value
+		} else if result.Kind != Invalid {
 			actual := c.singleValue(c.checkStorageExpressionExpectedSlot(&arm.Value, result), arm.Value.GetSpan())
 			if ordinaryMatchResult(actual) {
 				c.requireAssignable(result, actual, arm.Value.GetSpan())
@@ -85,6 +91,10 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 		continuing = append(continuing, remaining)
 	}
 	c.restoreNullableFlow(c.mergeNullableFlow(entry, continuing...))
+	if returnResult {
+		expr.ResultType = typeRefFromType(result, expr.Span)
+		return result
+	}
 	if !ordinaryMatchResult(result) || result.Kind == Nil || result.Kind == Null {
 		c.report(expr.Span, "match must produce an ordinary value")
 		return Type{Kind: Invalid}

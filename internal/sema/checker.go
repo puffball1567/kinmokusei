@@ -619,7 +619,7 @@ func (c *Checker) checkExpression(expr ast.Expression) (result Type) {
 	case *ast.RegexExpr:
 		return c.checkRegexLiteral(expr)
 	case *ast.MatchExpr:
-		return c.checkMatch(expr, nil)
+		return c.checkMatch(expr, nil, false)
 	case *ast.OptionalChainExpr:
 		return c.checkOptionalChain(expr, nil)
 	case *ast.OptionalReceiverExpr:

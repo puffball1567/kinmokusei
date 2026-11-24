@@ -81,6 +81,11 @@ func (c *Checker) checkResultReturn(stmt *ast.ReturnStmt) {
 		c.report(stmt.Span, fmt.Sprintf("Result function must return ok(...) or fail(...), expected %s", c.result.String()))
 		return
 	}
+	if match, ok := stmt.Value.(*ast.MatchExpr); ok {
+		c.checkMatch(match, &c.result, true)
+		stmt.ResultKind = ast.ResultMatchReturn
+		return
+	}
 	value := c.checkExpressionExpectedSlot(&stmt.Value, c.result)
 	if call, ok := stmt.Value.(*ast.CallExpr); ok {
 		switch call.Builtin {
