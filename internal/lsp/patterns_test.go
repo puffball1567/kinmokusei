@@ -6,6 +6,36 @@ import (
 	"testing"
 )
 
+func TestSequenceRestEditor(t *testing.T) {
+	t.Parallel()
+	input := `function count(values: int[]): int {
+  return match(values) {
+    case [...const prefix, _] => len(prefix)
+    case [] => 0
+  }
+}
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	use := positionOf(input, "prefix)", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, use, ""),
+		requestAt("textDocument/rename", 3, uri, use, `"newName":"remaining"`),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(2) {
+		t.Fatalf("definition=%v", messages[2])
+	}
+	rename, ok := messages[3]["result"].(map[string]any)
+	if !ok || len(rename["changes"].(map[string]any)[uri].([]any)) != 2 {
+		t.Fatalf("rename=%v", messages[3])
+	}
+	items := completionLabels(completionItemsAt(t, path, input, use.Line, use.Character))
+	if items["prefix"] == nil || items["prefix"]["detail"] != "const prefix: int[]" {
+		t.Fatalf("rest completion=%v", items)
+	}
+}
+
 func TestResultMatchEditor(t *testing.T) {
 	t.Parallel()
 	input := `function read(provider: () => Result<int>): int {

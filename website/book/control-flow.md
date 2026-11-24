@@ -222,6 +222,7 @@ function route(request: Request): string {
 | `null`, `const name!` | Match null or bind a non-null value of a nullable type |
 | `{ x: const x, y: 0 }` | Check selected direct fields of a value struct or object |
 | `[const first, _]` | Match exactly two elements of an array or slice |
+| `[const first, ...const middle, const last]` | Match at least two elements and bind a shallow copy of the middle |
 
 Field and sequence patterns can be nested. Each arm produces one value of
 the surrounding expected type. When there is no surrounding type annotation,
@@ -233,6 +234,26 @@ A match requires an exhaustive set of arms. Use a final `default` or
 unconditional field patterns or a fixed-length array with only unconditional
 element patterns also covers its subject type. Guarded arms do not count
 toward exhaustiveness.
+
+A sequence pattern can have one rest pattern, at the start, middle, or end.
+It matches zero or more elements. `...const name` binds a new `T[]` containing
+those elements, with an empty slice when no elements remain. Replacing an
+element in the copy leaves the subject's slots intact. Any references held by
+the copied elements stay shared. `..._` skips the remaining elements without
+copying them.
+
+When each arm accepts every slice of the lengths it matches, the compiler
+combines those lengths for exhaustiveness. These two arms cover both the empty
+and nonempty cases.
+
+```ts
+function beforeLast(values: int[]): int[] {
+  return match (values) {
+    case [] => []
+    case [...const prefix, _] => prefix
+  }
+}
+```
 
 For an enum subject, unguarded arms covering each distinct declared value
 satisfy the exhaustiveness check. Members that share an integer value are

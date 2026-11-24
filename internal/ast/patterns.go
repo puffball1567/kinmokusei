@@ -62,19 +62,21 @@ const (
 	MatchLiteral
 	MatchRecord
 	MatchSequence
+	MatchSequenceRest
 	MatchResultOK
 	MatchResultFail
 )
 
 type MatchPattern struct {
-	Kind        MatchPatternKind
-	Binding     Binding
-	Literal     Expression
-	Fields      []MatchField
-	Elements    []MatchPattern
-	Payload     *MatchPattern
-	FixedLength bool // the checker proved the sequence length from its type
-	Span        source.Span
+	Kind              MatchPatternKind
+	Binding           Binding
+	Literal           Expression
+	Fields            []MatchField
+	Elements          []MatchPattern
+	Payload           *MatchPattern
+	FixedLength       bool // the checker proved the sequence length from its type
+	CoversSliceLength bool // the sequence matches every slice of the admitted lengths
+	Span              source.Span
 }
 
 type MatchField struct {
@@ -83,6 +85,15 @@ type MatchField struct {
 	Pattern             MatchPattern
 	ResolvedName        string
 	ResolvedDeclaration source.Span
+}
+
+func (p *MatchPattern) SequenceRestIndex() int {
+	for i := range p.Elements {
+		if p.Elements[i].Kind == MatchSequenceRest {
+			return i
+		}
+	}
+	return -1
 }
 
 func (p *MatchPattern) Walk(visit func(*MatchPattern)) {

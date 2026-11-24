@@ -5,7 +5,6 @@ import (
 	goast "go/ast"
 	"go/token"
 	"path/filepath"
-	"strconv"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -86,7 +85,7 @@ type matchPatternCode struct {
 
 func (c *matchPatternCode) generate(pattern *ast.MatchPattern, value goast.Expr) error {
 	switch pattern.Kind {
-	case ast.MatchBinding, ast.MatchNonNullBinding:
+	case ast.MatchBinding, ast.MatchNonNullBinding, ast.MatchSequenceRest:
 		if pattern.Kind == ast.MatchNonNullBinding {
 			c.addCheck(value, token.NEQ, goast.NewIdent("nil"))
 		}
@@ -119,16 +118,7 @@ func (c *matchPatternCode) generate(pattern *ast.MatchPattern, value goast.Expr)
 			}
 		}
 	case ast.MatchSequence:
-		if !pattern.FixedLength {
-			length := &goast.CallExpr{Fun: goast.NewIdent("len"), Args: []goast.Expr{value}}
-			c.addCheck(length, token.EQL, matchIndex(len(pattern.Elements)))
-		}
-		for i := range pattern.Elements {
-			projection := &goast.IndexExpr{X: value, Index: matchIndex(i)}
-			if err := c.generate(&pattern.Elements[i], projection); err != nil {
-				return err
-			}
-		}
+		return c.generateSequence(pattern, value)
 	}
 	return nil
 }
@@ -150,10 +140,6 @@ func (c *matchPatternCode) generateResult(pattern *ast.MatchPattern, value, fail
 
 func (c *matchPatternCode) addCheck(left goast.Expr, operator token.Token, right goast.Expr) {
 	c.checks = append(c.checks, &goast.BinaryExpr{X: left, Op: operator, Y: right})
-}
-
-func matchIndex(index int) goast.Expr {
-	return &goast.BasicLit{Kind: token.INT, Value: strconv.Itoa(index)}
 }
 
 // Balance large patterns without changing the left-to-right short-circuit order.
