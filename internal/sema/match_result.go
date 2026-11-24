@@ -54,9 +54,9 @@ func (c *Checker) checkResultMatchArm(arm *ast.MatchArm, successType Type, cover
 	}
 }
 
-func (c *Checker) checkResultMatchExhaustiveness(span source.Span, covered resultMatchCoverage) bool {
+func (c *Checker) checkResultMatchExhaustiveness(span source.Span, successType Type, covered resultMatchCoverage) bool {
 	var missing []string
-	if !covered.success.exhaustive() {
+	if !covered.success.exhaustive() && !c.productMatchExhaustive(covered.success.products, successType) {
 		missing = append(missing, "ok")
 	}
 	if !covered.failure.exhaustive() {

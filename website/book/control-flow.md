@@ -235,6 +235,24 @@ unconditional field patterns or a fixed-length array with only unconditional
 element patterns also covers its subject type. Guarded arms do not count
 toward exhaustiveness.
 
+The compiler can also combine boolean and nullable tests on record fields and
+fixed-array elements. An omitted field covers every possible value of that
+field. The same check applies to nested patterns and patterns inside `ok(...)`.
+
+```ts
+struct State { public active: boolean; public retry: boolean }
+
+function label(state: State): string {
+  return match (state) {
+    case { active: true } => "active"
+    case { active: false, retry: true } => "retry"
+    case { active: false, retry: false } => "idle"
+  }
+}
+```
+
+Keep a fallback arm for combinations the compiler cannot prove exhaustive.
+
 A sequence pattern can have one rest pattern, at the start, middle, or end.
 It matches zero or more elements. `...const name` binds a new `T[]` containing
 those elements, with an empty slice when no elements remain. Replacing an
