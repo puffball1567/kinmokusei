@@ -248,9 +248,10 @@ const checked = (value: int): int => {
 
 Arrow parameter types may be omitted when a matching expected function type
 supplies them, including callbacks and stored function signatures. Without that
-context they need annotations. Result types can be inferred from the body or
-context; annotate recursive or otherwise ambiguous results. Captures obey
-normal lexical scope and mutable capture can invalidate nullable-flow proofs.
+context they need annotations. Ordinary return types can be inferred from the
+body or context. A `Result<T>` arrow needs an explicit Result annotation or a
+matching function context. Captures obey normal lexical scope, and mutable
+capture can invalidate nullable-flow proofs.
 See [contextual types](./functions-and-generics#contextual-types-and-block-results).
 
 ## Task expressions

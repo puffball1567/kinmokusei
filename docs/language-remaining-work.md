@@ -526,10 +526,11 @@ relative to v0.3.0:
   `Result<T>` and `Result<void>` are supported in stored function signatures,
   callback parameters, returned closures, fields, collections, and channels.
   Native aliases and defined/generic function types retain the return effect.
-  Arrows need an explicit Result annotation or matching function context, plus
-  a block body with explicit returns. Raw Result values remain non-storable;
-  calls require `?`, explicit split binding, forwarding return, or intentional
-  discard with `_`. Unused named local Result error bindings are diagnosed;
+  Arrows need an explicit Result annotation or matching function context.
+  Expression bodies follow the same checks as explicit returns, including
+  exhaustive matches returning a Result. Result calls require `?`, explicit
+  split binding, matching, forwarding return, or intentional discard with `_`.
+  Unused named local Result error bindings are diagnosed;
   this is not per-write, alias, or path-sensitive recovery analysis. Explicit
   function annotations can expose ABI-compatible Go callbacks as Result without
   a runtime wrapper; ordinary Go multiple-result expressions remain unchanged.

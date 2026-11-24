@@ -1457,10 +1457,11 @@ their nominal identity. Result success nullability remains part of the source
 function contract even when Go signatures have the same representation.
 
 Result arrows require an explicit result annotation or a matching function
-context, and a block body with explicit `return ok(...)`, `return fail(...)`, or
-forwarding return. The outer function's Result context does not leak into a
-nested arrow. Calls through function values have the same handling requirements
-as declared Result functions.
+context. An expression body follows the same checking and lowering rules as
+an explicit return in a block body. It can construct `ok(...)` or `fail(...)`,
+forward the same Result type, or select a Result in an exhaustive match. Each
+arrow resolves its own Result contract. Calls through function values have the
+same handling requirements as declared Result functions.
 
 An explicit function annotation can establish a Result contract for an
 ABI-compatible Go function, for example

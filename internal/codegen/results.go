@@ -38,7 +38,13 @@ func functionResults(ref kinmokuseiAST.TypeRef) *goast.FieldList {
 	return &goast.FieldList{List: []*goast.Field{{Type: goType(ref)}}}
 }
 
-func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
+func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt, resultZero func(kinmokuseiAST.TypeRef) goast.Expr) (goast.Stmt, error) {
+	if stmt.ResultKind == kinmokuseiAST.ResultMatchReturn {
+		return generateMatchResultReturn(stmt, resultZero)
+	}
+	if stmt.CrossesTry {
+		return generateExceptionReturn(stmt)
+	}
 	call, isCall := stmt.Value.(*kinmokuseiAST.CallExpr)
 	switch stmt.ResultKind {
 	case kinmokuseiAST.ResultSuccessReturn:
@@ -68,7 +74,7 @@ func generateResultReturn(stmt *kinmokuseiAST.ReturnStmt) (goast.Stmt, error) {
 		}
 		results := []goast.Expr{}
 		if stmt.ResultType.Name != "void" {
-			results = append(results, zeroValue(stmt.ResultType))
+			results = append(results, resultZero(stmt.ResultType))
 		}
 		results = append(results, errorValue)
 		return &goast.ReturnStmt{Results: results}, nil

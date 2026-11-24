@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Write expression-bodied arrows that return `Result<T>` or `Result<void>`.
+  The explicit or contextual Result type checks `ok(...)`, `fail(...)`,
+  forwarding calls, and exhaustive matches.
+
 - Return `Result<T>` directly from a `match`, with `ok(...)`, `fail(...)`,
   or a matching `Result` producer in each arm. `Result<void>` uses `ok()`.
 

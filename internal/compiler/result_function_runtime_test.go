@@ -39,7 +39,7 @@ export function Reassign():Result<int>{
   let f=(n:int):Result<int>=>{if(n==0){return ok(1);}const value=f(n-1)?;return ok(value+1);};
   const saved=f;f=(n)=>{return ok(10);};const a=saved(2)?;const b=f(2)?;return ok(a*100+b);
 }
-export function NamedCall(n:int):Result<int>{const f:Named<int>=(value)=>{return ok(value+1);};return f(n);}
+export function NamedCall(n:int):Result<int>{const f:Named<int>=(value)=>ok(value+1);return f(n);}
 export function Callbacks(n:int):Result<int>{
   const fs:Load[]=[Factory(10),Factory(20)];
   const values=makeMap<bstring,Load>();values["first"]=fs[0];
@@ -48,12 +48,19 @@ export function Callbacks(n:int):Result<int>{
 export function GoBoundary(n:int):Result<int>{
   const f:Load=api.Factory(10);
   const a=api.Apply(n,f)?;
-  const b=api.Generic(n,(value:int):Result<int>=>{if(value<0){return fail(errors.New("negative"));}return ok(value+1);})?;
+  const b=api.Generic(n,(value:int):Result<int>=>match(value<0){
+    case true => fail(errors.New("negative"))
+    case false => ok(value+1)
+  })?;
   return ok(a+b);
 }
 export function VoidBoundary(reject:boolean):Result<void>{
-  const f=():Result<void>=>{if(reject){return fail(errors.New("void failure"));}return ok();};
-  api.ApplyVoid(f)?;return ok();
+  const f:()=>Result<void>=()=>match(reject){
+    case true => fail(errors.New("void failure"))
+    case false => ok()
+  };
+  const forward=():Result<void>=>f();
+  api.ApplyVoid(forward)?;return ok();
 }
 interface Loader{function load(n:int):Result<int>;}
 class Base implements Loader{public virtual function load(n:int):Result<int>{return ok(n);}}
@@ -73,7 +80,7 @@ export function Finally(reject:boolean):int{
   const f=():Result<int>=>{try{trace=trace*10+1;if(reject){return fail(errors.New("failed"));}return ok(42);}finally{trace=trace*10+2;}};
   const [value,err]=f();if(err!==nil){return trace*1000-1;}return trace*1000+value;
 }
-export function ReturnedFunction():Result<()=>Result<int>>{return ok(()=>{return ok(42);});}
+export function ReturnedFunction():Result<()=>Result<int>>{return ok(()=>ok(42));}
 export function EvaluateOnce():int{
   let trace=0;
   const callee=():Load=>{trace=trace*10+1;return (n)=>{trace=trace*10+3;return ok(n);};};

@@ -193,6 +193,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			}
 			visitType(expression.ReturnType)
 			visitType(&expression.ResolvedReturnType)
+			if expression.ResultReturn != nil {
+				visitType(&expression.ResultReturn.ResultType)
+			}
 			visitExpression(expression.ExpressionBody)
 			if expression.BlockBody != nil {
 				visitStatement(expression.BlockBody)

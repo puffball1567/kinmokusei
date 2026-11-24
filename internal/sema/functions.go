@@ -69,45 +69,49 @@ func (c *Checker) checkArrowExpected(expr *ast.ArrowExpr, expected Type) Type {
 		c.declareLocal(parameter.Name, parameters[i], false, nil, parameter.Span)
 	}
 	previousControl := c.enterCallableControl()
-	var result Type
+	c.result = Type{}
 	if expr.ReturnType != nil {
-		result = c.resolveType(*expr.ReturnType)
-		c.rejectTaskAPIType(result, expr.ReturnType.Span, "arrow return types")
-		c.result = result
+		c.result = c.resolveType(*expr.ReturnType)
+		c.rejectTaskAPIType(c.result, expr.ReturnType.Span, "arrow return types")
 		c.declareNamedResults(expr.ReturnType)
 	} else if expected.Kind == Function && expected.Result != nil {
-		result = *expected.Result
-		c.result = result
+		c.result = *expected.Result
 	}
-	if expr.ExpressionBody != nil {
+	result := c.result
+	expr.ResultReturn = nil
+	switch {
+	case expr.ExpressionBody != nil && result.Kind == Result:
+		returned := &ast.ReturnStmt{Value: expr.ExpressionBody, Span: expr.ExpressionBody.GetSpan()}
+		c.checkResultReturn(returned)
+		c.reportOrDeferTasksBeforeReturn()
+		expr.ResultReturn = returned
+		expr.ExpressionBody = returned.Value
+	case expr.ExpressionBody != nil:
+		bodySpan := expr.ExpressionBody.GetSpan()
 		if c.namedResultType != nil {
-			c.report(expr.ExpressionBody.GetSpan(), "named results require an arrow function block body")
-		}
-		if result.Kind == Result {
-			c.report(expr.ExpressionBody.GetSpan(), "Result arrow functions require a block body with an explicit return")
+			c.report(bodySpan, "named results require an arrow function block body")
 		}
 		actual := c.checkStorageExpressionExpectedSlot(&expr.ExpressionBody, result)
 		if expr.ReturnType == nil && result.Kind == Invalid {
 			if actual.Kind != MultiValue {
-				actual = c.singleValue(actual, expr.ExpressionBody.GetSpan())
+				actual = c.singleValue(actual, bodySpan)
 			}
 			if actual.Kind == Nil {
-				c.report(expr.ExpressionBody.GetSpan(), "cannot infer an arrow function return type from nil")
+				c.report(bodySpan, "cannot infer an arrow function return type from nil")
 				result = Type{Kind: Invalid, Name: "<invalid>"}
 			} else {
 				result = defaultLiteralType(actual)
 				c.checkNumericMaterialization(expr.ExpressionBody, result)
 			}
 		} else {
-			c.requireAssignable(result, actual, expr.ExpressionBody.GetSpan())
+			c.requireAssignable(result, actual, bodySpan)
 		}
-	} else if expr.BlockBody != nil {
+	case expr.BlockBody != nil:
 		c.validateLabels(expr.BlockBody)
 		var inference *arrowReturnInference
 		if expr.ReturnType == nil && result.Kind == Invalid {
 			inference = &arrowReturnInference{}
 			c.arrowReturns = inference
-			c.result = Type{}
 		}
 		c.checkBlock(expr.BlockBody, false)
 		if inference != nil {

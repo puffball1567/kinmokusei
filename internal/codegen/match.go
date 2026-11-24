@@ -26,7 +26,7 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 	}}, nil
 }
 
-func generateMatchResultReturn(stmt *ast.ReturnStmt) (goast.Stmt, error) {
+func generateMatchResultReturn(stmt *ast.ReturnStmt, resultZero func(ast.TypeRef) goast.Expr) (goast.Stmt, error) {
 	expr, ok := stmt.Value.(*ast.MatchExpr)
 	if !ok {
 		return nil, fmt.Errorf("Result match return requires a match expression")
@@ -37,7 +37,7 @@ func generateMatchResultReturn(stmt *ast.ReturnStmt) (goast.Stmt, error) {
 		}
 		returned := *arm.ResultReturn
 		returned.CrossesTry = stmt.CrossesTry
-		return generateStatement(&returned)
+		return generateResultReturn(&returned, resultZero)
 	})
 }
 

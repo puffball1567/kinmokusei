@@ -682,9 +682,12 @@ visible to its callers:
 
 The matching callback context supplies the arrow's parameter and Result types.
 Without such a context, write an explicit return annotation, such as
-`(value: int): Result<int> => { return ok(value); }`. Result arrows require a
-block body and explicit returns; their call results must still be propagated
-with `?`, split into value/error bindings, or forwarded by `return`.
+`(value: int): Result<int> => ok(value)`. A Result arrow can use an expression
+body or a block body with explicit returns. Both forms accept `ok(...)`,
+`fail(...)`, a call returning the same Result type, or a
+[match returning that Result](./errors-results-exceptions#returning-a-result-from-match).
+Handle the arrow's call result with the same rules as a declared Result
+function.
 
 Native aliases and defined function types can carry this signature, including
 generic payloads. Explicitly annotating an ABI-compatible Go function also works:

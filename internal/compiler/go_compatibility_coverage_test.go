@@ -32,7 +32,7 @@ var implementedGoCompatibilityContracts = []string{
 	"compound assignment, increment/decrement, target evaluation, named types, and division panic",
 	"nullable values, narrowing, assignment, escape, capture, joins, and loop flow",
 	"definite non-null constructor initialization across branches, switch, select, and guaranteed loops",
-	"Result success, failure, forwarding, postfix propagation, explicit split binding, and interface dispatch",
+	"Result success, failure, forwarding, expression-bodied Result arrows, postfix propagation, explicit split binding, and interface dispatch",
 	"ordinary value switches, grouping, identity, evaluation order, and break",
 	"Go interface type switches, nil, bindings, and evaluation order",
 	"defer order, goroutine execution, capture, and panic behavior",
