@@ -46,6 +46,7 @@ type Program struct {
 	UsesNonNullKinds     bool
 	UsesReferenceReads   bool
 	UsesRegex            bool
+	UsesMatchRest        bool
 	RegexPatterns        []string
 }
 

@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Use `...const rest` or `..._` in array and slice patterns to match the
+  remaining elements. A named rest binding is a shallow slice copy. The
+  exhaustiveness checker can combine unguarded patterns by slice length.
+
 - Handle `Result<T>` with `case ok(pattern)` and `case fail(pattern)` in
   `match`. Both outcomes require full coverage, and a bound error must be
   used. `Result<void>` uses `case ok()` for success.

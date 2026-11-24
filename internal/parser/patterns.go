@@ -200,21 +200,7 @@ func (p *Parser) parseMatchPattern() *ast.MatchPattern {
 			return nil
 		}
 	case token.LeftBracket:
-		p.advance()
-		pattern.Kind = ast.MatchSequence
-		for !p.at(token.RightBracket) && !p.at(token.EOF) {
-			element := p.parseMatchPattern()
-			if element == nil {
-				return nil
-			}
-			pattern.Elements = append(pattern.Elements, *element)
-			if !p.match(token.Comma) {
-				break
-			}
-		}
-		if _, ok := p.expect(token.RightBracket, "expected ']' after sequence pattern"); !ok {
-			return nil
-		}
+		return p.parseMatchSequence()
 	case token.String, token.ByteString, token.Regex, token.Integer, token.Float, token.True, token.False, token.Null:
 		pattern.Kind = ast.MatchLiteral
 		pattern.Literal = p.parsePrimary()
@@ -232,5 +218,51 @@ func (p *Parser) parseMatchPattern() *ast.MatchPattern {
 		return nil
 	}
 	pattern.Span = start.Span.Merge(p.previous().Span)
+	return pattern
+}
+
+func (p *Parser) parseMatchSequence() *ast.MatchPattern {
+	start := p.advance()
+	pattern := &ast.MatchPattern{Kind: ast.MatchSequence}
+	seenRest := false
+	for !p.at(token.RightBracket) && !p.at(token.EOF) {
+		rest := p.match(token.Ellipsis)
+		spread := p.previous()
+		if rest {
+			if seenRest {
+				p.report(spread, "sequence pattern accepts only one rest pattern")
+				return nil
+			}
+			if !p.at(token.Const) && !(p.at(token.Identifier) && p.peek().Lexeme == "_") {
+				p.report(p.peek(), "expected 'const' binding or '_' after '...' in sequence pattern")
+				return nil
+			}
+		}
+		element := p.parseMatchPattern()
+		if element == nil {
+			return nil
+		}
+		if rest {
+			if element.Kind == ast.MatchNonNullBinding {
+				p.report(p.previous(), "a rest binding cannot use '!'")
+				return nil
+			}
+			if element.Kind == ast.MatchWildcard {
+				element.Binding = ast.Binding{Name: "_", Span: element.Span}
+			}
+			element.Kind = ast.MatchSequenceRest
+			element.Span = spread.Span.Merge(element.Span)
+			seenRest = true
+		}
+		pattern.Elements = append(pattern.Elements, *element)
+		if !p.match(token.Comma) {
+			break
+		}
+	}
+	end, ok := p.expect(token.RightBracket, "expected ']' after sequence pattern")
+	if !ok {
+		return nil
+	}
+	pattern.Span = start.Span.Merge(end.Span)
 	return pattern
 }

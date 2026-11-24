@@ -10,6 +10,7 @@ import (
 
 func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 	program.UsesRegex = false
+	program.UsesMatchRest = false
 	program.RegexPatterns = nil
 	regexPatterns := map[string]int{}
 	var activeTypeParameters map[string]source.Span
@@ -122,6 +123,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 			for i := range expression.Arms {
 				arm := &expression.Arms[i]
 				arm.Pattern.Walk(func(pattern *ast.MatchPattern) {
+					if pattern.Kind == ast.MatchSequenceRest && pattern.Binding.Name != "_" {
+						program.UsesMatchRest = true
+					}
 					visitExpression(pattern.Literal)
 					visitType(&pattern.Binding.ResolvedType)
 				})

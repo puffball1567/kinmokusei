@@ -130,15 +130,20 @@ func ordinaryMatchResult(value Type) bool {
 
 type matchCoverage struct {
 	total, whenTrue, whenFalse, whenNull, whenPresent bool
+	slice                                             sliceMatchCoverage
 }
 
 func (c matchCoverage) exhaustive() bool {
-	return c.total || c.whenTrue && c.whenFalse || c.whenNull && c.whenPresent
+	return c.total || c.whenTrue && c.whenFalse || c.whenNull && c.whenPresent || c.slice.exhaustive()
 }
 
 func (c *matchCoverage) add(pattern *ast.MatchPattern, value Type, total bool) {
 	c.total = c.total || total
 	switch pattern.Kind {
+	case ast.MatchSequence:
+		if pattern.CoversSliceLength {
+			c.slice.add(pattern)
+		}
 	case ast.MatchNonNullBinding:
 		c.whenPresent = value.Kind == Nullable
 	case ast.MatchLiteral:
@@ -203,7 +208,7 @@ func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted b
 	switch p.Kind {
 	case ast.MatchWildcard:
 		return true
-	case ast.MatchBinding, ast.MatchNonNullBinding:
+	case ast.MatchBinding, ast.MatchNonNullBinding, ast.MatchSequenceRest:
 		nonNull := p.Kind == ast.MatchNonNullBinding
 		if nonNull {
 			if value.Kind == Nullable && value.Element != nil {
@@ -309,27 +314,6 @@ func (c *Checker) checkMatchRecord(p *ast.MatchPattern, value Type) bool {
 			c.report(field.NameSpan, fmt.Sprintf("%s has no direct record pattern field %q", value.String(), field.Name))
 		}
 		total = c.checkMatchPattern(&field.Pattern, resolved, true) && found && total
-	}
-	return total
-}
-
-func (c *Checker) checkMatchSequence(p *ast.MatchPattern, value Type) bool {
-	value = c.collectionOperandShape(value)
-	p.FixedLength = value.Kind == FixedArray
-	total := p.FixedLength && int64(len(p.Elements)) == value.Length
-	element := Type{Kind: Invalid}
-	if value.Kind == Array || value.Kind == FixedArray {
-		if value.Element != nil {
-			element = *value.Element
-		}
-		if p.FixedLength && !total {
-			c.report(p.Span, fmt.Sprintf("sequence pattern has %d elements; %s requires %d", len(p.Elements), value.String(), value.Length))
-		}
-	} else if value.Kind != Invalid {
-		c.report(p.Span, fmt.Sprintf("sequence pattern requires an array or slice, got %s", value.String()))
-	}
-	for i := range p.Elements {
-		total = c.checkMatchPattern(&p.Elements[i], element, true) && total
 	}
 	return total
 }

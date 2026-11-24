@@ -139,6 +139,13 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		}
 		file.Decls = append(file.Decls, declarations...)
 	}
+	if program.UsesMatchRest {
+		declarations, err := matchRestDeclarations()
+		if err != nil {
+			return nil, nil, err
+		}
+		file.Decls = append(file.Decls, declarations...)
+	}
 	if program.UsesTasks {
 		runtimeDeclarations, err := taskRuntimeDeclarations()
 		if err != nil {
