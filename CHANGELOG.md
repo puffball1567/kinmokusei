@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Check combinations of boolean and nullable fields or elements for
+  exhaustiveness in record and fixed-array patterns, including `ok` arms.
+
 - Use `...const rest` or `..._` in array and slice patterns to match the
   remaining elements. A named rest binding is a shallow slice copy. The
   exhaustiveness checker can combine unguarded patterns by slice length.

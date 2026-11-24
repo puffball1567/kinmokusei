@@ -77,9 +77,9 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 	}
 	exhaustive := covered.exhaustive()
 	if expr.SubjectKind != ast.MatchValueSubject {
-		exhaustive = c.checkResultMatchExhaustiveness(expr.Span, resultCovered)
+		exhaustive = c.checkResultMatchExhaustiveness(expr.Span, *value.Element, resultCovered)
 	} else if !exhaustive {
-		exhaustive = c.checkMatchExhaustiveness(expr, value)
+		exhaustive = c.productMatchExhaustive(covered.products, value) || c.checkMatchExhaustiveness(expr, value)
 	}
 	if !exhaustive {
 		continuing = append(continuing, remaining)
@@ -131,6 +131,7 @@ func ordinaryMatchResult(value Type) bool {
 type matchCoverage struct {
 	total, whenTrue, whenFalse, whenNull, whenPresent bool
 	slice                                             sliceMatchCoverage
+	products                                          []*ast.MatchPattern
 }
 
 func (c matchCoverage) exhaustive() bool {
@@ -140,8 +141,12 @@ func (c matchCoverage) exhaustive() bool {
 func (c *matchCoverage) add(pattern *ast.MatchPattern, value Type, total bool) {
 	c.total = c.total || total
 	switch pattern.Kind {
+	case ast.MatchRecord:
+		c.products = append(c.products, pattern)
 	case ast.MatchSequence:
-		if pattern.CoversSliceLength {
+		if pattern.FixedLength {
+			c.products = append(c.products, pattern)
+		} else if pattern.CoversSliceLength {
 			c.slice.add(pattern)
 		}
 	case ast.MatchNonNullBinding:
@@ -293,27 +298,32 @@ func (c *Checker) checkMatchRecord(p *ast.MatchPattern, value Type) bool {
 			c.report(field.NameSpan, fmt.Sprintf("duplicate record pattern field %q", field.Name))
 		}
 		seen[field.Name] = true
-		resolved := Type{Kind: Invalid}
-		found := false
-		switch value.Kind {
-		case Object:
-			resolved, found = value.Fields[field.Name]
-			field.ResolvedName = value.FieldNames[field.Name]
-		case Struct:
-			if structure := c.structs[value.Name]; structure != nil {
-				if direct, ok := structure.fields[field.Name]; ok {
-					resolved, found = substituteNativeTypeParameters(direct.typeInfo, nativeStructBindings(structure, value)), true
-					field.ResolvedName, field.ResolvedDeclaration = direct.goName, direct.declarationSpan
-					if direct.visibility != ast.Public && direct.declarationSpan.Path != field.NameSpan.Path {
-						c.report(field.NameSpan, fmt.Sprintf("record pattern field %q is private", field.Name))
-					}
-				}
-			}
+		direct, found := c.matchRecordField(value, field.Name)
+		field.ResolvedName, field.ResolvedDeclaration = direct.goName, direct.declarationSpan
+		if found && value.Kind == Struct && direct.visibility != ast.Public && direct.declarationSpan.Path != field.NameSpan.Path {
+			c.report(field.NameSpan, fmt.Sprintf("record pattern field %q is private", field.Name))
 		}
 		if !found && (value.Kind == Object || value.Kind == Struct) {
 			c.report(field.NameSpan, fmt.Sprintf("%s has no direct record pattern field %q", value.String(), field.Name))
 		}
-		total = c.checkMatchPattern(&field.Pattern, resolved, true) && found && total
+		total = c.checkMatchPattern(&field.Pattern, direct.typeInfo, true) && found && total
 	}
 	return total
+}
+
+func (c *Checker) matchRecordField(value Type, name string) (fieldSymbol, bool) {
+	switch value.Kind {
+	case Object:
+		if info, ok := value.Fields[name]; ok {
+			return fieldSymbol{typeInfo: info, goName: value.FieldNames[name]}, true
+		}
+	case Struct:
+		if structure := c.structs[value.Name]; structure != nil {
+			if direct, ok := structure.fields[name]; ok {
+				direct.typeInfo = substituteNativeTypeParameters(direct.typeInfo, nativeStructBindings(structure, value))
+				return direct, true
+			}
+		}
+	}
+	return fieldSymbol{typeInfo: Type{Kind: Invalid}}, false
 }
