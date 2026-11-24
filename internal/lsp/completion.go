@@ -40,10 +40,13 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 	}
 	var items []completionItem
 	if member {
+		// Recovery removes the selector, so its original cursor can be past
+		// the end of a match arm or expression-bodied arrow in the checked AST.
+		receiverOffset := memberReceiverEnd(doc.Path, doc.Text, dot, qualifier)
 		if members, ok := nativeMethodExpressionSetAt(result.Program, doc.Path, doc.Text, dot); ok {
 			items = nativeMethodExpressionCompletions(members, prefix)
 			if members.IncludeClassStatics {
-				if receiver, found := completionReceiverAt(result.Program, doc.Path, offset, qualifier); found && receiver.static {
+				if receiver, found := completionReceiverAt(result.Program, doc.Path, receiverOffset, qualifier); found && receiver.static {
 					items = append(items, sourceMemberCompletions(result.Program, receiver, prefix)...)
 					sortCompletionItems(items)
 				}
@@ -55,7 +58,7 @@ func (s *Server) completion(id json.RawMessage, raw json.RawMessage) error {
 		} else if isGoPackageQualifier(result.Program, doc.Path, qualifier) {
 			items = goMemberCompletions(result, doc.Path, qualifier, prefix)
 		} else {
-			receiver, ok := completionReceiverAt(result.Program, doc.Path, offset, qualifier)
+			receiver, ok := completionReceiverAt(result.Program, doc.Path, receiverOffset, qualifier)
 			if !ok {
 				receiver, ok = assertedCompletionReceiverAt(result.Program, doc.Path, doc.Text, dot)
 			}

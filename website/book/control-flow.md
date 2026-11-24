@@ -219,6 +219,7 @@ function route(request: Request): string {
 | `Status.Ready` | Match a declared enum member by its integer value |
 | `re"^/items/\d+$"` | Match a [regular expression](./types-and-values#regular-expressions) against a `string` |
 | `_`, `const name` | Accept any value and optionally give it a name |
+| `const name as Type` | Bind a value when a checked type assertion succeeds |
 | `null`, `const name!` | Match null or bind a non-null value of a nullable type |
 | `{ x: const x, y: 0 }` | Check selected direct fields of a value struct or object |
 | `[const first, _]` | Match exactly two elements of an array or slice |
@@ -299,6 +300,32 @@ Match a [`Result<T>`](./errors-results-exceptions#matching-a-result) with
 arm of the form `case ok()`. Each outcome must have full coverage without
 relying on guarded arms. Use `_` within a variant to explicitly discard its
 payload or error.
+
+### Type patterns
+
+A pattern such as `case const reader as *strings.Reader` uses the same
+type check as `as?`. The binding is available in the guard and arm expression.
+Use `const _ as Type` to check the type and discard the value. Type
+patterns also work inside other patterns and support checked class downcasts.
+
+```ts
+import go io from "io"
+import go strings from "strings"
+
+function remaining(input: io.Reader): int {
+  return match (input) {
+    case const reader as *strings.Reader if (reader != nil) => reader.Len()
+    case nil => 0
+    default => -1
+  }
+}
+```
+
+`case nil` matches a nil Go interface. A Go interface holding a typed nil
+pointer still has a dynamic type, so it can match a raw Go pointer pattern.
+The guard above checks that the pointer can be used before calling `Len`.
+Use `case null` for a nullable source value, and a fallback arm to cover
+other values.
 
 ## Channel `select`
 

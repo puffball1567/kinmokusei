@@ -7,12 +7,20 @@ import (
 	gotypes "go/types"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
+	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
-	expr.NonNull = false
-	expr.Type.NonNullKinds = 0
 	value := c.singleValue(c.checkExpression(expr.Value), expr.Value.GetSpan())
+	return c.checkTypeAssertion(expr, value, expr.Value.GetSpan())
+}
+
+func (c *Checker) checkTypeAssertion(expr *ast.GoTypeAssertionExpr, value Type, valueSpan source.Span) Type {
+	expr.NonNull = false
+	expr.ClassDowncast = false
+	expr.SourceClass = ""
+	expr.NativeContractArguments = nil
+	expr.Type.NonNullKinds = 0
 	asserted := c.resolveType(expr.Type)
 	if value.Kind == Invalid || asserted.Kind == Invalid {
 		return Type{Kind: Invalid, Name: "<invalid>"}
@@ -20,10 +28,7 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 	if expr.Checked && !expr.CheckedResultHandled && !c.zeroValueSafe(asserted) {
 		c.report(expr.Span, "checked assertion values without a safe zero require destructuring into [value, ok]; verify ok before using value")
 	}
-	source := value
-	if source.Kind == Nullable && source.Element != nil {
-		source = *source.Element
-	}
+	source := baseOfNullable(value)
 	if source.Kind == Class {
 		if asserted.Kind != Class {
 			c.report(expr.Span, fmt.Sprintf("class downcast requires class source and target types, got %s and %s", value.String(), asserted.String()))
@@ -51,9 +56,9 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 		}
 		return Type{Kind: MultiValue, Name: "checked class downcast", Results: []Type{asserted, builtins["boolean"]}}
 	}
-	contract := underlyingGoInterface(value.GoType)
+	contract := goTypeAssertionInterface(source)
 	if contract == nil {
-		c.report(expr.Value.GetSpan(), fmt.Sprintf("type assertion requires a Go interface value, got %s", value.String()))
+		c.report(valueSpan, fmt.Sprintf("type assertion requires a Go interface value, got %s", value.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	if c.containsVerifiedText(asserted, nil) {
@@ -61,11 +66,12 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
 	assertedGoType, ok := goTypeOf(asserted)
-	if !ok {
+	assertedInterface := underlyingGoInterface(assertedGoType)
+	if !ok || asserted.Kind != TypeParameter && assertedInterface != nil && !assertedInterface.IsMethodSet() {
 		c.report(expr.Type.Span, fmt.Sprintf("asserted type %s cannot be represented as a Go type", asserted.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
-	if !gotypes.AssertableTo(contract, assertedGoType) && !c.nativeStructSatisfiesGoInterface(value, asserted) {
+	if !gotypes.AssertableTo(contract, assertedGoType) && !c.nativeStructSatisfiesGoInterface(source, asserted) {
 		c.report(expr.Span, fmt.Sprintf("Go interface %s cannot contain asserted type %s", value.String(), asserted.String()))
 		return Type{Kind: Invalid, Name: "<invalid>"}
 	}
@@ -81,6 +87,15 @@ func (c *Checker) checkGoTypeAssertion(expr *ast.GoTypeAssertionExpr) Type {
 		return asserted
 	}
 	return Type{Kind: MultiValue, Name: "checked type assertion", Results: []Type{asserted, builtins["boolean"]}}
+}
+
+func goTypeAssertionInterface(value Type) *gotypes.Interface {
+	if value.Kind != TypeParameter {
+		if contract := underlyingGoInterface(value.GoType); contract != nil && contract.IsMethodSet() {
+			return contract
+		}
+	}
+	return nil
 }
 
 func (c *Checker) checkGoConversion(expr *ast.CallExpr, target Type) Type {

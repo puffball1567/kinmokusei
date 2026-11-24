@@ -9,6 +9,16 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/token"
 )
 
+func memberReceiverEnd(path, text string, dot int, qualifier string) int {
+	if qualifier != "" && !strings.HasSuffix(text[:dot], qualifier) {
+		tokens, _ := lexer.Lex(path, text[:dot])
+		if index := len(tokens) - 2; index >= 0 && tokens[index].Lexeme == qualifier {
+			return tokens[index].Span.End.Offset
+		}
+	}
+	return dot
+}
+
 // Analyze the receiver without an incomplete selector. Blank the whole member
 // token, including any suffix after the cursor, keeping original byte offsets.
 // This text is a request-local overlay; the editor document is never changed.

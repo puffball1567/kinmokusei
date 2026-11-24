@@ -88,18 +88,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 		if err != nil {
 			return nil, err
 		}
-		if expr.ClassDowncast {
-			name := mustDowncastName(expr.SourceClass, expr.Type.Name)
-			if expr.Checked {
-				name = downcastName(expr.SourceClass, expr.Type.Name)
-			}
-			arguments := []goast.Expr{value}
-			if len(expr.NativeContractArguments) != 0 {
-				arguments = append(arguments, &goast.UnaryExpr{Op: token.AND, X: contractArray(expr.NativeContractArguments)})
-			}
-			return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: arguments}, nil
-		}
-		return generateGoTypeAssertion(expr, value), nil
+		return generateTypeAssertion(expr, value), nil
 	case *kinmokuseiAST.TaskStartExpr:
 		return generateTaskStart(expr)
 	case *kinmokuseiAST.AwaitExpr:

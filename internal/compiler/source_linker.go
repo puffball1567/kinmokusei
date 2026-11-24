@@ -438,6 +438,9 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 			armLocals := cloneLocalBindings(locals)
 			arm.Pattern.Walk(func(pattern *ast.MatchPattern) {
 				linker.linkExpression(pattern.Literal, visible, locals)
+				if pattern.Assertion != nil {
+					linker.linkExpression(pattern.Assertion, visible, locals)
+				}
 				if name := pattern.Binding.Name; name != "" && name != "_" {
 					linker.bindLocal(armLocals, name)
 				}
@@ -451,6 +454,9 @@ func (linker *sourceLinker) linkExpression(expression ast.Expression, visible mo
 		linker.linkExpression(expression.Operand, visible, locals)
 	case *ast.PropagateExpr:
 		linker.linkExpression(expression.Value, visible, locals)
+	case *ast.GoTypeAssertionExpr:
+		linker.linkExpression(expression.Value, visible, locals)
+		linker.linkType(&expression.Type, visible, locals)
 	case *ast.TaskStartExpr:
 		linker.linkExpression(expression.Call, visible, locals)
 	case *ast.AwaitExpr:

@@ -106,6 +106,8 @@ func TestParserFailureAndRecoveryMatrix(t *testing.T) {
 		{"two sequence rests", `function broken(x: int[]): int { return match(x) { case [..._, ..._] => 1 } }`},
 		{"unbound sequence rest name", `function broken(x: int[]): int { return match(x) { case [...rest] => 1 } }`},
 		{"sequence rest assertion", `function broken(x: int[]): int { return match(x) { case [...const rest!] => 1 } }`},
+		{"typed sequence rest", `function broken(x: int[]): int { return match(x) { case [...const rest as int[]] => 1 } }`},
+		{"missing match assertion type", `function broken(x: error): int { return match(x) { case const typed as => 1 } }`},
 		{"empty explicit Go type arguments", `import go slices from "slices"; function broken(items: int[]): int[] { return slices.Clone[](items); }`},
 		{"unterminated explicit Go type arguments", `import go slices from "slices"; function broken(items: int[]): int[] { return slices.Clone[int(items); }`},
 		{"assertion missing failure marker", `import go io from "io"; function broken(value: io.Reader): io.Reader { return value as io.Reader; }`},

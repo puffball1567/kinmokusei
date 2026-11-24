@@ -8,6 +8,21 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
 
+func generateTypeAssertion(expr *ast.GoTypeAssertionExpr, operand goast.Expr) goast.Expr {
+	if !expr.ClassDowncast {
+		return generateGoTypeAssertion(expr, operand)
+	}
+	name := mustDowncastName(expr.SourceClass, expr.Type.Name)
+	if expr.Checked {
+		name = downcastName(expr.SourceClass, expr.Type.Name)
+	}
+	arguments := []goast.Expr{operand}
+	if len(expr.NativeContractArguments) != 0 {
+		arguments = append(arguments, &goast.UnaryExpr{Op: token.AND, X: contractArray(expr.NativeContractArguments)})
+	}
+	return &goast.CallExpr{Fun: indexedGoType(goast.NewIdent(name), expr.Type.GenericArguments), Args: arguments}
+}
+
 // A Go assertion checks dynamic type identity, but a typed nil function can
 // match a source function signature without satisfying its non-null contract.
 // Keep raw Go targets unchanged and validate source targets at this boundary.

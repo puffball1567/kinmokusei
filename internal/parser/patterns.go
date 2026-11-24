@@ -173,6 +173,15 @@ func (p *Parser) parseMatchPattern() *ast.MatchPattern {
 		pattern.Binding = ast.Binding{Name: name.Lexeme, Span: name.Span}
 		if p.match(token.Bang) {
 			pattern.Kind = ast.MatchNonNullBinding
+		} else if p.match(token.As) {
+			target, ok := p.parseType()
+			if !ok {
+				return nil
+			}
+			pattern.Kind = ast.MatchTypeBinding
+			pattern.Assertion = &ast.GoTypeAssertionExpr{
+				Type: target, Checked: true, CheckedResultHandled: true, Span: start.Span.Merge(target.Span),
+			}
 		}
 	case token.LeftBrace:
 		p.advance()
@@ -201,7 +210,7 @@ func (p *Parser) parseMatchPattern() *ast.MatchPattern {
 		}
 	case token.LeftBracket:
 		return p.parseMatchSequence()
-	case token.String, token.ByteString, token.Regex, token.Integer, token.Float, token.True, token.False, token.Null:
+	case token.String, token.ByteString, token.Regex, token.Integer, token.Float, token.True, token.False, token.Null, token.Nil:
 		pattern.Kind = ast.MatchLiteral
 		pattern.Literal = p.parsePrimary()
 	case token.Minus:
@@ -245,6 +254,10 @@ func (p *Parser) parseMatchSequence() *ast.MatchPattern {
 		if rest {
 			if element.Kind == ast.MatchNonNullBinding {
 				p.report(p.previous(), "a rest binding cannot use '!'")
+				return nil
+			}
+			if element.Kind == ast.MatchTypeBinding {
+				p.report(spread, "a rest binding cannot use 'as'")
 				return nil
 			}
 			if element.Kind == ast.MatchWildcard {

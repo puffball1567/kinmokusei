@@ -127,6 +127,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 						program.UsesMatchRest = true
 					}
 					visitExpression(pattern.Literal)
+					if pattern.Assertion != nil {
+						visitExpression(pattern.Assertion)
+					}
 					visitType(&pattern.Binding.ResolvedType)
 				})
 				visitExpression(arm.Guard)

@@ -464,6 +464,9 @@ func (s *Server) symbolOccurrencesWithText(program *ast.Program, textByPath map[
 						add(field.NameSpan, field.ResolvedDeclaration)
 					}
 					walkExpression(pattern.Literal)
+					if pattern.Assertion != nil {
+						walkType(&pattern.Assertion.Type)
+					}
 				})
 				walkExpression(arm.Guard)
 				walkExpression(arm.Value)

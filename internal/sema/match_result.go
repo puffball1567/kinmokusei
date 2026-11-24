@@ -43,7 +43,7 @@ func (c *Checker) checkResultMatchArm(arm *ast.MatchArm, successType Type, cover
 		return
 	}
 	total := c.checkMatchPattern(pattern.Payload, payloadType, true)
-	if pattern.Kind == ast.MatchResultFail && pattern.Payload.Kind == ast.MatchBinding {
+	if pattern.Kind == ast.MatchResultFail && (pattern.Payload.Kind == ast.MatchBinding || pattern.Payload.Kind == ast.MatchTypeBinding) {
 		binding := &pattern.Payload.Binding
 		if binding.Name != "_" {
 			c.trackResultError(binding.Name, binding.Span)

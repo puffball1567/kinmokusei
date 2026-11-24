@@ -213,6 +213,13 @@ func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted b
 	switch p.Kind {
 	case ast.MatchWildcard:
 		return true
+	case ast.MatchTypeBinding:
+		asserted := c.checkTypeAssertion(p.Assertion, value, p.Span)
+		bound := Type{Kind: Invalid}
+		if asserted.Kind == MultiValue && len(asserted.Results) == 2 {
+			bound = asserted.Results[0]
+		}
+		c.declareMatchBinding(&p.Binding, bound, false)
 	case ast.MatchBinding, ast.MatchNonNullBinding, ast.MatchSequenceRest:
 		nonNull := p.Kind == ast.MatchNonNullBinding
 		if nonNull {
@@ -223,21 +230,7 @@ func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted b
 				value = Type{Kind: Invalid}
 			}
 		}
-		binding := &p.Binding
-		binding.ResolvedType = typeRefFromType(value, binding.Span)
-		binding.NonNull = false
-		if binding.Name != "_" {
-			if (extracted || nonNull) && c.needsStorageBoundary(value, value, nil) {
-				binding.ResolvedType = c.boundaryTypeRef(value, binding.Span)
-				binding.NonNull = true
-			}
-			if c.declareLocal(binding.Name, value, true, nil, binding.Span) {
-				scope := c.scopes[len(c.scopes)-1]
-				symbol := scope[binding.Name]
-				symbol.matchBinding = binding
-				scope[binding.Name] = symbol
-			}
-		}
+		c.declareMatchBinding(&p.Binding, value, extracted || nonNull)
 		return !nonNull
 	case ast.MatchLiteral:
 		c.checkMatchLiteral(p.Literal, value)
@@ -256,6 +249,24 @@ func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted b
 	return false
 }
 
+func (c *Checker) declareMatchBinding(binding *ast.Binding, value Type, checkNonNull bool) {
+	binding.ResolvedType = typeRefFromType(value, binding.Span)
+	binding.NonNull = false
+	if binding.Name == "_" {
+		return
+	}
+	if checkNonNull && c.needsStorageBoundary(value, value, nil) {
+		binding.ResolvedType = c.boundaryTypeRef(value, binding.Span)
+		binding.NonNull = true
+	}
+	if c.declareLocal(binding.Name, value, true, nil, binding.Span) {
+		scope := c.scopes[len(c.scopes)-1]
+		symbol := scope[binding.Name]
+		symbol.matchBinding = binding
+		scope[binding.Name] = symbol
+	}
+}
+
 func (c *Checker) checkMatchLiteral(literal ast.Expression, value Type) {
 	if regex, ok := literal.(*ast.RegexExpr); ok {
 		c.checkRegexLiteral(regex)
@@ -263,7 +274,11 @@ func (c *Checker) checkMatchLiteral(literal ast.Expression, value Type) {
 		return
 	}
 	if isAbsenceLiteral(literal) {
-		if value.Kind != Invalid && value.Kind != Nullable {
+		if literal.(*ast.LiteralExpr).Kind == ast.NilLiteral {
+			if value.Kind != Invalid && goTypeAssertionInterface(baseOfNullable(value)) == nil {
+				c.report(literal.GetSpan(), fmt.Sprintf("nil match pattern requires a Go interface value, got %s", value.String()))
+			}
+		} else if value.Kind != Invalid && value.Kind != Nullable {
 			c.report(literal.GetSpan(), fmt.Sprintf("null match pattern requires a nullable value, got %s", value.String()))
 		}
 		return
