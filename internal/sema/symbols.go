@@ -35,6 +35,7 @@ type valueSymbol struct {
 	selectIndex           int
 	typeSwitchCase        *ast.TypeSwitchCase
 	catchClause           *ast.CatchClause
+	matchBinding          *ast.Binding
 	taskState             uint8
 	presence              presenceFlow
 }

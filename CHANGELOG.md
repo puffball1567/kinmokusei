@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Handle `Result<T>` with `case ok(pattern)` and `case fail(pattern)` in
+  `match`. Both outcomes require full coverage, and a bound error must be
+  used. `Result<void>` uses `case ok()` for success.
+
 - Match enum members with `case Enum.Member => ...`, including inside record
   and sequence patterns. The compiler reports omitted declared values when a
   match has no fallback. A fallback can handle undeclared integer values

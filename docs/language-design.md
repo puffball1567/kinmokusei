@@ -1425,6 +1425,13 @@ const [cleanupErr] = cleanup();
 This is direct multiple-result binding, not object destructuring. A real object
 is generated only when the called API actually returns an object.
 
+`match (operation())` can consume a `Result<T>` with `case ok(pattern)` and
+`case fail(pattern)`. The subject is evaluated once, and the Go `error` slot
+determines the outcome before the payload is inspected. For `Result<void>`,
+the success pattern is `ok()`. Both outcomes require full unguarded coverage.
+`fail(_)` explicitly discards the error. A named error must be read in its
+guard or arm expression, just as with a named error from a split binding.
+
 Since v0.4.0, named local error bindings populated by a source
 Result split must be read somewhere in source code. An unused error is a
 compile error; generated Go unused-variable cleanup does not count as handling.

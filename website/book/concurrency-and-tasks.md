@@ -123,7 +123,9 @@ A callback has its own task scope. Its return or `?` does not exit the outer
 function, so an unrelated outer task may remain pending until the caller joins
 it. The callback still cannot capture or consume that outer task.
 
-Without `?`, the `Result` layer has not been consumed:
+Awaiting consumes the task. Handle its `Result` with `?`, a split binding, a
+[match](./errors-results-exceptions#matching-a-result), or a direct return.
+Assigning the whole `Result` to a local value is a compile error.
 
 <<< ../snippets-invalid/task-result-without-propagation.km{ts}
 

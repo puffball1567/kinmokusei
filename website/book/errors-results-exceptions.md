@@ -77,6 +77,30 @@ keep their existing policy; annotate a function value with `Result<T>` to
 establish the checked source contract. `Task` values still require `await` or
 `detach` and cannot be discarded with `_`.
 
+### Matching a Result
+
+Use `match` when success and failure both produce a value in the current
+function. The operation runs once, and each arm can only bind the payload
+of its own outcome.
+
+```ts
+function portOrDefault(text: string): int {
+  return match (parsePort(text)) {
+    case ok(const port) => port
+    case fail(_) => 8080
+  }
+}
+```
+
+`case ok(pattern)` can also filter or destructure the success payload. For
+`Result<void>`, use `case ok()`. Cover both outcomes explicitly and use an
+unguarded arm such as `case ok(_)` when earlier arms only match some success
+values. To inspect the error, bind it with `case fail(const err)` and use it in
+the guard or arm expression. `case fail(_)` explicitly ignores the error.
+
+The same patterns work with `match (await task)` when the task returns a
+`Result`.
+
 ## Propagating Go operations
 
 Postfix `?` works on a compatible Go `(T, error)` or single `error` call inside a `Result` function:

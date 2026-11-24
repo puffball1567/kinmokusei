@@ -30,12 +30,21 @@ type MatchExpr struct {
 	Value          Expression
 	Arms           []MatchArm
 	ResultType     TypeRef
+	SubjectKind    MatchSubjectKind
 	EnumExhaustive bool // all declared enum values are covered without a fallback
 	Span           source.Span
 }
 
 func (*MatchExpr) expression()            {}
 func (e *MatchExpr) GetSpan() source.Span { return e.Span }
+
+type MatchSubjectKind int
+
+const (
+	MatchValueSubject MatchSubjectKind = iota
+	MatchResultSubject
+	MatchVoidResultSubject
+)
 
 type MatchArm struct {
 	Pattern MatchPattern
@@ -53,6 +62,8 @@ const (
 	MatchLiteral
 	MatchRecord
 	MatchSequence
+	MatchResultOK
+	MatchResultFail
 )
 
 type MatchPattern struct {
@@ -61,6 +72,7 @@ type MatchPattern struct {
 	Literal     Expression
 	Fields      []MatchField
 	Elements    []MatchPattern
+	Payload     *MatchPattern
 	FixedLength bool // the checker proved the sequence length from its type
 	Span        source.Span
 }
@@ -75,6 +87,9 @@ type MatchField struct {
 
 func (p *MatchPattern) Walk(visit func(*MatchPattern)) {
 	visit(p)
+	if p.Payload != nil {
+		p.Payload.Walk(visit)
+	}
 	for i := range p.Fields {
 		p.Fields[i].Pattern.Walk(visit)
 	}

@@ -16,15 +16,31 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 		return nil, err
 	}
 	value := goast.NewIdent("__kinmokuseiMatchValue")
+	failure := goast.NewIdent("__kinmokuseiMatchError")
+	captures := []goast.Expr{value}
+	switch expr.SubjectKind {
+	case ast.MatchResultSubject:
+		captures = append(captures, failure)
+	case ast.MatchVoidResultSubject:
+		captures = []goast.Expr{failure}
+	}
 	body := &goast.BlockStmt{List: []goast.Stmt{
-		&goast.AssignStmt{Lhs: []goast.Expr{value}, Tok: token.DEFINE, Rhs: []goast.Expr{scrutinee}},
-		&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{value}},
+		&goast.AssignStmt{Lhs: captures, Tok: token.DEFINE, Rhs: []goast.Expr{scrutinee}},
 	}}
+	if expr.SubjectKind != ast.MatchVoidResultSubject {
+		body.List = append(body.List, &goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{value}})
+	}
 	unconditional := false
 	for i := range expr.Arms {
 		arm := &expr.Arms[i]
 		var pattern matchPatternCode
-		if err := pattern.generate(&arm.Pattern, value); err != nil {
+		var err error
+		if expr.SubjectKind == ast.MatchValueSubject {
+			err = pattern.generate(&arm.Pattern, value)
+		} else {
+			err = pattern.generateResult(&arm.Pattern, value, failure)
+		}
+		if err != nil {
 			return nil, err
 		}
 		result, err := generateExpression(arm.Value)
@@ -76,13 +92,13 @@ func (c *matchPatternCode) generate(pattern *ast.MatchPattern, value goast.Expr)
 		}
 		if pattern.Binding.Name != "_" {
 			name := goast.NewIdent(goName(pattern.Binding.Name))
-			if pattern.Binding.NonNull {
-				value = generateNonNullReference(value, pattern.Binding.ResolvedType, pattern.Binding.Span, "match binding")
-			}
 			c.bindings = append(c.bindings,
 				&goast.AssignStmt{Lhs: []goast.Expr{name}, Tok: token.DEFINE, Rhs: []goast.Expr{value}},
 				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{name}},
 			)
+			if pattern.Binding.NonNull {
+				c.bindings = append(c.bindings, generateTypedNonNullCheck(name, pattern.Binding.ResolvedType, pattern.Binding.Span, "match binding", nil))
+			}
 		}
 	case ast.MatchLiteral:
 		literal, err := generateExpression(pattern.Literal)
@@ -113,6 +129,21 @@ func (c *matchPatternCode) generate(pattern *ast.MatchPattern, value goast.Expr)
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (c *matchPatternCode) generateResult(pattern *ast.MatchPattern, value, failure *goast.Ident) error {
+	operator := token.EQL
+	if pattern.Kind == ast.MatchResultFail {
+		operator = token.NEQ
+		value = failure
+	}
+	// Check the outcome before inspecting the payload, which may be a zero
+	// value that violates the source contract on the failure edge.
+	c.addCheck(failure, operator, goast.NewIdent("nil"))
+	if pattern.Payload != nil {
+		return c.generate(pattern.Payload, value)
 	}
 	return nil
 }

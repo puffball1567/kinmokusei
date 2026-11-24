@@ -8,7 +8,7 @@ import (
 	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
-const resultUsageMessage = "Result values must be consumed with ?, explicitly split, or returned; use _ for intentional discard"
+const resultUsageMessage = "Result values must be consumed with ?, explicitly split, matched, or returned; use _ for intentional discard"
 
 // Blank bindings do not introduce storage or predeclared arrow symbols.
 // They still type-check and evaluate their initializer, including its effects.
@@ -90,6 +90,8 @@ func (c *Checker) trackResultError(name string, span source.Span) {
 			used = &symbol.selectCase.Bindings[symbol.selectIndex].Used
 		case symbol.typeSwitchCase != nil:
 			used = &symbol.typeSwitchCase.Used
+		case symbol.matchBinding != nil:
+			used = &symbol.matchBinding.Used
 		}
 		// Parameters and nonlocal storage already expose an ordinary error value.
 		if used != nil {

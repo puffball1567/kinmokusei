@@ -130,8 +130,26 @@ func (p *Parser) parseMatchPattern() *ast.MatchPattern {
 		if start.Lexeme == "_" {
 			return pattern
 		}
+		if (start.Lexeme == "ok" || start.Lexeme == "fail") && p.match(token.LeftParen) {
+			pattern.Kind = ast.MatchResultOK
+			if start.Lexeme == "fail" {
+				pattern.Kind = ast.MatchResultFail
+			}
+			if !p.at(token.RightParen) {
+				pattern.Payload = p.parseMatchPattern()
+				if pattern.Payload == nil {
+					return nil
+				}
+			}
+			end, ok := p.expect(token.RightParen, "expected ')' after Result pattern")
+			if !ok {
+				return nil
+			}
+			pattern.Span = start.Span.Merge(end.Span)
+			return pattern
+		}
 		if !p.match(token.Dot) {
-			p.report(start, "expected a literal, 'Enum.Member', '_', or a 'const' binding in match pattern")
+			p.report(start, "expected a literal, 'Enum.Member', Result pattern, '_', or a 'const' binding in match pattern")
 			return nil
 		}
 		name := p.peek()

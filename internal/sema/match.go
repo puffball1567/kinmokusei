@@ -11,13 +11,7 @@ import (
 func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 	expr.ResultType = ast.TypeRef{}
 	expr.EnumExhaustive = false
-	value := c.singleValue(c.checkExpression(expr.Value), expr.Value.GetSpan())
-	value = c.checkSwitchTag(expr.Value, value)
-	switch value.Kind {
-	case Void, Task, GoPackage, GoTypeName, Nil, Null:
-		c.report(expr.Value.GetSpan(), "match requires an ordinary value with a concrete type")
-		value = Type{Kind: Invalid}
-	}
+	value := c.checkMatchSubject(expr)
 	entry := c.snapshotNullableFlow()
 	remaining := entry
 	continuing := make([]nullableFlowSnapshot, 0, len(expr.Arms))
@@ -26,17 +20,24 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 		result = *expected
 	}
 	var covered matchCoverage
+	var resultCovered resultMatchCoverage
 	for i := range expr.Arms {
 		arm := &expr.Arms[i]
-		if covered.exhaustive() {
-			c.report(arm.Span, "unreachable match arm")
-		}
 		c.restoreNullableFlow(remaining)
 		c.pushScope()
-		total := c.checkMatchPattern(&arm.Pattern, value, false)
-		if arm.Guard == nil {
-			covered.add(&arm.Pattern, value, total)
+		total := false
+		if expr.SubjectKind != ast.MatchValueSubject {
+			c.checkResultMatchArm(arm, *value.Element, &resultCovered)
 		} else {
+			if covered.exhaustive() {
+				c.report(arm.Span, "unreachable match arm")
+			}
+			total = c.checkMatchPattern(&arm.Pattern, value, false)
+			if arm.Guard == nil {
+				covered.add(&arm.Pattern, value, total)
+			}
+		}
+		if arm.Guard != nil {
 			guard, whenTrue, whenFalse := c.checkCondition(arm.Guard)
 			guard = c.singleValue(guard, arm.Guard.GetSpan())
 			if guard.Kind != Invalid && !guard.IsBoolean() {
@@ -74,7 +75,13 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 		c.popScope()
 		continuing = append(continuing, c.snapshotNullableFlow())
 	}
-	if !covered.exhaustive() && !c.checkMatchExhaustiveness(expr, value) {
+	exhaustive := covered.exhaustive()
+	if expr.SubjectKind != ast.MatchValueSubject {
+		exhaustive = c.checkResultMatchExhaustiveness(expr.Span, resultCovered)
+	} else if !exhaustive {
+		exhaustive = c.checkMatchExhaustiveness(expr, value)
+	}
+	if !exhaustive {
 		continuing = append(continuing, remaining)
 	}
 	c.restoreNullableFlow(c.mergeNullableFlow(entry, continuing...))
@@ -89,6 +96,28 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type) Type {
 	c.prepareGoTypeForEmission(&result, expr.Span)
 	expr.ResultType = typeRefFromType(result, expr.Span)
 	return result
+}
+
+func (c *Checker) checkMatchSubject(expr *ast.MatchExpr) Type {
+	expr.SubjectKind = ast.MatchValueSubject
+	value := c.checkExpression(expr.Value)
+	if value.Kind == Result && value.Element != nil {
+		if call, ok := expr.Value.(*ast.CallExpr); ok && (call.Builtin == ast.ResultOKCall || call.Builtin == ast.ResultFailCall) {
+			c.report(call.Span, "Result constructors must be returned before they can be matched")
+		}
+		expr.SubjectKind = ast.MatchResultSubject
+		if value.Element.Kind == Void {
+			expr.SubjectKind = ast.MatchVoidResultSubject
+		}
+		return value
+	}
+	value = c.checkSwitchTag(expr.Value, c.singleValue(value, expr.Value.GetSpan()))
+	switch value.Kind {
+	case Void, Task, GoPackage, GoTypeName, Nil, Null:
+		c.report(expr.Value.GetSpan(), "match requires a value with a concrete type or a Result")
+		return Type{Kind: Invalid}
+	}
+	return value
 }
 
 func ordinaryMatchResult(value Type) bool {
@@ -192,7 +221,12 @@ func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted b
 				binding.ResolvedType = c.boundaryTypeRef(value, binding.Span)
 				binding.NonNull = true
 			}
-			c.declareLocal(binding.Name, value, true, nil, binding.Span)
+			if c.declareLocal(binding.Name, value, true, nil, binding.Span) {
+				scope := c.scopes[len(c.scopes)-1]
+				symbol := scope[binding.Name]
+				symbol.matchBinding = binding
+				scope[binding.Name] = symbol
+			}
 		}
 		return !nonNull
 	case ast.MatchLiteral:
@@ -201,6 +235,13 @@ func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted b
 		return c.checkMatchRecord(p, value)
 	case ast.MatchSequence:
 		return c.checkMatchSequence(p, value)
+	case ast.MatchResultOK, ast.MatchResultFail:
+		if value.Kind != Invalid {
+			c.report(p.Span, "ok and fail patterns require a Result subject")
+		}
+		if p.Payload != nil {
+			c.checkMatchPattern(p.Payload, Type{Kind: Invalid}, true)
+		}
 	}
 	return false
 }

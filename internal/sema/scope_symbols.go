@@ -88,11 +88,11 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 	}
 }
 
-func (c *Checker) declareLocal(name string, t Type, constant bool, declaration *ast.VariableDecl, span source.Span) {
+func (c *Checker) declareLocal(name string, t Type, constant bool, declaration *ast.VariableDecl, span source.Span) bool {
 	scope := c.scopes[len(c.scopes)-1]
 	if _, exists := scope[name]; exists {
 		c.report(span, fmt.Sprintf("duplicate local name %q", name))
-		return
+		return false
 	}
 	declarationSpan := declarationNameSpan(name, span)
 	if declaration != nil {
@@ -110,6 +110,7 @@ func (c *Checker) declareLocal(name string, t Type, constant bool, declaration *
 	} else if isBuiltinValueName(name) {
 		c.report(span, fmt.Sprintf("local name %q conflicts with a compiler built-in", name))
 	}
+	return true
 }
 
 func (c *Checker) declareMultiLocal(name string, t Type, constant bool, declaration *ast.MultiVariableDecl, index int, span source.Span) {
@@ -259,6 +260,9 @@ func (c *Checker) lookupSymbol(name string, span source.Span) (valueSymbol, bool
 			}
 			if !c.inArrayLength && symbol.catchClause != nil {
 				symbol.catchClause.Used = true
+			}
+			if !c.inArrayLength && symbol.matchBinding != nil {
+				symbol.matchBinding.Used = true
 			}
 			return symbol, true
 		}

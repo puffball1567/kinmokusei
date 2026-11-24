@@ -58,7 +58,7 @@ func TestRejectsInvalidResultPropagationAndSplitUses(t *testing.T) {
 		{"propagation wrong operand", `function bad(): Result<int> { const value = 1?; return ok(value); }`, "operator ? requires Result<T>"},
 		{"propagation nested expression", `function source(): Result<int> { return ok(1); } function bad(): Result<int> { return ok(source()?); }`, "result propagation may only be used as a variable initializer"},
 		{"nonvoid propagation statement", `function source(): Result<int> { return ok(1); } function bad(): Result<void> { source()?; return ok(); }`, "must be bound to a variable"},
-		{"discarded result", `function source(): Result<int> { return ok(1); } function bad(): Result<void> { source(); return ok(); }`, "must be consumed with ?, explicitly split, or returned"},
+		{"discarded result", `function source(): Result<int> { return ok(1); } function bad(): Result<void> { source(); return ok(); }`, "must be consumed with ?, explicitly split, matched, or returned"},
 		{"result split count", `function source(): Result<int> { return ok(1); } function bad(): void { const [value, err, extra] = source(); }`, "Result binding count mismatch"},
 		{"void result split count", `function source(): Result<void> { return ok(); } function bad(): void { const [value, err] = source(); }`, "Result binding count mismatch"},
 		{"deferred result", `function source(): Result<int> { return ok(1); } function bad(): Result<void> { defer source(); return ok(); }`, "defer cannot discard a Result"},
