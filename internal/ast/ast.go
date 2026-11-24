@@ -514,6 +514,7 @@ const (
 	ResultSuccessReturn
 	ResultFailureReturn
 	ResultForwardReturn
+	ResultMatchReturn
 )
 
 func (*ReturnStmt) statement()             {}

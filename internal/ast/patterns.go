@@ -47,10 +47,11 @@ const (
 )
 
 type MatchArm struct {
-	Pattern MatchPattern
-	Guard   Expression
-	Value   Expression
-	Span    source.Span
+	Pattern      MatchPattern
+	Guard        Expression
+	Value        Expression
+	ResultReturn *ReturnStmt // checked return when the enclosing match returns a Result
+	Span         source.Span
 }
 
 type MatchPatternKind int

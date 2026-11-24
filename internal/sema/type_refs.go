@@ -134,6 +134,9 @@ func (c *Checker) markResolvedTypeRefs(program *ast.Program) {
 				})
 				visitExpression(arm.Guard)
 				visitExpression(arm.Value)
+				if arm.ResultReturn != nil {
+					visitType(&arm.ResultReturn.ResultType)
+				}
 			}
 		case *ast.OptionalChainExpr:
 			visitExpression(expression.Object)

@@ -225,9 +225,10 @@ function route(request: Request): string {
 | `[const first, _]` | Match exactly two elements of an array or slice |
 | `[const first, ...const middle, const last]` | Match at least two elements and bind a shallow copy of the middle |
 
-Field and sequence patterns can be nested. Each arm produces one value of
-the surrounding expected type. When there is no surrounding type annotation,
-the first arm supplies the result type.
+Field and sequence patterns can be nested. In a value-producing match, each
+arm produces one value of the surrounding expected type. When there is no
+surrounding type annotation, the first arm supplies the result type. An
+explicit return can also [return a Result from each arm](./errors-results-exceptions#returning-a-result-from-match).
 
 A match requires an exhaustive set of arms. Use a final `default` or
 `case _` for a fallback. Both boolean literals cover a boolean. The pair
