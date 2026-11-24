@@ -132,14 +132,11 @@ func generateStatement(stmt kinmokuseiAST.Statement) (goast.Stmt, error) {
 		spec := &goast.ValueSpec{Names: names, Values: []goast.Expr{value}}
 		return &goast.DeclStmt{Decl: &goast.GenDecl{Tok: token.VAR, Specs: []goast.Spec{spec}}}, nil
 	case *kinmokuseiAST.ReturnStmt:
-		if stmt.ResultKind == kinmokuseiAST.ResultMatchReturn {
-			return generateMatchResultReturn(stmt)
+		if stmt.ResultKind != kinmokuseiAST.NormalReturn {
+			return generateResultReturn(stmt, zeroValue)
 		}
 		if stmt.CrossesTry {
 			return generateExceptionReturn(stmt)
-		}
-		if stmt.ResultKind != kinmokuseiAST.NormalReturn {
-			return generateResultReturn(stmt)
 		}
 		result := &goast.ReturnStmt{}
 		if stmt.Value != nil {

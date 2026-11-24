@@ -13,6 +13,7 @@ func TestResultFunctionValuesPipeline(t *testing.T) {
 		`function load():Result<int>{return ok(42);}function run():Result<int>{const f=load;return f();}`,
 		`const load=():Result<int>=>{return ok(42);};function run():Result<int>{return load();}`,
 		`export const Load=(value:int):Result<int>=>ok(value);function run():Result<int>{return Load(42);}`,
+		`struct Item { value:int } const failItem=(Item:int,err:error):Result<Item>=>fail(err);`,
 		`function run():Result<void>{const f:()=>Result<void>=()=>ok();return f();}`,
 		`function run<T>(value:T):Result<T>{const f:(value:T)=>Result<T>=(n)=>ok(n);return f(value);}`,
 		`alias Load=()=>Result<int>;function run():Result<int>{const f:Load=()=>ok(42);const g:Load=()=>f();return g();}`,

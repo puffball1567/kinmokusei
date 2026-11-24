@@ -12,6 +12,7 @@ func TestMatchResultReturnMatchesIndependentGo(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "match_return.km")
 	input := `export class Box { constructor(public n: int) {} }
+export struct Item { public n: int }
 
 export function Transform(load: () => Result<int>, allow: (n: int) => boolean, encode: (n: int) => Result<string>): Result<string> {
   return match (load()) {
@@ -53,6 +54,10 @@ export const Arrow = (value: int): Result<int> => {
 export const Concise: (value: int) => Result<int> = (value) =>
   match (value) { case 0 => ok(1), default => ok(value) }
 export const ConciseForward = (load: () => Result<Box>): Result<Box> => load()
+export const ShadowedType = (input: Item, err: error): Result<Item> => match (input) {
+  case { n: 0 } => ok(input)
+  case const Item => fail(err)
+}
 `
 	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -102,6 +107,10 @@ func Forward[T any](load func() (*T,error)) (*T,error) {
   if err == nil && value == nil { panic("nil success value") }
   return value, err
 }
+func ShadowedType(n int, err error) (int,error) {
+  if n == 0 { return n, nil }
+  return 0, err
+}
 `
 	comparison := `package matchreturn_test
 import (
@@ -143,6 +152,9 @@ func TestMatch(t *testing.T) {
     for _, arrow := range []func(int) (int,error){g.Arrow, g.Concise} {
       if got, err := arrow(n); got != want || err != wantErr { t.Fatal(got, err) }
     }
+    got, err := g.ShadowedType(g.Item{N: n}, failure)
+    wantValue, wantErr := r.ShadowedType(n, failure)
+    if got.N != wantValue || err != wantErr { t.Fatal(got, err, wantValue, wantErr) }
   }
   if got, err := g.Forward(true, func() (*g.Box,error) { return nil, failure }, nilFallback); got != nil || err != failure { t.Fatal(got, err) }
   box := g.NewBox(4)
