@@ -6,6 +6,48 @@ import (
 	"testing"
 )
 
+func TestTypedMatchEditor(t *testing.T) {
+	t.Parallel()
+	input := `import go os from "os"
+alias PathError = *os.PathError
+function path(problem: error): bstring {
+  return match(problem) {
+    case const detail as PathError => detail.Path
+    default => b""
+  }
+}
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	use := positionOf(input, "detail.Path", 0)
+	target := positionOf(input, "PathError =>", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, use, ""),
+		requestAt("textDocument/definition", 3, uri, target, ""),
+		requestAt("textDocument/rename", 4, uri, use, `"newName":"cause"`),
+	)
+	for id, line := range map[float64]float64{2: 4, 3: 1} {
+		definition, ok := messages[id]["result"].(map[string]any)
+		if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != line {
+			t.Fatalf("definition=%v", messages[id])
+		}
+	}
+	rename, ok := messages[4]["result"].(map[string]any)
+	if !ok || len(rename["changes"].(map[string]any)[uri].([]any)) != 2 {
+		t.Fatalf("rename=%v", messages[4])
+	}
+	items := completionLabels(completionItemsAt(t, path, input, use.Line, use.Character+len("detail.")))
+	if items["Path"] == nil || items["Op"] == nil {
+		t.Fatalf("type-specific completion=%v", items)
+	}
+	withComment := strings.Replace(input, "detail.Path", "detail /* receiver */ .Path", 1)
+	selector := positionOf(withComment, " .Path", 0)
+	items = completionLabels(completionItemsAt(t, path, withComment, selector.Line, selector.Character+2))
+	if items["Path"] == nil || items["Op"] == nil {
+		t.Fatalf("type-specific completion after a comment=%v", items)
+	}
+}
+
 func TestSequenceRestEditor(t *testing.T) {
 	t.Parallel()
 	input := `function count(values: int[]): int {

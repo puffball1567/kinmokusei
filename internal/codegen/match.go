@@ -58,7 +58,7 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 		}
 		armBody := &goast.BlockStmt{List: pattern.bindings}
 		if len(pattern.checks) != 0 {
-			body.List = append(body.List, &goast.IfStmt{Cond: matchConjunction(pattern.checks), Body: armBody})
+			body.List = append(body.List, wrapMatchChecks(pattern.checks, armBody))
 		} else {
 			body.List = append(body.List, armBody)
 			unconditional = arm.Guard == nil
@@ -79,33 +79,31 @@ func generateMatch(expr *ast.MatchExpr) (goast.Expr, error) {
 }
 
 type matchPatternCode struct {
-	checks   []goast.Expr
+	checks   []matchPatternCheck
 	bindings []goast.Stmt
+}
+
+type matchPatternCheck struct {
+	init      goast.Stmt
+	condition goast.Expr
 }
 
 func (c *matchPatternCode) generate(pattern *ast.MatchPattern, value goast.Expr) error {
 	switch pattern.Kind {
+	case ast.MatchTypeBinding:
+		c.addTypeCheck(pattern, value)
 	case ast.MatchBinding, ast.MatchNonNullBinding, ast.MatchSequenceRest:
 		if pattern.Kind == ast.MatchNonNullBinding {
 			c.addCheck(value, token.NEQ, goast.NewIdent("nil"))
 		}
-		if pattern.Binding.Name != "_" {
-			name := goast.NewIdent(goName(pattern.Binding.Name))
-			c.bindings = append(c.bindings,
-				&goast.AssignStmt{Lhs: []goast.Expr{name}, Tok: token.DEFINE, Rhs: []goast.Expr{value}},
-				&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{name}},
-			)
-			if pattern.Binding.NonNull {
-				c.bindings = append(c.bindings, generateTypedNonNullCheck(name, pattern.Binding.ResolvedType, pattern.Binding.Span, "match binding", nil))
-			}
-		}
+		c.addBinding(pattern.Binding, value)
 	case ast.MatchLiteral:
 		literal, err := generateExpression(pattern.Literal)
 		if err != nil {
 			return err
 		}
 		if _, regex := pattern.Literal.(*ast.RegexExpr); regex {
-			c.checks = append(c.checks, &goast.CallExpr{Fun: &goast.SelectorExpr{X: literal, Sel: goast.NewIdent("test")}, Args: []goast.Expr{value}})
+			c.checks = append(c.checks, matchPatternCheck{condition: &goast.CallExpr{Fun: &goast.SelectorExpr{X: literal, Sel: goast.NewIdent("test")}, Args: []goast.Expr{value}}})
 		} else {
 			c.addCheck(value, token.EQL, literal)
 		}
@@ -121,6 +119,39 @@ func (c *matchPatternCode) generate(pattern *ast.MatchPattern, value goast.Expr)
 		return c.generateSequence(pattern, value)
 	}
 	return nil
+}
+
+func (c *matchPatternCode) addBinding(binding ast.Binding, value goast.Expr) {
+	if binding.Name == "_" {
+		return
+	}
+	name := goast.NewIdent(goName(binding.Name))
+	c.bindings = append(c.bindings,
+		&goast.AssignStmt{Lhs: []goast.Expr{name}, Tok: token.DEFINE, Rhs: []goast.Expr{value}},
+		&goast.AssignStmt{Lhs: []goast.Expr{goast.NewIdent("_")}, Tok: token.ASSIGN, Rhs: []goast.Expr{name}},
+	)
+	if binding.NonNull {
+		c.bindings = append(c.bindings, generateTypedNonNullCheck(name, binding.ResolvedType, binding.Span, "match binding", nil))
+	}
+}
+
+func (c *matchPatternCode) addTypeCheck(pattern *ast.MatchPattern, operand goast.Expr) {
+	assertion := *pattern.Assertion
+	if assertion.ClassDowncast {
+		// Use the canonical class name for its downcast helper, including
+		// when the source pattern spells the target through an alias.
+		assertion.Type = pattern.Binding.ResolvedType
+	}
+	value := goast.NewIdent(fmt.Sprintf("__kinmokuseiMatchTyped%d", len(c.checks)))
+	if pattern.Binding.Name == "_" {
+		value = goast.NewIdent("_")
+	}
+	ok := goast.NewIdent(fmt.Sprintf("__kinmokuseiMatchOK%d", len(c.checks)))
+	c.checks = append(c.checks, matchPatternCheck{
+		init:      &goast.AssignStmt{Lhs: []goast.Expr{value, ok}, Tok: token.DEFINE, Rhs: []goast.Expr{generateTypeAssertion(&assertion, operand)}},
+		condition: ok,
+	})
+	c.addBinding(pattern.Binding, value)
 }
 
 func (c *matchPatternCode) generateResult(pattern *ast.MatchPattern, value, failure *goast.Ident) error {
@@ -139,13 +170,28 @@ func (c *matchPatternCode) generateResult(pattern *ast.MatchPattern, value, fail
 }
 
 func (c *matchPatternCode) addCheck(left goast.Expr, operator token.Token, right goast.Expr) {
-	c.checks = append(c.checks, &goast.BinaryExpr{X: left, Op: operator, Y: right})
+	c.checks = append(c.checks, matchPatternCheck{condition: &goast.BinaryExpr{X: left, Op: operator, Y: right}})
+}
+
+// Each assertion introduces a scope for its captured value, after any
+// earlier checks that make its operand safe to evaluate.
+func wrapMatchChecks(checks []matchPatternCheck, body *goast.BlockStmt) goast.Stmt {
+	for end := len(checks); end > 0; {
+		start := end - 1
+		for start > 0 && checks[start].init == nil {
+			start--
+		}
+		statement := &goast.IfStmt{Init: checks[start].init, Cond: matchConjunction(checks[start:end]), Body: body}
+		body = &goast.BlockStmt{List: []goast.Stmt{statement}}
+		end = start
+	}
+	return body.List[0]
 }
 
 // Balance large patterns without changing the left-to-right short-circuit order.
-func matchConjunction(checks []goast.Expr) goast.Expr {
+func matchConjunction(checks []matchPatternCheck) goast.Expr {
 	if len(checks) == 1 {
-		return checks[0]
+		return checks[0].condition
 	}
 	middle := len(checks) / 2
 	return &goast.BinaryExpr{X: matchConjunction(checks[:middle]), Op: token.LAND, Y: matchConjunction(checks[middle:])}

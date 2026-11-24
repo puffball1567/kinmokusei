@@ -59,6 +59,7 @@ const (
 	MatchWildcard MatchPatternKind = iota
 	MatchBinding
 	MatchNonNullBinding
+	MatchTypeBinding
 	MatchLiteral
 	MatchRecord
 	MatchSequence
@@ -70,6 +71,7 @@ const (
 type MatchPattern struct {
 	Kind              MatchPatternKind
 	Binding           Binding
+	Assertion         *GoTypeAssertionExpr
 	Literal           Expression
 	Fields            []MatchField
 	Elements          []MatchPattern
