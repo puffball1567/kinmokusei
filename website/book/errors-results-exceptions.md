@@ -106,14 +106,14 @@ The same patterns work with `match (await task)` when the task returns a
 In a function returning `Result<T>`, an explicit `return match (...)` checks
 each arm against that same result type. An arm can return `ok(...)`,
 `fail(...)`, another call of the same `Result<T>` type, or a nested match.
+The same rules apply when the match is the expression body of a Result arrow.
 
 ```ts
-function doubledPort(text: string): Result<int> {
-  return match (parsePort(text)) {
+const doubledPort = (text: string): Result<int> =>
+  match (parsePort(text)) {
     case ok(const port) => ok(port * 2)
     case fail(const err) => fail(err)
   }
-}
 ```
 
 The selected arm returns through the function's Go result signature.

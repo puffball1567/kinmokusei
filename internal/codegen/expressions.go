@@ -359,13 +359,20 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 		fnType := &goast.FuncType{Params: &goast.FieldList{List: parameters}}
 		fnType.Results = functionResults(expr.ResolvedReturnType)
 		var body *goast.BlockStmt
-		if expr.BlockBody != nil {
+		switch {
+		case expr.BlockBody != nil:
 			generatedBody, err := generateBlock(expr.BlockBody)
 			if err != nil {
 				return nil, err
 			}
 			body = generatedBody
-		} else {
+		case expr.ResultReturn != nil:
+			returned, err := generateStatement(expr.ResultReturn)
+			if err != nil {
+				return nil, err
+			}
+			body = &goast.BlockStmt{List: []goast.Stmt{returned}}
+		default:
 			value, err := generateExpression(expr.ExpressionBody)
 			if err != nil {
 				return nil, err
@@ -375,9 +382,9 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			} else {
 				body = &goast.BlockStmt{List: []goast.Stmt{&goast.ReturnStmt{Results: []goast.Expr{value}}}}
 			}
-			if expr.SourceMapping {
-				body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
-			}
+		}
+		if expr.SourceMapping && expr.ExpressionBody != nil {
+			body.List = markSourceStatements(body.List, 0, expr.ExpressionBody.GetSpan())
 		}
 		prependParameterChecks(body, expr.Parameters)
 		prependNamedResultSlots(body, expr.ResolvedReturnType)

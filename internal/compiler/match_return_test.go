@@ -3,6 +3,7 @@ package compiler
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -49,13 +50,29 @@ export function Forward(on: boolean, load: () => Result<Box>, fallback: () => Re
 export const Arrow = (value: int): Result<int> => {
   return match (value) { case 0 => ok(1), default => ok(value) }
 }
+export const Concise: (value: int) => Result<int> = (value) =>
+  match (value) { case 0 => ok(1), default => ok(value) }
+export const ConciseForward = (load: () => Result<Box>): Result<Box> => load()
 `
 	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	generated, diagnostics, err := EmitGo([]string{path}, "matchreturn")
+	artifacts, diagnostics, err := EmitGoWithSourceMap([]string{path}, "matchreturn")
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("emit: %v %v", err, diagnostics)
+	}
+	validateSourceMap(t, artifacts, map[string]string{"match_return.km": input})
+	matchBody := strings.LastIndex(input, "match (value)")
+	mapped := false
+	for _, mapping := range artifacts.SourceMap.Mappings {
+		if mapping.Source.Start.Offset == matchBody &&
+			strings.Contains(string(artifacts.GoSource[mapping.Generated.Start.Offset:mapping.Generated.End.Offset]), "return") {
+			mapped = true
+			break
+		}
+	}
+	if !mapped {
+		t.Fatal("generated return is missing the concise match body's source location")
 	}
 	reference := `package reference
 func Transform(load func() (int,error), allow func(int) bool, encode func(int) (string,error)) (string,error) {
@@ -75,6 +92,15 @@ func Async(on bool, load func() (int,error)) (int,error) {
   if !on && err == nil { n++ }
   if !on && err != nil { n = 0 }
   return n, err
+}
+func Arrow(n int) (int,error) {
+  if n == 0 { return 1, nil }
+  return n, nil
+}
+func Forward[T any](load func() (*T,error)) (*T,error) {
+  value, err := load()
+  if err == nil && value == nil { panic("nil success value") }
+  return value, err
 }
 `
 	comparison := `package matchreturn_test
@@ -112,7 +138,12 @@ func TestMatch(t *testing.T) {
       }
     }
   }
-  if got, err := g.Arrow(0); got != 1 || err != nil { t.Fatal(got, err) }
+  for _, n := range []int{-2, 0, 3} {
+    want, wantErr := r.Arrow(n)
+    for _, arrow := range []func(int) (int,error){g.Arrow, g.Concise} {
+      if got, err := arrow(n); got != want || err != wantErr { t.Fatal(got, err) }
+    }
+  }
   if got, err := g.Forward(true, func() (*g.Box,error) { return nil, failure }, nilFallback); got != nil || err != failure { t.Fatal(got, err) }
   box := g.NewBox(4)
   if got, err := g.Forward(false, nilFallback, func() (*g.Box,error) { return box, nil }); got != box || err != nil { t.Fatal(got, err) }
@@ -120,9 +151,26 @@ func TestMatch(t *testing.T) {
   if got := capturePanic(func() { g.Notify(func() (int,error) { panic("load panic") }, func() error { return nil }, func() { cleanup++ }) }); got != "load panic" || cleanup != 1 { t.Fatal(got, cleanup) }
   panicText := fmt.Sprint(capturePanic(func() { g.Forward(true, func() (*g.Box,error) { return nil, nil }, nilFallback) }))
   if !strings.Contains(panicText, "non-null result") { t.Fatal(panicText) }
+  for _, inputErr := range []error{nil, failure} {
+    for _, inputValue := range []*g.Box{nil, box} {
+      count, wantCount := 0, 0
+      var got, want *g.Box
+      var err, wantErr error
+      panicked := capturePanic(func() {
+        got, err = g.ConciseForward(func() (*g.Box,error) { count++; return inputValue, inputErr })
+      })
+      wantPanic := capturePanic(func() {
+        want, wantErr = r.Forward(func() (*g.Box,error) { wantCount++; return inputValue, inputErr })
+      })
+      if got != want || err != wantErr || count != wantCount || (panicked != nil) != (wantPanic != nil) {
+        t.Fatal(got, err, count, panicked, want, wantErr, wantCount, wantPanic)
+      }
+      if panicked != nil && !strings.Contains(fmt.Sprint(panicked), "non-null result") { t.Fatal(panicked) }
+    }
+  }
 }
 func nilFallback() (*g.Box,error) { panic("unselected arm") }
 func capturePanic(run func()) (result any) { defer func(){ result = recover() }(); run(); return nil }
 `
-	runGeneratedGoDifferentialTest(t, root, "match-return.test", generated, reference, comparison)
+	runGeneratedGoDifferentialTest(t, root, "match-return.test", artifacts.GoSource, reference, comparison)
 }

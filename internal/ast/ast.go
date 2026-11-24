@@ -1066,6 +1066,7 @@ type ArrowExpr struct {
 	Parameters         []Parameter
 	ReturnType         *TypeRef
 	ExpressionBody     Expression
+	ResultReturn       *ReturnStmt // checked return for a Result expression body
 	BlockBody          *BlockStmt
 	ResolvedReturnType TypeRef
 	SourceMapping      bool // Map an expression body as an executable source origin.
