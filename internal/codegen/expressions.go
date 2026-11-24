@@ -367,14 +367,7 @@ func generateUncheckedExpression(expr kinmokuseiAST.Expression) (goast.Expr, err
 			}
 			body = generatedBody
 		case expr.ResultReturn != nil:
-			returned, err := generateResultReturn(expr.ResultReturn, func(kinmokuseiAST.TypeRef) goast.Expr {
-				// Keep the failure zero in the result slot even when a parameter
-				// or pattern binding shadows the Go type within the body.
-				const name = "__kinmokuseiResultZero"
-				fnType.Results.List[0].Names = []*goast.Ident{goast.NewIdent(name)}
-				fnType.Results.List[1].Names = []*goast.Ident{goast.NewIdent("_")}
-				return goast.NewIdent(name)
-			})
+			returned, err := generateResultReturn(expr.ResultReturn)
 			if err != nil {
 				return nil, err
 			}

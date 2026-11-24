@@ -58,6 +58,25 @@ export const ShadowedType = (input: Item, err: error): Result<Item> => match (in
   case { n: 0 } => ok(input)
   case const Item => fail(err)
 }
+export function ShadowedBlock(input: Item, err: error, cleanup: () => void): Result<Item> {
+  try { defer cleanup() } finally {}
+  return match (input) {
+    case { n: 0 } => ok(input)
+    case const Item => fail(err)
+  }
+}
+export function ShadowedPropagation(input: Item, load: () => Result<int>, cleanup: () => void): Result<Item> {
+  const Item = input
+  defer cleanup()
+  const _ = load()?
+  return ok(Item)
+}
+export function ShadowedGeneric<T>(input: T, err: error): Result<T> {
+  {
+    const T = input
+    return fail(err)
+  }
+}
 `
 	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
 		t.Fatal(err)
@@ -111,6 +130,19 @@ func ShadowedType(n int, err error) (int,error) {
   if n == 0 { return n, nil }
   return 0, err
 }
+func ShadowedBlock(n int, err error, cleanup func()) (int,error) {
+  defer cleanup()
+  return ShadowedType(n, err)
+}
+func ShadowedPropagation(n int, load func() (int,error), cleanup func()) (int,error) {
+  defer cleanup()
+  if _, err := load(); err != nil { return 0, err }
+  return n, nil
+}
+func ShadowedGeneric[T any](err error) (T,error) {
+  var zero T
+  return zero, err
+}
 `
 	comparison := `package matchreturn_test
 import (
@@ -155,7 +187,20 @@ func TestMatch(t *testing.T) {
     got, err := g.ShadowedType(g.Item{N: n}, failure)
     wantValue, wantErr := r.ShadowedType(n, failure)
     if got.N != wantValue || err != wantErr { t.Fatal(got, err, wantValue, wantErr) }
+    var trace, wantTrace string
+    got, err = g.ShadowedBlock(g.Item{N: n}, failure, func() { trace += "F" })
+    wantValue, wantErr = r.ShadowedBlock(n, failure, func() { wantTrace += "F" })
+    if got.N != wantValue || err != wantErr || trace != wantTrace { t.Fatal(got, err, trace, wantValue, wantErr, wantTrace) }
+    for _, inputErr := range []error{nil, failure} {
+      trace, wantTrace = "", ""
+      got, err = g.ShadowedPropagation(g.Item{N: n}, func() (int,error) { trace += "L"; return 7, inputErr }, func() { trace += "F" })
+      wantValue, wantErr = r.ShadowedPropagation(n, func() (int,error) { wantTrace += "L"; return 7, inputErr }, func() { wantTrace += "F" })
+      if got.N != wantValue || err != wantErr || trace != wantTrace { t.Fatal(got, err, trace, wantValue, wantErr, wantTrace) }
+    }
   }
+  gotGeneric, genericErr := g.ShadowedGeneric("nonzero", failure)
+  wantGeneric, wantGenericErr := r.ShadowedGeneric[string](failure)
+  if gotGeneric != wantGeneric || genericErr != wantGenericErr { t.Fatal(gotGeneric, genericErr, wantGeneric, wantGenericErr) }
   if got, err := g.Forward(true, func() (*g.Box,error) { return nil, failure }, nilFallback); got != nil || err != failure { t.Fatal(got, err) }
   box := g.NewBox(4)
   if got, err := g.Forward(false, nilFallback, func() (*g.Box,error) { return box, nil }); got != box || err != nil { t.Fatal(got, err) }

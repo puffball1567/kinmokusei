@@ -234,6 +234,7 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 	if needsContracts {
 		file.Decls = append(file.Decls, nativeContractRuntimeDeclarations()...)
 	}
+	bindResultZeroSlots(file)
 	deferDeclarations, err := lowerSourceDefers(file)
 	if err != nil {
 		return nil, nil, err

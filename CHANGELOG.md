@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Preserve the zero success value in Result failures and error propagation
+  when a parameter, local, or pattern binding shares the result type's name.
+
 - Write expression-bodied arrows that return `Result<T>` or `Result<void>`.
   The explicit or contextual Result type checks `ok(...)`, `fail(...)`,
   forwarding calls, and exhaustive matches.
