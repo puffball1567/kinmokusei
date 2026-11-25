@@ -31,7 +31,7 @@ type MatchExpr struct {
 	Arms           []MatchArm
 	ResultType     TypeRef
 	SubjectKind    MatchSubjectKind
-	EnumExhaustive bool // all declared enum values are covered without a fallback
+	EnumExhaustive bool // the exhaustiveness check used declared enum values
 	Span           source.Span
 }
 

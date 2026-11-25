@@ -83,9 +83,9 @@ func (c *Checker) checkMatch(expr *ast.MatchExpr, expected *Type, returnResult b
 	}
 	exhaustive := covered.exhaustive()
 	if expr.SubjectKind != ast.MatchValueSubject {
-		exhaustive = c.checkResultMatchExhaustiveness(expr.Span, *value.Element, resultCovered)
+		exhaustive = c.checkResultMatchExhaustiveness(expr, *value.Element, resultCovered)
 	} else if !exhaustive {
-		exhaustive = c.productMatchExhaustive(covered.products, value) || c.checkMatchExhaustiveness(expr, value)
+		exhaustive = c.checkMatchExhaustiveness(expr, value, covered.products)
 	}
 	if !exhaustive {
 		continuing = append(continuing, remaining)
@@ -162,6 +162,7 @@ func (c *matchCoverage) add(pattern *ast.MatchPattern, value Type, total bool) {
 	case ast.MatchNonNullBinding:
 		c.whenPresent = value.Kind == Nullable
 	case ast.MatchLiteral:
+		c.products = append(c.products, pattern)
 		literal, ok := pattern.Literal.(*ast.LiteralExpr)
 		if !ok {
 			return
@@ -186,9 +187,13 @@ func (c *Checker) matchEnum(value Type) *enumSymbol {
 	return nil
 }
 
-func (c *Checker) checkMatchExhaustiveness(expr *ast.MatchExpr, value Type) bool {
+func (c *Checker) checkMatchExhaustiveness(expr *ast.MatchExpr, value Type, products []*ast.MatchPattern) bool {
 	enum := c.matchEnum(value)
 	if enum == nil {
+		if exhaustive, usesEnums := c.productMatchExhaustive(products, value); exhaustive {
+			expr.EnumExhaustive = usesEnums
+			return true
+		}
 		c.report(expr.Span, "non-exhaustive match; add a default arm or cover every possible value")
 		return false
 	}
@@ -198,10 +203,8 @@ func (c *Checker) checkMatchExhaustiveness(expr *ast.MatchExpr, value Type) bool
 		if arm.Guard != nil || arm.Pattern.Kind != ast.MatchLiteral {
 			continue
 		}
-		if info, known := c.scalarConstant(arm.Pattern.Literal); known {
-			if integer := constant.ToInt(info.Value); integer.Kind() == constant.Int {
-				covered[integer.ExactString()] = true
-			}
+		if key, known := c.matchEnumConstant(arm.Pattern.Literal); known {
+			covered[key] = true
 		}
 	}
 	var missing []string
@@ -217,6 +220,15 @@ func (c *Checker) checkMatchExhaustiveness(expr *ast.MatchExpr, value Type) bool
 	}
 	expr.EnumExhaustive = true
 	return true
+}
+
+func (c *Checker) matchEnumConstant(expr ast.Expression) (string, bool) {
+	if info, known := c.scalarConstant(expr); known {
+		if integer := constant.ToInt(info.Value); integer.Kind() == constant.Int {
+			return integer.ExactString(), true
+		}
+	}
+	return "", false
 }
 
 func (c *Checker) checkMatchPattern(p *ast.MatchPattern, value Type, extracted bool) bool {

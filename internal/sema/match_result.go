@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
-	"github.com/puffball1567/kinmokusei/internal/source"
 )
 
 type resultMatchCoverage struct {
@@ -54,10 +53,14 @@ func (c *Checker) checkResultMatchArm(arm *ast.MatchArm, successType Type, cover
 	}
 }
 
-func (c *Checker) checkResultMatchExhaustiveness(span source.Span, successType Type, covered resultMatchCoverage) bool {
+func (c *Checker) checkResultMatchExhaustiveness(expr *ast.MatchExpr, successType Type, covered resultMatchCoverage) bool {
 	var missing []string
-	if !covered.success.exhaustive() && !c.productMatchExhaustive(covered.success.products, successType) {
-		missing = append(missing, "ok")
+	if !covered.success.exhaustive() {
+		if exhaustive, usesEnums := c.productMatchExhaustive(covered.success.products, successType); exhaustive {
+			expr.EnumExhaustive = usesEnums
+		} else {
+			missing = append(missing, "ok")
+		}
 	}
 	if !covered.failure.exhaustive() {
 		missing = append(missing, "fail")
@@ -65,6 +68,6 @@ func (c *Checker) checkResultMatchExhaustiveness(span source.Span, successType T
 	if len(missing) == 0 {
 		return true
 	}
-	c.report(span, "non-exhaustive Result match. Missing full coverage for "+strings.Join(missing, ", "))
+	c.report(expr.Span, "non-exhaustive Result match. Missing full coverage for "+strings.Join(missing, ", "))
 	return false
 }
