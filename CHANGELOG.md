@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Write to standard output with `console.log(...)`, `println(...)`, or
+  `print(...)` from the embedded `kinmokusei/console` standard module.
+
 - Check enum member coverage inside record fields, fixed-array patterns, and
   `Result` success payloads, including combinations with boolean and nullable
   patterns. Members with the same integer value count once.

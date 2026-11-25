@@ -12,9 +12,12 @@ Kinmokusei does not compress every failure into one mechanism. Choose based on w
 Imported Go functions expose every result:
 
 ```ts
+import { console } from "kinmokusei/console";
+import go strconv from "strconv";
+
 const [value, err] = strconv.Atoi(text);
 if (err != nil) {
-  console(err.Error());
+  console.log(err.Error());
   return;
 }
 ```

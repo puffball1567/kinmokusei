@@ -1,5 +1,5 @@
-import go fmt from "fmt";
+import { console } from "kinmokusei/console";
 
 function main(): void {
-  fmt.Println("Hello from Kinmokusei");
+  console.log("Hello from Kinmokusei");
 }

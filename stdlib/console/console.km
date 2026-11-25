@@ -1,0 +1,17 @@
+import go fmt from "fmt";
+
+export function print(...values: interface{}[]): void {
+  fmt.Print(values...);
+}
+
+export function println(...values: interface{}[]): void {
+  fmt.Println(values...);
+}
+
+abstract class Console {
+  public static function log(...values: interface{}[]): void {
+    println(values...);
+  }
+}
+
+export { Console as console };
