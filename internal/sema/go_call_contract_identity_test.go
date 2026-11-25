@@ -56,15 +56,15 @@ func TestGoCallContractRequiresFunctionIdentityAndSignature(t *testing.T) {
 
 func TestBorrowedGoCallRejectsUnresolvedStorage(t *testing.T) {
 	callee := &ast.IdentifierExpr{Name: "checked"}
-	c := &Checker{goCallContracts: map[ast.Expression]goCallContract{callee: {borrowedParameters: 2, resultKind: gotypes.Bool}}}
+	c := &Checker{callArgumentBorrows: map[ast.Expression]callArgumentBorrow{callee: {borrowedParameters: 2}}}
 	call := &ast.CallExpr{Callee: callee}
 	expected := Type{Kind: GoInterface, GoType: gotypes.NewInterfaceType(nil, nil).Complete()}
 	unresolved := gotypes.NewNamed(gotypes.NewTypeName(token.NoPos, nil, "Pending", nil), nil, nil)
-	if c.borrowedGoCallArgumentAssignable(call, 0, expected, Type{Kind: GoNamed, GoType: unresolved}) {
+	if c.borrowedCallArgumentAssignable(call, 0, expected, Type{Kind: GoNamed, GoType: unresolved}) {
 		t.Fatal("unfinished native storage accepted")
 	}
 	for _, index := range []int{-1, 2} {
-		if c.borrowedGoCallArgumentAssignable(call, index, expected, builtins["string"]) {
+		if c.borrowedCallArgumentAssignable(call, index, expected, builtins["string"]) {
 			t.Fatal("parameter outside the checked contract accepted")
 		}
 	}
@@ -80,8 +80,8 @@ func TestNamedGoCallContractCacheIsBounded(t *testing.T) {
 	identifier := &ast.IdentifierExpr{Name: "equal"}
 	for i := 0; i < 10; i++ {
 		c.checkNamedGoIdentifier(identifier, imported)
-		if len(c.goCallContracts) != 1 {
-			t.Fatalf("flow pass %d retained synthetic member contracts: %d", i, len(c.goCallContracts))
+		if len(c.callArgumentBorrows) != 1 {
+			t.Fatalf("flow pass %d retained synthetic member contracts: %d", i, len(c.callArgumentBorrows))
 		}
 	}
 }

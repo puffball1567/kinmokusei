@@ -52,8 +52,9 @@ func (c *Checker) declareTopLevel(program *ast.Program) {
 				c.rejectTaskAPIType(result, decl.ReturnType.Span, "function return types")
 				c.functions[name] = functionSymbol{
 					parameters: params, typeParameters: typeParameters, typeParameterScope: typeParameterScope,
-					variadic: hasVariadicParameter(decl.Parameters),
-					result:   result, span: decl.Span, declarationSpan: decl.NameSpan,
+					borrowsArguments: decl.BorrowsArguments,
+					variadic:         hasVariadicParameter(decl.Parameters),
+					result:           result, span: decl.Span, declarationSpan: decl.NameSpan,
 				}
 			}
 			c.popTypeParameterScope()

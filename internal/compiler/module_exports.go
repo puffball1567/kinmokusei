@@ -157,6 +157,9 @@ func (l *moduleLoader) loadSourceDependency(path string, imported *ast.ImportDec
 		if err := l.loadSource(imported.ResolvedPath, imported.ResolvedPath, standardSource.Contents, imported, true); err != nil {
 			return err
 		}
+		if standardSource.ImportPath == stdlib.ConsoleImportPath {
+			markConsoleArgumentBorrows(l.programs[imported.ResolvedPath])
+		}
 	} else {
 		if embedded {
 			l.diagnostics = append(l.diagnostics, diagnostic.Diagnostic{
@@ -189,4 +192,23 @@ func (l *moduleLoader) loadSourceDependency(path string, imported *ast.ImportDec
 		l.validateImport(*imported, l.programs[imported.ResolvedPath])
 	}
 	return nil
+}
+
+// The embedded wrappers forward arguments to fmt's stdout printers. Their
+// formatting can call methods, but the printers do not retain argument storage
+// or return it to callers. Mark the parsed declarations, never their spellings
+// or source spans in user files.
+func markConsoleArgumentBorrows(program *ast.Program) {
+	for _, declaration := range program.Declarations {
+		switch declaration := declaration.(type) {
+		case *ast.FunctionDecl:
+			declaration.BorrowsArguments = declaration.Name == "print" || declaration.Name == "println"
+		case *ast.ClassDecl:
+			if declaration.Name == "Console" {
+				for _, method := range declaration.Methods {
+					method.BorrowsArguments = method.Name == "log" && method.Static
+				}
+			}
+		}
+	}
 }

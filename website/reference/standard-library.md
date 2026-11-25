@@ -17,6 +17,8 @@ rejected.
 import { console, print, println } from "kinmokusei/console";
 
 console.log("items", 3);
+const labels: string[] = ["ready", "done"];
+console.log(labels);
 print("ready=");
 println(true);
 ```
@@ -27,8 +29,12 @@ newline. A call with zero values writes a blank line.
 adjacent non-string values.
 
 All three take zero or more values and write to standard output using Go's
-default formatting. Their `interface{}` parameters follow the usual
-verified-text storage checks. They return `void` and discard write errors.
+default formatting. They return `void` and discard write errors.
+
+Direct calls can read verified-text collections and records for formatting.
+For example, `console.log(labels)` displays the whole `string[]` as one value.
+An expanded argument uses the ordinary variadic slice type `interface{}[]`.
+Calls through stored function values follow the ordinary `interface{}` checks.
 
 ## `kinmokusei/input` API
 

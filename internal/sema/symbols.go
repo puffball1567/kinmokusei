@@ -8,6 +8,7 @@ import (
 )
 
 type functionSymbol struct {
+	borrowsArguments   bool
 	parameters         []Type
 	typeParameters     []Type
 	typeParameterScope map[string]Type
@@ -58,6 +59,7 @@ type fieldSymbol struct {
 }
 
 type methodSymbol struct {
+	borrowsArguments       bool
 	embeddedMember         *embeddedStructMember
 	goInterfaceMethod      bool
 	fromAnonymousInterface bool

@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Display verified-text collections and records in direct calls to the
+  standard `console.log`, `println`, and `print` functions.
+
 - Write to standard output with `console.log(...)`, `println(...)`, or
   `print(...)` from the embedded `kinmokusei/console` standard module.
 

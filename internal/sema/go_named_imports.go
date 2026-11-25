@@ -89,11 +89,11 @@ func (c *Checker) checkNamedGoIdentifier(identifier *ast.IdentifierExpr, importe
 		Name:   imported.name, NameSpan: identifier.Span, Span: identifier.Span,
 	}
 	result := c.checkGoMember(member, imported.pack)
-	delete(c.goCallContracts, identifier)
-	if contract, known := c.goCallContracts[member]; known {
-		c.goCallContracts[identifier] = contract
+	delete(c.callArgumentBorrows, identifier)
+	if borrow, known := c.callArgumentBorrows[member]; known {
+		c.callArgumentBorrows[identifier] = borrow
 	}
-	delete(c.goCallContracts, member) // Only the stable identifier owns this synthetic member's contract.
+	delete(c.callArgumentBorrows, member) // Only the stable identifier owns this synthetic member's borrow.
 	identifier.GoMember = member
 	identifier.ResolvedDeclaration = imported.span
 	if value, ok := c.constantValues[member]; ok {
