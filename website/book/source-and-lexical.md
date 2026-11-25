@@ -179,11 +179,13 @@ Two statements on the same line still require a separator, and a three-clause `f
 An immediate newline after `return` or `throw` ends a bare return or rethrow. A value-returning function rejects a bare return; a bare rethrow requires a catch. Keep the value, or its opening `(`, on the keyword's line when writing a multiline operand. Optional labels following `break` and `continue` must also remain on the keyword's line. These restricted-newline rules apply even if other statements use explicit semicolons.
 
 ```ts
+import { console } from "kinmokusei/console";
+
 function main(): void {
   let count = 0;
   count++;
   if (count === 1) {
-    console("ready");
+    console.log("ready");
   }
 }
 ```

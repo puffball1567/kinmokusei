@@ -12,12 +12,14 @@ For the connected syntax treatment, read [Functions and generics](../book/functi
 ## Functions and return paths
 
 ```ts
+import { console } from "kinmokusei/console";
+
 function greet(name: string): string {
   return "Hello, " + name;
 }
 
 function log(message: string): void {
-  console(message);
+  console.log(message);
 }
 ```
 

@@ -112,9 +112,11 @@ They are not tuple declarations. Multiple results cannot be captured into one va
 Braces introduce lexical blocks. A name declared inside a block is unavailable afterward:
 
 ```ts
+import { console } from "kinmokusei/console";
+
 if (ready) {
   const message = "ready";
-  console(message);
+  console.log(message);
 }
 
 // message is not in scope here.
@@ -128,7 +130,7 @@ Range bindings exist only inside the loop body:
 
 ```ts
 for (const [index, value] of values) {
-  console(fmt.Sprint(index, value));
+  console.log(index, value);
 }
 ```
 

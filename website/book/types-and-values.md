@@ -551,9 +551,11 @@ Function values are not comparable. A variadic signature is distinct from a func
 ## Nullable types
 
 ```ts
+import { console } from "kinmokusei/console";
+
 let user: User | null = null;
 if (user === null) { return; }
-console(user.name);
+console.log(user.name);
 ```
 
 Only nil-backed types—classes, pointers, slices, maps, functions, channels and

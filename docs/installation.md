@@ -86,10 +86,10 @@ Create `hello.km` (the same source is kept in
 [`examples/hello/main.km`](../examples/hello/main.km)):
 
 ```ts
-import go fmt from "fmt";
+import { console } from "kinmokusei/console";
 
 function main(): void {
-  fmt.Println("Hello from Kinmokusei");
+  console.log("Hello from Kinmokusei");
 }
 ```
 

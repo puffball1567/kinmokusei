@@ -118,6 +118,7 @@ The lock's target controls export loading, checking, and building. Cross-build i
 ```ts
 import { User, findUser } from "./users";
 import { App } from "kinmokusei/http";
+import { console } from "kinmokusei/console";
 import go http from "net/http";
 import { User as Account } from "./users";
 import go { Println as println } from "fmt";
@@ -130,10 +131,10 @@ import go { Println as println } from "fmt";
 - Multiple root files never share names implicitly.
 - Go symbols can be selected by named imports or referenced through a package
   alias namespace.
-- `kinmokusei/*` is reserved for standard/compiler-managed packages. The exact
-  `kinmokusei/http` package is implemented and embedded in the compiler; unknown,
-  differently cased, traversal-like, or otherwise noncanonical `kinmokusei/*`
-  paths are rejected rather than normalized or fetched.
+- `kinmokusei/*` is reserved for standard/compiler-managed packages.
+  The compiler embeds `kinmokusei/console`, `kinmokusei/http`, and
+  `kinmokusei/input`. Unknown, differently cased, traversal-like, or otherwise
+  noncanonical paths are rejected.
 
 Go package internals may use reflection, unsafe, assembly, generated code, or CGO if the selected Go target can build them. Only public boundary types affect Kinmokusei source compatibility.
 

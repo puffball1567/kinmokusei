@@ -261,12 +261,14 @@ Reserved `kinmokusei/*` modules use the named import form:
 
 ```ts
 import { App, Context, fetch } from "kinmokusei/http";
+import { console } from "kinmokusei/console";
 ```
 
 They are embedded, compiler-versioned Kinmokusei source modules—not remote
 packages. Unknown, differently cased, or noncanonical reserved paths are rejected.
-Implemented modules are `kinmokusei/http` and `kinmokusei/input` (since v0.4.10);
-see the [standard-module reference](../reference/standard-library).
+Implemented modules include `kinmokusei/console`, `kinmokusei/http`, and
+`kinmokusei/input`. See the
+[standard-module reference](../reference/standard-library).
 
 ## External Kinmokusei packages
 

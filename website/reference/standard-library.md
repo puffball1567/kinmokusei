@@ -1,15 +1,34 @@
 ---
 title: Standard modules
-description: Public API reference for compiler-managed Kinmokusei HTTP and checked input modules.
+description: Public API reference for compiler-managed Kinmokusei console, HTTP, and checked input modules.
 ---
 
 # Standard modules
 
 `kinmokusei/*` is reserved for compiler-managed source modules. The implemented
-modules are the exact paths `kinmokusei/http` (since v0.2.0) and
-`kinmokusei/input` (since v0.4.10). Unknown,
+modules are the exact paths `kinmokusei/console`, `kinmokusei/http` (since
+v0.2.0), and `kinmokusei/input` (since v0.4.10). Unknown,
 differently cased, traversal-like, or otherwise noncanonical reserved paths are
 rejected.
+
+## `kinmokusei/console` API
+
+```ts
+import { console, print, println } from "kinmokusei/console";
+
+console.log("items", 3);
+print("ready=");
+println(true);
+```
+
+`console.log` and `println` separate values with a space and finish with a
+newline. A call with zero values writes a blank line.
+`print` writes without a trailing newline and inserts a space between
+adjacent non-string values.
+
+All three take zero or more values and write to standard output using Go's
+default formatting. Their `interface{}` parameters follow the usual
+verified-text storage checks. They return `void` and discard write errors.
 
 ## `kinmokusei/input` API
 
