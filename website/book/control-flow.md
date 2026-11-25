@@ -238,18 +238,19 @@ unconditional field patterns or a fixed-length array with only unconditional
 element patterns also covers its subject type. Guarded arms do not count
 toward exhaustiveness.
 
-The compiler can also combine boolean and nullable tests on record fields and
-fixed-array elements. An omitted field covers every possible value of that
+The compiler can combine boolean, nullable, and enum tests on record fields
+and fixed-array elements. An omitted field covers every possible value of that
 field. The same check applies to nested patterns and patterns inside `ok(...)`.
 
 ```ts
-struct State { public active: boolean; public retry: boolean }
+enum Phase { Running, Waiting }
+struct State { public phase: Phase; public retry: boolean }
 
 function label(state: State): string {
   return match (state) {
-    case { active: true } => "active"
-    case { active: false, retry: true } => "retry"
-    case { active: false, retry: false } => "idle"
+    case { phase: Phase.Running } => "active"
+    case { phase: Phase.Waiting, retry: true } => "retry"
+    case { phase: Phase.Waiting, retry: false } => "idle"
   }
 }
 ```
@@ -276,9 +277,9 @@ function beforeLast(values: int[]): int[] {
 }
 ```
 
-For an enum subject, unguarded arms covering each distinct declared value
-satisfy the exhaustiveness check. Members that share an integer value are
-covered by the same arm.
+For an enum subject or an enum inside a pattern, unguarded arms covering each
+distinct declared value satisfy the exhaustiveness check. Members that share
+an integer value are covered by the same arm.
 
 ```ts
 enum Status { Waiting, Ready, Failed }
@@ -294,8 +295,10 @@ function label(status: Status): string {
 ```
 
 Integer conversions and Go callers can supply an enum value outside its
-declared members. A `default` arm handles those values. If no arm accepts an
-undeclared value, the exhaustive enum match panics with its `.km` location.
+declared members. If no arm accepts an undeclared value, the exhaustive match
+panics with its `.km` location. A `default` arm handles those values in an
+ordinary match. Use an unguarded `case ok(_)` after more specific success
+patterns to handle them in a Result match.
 
 Match a [`Result<T>`](./errors-results-exceptions#matching-a-result) with
 `case ok(pattern)` and `case fail(pattern)`. A `Result<void>` has a success

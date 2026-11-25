@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Check enum member coverage inside record fields, fixed-array patterns, and
+  `Result` success payloads, including combinations with boolean and nullable
+  patterns. Members with the same integer value count once.
+
 - Preserve the zero success value in Result failures and error propagation
   when a parameter, local, or pattern binding shares the result type's name.
 

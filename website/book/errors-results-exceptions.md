@@ -98,6 +98,11 @@ unguarded arm such as `case ok(_)` when earlier arms only match some success
 values. To inspect the error, bind it with `case fail(const err)` and use it in
 the guard or arm expression. `case fail(_)` explicitly ignores the error.
 
+An enum success value can be covered by its distinct declared members.
+The same rule applies to enum fields or fixed-array elements inside the success
+pattern. Add `case ok(_)` to handle undeclared enum values from integer
+conversions or Go callers.
+
 The same patterns work with `match (await task)` when the task returns a
 `Result`.
 
