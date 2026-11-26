@@ -15,6 +15,8 @@ Save this program as `hello.km`:
 
 `console` comes from the compiler-managed `kinmokusei/console` standard module.
 `console.log` writes a line to standard output.
+See the [console example](../reference/standard-library#kinmokuseiconsole-api)
+for printing arrays, expanding arguments, and continuing on the same line.
 
 ## 2. Check before running
 

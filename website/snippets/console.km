@@ -1,0 +1,12 @@
+import { console, print, println } from "kinmokusei/console"
+
+function main(): void {
+  const labels: string[] = ["ready", "done"]
+  console.log("labels", labels)
+
+  const values: interface{}[] = ["items", len(labels)]
+  console.log(values...)
+
+  print("ready=")
+  println(true)
+}
