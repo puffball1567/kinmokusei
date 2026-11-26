@@ -131,6 +131,9 @@ func (c *Checker) checkMemberAccess(expr *ast.MemberExpr, write bool) Type {
 			if method.typeInfo.Generic && c.directCallCallee != expr {
 				c.report(expr.Span, "generic methods must be called directly; Go cannot represent an uninstantiated generic method value")
 			}
+			if method.borrowsArguments && c.directCallCallee == expr {
+				c.recordEmbeddedCallBorrow(expr, method.typeInfo)
+			}
 			return method.typeInfo
 		}
 	}

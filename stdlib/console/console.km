@@ -1,5 +1,6 @@
 import go fmt from "fmt";
 
+// Direct calls borrow their arguments for formatting and preserve caller storage.
 export function print(...values: interface{}[]): void {
   fmt.Print(values...);
 }

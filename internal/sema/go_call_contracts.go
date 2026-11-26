@@ -8,6 +8,12 @@ import (
 
 type goFunctionIdentity struct{ packagePath, name string }
 
+type callArgumentBorrow struct {
+	borrowedParameters int
+	borrowedStart      int
+	variadic           bool
+}
+
 // An audited borrow permits observing verified-text storage, but promises no
 // writes through reflection, retention after return or returned alias. DeepEqual
 // invokes no methods. Sprintf is a separate callback-aware contract: it invokes
@@ -16,16 +22,16 @@ type goFunctionIdentity struct{ packagePath, name string }
 // invalidation remains enabled. Never infer a contract just from an any parameter
 // or a scalar result; check the complete signature and package/function identity.
 type goCallContract struct {
-	borrowedParameters int
-	resultKind         gotypes.BasicKind
-	borrowedStart      int
-	variadic           bool
+	callArgumentBorrow
+	resultKind gotypes.BasicKind
 }
 
 var trustedGoCallContracts = map[goFunctionIdentity]goCallContract{
-	{"reflect", "DeepEqual"}: {borrowedParameters: 2, resultKind: gotypes.Bool},
-	{"fmt", "Sprintf"}:       {borrowedParameters: 1, borrowedStart: 1, variadic: true, resultKind: gotypes.String},
+	{"reflect", "DeepEqual"}: {callArgumentBorrow: callArgumentBorrow{borrowedParameters: 2}, resultKind: gotypes.Bool},
+	{"fmt", "Sprintf"}:       {callArgumentBorrow: callArgumentBorrow{borrowedParameters: 1, borrowedStart: 1, variadic: true}, resultKind: gotypes.String},
 }
+
+var emptyGoInterface = gotypes.NewInterfaceType(nil, nil).Complete()
 
 func trustedGoCallContract(function *gotypes.Func) (goCallContract, bool) {
 	if function == nil || function.Pkg() == nil || function.Parent() != function.Pkg().Scope() {
@@ -41,13 +47,12 @@ func trustedGoCallContract(function *gotypes.Func) (goCallContract, bool) {
 		!gotypes.Identical(signature.Results().At(0).Type(), gotypes.Typ[contract.resultKind]) {
 		return goCallContract{}, false
 	}
-	anyType := gotypes.NewInterfaceType(nil, nil).Complete()
 	for i := 0; i < signature.Params().Len(); i++ {
-		expected := gotypes.Type(anyType)
+		expected := gotypes.Type(emptyGoInterface)
 		if i < contract.borrowedStart {
 			expected = gotypes.Typ[gotypes.String]
 		} else if contract.variadic {
-			expected = gotypes.NewSlice(anyType)
+			expected = gotypes.NewSlice(emptyGoInterface)
 		}
 		if !gotypes.Identical(signature.Params().At(i).Type(), expected) {
 			return goCallContract{}, false
@@ -58,16 +63,32 @@ func trustedGoCallContract(function *gotypes.Func) (goCallContract, bool) {
 
 func (c *Checker) recordGoCallContract(expression ast.Expression, function *gotypes.Func) {
 	if contract, ok := trustedGoCallContract(function); ok {
-		if c.goCallContracts == nil {
-			c.goCallContracts = map[ast.Expression]goCallContract{}
-		}
-		c.goCallContracts[expression] = contract
+		c.recordArgumentBorrow(expression, contract.callArgumentBorrow)
 	}
 }
 
-func (c *Checker) borrowedGoCallArgumentAssignable(call *ast.CallExpr, index int, expected, actual Type) bool {
-	contract, known := c.goCallContracts[call.Callee]
-	if !known || index < contract.borrowedStart || !contract.variadic && index >= contract.borrowedStart+contract.borrowedParameters || containsTaskType(actual) {
+// The source loader marks the audited declaration. Also verify that the
+// resolved signature still accepts a variadic empty interface and returns void.
+func (c *Checker) recordEmbeddedCallBorrow(expression ast.Expression, callable Type) {
+	if callable.Kind != Function || callable.Generic || !callable.Variadic || len(callable.Parameters) != 1 ||
+		callable.Result == nil || callable.Result.Kind != Void {
+		return
+	}
+	if element := callable.Parameters[0].GoType; element != nil && gotypes.Identical(element, emptyGoInterface) {
+		c.recordArgumentBorrow(expression, callArgumentBorrow{borrowedParameters: 1, variadic: true})
+	}
+}
+
+func (c *Checker) recordArgumentBorrow(expression ast.Expression, borrow callArgumentBorrow) {
+	if c.callArgumentBorrows == nil {
+		c.callArgumentBorrows = map[ast.Expression]callArgumentBorrow{}
+	}
+	c.callArgumentBorrows[expression] = borrow
+}
+
+func (c *Checker) borrowedCallArgumentAssignable(call *ast.CallExpr, index int, expected, actual Type) bool {
+	borrow, known := c.callArgumentBorrows[call.Callee]
+	if !known || index < borrow.borrowedStart || !borrow.variadic && index >= borrow.borrowedStart+borrow.borrowedParameters || containsTaskType(actual) {
 		return false
 	}
 	switch actual.Kind {

@@ -228,7 +228,9 @@ type FunctionDecl struct {
 	CABISymbol     string
 	CABIExportSpan source.Span
 	CABISymbolSpan source.Span
-	Span           source.Span
+	// BorrowsArguments is assigned by the loader for audited embedded functions.
+	BorrowsArguments bool
+	Span             source.Span
 }
 
 func (*FunctionDecl) declaration()           {}
@@ -300,7 +302,9 @@ type MethodDecl struct {
 	Override       bool
 	Final          bool
 	Abstract       bool
-	VirtualOwner   string
+	// BorrowsArguments is assigned by the loader for audited embedded static methods.
+	BorrowsArguments bool
+	VirtualOwner     string
 	// PointerReceiver is used by native value structs. Class instance methods
 	// always retain their existing implicit pointer receiver.
 	PointerReceiver bool

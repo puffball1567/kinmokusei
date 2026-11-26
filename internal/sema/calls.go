@@ -12,7 +12,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 	expr.NonNullConversion = false
 	// Re-resolve direct callee identity on each flow-analysis pass. Contracts
 	// are not callable types and never follow mutable/unknown function values.
-	delete(c.goCallContracts, expr.Callee)
+	delete(c.callArgumentBorrows, expr.Callee)
 	defer func() {
 		if !expr.Conversion && expr.Builtin == ast.NotBuiltinCall {
 			c.recordMemberWrite(expr.Span)
@@ -154,6 +154,9 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			c.recordGlobalDependency(name.Name)
 			name.ResolvedDeclaration = fn.declarationSpan
 			callable = callableTypeForFunction(fn)
+			if fn.borrowsArguments {
+				c.recordEmbeddedCallBorrow(name, callable)
+			}
 			callableName = fmt.Sprintf("function %q", name.Name)
 		} else if imported, exists := c.lookupNamedGoImport(name.Name, name.Span); exists {
 			_, expr.StaticCallee = imported.pack.packageInfo.Scope().Lookup(imported.name).(*gotypes.Func)
@@ -305,7 +308,7 @@ func (c *Checker) checkCall(expr *ast.CallExpr) Type {
 			} else {
 				actual = c.checkExpressionExpectedSlot(&expr.Arguments[i], expected)
 			}
-			if !c.borrowedGoCallArgumentAssignable(expr, i, expected, actual) {
+			if !c.borrowedCallArgumentAssignable(expr, i, expected, actual) {
 				c.requireAssignable(expected, actual, arg.GetSpan())
 			}
 		} else if checkedArgument == nil {

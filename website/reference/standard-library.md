@@ -13,13 +13,11 @@ rejected.
 
 ## `kinmokusei/console` API
 
-```ts
-import { console, print, println } from "kinmokusei/console";
+<<< ../snippets/console.km{ts}
 
-console.log("items", 3);
-print("ready=");
-println(true);
-```
+Run the example with `keika run console.km` to see this output.
+
+<<< ../snippets/console.stdout{text}
 
 `console.log` and `println` separate values with a space and finish with a
 newline. A call with zero values writes a blank line.
@@ -27,8 +25,14 @@ newline. A call with zero values writes a blank line.
 adjacent non-string values.
 
 All three take zero or more values and write to standard output using Go's
-default formatting. Their `interface{}` parameters follow the usual
-verified-text storage checks. They return `void` and discard write errors.
+default formatting. They return `void` and discard write errors.
+
+Direct calls can read verified-text collections and records for formatting.
+`console.log("labels", labels)` shows the `string[]` as one argument.
+`console.log(values...)` expands the elements of an `interface{}[]` as separate
+arguments. Imports with aliases and re-exports retain the direct-call behavior.
+A stored function, such as `const log = console.log`, uses the ordinary
+`interface{}` argument checks.
 
 ## `kinmokusei/input` API
 

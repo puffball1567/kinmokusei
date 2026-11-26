@@ -101,7 +101,7 @@ func (c *Checker) lookupGoTypePackage(ref ast.TypeRef) *goPackageSymbol {
 }
 
 func (c *Checker) checkGoMember(expression *ast.MemberExpr, imported *goPackageSymbol) Type {
-	delete(c.goCallContracts, expression)
+	delete(c.callArgumentBorrows, expression)
 	expression.Go = true
 	if imported == nil || imported.packageInfo == nil {
 		return Type{Kind: Invalid, Name: "<invalid>"}

@@ -276,7 +276,8 @@ func (c *Checker) declareClass(decl *ast.ClassDecl) {
 		method.VirtualOwner = virtualOwner
 		symbol.methods[method.Name] = methodSymbol{
 			typeInfo: methodType, visibility: method.Visibility, static: method.Static, goName: method.GoName,
-			declarationSpan: method.NameSpan, declaringClass: decl.Name,
+			borrowsArguments: method.BorrowsArguments,
+			declarationSpan:  method.NameSpan, declaringClass: decl.Name,
 			virtual: method.Virtual || method.Override, final: method.Final, abstract: method.Abstract, virtualOwner: virtualOwner,
 		}
 	}
