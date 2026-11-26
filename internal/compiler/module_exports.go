@@ -194,7 +194,7 @@ func (l *moduleLoader) loadSourceDependency(path string, imported *ast.ImportDec
 	return nil
 }
 
-// The embedded wrappers forward arguments to fmt's stdout printers. Their
+// The embedded wrappers format arguments and write to process streams. Their
 // formatting can call methods, but the printers do not retain argument storage
 // or return it to callers. Mark the parsed declarations, never their spellings
 // or source spans in user files.
@@ -206,7 +206,8 @@ func markConsoleArgumentBorrows(program *ast.Program) {
 		case *ast.ClassDecl:
 			if declaration.Name == "Console" {
 				for _, method := range declaration.Methods {
-					method.BorrowsArguments = method.Name == "log" && method.Static
+					method.BorrowsArguments = method.Static &&
+						(method.Name == "log" || method.Name == "warn" || method.Name == "error")
 				}
 			}
 		}

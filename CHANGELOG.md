@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Use Node.js-style placeholders in `console.log`. Send formatted diagnostics
+  to standard error with `console.warn` and `console.error`.
+
 - Display verified-text collections and records in direct calls to the
   standard `console.log`, `println`, and `print` functions.
 

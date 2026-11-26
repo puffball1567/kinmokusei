@@ -1,4 +1,15 @@
 import go fmt from "fmt";
+import go math from "math";
+import go big from "math/big";
+import go os from "os";
+import go reflect from "reflect";
+import go regexp from "regexp";
+import go strconv from "strconv";
+import go strings from "strings";
+
+const decimalPrefix = regexp.MustCompile(b"^[+-]?(Infinity|([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?)");
+const integerPrefix = regexp.MustCompile(b"^[+-]?[0-9]+");
+const basedInteger = regexp.MustCompile(b"^0([xX][0-9a-fA-F]+|[oO][0-7]+|[bB][01]+)$");
 
 // Direct calls borrow their arguments for formatting and preserve caller storage.
 export function print(...values: interface{}[]): void {
@@ -11,8 +22,128 @@ export function println(...values: interface{}[]): void {
 
 abstract class Console {
   public static function log(...values: interface{}[]): void {
-    println(values...);
+    writeLine(os.Stdout, values);
+  }
+
+  public static function warn(...values: interface{}[]): void {
+    writeLine(os.Stderr, values);
+  }
+
+  public static function error(...values: interface{}[]): void {
+    writeLine(os.Stderr, values);
   }
 }
 
 export { Console as console };
+
+function writeLine(target: *os.File, values: interface{}[]): void {
+  if (len(values) >= 2) {
+    const first = reflect.ValueOf(values[0]);
+    if (first.Kind() === reflect.String) {
+      const template = first.String();
+      if (strings.Contains(template, b"%")) {
+        fmt.Fprintln(target, formatLine(template, values[1:]));
+        return;
+      }
+    }
+  }
+  fmt.Fprintln(target, values...);
+}
+
+function formatLine(template: bstring, values: interface{}[]): bstring {
+  let output = strings.Builder{};
+  let start = 0;
+  let next = 0;
+  for (let i = 0; i + 1 < len(template); i++) {
+    if (template[i:i + 1] !== b"%") { continue; }
+    const verb = template[i + 1:i + 2];
+    let replacement = b"%";
+    if (verb !== b"%") {
+      if (next >= len(values)) { continue; }
+      switch (verb) {
+        case b"s" {
+          replacement = fmt.Sprint(values[next]);
+        }
+        case b"d", b"i", b"f" {
+          replacement = formatNumber(values[next], verb);
+        }
+        default { continue; }
+      }
+      next++;
+    }
+    output.WriteString(template[start:i]);
+    output.WriteString(replacement);
+    i++;
+    start = i + 1;
+  }
+  output.WriteString(template[start:]);
+  for (let i = next; i < len(values); i++) {
+    output.WriteString(b" ");
+    output.WriteString(fmt.Sprint(values[i]));
+  }
+  return output.String();
+}
+
+function formatNumber(value: interface{}, verb: bstring): bstring {
+  const raw = reflect.ValueOf(value);
+  switch (raw.Kind()) {
+    case reflect.Invalid {
+      if (verb === b"d") { return b"0"; }
+    }
+    case reflect.Bool {
+      if (verb === b"d") {
+        if (raw.Bool()) { return b"1"; }
+        return b"0";
+      }
+    }
+    case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64 {
+      return strconv.FormatInt(raw.Int(), 10);
+    }
+    case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr {
+      return strconv.FormatUint(raw.Uint(), 10);
+    }
+    case reflect.Float32, reflect.Float64 {
+      const value = raw.Float();
+      if (value === 0 && verb !== b"d") { return b"0"; }
+      const printed = renderFloat(value, raw.Type().Bits());
+      if (verb === b"i") { return parseNumericText(printed, verb); }
+      return printed;
+    }
+    case reflect.String {
+      return parseNumericText(raw.String(), verb);
+    }
+  }
+  return b"NaN";
+}
+
+function parseNumericText(input: bstring, verb: bstring): bstring {
+  const text = strings.TrimSpace(input);
+  if (verb === b"d") {
+    if (text === b"") { return b"0"; }
+    if (basedInteger.MatchString(text)) {
+      let integer = big.Int{};
+      const [_, parsed] = integer.SetString(text, 0);
+      if (!parsed) { return b"NaN"; }
+      const [value, _] = integer.Float64();
+      return renderFloat(value, 64);
+    }
+  }
+  let prefix = decimalPrefix.FindString(text);
+  if (verb === b"i") { prefix = integerPrefix.FindString(text); }
+  if (prefix === b"" || verb === b"d" && prefix !== text) { return b"NaN"; }
+  // The match has already checked the syntax. ParseFloat preserves the
+  // appropriate infinity or zero when a valid literal is outside float range.
+  const [value, _] = strconv.ParseFloat(prefix, 64);
+  return renderFloat(value, 64);
+}
+
+function renderFloat(value: float, bits: int): bstring {
+  if (math.IsInf(value, 1)) { return b"Infinity"; }
+  if (math.IsInf(value, -1)) { return b"-Infinity"; }
+  const magnitude = math.Abs(value);
+  if (magnitude === 0 || magnitude >= 0.000001 && magnitude < 1e21) {
+    return strconv.FormatFloat(value, b"f"[0], -1, bits);
+  }
+  const scientific = strconv.FormatFloat(value, b"g"[0], -1, bits);
+  return strings.Replace(scientific, b"e-0", b"e-", 1);
+}
