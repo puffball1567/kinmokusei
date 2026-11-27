@@ -55,14 +55,20 @@ export function WriteExamples(next: (index: int) => int): void {
   console.log("marshal failure: %j", BrokenJSON{})
   console.log("%clabel: %j %s", "color: red", names, "done")
   console.log("%c %j", "ignored")
+  console.log("report: %O", Report{names: names, count: 2})
+  console.log("cycle: %o", cyclic)
   let literal = "literal %d"
   line(literal, 3)
+}
+export function WriteInspection(value: interface{}): void {
+  console.log("%O | %o", value, value)
 }
 export function WriteDiagnostics(): void {
   console.warn("warning: %s (%d)", ["ready", "done"], 2)
   console.error("error: %s", "invalid input")
   console.warn("warnings: %j", ["ready", "done"])
   console.error("%cstatus: %j", "color: red", { status: "failed" })
+  console.warn("warnings: %o", ["ready", "done"])
   console.error()
 }
 `
@@ -110,6 +116,8 @@ func WriteExamples(next func(int) int) string {
   output.WriteString("marshal failure: [Unserializable]\n")
   output.WriteString("label: [\"Ada\",\"雪\"] done\n")
   output.WriteString(" %j\n")
+  output.WriteString("report: { Names: [ \"Ada\", \"雪\" ], Count: 2 }\n")
+  output.WriteString("cycle: Map { \"self\" => [Circular] }\n")
   output.WriteString("literal %d 3\n")
   return output.String()
 }
@@ -120,6 +128,7 @@ func WriteDiagnostics() string {
   fmt.Fprintf(&output, "error: %s\n", "invalid input")
   output.WriteString("warnings: [\"ready\",\"done\"]\n")
   output.WriteString("status: {\"status\":\"failed\"}\n")
+  output.WriteString("warnings: [ \"ready\", \"done\" ]\n")
   fmt.Fprintln(&output)
   return output.String()
 }
@@ -163,6 +172,44 @@ func TestDiagnostics(t *testing.T) {
   })
   if want := r.WriteDiagnostics(); stdout != "" || stderr != want {
     t.Fatalf("stdout %q, stderr %q; want empty stdout and stderr %q", stdout, stderr, want)
+  }
+}
+
+type node struct {
+  Next *node
+  hidden string
+}
+
+func (node) String() string { panic("inspection called String") }
+
+func TestInspection(t *testing.T) {
+  nested := []any{[]any{[]any{[]any{[]any{42}}}}}
+  self := &node{hidden: "private"}
+  self.Next = self
+  cyclic := make([]any, 1)
+  cyclic[0] = cyclic
+  shared := []int{7}
+  for _, tc := range []struct {
+    name string
+    value any
+    compact, detailed string
+  }{
+    {"depth", nested, "[ [ [ [Array] ] ] ]", "[ [ [ [ [ 42 ] ] ] ] ]"},
+    {"pointer cycle", self, "&{ Next: [Circular] }", "&{ Next: [Circular] }"},
+    {"slice cycle", cyclic, "[ [Circular] ]", "[ [Circular] ]"},
+    {"shared slice", []any{shared, shared}, "[ [ 7 ], [ 7 ] ]", "[ [ 7 ], [ 7 ] ]"},
+    {"stable map", map[int]string{2: "second", 1: "first"},
+      "Map { 1 => \"first\", 2 => \"second\" }", "Map { 1 => \"first\", 2 => \"second\" }"},
+    {"fixed array", [2]bool{true, false}, "[ true, false ]", "[ true, false ]"},
+    {"typed nil", (*node)(nil), "null", "null"},
+    {"byte text", "\xff", "\"\\xff\"", "\"\\xff\""},
+  } {
+    t.Run(tc.name, func(t *testing.T) {
+      output := captureOutput(t, &os.Stdout, func() { g.WriteInspection(tc.value) })
+      if want := tc.compact + " | " + tc.detailed + "\n"; output != want {
+        t.Fatalf("got %q; want %q", output, want)
+      }
+    })
   }
 }
 
