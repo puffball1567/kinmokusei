@@ -12,8 +12,14 @@ func TestConsoleMatchesIndependentGo(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "console.km")
 	input := `import { console, print, println as line } from "kinmokusei/console"
+import go errors from "errors"
 
 struct Report { public names: string[]; public count: int }
+struct BrokenJSON {
+  public function MarshalJSON(): Result<byte[]> {
+    return fail(errors.New("json: unsupported value: encountered a cycle via fake"))
+  }
+}
 function reportParts(names: string[]): (string[], int) { return names, len(names) }
 export function WriteExamples(next: (index: int) => int): void {
   console.log("答え", next(1), next(2), true)
@@ -39,12 +45,22 @@ export function WriteExamples(next: (index: int) => int): void {
   console.log("%s %d %%", "missing")
   console.log("%% %s")
   console.log("%% %q", "extra")
+  console.log("json: %j", Report{names: names, count: 2})
+  const cyclic = makeMap<bstring, interface{}>()
+  cyclic[b"self"] = cyclic
+  console.log("cycle: %j", cyclic)
+  console.log("callback: %j", next)
+  console.log("marshal failure: %j", BrokenJSON{})
+  console.log("%clabel: %j %s", "color: red", names, "done")
+  console.log("%c %j", "ignored")
   let literal = "literal %d"
   line(literal, 3)
 }
 export function WriteDiagnostics(): void {
   console.warn("warning: %s (%d)", ["ready", "done"], 2)
   console.error("error: %s", "invalid input")
+  console.warn("warnings: %j", ["ready", "done"])
+  console.error("%cstatus: %j", "color: red", { status: "failed" })
   console.error()
 }
 `
@@ -82,6 +98,12 @@ func WriteExamples(next func(int) int) string {
   output.WriteString("missing %d %\n")
   output.WriteString("%% %s\n")
   output.WriteString("% %q extra\n")
+  output.WriteString("json: {\"names\":[\"Ada\",\"雪\"],\"count\":2}\n")
+  output.WriteString("cycle: [Circular]\n")
+  output.WriteString("callback: [Unserializable]\n")
+  output.WriteString("marshal failure: [Unserializable]\n")
+  output.WriteString("label: [\"Ada\",\"雪\"] done\n")
+  output.WriteString(" %j\n")
   output.WriteString("literal %d 3\n")
   return output.String()
 }
@@ -90,6 +112,8 @@ func WriteDiagnostics() string {
   var output bytes.Buffer
   fmt.Fprintf(&output, "warning: %v (%d)\n", []string{"ready", "done"}, 2)
   fmt.Fprintf(&output, "error: %s\n", "invalid input")
+  output.WriteString("warnings: [\"ready\",\"done\"]\n")
+  output.WriteString("status: {\"status\":\"failed\"}\n")
   fmt.Fprintln(&output)
   return output.String()
 }
