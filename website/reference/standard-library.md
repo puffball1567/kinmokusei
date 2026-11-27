@@ -32,12 +32,18 @@ these methods interpret the following placeholders.
 | `%d` | Number, including conversion of numeric text and booleans |
 | `%i` | Signed decimal integer prefix |
 | `%f` | Floating-point number prefix |
+| `%j` | Compact JSON using the value's JSON field names and tags |
+| `%c` | Consumes a style argument with no output |
 | `%%` | A single percent sign without consuming an argument |
 
 A missing argument leaves its placeholder in the text. Unrecognized
 placeholders stay literal. Extra values are appended with spaces. When
 numeric conversion fails, the method prints `NaN`. Numbers and collections
 use Kinmokusei's native value representations.
+
+`%j` follows the [JSON snapshot rules](./built-ins#json-snapshots). A detected
+cycle produces `[Circular]`. Other encoding failures, such as attempting to
+serialize a function, produce `[Unserializable]`.
 
 `println` prints its arguments separated by spaces and adds a newline.
 `print` prints without a trailing newline and inserts a space between adjacent

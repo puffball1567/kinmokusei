@@ -67,6 +67,12 @@ function formatLine(template: bstring, values: interface{}[]): bstring {
         case b"d", b"i", b"f" {
           replacement = formatNumber(values[next], verb);
         }
+        case b"j" {
+          replacement = formatJSON(values[next]);
+        }
+        case b"c" {
+          replacement = b"";
+        }
         default { continue; }
       }
       next++;
@@ -82,6 +88,16 @@ function formatLine(template: bstring, values: interface{}[]): bstring {
     output.WriteString(fmt.Sprint(values[i]));
   }
   return output.String();
+}
+
+function formatJSON(value: interface{}): bstring {
+  const [encoded, err] = jsonSnapshot(value);
+  if (err == nil) { return bstring(encoded); }
+  // jsonSnapshot preserves the standard encoder's diagnostic as text.
+  if (strings.HasPrefix(err.Error(), b"json: unsupported value: encountered a cycle via ")) {
+    return b"[Circular]";
+  }
+  return b"[Unserializable]";
 }
 
 function formatNumber(value: interface{}, verb: bstring): bstring {
