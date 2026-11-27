@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"bytes"
+	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
@@ -70,6 +72,10 @@ export function WriteDiagnostics(): void {
 	generated, diagnostics, err := EmitGo([]string{path}, "consoleexample")
 	if err != nil || len(diagnostics) != 0 {
 		t.Fatalf("emit: %v %v", err, diagnostics)
+	}
+	formatted, err := format.Source(generated)
+	if err != nil || !bytes.Equal(generated, formatted) {
+		t.Fatalf("console output must already be gofmt-formatted: %v", err)
 	}
 	reference := `package reference
 

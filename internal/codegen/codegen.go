@@ -10,6 +10,7 @@ import (
 	"go/token"
 	"go/types"
 	"runtime"
+	"sort"
 
 	kinmokuseiAST "github.com/puffball1567/kinmokusei/internal/ast"
 	"github.com/puffball1567/kinmokusei/internal/diagnostic"
@@ -130,6 +131,10 @@ func generateWithTarget(program *kinmokuseiAST.Program, packageName string, goIm
 		})
 	}
 	if len(imports) != 0 {
+		// Imports built without token positions can bypass format.Node's sort.
+		sort.Slice(imports, func(i, j int) bool {
+			return imports[i].(*goast.ImportSpec).Path.Value < imports[j].(*goast.ImportSpec).Path.Value
+		})
 		file.Decls = append(file.Decls, &goast.GenDecl{Tok: token.IMPORT, Specs: imports})
 	}
 	if program.UsesRegex {

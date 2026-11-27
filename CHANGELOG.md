@@ -13,6 +13,7 @@ changes source/public APIs and requires the migration described below.
 
 - Format console arguments as compact JSON with `%j`, including a marker for
   cycles. Use `%c` to consume a style argument in terminal output.
+- Emit imports in gofmt order when generated runtime helpers add imports.
 
 - Use Node.js-style placeholders in `console.log`. Send formatted diagnostics
   to standard error with `console.warn` and `console.error`.
