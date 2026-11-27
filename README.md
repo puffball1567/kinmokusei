@@ -94,7 +94,7 @@ intentionally breaking; existing users should follow the
 - Nil-backed `T | null` reference types with a dedicated `null` literal, separation from raw Go `nil`, checked nullable operations, assignment-sensitive local flow narrowing and joins, and definite constructor initialization for non-null reference fields.
 - Source-positioned lexical, syntax, and type diagnostics.
 - `version`, `check` with text or machine-readable JSON diagnostics, plus `build`, `run`, `emit-go`, `emit-c-abi`, checked incoming `ffi generate`, ABI compatibility checks, transactional `install --go-module` and dependency commands, and `interop audit`.
-- Console output through `console.log`, `println`, and `print` from the embedded `kinmokusei/console` standard module.
+- Standard output and diagnostics through `console.log`, `console.warn`, `console.error`, `println`, and `print` from the embedded `kinmokusei/console` standard module.
 - An embedded source-written `kinmokusei/http` kernel with bounded context-aware fetch, a Go `ServeMux`-compatible `App`, method routes, path/query/header/context/cookie access, direct `http.Handler` use, and structured-task compatibility.
 - A 111/111 implemented Go-equivalent runtime contract registry backed by isolated handwritten-Go differential tests. New runtime features extend both the registry and its tests.
 - Explicit fixed-width scalar/enum and normalized-boolean C ABI exports with status/out parameters, panic isolation, headers, canonical manifests and fingerprints. Checked incoming C FFI supports ownership-aware scalars, strings, buffers, typed-array results, POD structs, enums, tagged unions, opaque handles and callbacks. See the [C ABI and FFI guide](website/guide/c-ffi.md) for supported combinations, lifetimes and thread policies.

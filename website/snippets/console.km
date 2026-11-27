@@ -4,7 +4,7 @@ function main(): void {
   const labels: string[] = ["ready", "done"]
   console.log("labels", labels)
 
-  const values: interface{}[] = ["items", len(labels)]
+  const values: interface{}[] = ["items: %d", len(labels)]
   console.log(values...)
 
   print("ready=")

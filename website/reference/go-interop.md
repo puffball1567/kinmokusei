@@ -118,10 +118,10 @@ to `fmt.Errorf`, whose `%w` result can retain an error, or arbitrary writers.
 Identity/signature checks and rejection of unsafe nested expressions remain
 unchanged.
 
-Direct calls to `console.log`, `print`, and `println` can also borrow
-verified-text storage for formatting. This contract is attached to the
-resolved standard module declarations. Formatting callbacks still trigger the
-ordinary call-effect checks. See the
+Direct calls to `console.log`, `console.warn`, `console.error`, `print`, and
+`println` can also borrow verified-text storage for formatting. This contract
+is attached to the resolved standard module declarations. Formatting callbacks
+still trigger the ordinary call-effect checks. See the
 [console API](./standard-library#kinmokuseiconsole-api).
 
 For generic reflection, compiler-owned `inspect*` operations expose only scalar

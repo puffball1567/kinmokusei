@@ -31,6 +31,21 @@ export function WriteExamples(next: (index: int) => int): void {
   print(labels)
   line(Report{names: names, count: 2})
   console.log(reportParts(names))
+  console.log("count: %d", next(3))
+  console.log("%s:%d %% %f", "雪", "0x10", "1.25px", "extra")
+  console.log("%i %d %f", " -12tail", true, "+.25e+1x")
+  console.log("%d %i %f", "oops", false, "Infinity")
+  console.log("%d %d", uint64(18446744073709551615), 1e-7)
+  console.log("%s %d %%", "missing")
+  console.log("%% %s")
+  console.log("%% %q", "extra")
+  let literal = "literal %d"
+  line(literal, 3)
+}
+export function WriteDiagnostics(): void {
+  console.warn("warning: %s (%d)", ["ready", "done"], 2)
+  console.error("error: %s", "invalid input")
+  console.error()
 }
 `
 	if err := os.WriteFile(path, []byte(input), 0o644); err != nil {
@@ -59,6 +74,23 @@ func WriteExamples(next func(int) int) string {
   fmt.Fprint(&output, map[int]string{1: "ready"})
   fmt.Fprintln(&output, struct { Names []string; Count int }{names, 2})
   fmt.Fprintln(&output, names, len(names))
+  fmt.Fprintf(&output, "count: %d\n", next(3))
+  fmt.Fprintln(&output, "雪:16 % 1.25 extra")
+  fmt.Fprintln(&output, "-12 1 2.5")
+  fmt.Fprintln(&output, "NaN NaN Infinity")
+  fmt.Fprintln(&output, "18446744073709551615 1e-7")
+  output.WriteString("missing %d %\n")
+  output.WriteString("%% %s\n")
+  output.WriteString("% %q extra\n")
+  output.WriteString("literal %d 3\n")
+  return output.String()
+}
+
+func WriteDiagnostics() string {
+  var output bytes.Buffer
+  fmt.Fprintf(&output, "warning: %v (%d)\n", []string{"ready", "done"}, 2)
+  fmt.Fprintf(&output, "error: %s\n", "invalid input")
+  fmt.Fprintln(&output)
   return output.String()
 }
 `
@@ -76,30 +108,43 @@ import (
 
 func TestConsole(t *testing.T) {
   var actualCalls, expectedCalls []int
-  actual := captureStdout(t, func() {
-    g.WriteExamples(func(index int) int {
-      actualCalls = append(actualCalls, index)
-      return index + 40
+  var stderr string
+  actual := captureOutput(t, &os.Stdout, func() {
+    stderr = captureOutput(t, &os.Stderr, func() {
+      g.WriteExamples(func(index int) int {
+        actualCalls = append(actualCalls, index)
+        return index + 40
+      })
     })
   })
   expected := r.WriteExamples(func(index int) int {
     expectedCalls = append(expectedCalls, index)
     return index + 40
   })
-  if actual != expected || !slices.Equal(actualCalls, expectedCalls) {
-    t.Fatalf("stdout %q, calls %v; want %q, calls %v", actual, actualCalls, expected, expectedCalls)
+  if actual != expected || stderr != "" || !slices.Equal(actualCalls, expectedCalls) {
+    t.Fatalf("stdout %q, stderr %q, calls %v. Want stdout %q, empty stderr, calls %v", actual, stderr, actualCalls, expected, expectedCalls)
   }
 }
 
-func captureStdout(t *testing.T, run func()) string {
+func TestDiagnostics(t *testing.T) {
+  var stderr string
+  stdout := captureOutput(t, &os.Stdout, func() {
+    stderr = captureOutput(t, &os.Stderr, g.WriteDiagnostics)
+  })
+  if want := r.WriteDiagnostics(); stdout != "" || stderr != want {
+    t.Fatalf("stdout %q, stderr %q; want empty stdout and stderr %q", stdout, stderr, want)
+  }
+}
+
+func captureOutput(t *testing.T, stream **os.File, run func()) string {
   t.Helper()
   reader, writer, err := os.Pipe()
   if err != nil { t.Fatal(err) }
   defer reader.Close()
   defer writer.Close()
-  original := os.Stdout
-  os.Stdout = writer
-  defer func() { os.Stdout = original }()
+  original := *stream
+  *stream = writer
+  defer func() { *stream = original }()
   run()
   if err := writer.Close(); err != nil { t.Fatal(err) }
   output, err := io.ReadAll(reader)
@@ -116,7 +161,7 @@ func TestConsoleBorrowRequiresResolvedStandardDeclaration(t *testing.T) {
 		name, source, diagnostic string
 	}{
 		{"re-exported aliases", `import { output as x, line } from "./bridge"
-			function use(values: string[]): void { x.log(values); line(values) }`, ""},
+			function use(values: string[]): void { x.log(values); x.warn(values); x.error(values); line(values) }`, ""},
 		{"multiple values", `import { console } from "kinmokusei/console"
 			function values(): (string[], int) { return ["one"], 2 }
 			function use(): void { console.log(values()) }`, ""},

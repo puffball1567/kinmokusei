@@ -19,13 +19,30 @@ Run the example with `keika run console.km` to see this output.
 
 <<< ../snippets/console.stdout{text}
 
-`console.log` and `println` separate values with a space and finish with a
-newline. A call with zero values writes a blank line.
-`print` writes without a trailing newline and inserts a space between
-adjacent non-string values.
+`console.log` writes to standard output. `console.warn` and `console.error`
+write to standard error. All three use the same formatting and add a newline.
+For example, `console.warn("retry %d", 2)` writes `retry 2` to standard error.
 
-All three take zero or more values and write to standard output using Go's
-default formatting. They return `void` and discard write errors.
+When the first argument is text and at least one more argument is present,
+these methods interpret the following placeholders.
+
+| Placeholder | Output |
+| --- | --- |
+| `%s` | Default text representation of a value |
+| `%d` | Number, including conversion of numeric text and booleans |
+| `%i` | Signed decimal integer prefix |
+| `%f` | Floating-point number prefix |
+| `%%` | A single percent sign without consuming an argument |
+
+A missing argument leaves its placeholder in the text. Unrecognized
+placeholders stay literal. Extra values are appended with spaces. When
+numeric conversion fails, the method prints `NaN`. Numbers and collections
+use Kinmokusei's native value representations.
+
+`println` prints its arguments separated by spaces and adds a newline.
+`print` prints without a trailing newline and inserts a space between adjacent
+non-string values. Both treat percent sequences as literal text. All five
+entry points take zero or more arguments, return `void`, and discard write errors.
 
 Direct calls can read verified-text collections and records for formatting.
 `console.log("labels", labels)` shows the `string[]` as one argument.
