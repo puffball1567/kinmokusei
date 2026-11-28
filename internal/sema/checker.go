@@ -234,6 +234,9 @@ func CheckScopedWithGoImporterAndPolicy(program *ast.Program, allowed map[string
 	c.checkCABIExports(program)
 	c.markResolvedTypeRefs(program)
 	c.checkGeneratedNames(program)
+	if len(c.diagnostics) == 0 {
+		c.checkGoExportBoundOrder(program)
+	}
 	c.recordTypeParameterMethods(program)
 	c.recordPromotedStructMembers(program)
 	program.GoReferences = c.goReferences

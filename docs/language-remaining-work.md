@@ -85,22 +85,23 @@ explicitly before closing a row for v0.5.
 | 5 | Enum method expressions | Verified | Since v0.4.7, value, pointer and alias method sets support explicit receivers and callbacks, with enum constant precedence, nil behavior and linked visibility. | Enum constants retain their source namespace. | [Enum receiver comparisons](../internal/compiler/native_method_expressions_test.go) |
 | 6 | Named source interface constraints | Verified | Direct bounds since v0.4.7. v0.4.13 also composes named source interfaces with type sets, `comparable` and compatible Go method interfaces, preserving source method/property contracts and dependent inference. | Substitution-dependent intersections are tracked in #8. | [Source interface composition](../internal/compiler/source_constraint_composition_test.go) |
 | 7 | Struct constraint terms | Partial | v0.4.13 supports exact named terms, generic instances and aliases, forward references, collection terms, dependent inference and generic method bounds. | **Audit pending** — recursive comparable value bounds. Keep the cycle diagnostic for invalid recursive storage and determine which valid bounds can be resolved. | [Struct constraints](../internal/compiler/struct_constraints_test.go), [Storage diagnostics](../internal/sema/struct_constraints_test.go) |
-| 8 | Dependent constraint intersections | Partial | Intersections normalize overlapping concrete terms and exclude provably disjoint function and record shapes. Source text and nullable contracts remain checked. | **Unimplemented** — intersections whose overlap is resolved only after substituting type arguments. The [generated Go dependency-order bug](#generated-go-dependency-order-bug) also affects related `comparable` bounds. | [Intersection behavior](../internal/compiler/constraint_intersection_test.go), [Dependent-term diagnostics](../internal/sema/constraint_intersection_test.go) |
+| 8 | Dependent constraint intersections | Partial | Intersections normalize overlapping concrete terms and exclude provably disjoint function and record shapes. Source text and nullable contracts remain checked. The checker reports [unsafe dependency order in Go export data](#generated-go-dependency-order-bug) before emission. | **Unimplemented** — intersections whose overlap is resolved only after substituting type arguments. | [Intersection behavior](../internal/compiler/constraint_intersection_test.go), [Dependent-term diagnostics](../internal/sema/constraint_intersection_test.go), [Go export diagnostics](../internal/compiler/go_export_bounds_test.go) |
 | 9 | Anonymous interface composition | Partial | Method-only anonymous interfaces support structural matching, constraints, other anonymous interfaces and Go method interfaces as bases. Named source interfaces can extend anonymous bases. | **Unimplemented** — embed a named source interface in an anonymous interface. **Unimplemented language extension** — anonymous properties. | [Anonymous interface emission](../internal/compiler/anonymous_interface_source_test.go), [Anonymous interface constraints](../internal/sema/anonymous_interface_constraints_test.go) |
 | 10 | Constant contexts, inference and multiple results | Audit pending | Constant and shift contexts preserve target types. Sole-call forwarding works for covered built-ins, including collection constructors. A single callable type-parameter signature supports variadics, multiple results, Result, defer and Task. | Audit remaining combinations of contextual typing and built-ins. Record deliberate differences in the [Go-facing gaps](#confirmed-go-facing-gaps). | [Shift contexts](../internal/compiler/shift_context_test.go), [Multiple results](../internal/compiler/collection_multiple_results_test.go), [Constrained callback calls](../internal/compiler/constrained_callback_calls_test.go) |
 
 ### Generated Go dependency-order bug
 
-A public function such as `Equal<T extends Pair<E>, E extends comparable>`
-can pass semantic checks and emit Go when `Pair<E>` combines `comparable`
-with an imported constraint whose underlying term is `~[2]E`. When a separate
-Go package imports and calls the generated function, both `go build` and
-`go vet` can panic during package import. This was reproduced from generated
-Go on Go 1.23.12 and 1.26.10.
+When `Pair<E>` combines `comparable` with an array term such as `~[2]E`,
+Go can panic while importing a public declaration with type parameters ordered
+as `<T extends Pair<E>, E extends comparable>`. Kinmokusei reports this
+ordering at the source bound on public functions and types, including private
+functions reachable from exported bodies.
 
-Declaring `E extends comparable` first passed both checks on those
-toolchains. Track this as an open compatibility bug and verify its resolution
-with an external Go consumer of the generated package.
+Declare the element parameter first, as in
+`<E extends comparable, T extends Pair<E>>`. External Go callers can use
+inference or pass explicit type arguments in that declaration order.
+Forward references through bounds that require no such comparison are supported.
+See the [external Go caller test](../internal/compiler/imported_constraint_test.go).
 
 ## Recent patch work and remaining areas
 

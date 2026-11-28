@@ -43,6 +43,12 @@ source import aliases never rewrite Go package paths.
 | Constraints | Implemented when reachable/representable | Checked using Go type information |
 | `unsafe.Pointer` in public shape | Requires policy | `[go.interop].unsafe = "allow"` |
 
+When a public Go bound uses `comparable` to filter array or struct types,
+declare the element type parameters before the bound that depends on them.
+For example, with `Pair<E>` combining `~[2]E` and `comparable`, write
+`<E extends comparable, T extends Pair<E>>`. This order lets Go load the
+generated package from a separate module.
+
 ## Calls and operations
 
 | Operation | Status |
