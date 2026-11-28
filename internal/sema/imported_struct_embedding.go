@@ -26,27 +26,39 @@ func (c *Checker) checkStructEmbeddingType(value Type, span source.Span) bool {
 		}
 		return true
 	}
-	if name := goTypeNameObject(value.GoType); value.Kind == GoNamed && name != nil &&
+	if name := goTypeNameObject(value.GoType); name != nil &&
 		(name.Pkg() != nil || name == gotypes.Universe.Lookup("error")) {
-		shape := gotypes.Unalias(value.GoType).Underlying()
-		_, structure := shape.(*gotypes.Struct)
-		contract, iface := shape.(*gotypes.Interface)
-		switch {
-		case iface && !contract.Complete().IsMethodSet():
-			c.report(span, "embedded Go interface must be usable as a runtime value")
+		if arity := goTypeParameterCount(value.GoType); arity > len(value.TypeArguments) {
+			c.report(span, fmt.Sprintf("embedded Go type %s requires %d type arguments", value.String(), arity))
 			return false
-		case iface && pointer:
-			c.report(span, "cannot embed a pointer to a Go interface")
+		}
+		storage := gotypes.Unalias(value.GoType)
+		if aliasPointer, ok := storage.(*gotypes.Pointer); ok && !pointer {
+			storage = aliasPointer.Elem()
+			pointer = true
+		}
+		switch shape := storage.Underlying().(type) {
+		case *gotypes.Pointer:
+			c.report(span, "cannot embed a Go defined pointer type or a pointer to a pointer")
 			return false
-		case structure || iface:
-			if arity := goTypeParameterCount(value.GoType); arity > len(value.TypeArguments) {
-				c.report(span, fmt.Sprintf("embedded Go type %s requires %d type arguments", value.String(), arity))
+		case *gotypes.Basic:
+			if shape.Kind() == gotypes.UnsafePointer {
+				c.report(span, "cannot embed a Go type with unsafe.Pointer storage")
 				return false
 			}
-			return true
+		case *gotypes.Interface:
+			if !shape.Complete().IsMethodSet() {
+				c.report(span, "embedded Go interface must be usable as a runtime value")
+				return false
+			}
+			if pointer {
+				c.report(span, "cannot embed a pointer to a Go interface")
+				return false
+			}
 		}
+		return true
 	}
-	c.report(span, "embedded field must name a Kinmokusei struct or distinct type, a Go struct or named interface, or a supported pointer to one")
+	c.report(span, "embedded field must name a Kinmokusei struct or distinct type, a named Go type, or a supported pointer to one")
 	return false
 }
 

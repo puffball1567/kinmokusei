@@ -383,6 +383,28 @@ members by their Go spelling, such as `Len`. Writing `*bytes.Buffer` embeds a
 pointer and promotes pointer-receiver methods into the outer value's method
 set. Embedded generic Go structs take explicit type arguments.
 
+### Embedding other named Go types
+
+Named Go types such as `time.Duration` can also supply promoted methods.
+
+```ts
+import go time from "time"
+
+struct Interval {
+  time.Duration
+}
+
+function describe(value: time.Duration): bstring {
+  const interval = Interval { Duration: value }
+  return interval.String()
+}
+```
+
+The same rules apply to defined Go collection and function types. For example,
+embedding an instantiated named slice type promotes its methods, and an
+embedded named function remains callable through its field. An alias of
+`*T` uses the alias as the field name and promotes pointer-receiver methods.
+
 ### Embedding a Go interface
 
 A named Go interface can serve as a delegate. A struct that embeds

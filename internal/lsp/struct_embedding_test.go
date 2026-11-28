@@ -68,6 +68,28 @@ function read(v: *Output): int { const f = (*Output).Len; return f(v); }
 	}
 }
 
+func TestImportedGoValueEmbeddingEditor(t *testing.T) {
+	t.Parallel()
+	input := `import go time from "time"
+struct Interval { time.Duration; }
+function describe(v: Interval): bstring { return v.String(); }
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	member := positionOf(input, "String()", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, member, ""),
+	)
+	definition, ok := messages[2]["result"].(map[string]any)
+	if !ok || !strings.HasSuffix(definition["uri"].(string), "/time/time.go") {
+		t.Fatalf("definition=%v", messages[2])
+	}
+	items := completionLabels(completionItemsAt(t, path, input, member.Line, member.Character))
+	if items["Duration"] == nil || items["String"] == nil || !strings.Contains(items["String"]["detail"].(string), "bstring") {
+		t.Fatalf("completion=%v", items)
+	}
+}
+
 func TestGoInterfaceEmbeddingEditor(t *testing.T) {
 	t.Parallel()
 	input := `import go io from "io"

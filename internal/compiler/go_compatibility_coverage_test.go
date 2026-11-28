@@ -122,7 +122,7 @@ var implementedGoCompatibilityContracts = []string{
 	"named results with zero initialization, bare and explicit returns, closures, deferred mutations, nested cleanup, blank results, nullable values, generics, and linked functions",
 	"native struct embedding and promotion across value and pointer receivers, linked generic aliases, method sets, nested selectors, closure capture, and shared storage",
 	"native struct values and pointers implementing Go runtime interfaces with promoted methods, assignment, conversion, multi-result forwarding, checked assertions, type switches, and explicit or inferred Go generic calls with native type identity",
-	"embedding imported Go structs and pointers in native structs with nested promotion, aliases, instantiated generic receivers, Go interface satisfaction and inference, method expressions, and shared mutation",
+	"embedding imported Go structs, defined value and callable types, and pointers in native structs with nested promotion, value and pointer aliases, instantiated generic receivers, Go interface satisfaction and inference, method expressions, and shared mutation",
 	"embedding named Go interfaces in native structs with dynamic delegation, shadowing, method values, method expressions, Go constraint inference, package-private method identity, and nil dispatch",
 	"native struct values and pointers in Go generic calls with method constraints, concrete identity, dependent type inference, type terms, comparable, and package-private promoted methods",
 	"embedded native distinct types with nominal field identity, aliases, value and pointer methods, generic receiver contracts, underlying struct fields, and nested promotion",
