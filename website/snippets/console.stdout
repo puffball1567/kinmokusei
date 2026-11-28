@@ -1,4 +1,5 @@
 labels [ready done]
 json: ["ready","done"]
+inspect: [ "ready", "done" ]
 items: 2
 ready=true

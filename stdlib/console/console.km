@@ -4,6 +4,7 @@ import go big from "math/big";
 import go os from "os";
 import go reflect from "reflect";
 import go regexp from "regexp";
+import go sort from "sort";
 import go strconv from "strconv";
 import go strings from "strings";
 
@@ -70,6 +71,12 @@ function formatLine(template: bstring, values: interface{}[]): bstring {
         case b"j" {
           replacement = formatJSON(values[next]);
         }
+        case b"O" {
+          replacement = inspectValue(reflect.ValueOf(values[next]), 2, makeMap<InspectReference, boolean>());
+        }
+        case b"o" {
+          replacement = inspectValue(reflect.ValueOf(values[next]), 4, makeMap<InspectReference, boolean>());
+        }
         case b"c" {
           replacement = b"";
         }
@@ -98,6 +105,100 @@ function formatJSON(value: interface{}): bstring {
     return b"[Circular]";
   }
   return b"[Unserializable]";
+}
+
+struct InspectReference {
+  typeInfo: reflect.Type;
+  address: uint64;
+  length: int;
+}
+
+function inspectValue(value: reflect.Value, depth: int, active: Map<InspectReference, boolean>): bstring {
+  if (value.Kind() === reflect.Interface && !value.IsNil()) {
+    value = value.Elem();
+  }
+  const kind = value.Kind();
+  switch (kind) {
+    case reflect.Invalid, reflect.Interface { return b"null"; }
+    case reflect.Bool { return strconv.FormatBool(value.Bool()); }
+    case reflect.String { return strconv.Quote(value.String()); }
+    case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64 {
+      return strconv.FormatInt(value.Int(), 10);
+    }
+    case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr {
+      return strconv.FormatUint(value.Uint(), 10);
+    }
+    case reflect.Float32, reflect.Float64 { return renderFloat(value.Float(), value.Type().Bits()); }
+    case reflect.Complex64, reflect.Complex128 { return fmt.Sprint(value.Complex()); }
+    case reflect.Func {
+      if (value.IsNil()) { return b"null"; }
+      return b"[Function]";
+    }
+    case reflect.Chan {
+      if (value.IsNil()) { return b"null"; }
+      return b"[Channel]";
+    }
+    case reflect.Pointer, reflect.Map, reflect.Slice {
+      if (value.IsNil()) { return b"null"; }
+      let length = 0;
+      if (kind === reflect.Slice) { length = value.Len(); }
+      // Pointer returns an identity here. The address is never dereferenced
+      // or displayed. A slice's length distinguishes views of one array.
+      const reference = InspectReference{typeInfo: value.Type(), address: uint64(value.Pointer()), length: length};
+      if (active[reference]) { return b"[Circular]"; }
+      active[reference] = true;
+      const printed = inspectAggregate(value, kind, depth, active);
+      delete(active, reference);
+      return printed;
+    }
+    case reflect.Array, reflect.Struct { return inspectAggregate(value, kind, depth, active); }
+    default { return b"[" + value.Type().String() + b"]"; }
+  }
+}
+
+function inspectAggregate(value: reflect.Value, kind: reflect.Kind, depth: int, active: Map<InspectReference, boolean>): bstring {
+  switch (kind) {
+    case reflect.Pointer {
+      if (depth < 0) { return b"[Pointer]"; }
+      return b"&" + inspectValue(value.Elem(), depth - 1, active);
+    }
+    case reflect.Array, reflect.Slice {
+      if (depth < 0) { return b"[Array]"; }
+      if (value.Len() === 0) { return b"[]"; }
+      let parts: bstring[] = [];
+      for (let index = 0; index < value.Len(); index++) {
+        parts = append(parts, inspectValue(value.Index(index), depth - 1, active));
+      }
+      return b"[ " + strings.Join(parts, b", ") + b" ]";
+    }
+    case reflect.Map {
+      if (depth < 0) { return b"[Map]"; }
+      if (value.Len() === 0) { return b"Map {}"; }
+      let parts: bstring[] = [];
+      const entries = value.MapRange();
+      while (entries.Next()) {
+        const key = inspectValue(entries.Key(), depth - 1, active);
+        const item = inspectValue(entries.Value(), depth - 1, active);
+        parts = append(parts, key + b" => " + item);
+      }
+      sort.Strings(parts);
+      return b"Map { " + strings.Join(parts, b", ") + b" }";
+    }
+    case reflect.Struct {
+      if (depth < 0) { return b"[Object]"; }
+      const typeInfo = value.Type();
+      let parts: bstring[] = [];
+      for (let index = 0; index < value.NumField(); index++) {
+        const field = typeInfo.Field(index);
+        if (field.IsExported()) {
+          parts = append(parts, field.Name + b": " + inspectValue(value.Field(index), depth - 1, active));
+        }
+      }
+      if (len(parts) === 0) { return b"{}"; }
+      return b"{ " + strings.Join(parts, b", ") + b" }";
+    }
+  }
+  return b"[" + value.Type().String() + b"]";
 }
 
 function formatNumber(value: interface{}, verb: bstring): bstring {

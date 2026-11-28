@@ -4,6 +4,7 @@ function main(): void {
   const labels: string[] = ["ready", "done"]
   console.log("labels", labels)
   console.log("json: %j", labels)
+  console.log("inspect: %O", labels)
 
   const values: interface{}[] = ["items: %d", len(labels)]
   console.log(values...)

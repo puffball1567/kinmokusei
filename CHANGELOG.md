@@ -11,6 +11,8 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Inspect console values with `%O` and `%o`, using different depth limits
+  and marking circular references.
 - Format console arguments as compact JSON with `%j`, including a marker for
   cycles. Use `%c` to consume a style argument in terminal output.
 - Emit imports in gofmt order when generated runtime helpers add imports.

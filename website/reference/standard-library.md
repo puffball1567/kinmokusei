@@ -33,6 +33,8 @@ these methods interpret the following placeholders.
 | `%i` | Signed decimal integer prefix |
 | `%f` | Floating-point number prefix |
 | `%j` | Compact JSON using the value's JSON field names and tags |
+| `%O` | Inspect a value to depth 2 |
+| `%o` | Inspect a value to depth 4 |
 | `%c` | Consumes a style argument with no output |
 | `%%` | A single percent sign without consuming an argument |
 
@@ -44,6 +46,13 @@ use Kinmokusei's native value representations.
 `%j` follows the [JSON snapshot rules](./built-ins#json-snapshots). A detected
 cycle produces `[Circular]`. Other encoding failures, such as attempting to
 serialize a function, produce `[Unserializable]`.
+
+`%O` and `%o` quote strings and show array elements, exported Go struct field
+names, and map entries. Map entries are sorted by their rendered text.
+A reference back to a value being inspected appears as `[Circular]`. At the
+depth limit, nested values appear as labels such as `[Array]` or `[Object]`.
+The root is at depth zero, and following a pointer uses one level. A typed
+nil value such as a nil pointer or slice appears as `null`.
 
 `println` prints its arguments separated by spaces and adds a newline.
 `print` prints without a trailing newline and inserts a space between adjacent
