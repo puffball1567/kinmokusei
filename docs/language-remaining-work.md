@@ -53,11 +53,54 @@ explicit receiver, including inherited and virtual methods, generic class
 applications, aliases, visibility and invocation checks. Methods with their
 own type parameters remain follow-up work.
 
-v0.5 marks completion of the audited Go language compatibility work. Close or
-explicitly classify each Go contract, test accepted behavior against independent
-Go programs, and document deliberate source-language differences. Neither the
-111 existing runtime contract groups nor statement coverage alone establishes
-that milestone. OOP work continues alongside Go compatibility.
+v0.5 marks completion of the [audited Go language compatibility work](#go-compatibility-areas).
+Close or explicitly classify each Go contract, test accepted behavior against
+independent Go programs, and document deliberate source-language differences.
+The 111 runtime contract groups measure the already implemented surface.
+OOP work continues alongside Go compatibility.
+
+## Go compatibility areas
+
+The ten numbered areas form the v0.5 implementation audit. The status applies
+to the scope described in each row.
+
+- **Verified** means the implemented scope has focused evidence and the row
+  has no open implementation item.
+- **Partial** means the row has an implemented subset and specific
+  unimplemented or unresolved cases.
+- **Audit pending** means the main forms are implemented and remaining
+  combinations still need review.
+
+Update the matching row when a change expands support. Record the accepted
+subset and link its tests, then keep any remaining combinations listed.
+Classify intentional source-language differences and language extensions
+explicitly before closing a row for v0.5.
+
+| # | Work area | Status | Implemented | Remaining work and boundaries | Evidence |
+|---|---|---|---|---|---|
+| 1 | Named results and bare returns | Verified | v0.4.13 supports zero-safe named results in functions, methods and block arrows, with bare returns, defer and try/finally. | Named results follow the source zero-value safety rules. | [Named results](../internal/compiler/named_results_test.go) |
+| 2 | Struct embedding and member promotion | Partial | v0.4.13 supports embedding source structs and distinct types, Go structs and named runtime interfaces, and eligible pointers. This includes generic instances, aliases, member promotion, structural Go interface assignment and native method sets in Go generic calls. | **Unimplemented** — embed named source interfaces and imported Go named non-struct types such as `time.Duration`. | [Source structs](../internal/compiler/struct_embedding_test.go), [Go structs](../internal/compiler/imported_struct_embedding_test.go), [Go interfaces](../internal/compiler/go_interface_embedding_test.go) |
+| 3 | Instantiated generic function values | Partial | Full explicit type arguments since v0.4.7. Since v0.4.12, contextual inference and partial argument lists work for source and Go functions, including callbacks, assignments, returns and typed aggregates. | **Unimplemented** — inferred function values that need an unnameable Go type. **Source rule** — require an explicit type when a callback cycle supplies insufficient inference information. Generic method values are tracked in #4. | [Function values and private-type diagnostics](../internal/compiler/contextual_function_values_test.go), [Inference diagnostics](../internal/sema/contextual_function_values_test.go) |
+| 4 | Generic receiver method expressions | Partial | Explicitly instantiated receiver types and aliases work for source structs, interfaces and defined types, and imported Go types. v0.4.13 adds class expressions, including inherited and virtual methods. | **Unimplemented language extension** — method values and expressions for methods with their own type parameters. | [Go receivers](../internal/compiler/go_method_expressions_test.go), [Source receivers](../internal/compiler/native_method_expressions_test.go), [Class receivers](../internal/compiler/class_method_expressions_test.go) |
+| 5 | Enum method expressions | Verified | Since v0.4.7, value, pointer and alias method sets support explicit receivers and callbacks, with enum constant precedence, nil behavior and linked visibility. | Enum constants retain their source namespace. | [Enum receiver comparisons](../internal/compiler/native_method_expressions_test.go) |
+| 6 | Named source interface constraints | Verified | Direct bounds since v0.4.7. v0.4.13 also composes named source interfaces with type sets, `comparable` and compatible Go method interfaces, preserving source method/property contracts and dependent inference. | Substitution-dependent intersections are tracked in #8. | [Source interface composition](../internal/compiler/source_constraint_composition_test.go) |
+| 7 | Struct constraint terms | Partial | v0.4.13 supports exact named terms, generic instances and aliases, forward references, collection terms, dependent inference and generic method bounds. | **Audit pending** — recursive comparable value bounds. Keep the cycle diagnostic for invalid recursive storage and determine which valid bounds can be resolved. | [Struct constraints](../internal/compiler/struct_constraints_test.go), [Storage diagnostics](../internal/sema/struct_constraints_test.go) |
+| 8 | Dependent constraint intersections | Partial | Intersections normalize overlapping concrete terms and exclude provably disjoint function and record shapes. Source text and nullable contracts remain checked. | **Unimplemented** — intersections whose overlap is resolved only after substituting type arguments. The [generated Go dependency-order bug](#generated-go-dependency-order-bug) also affects related `comparable` bounds. | [Intersection behavior](../internal/compiler/constraint_intersection_test.go), [Dependent-term diagnostics](../internal/sema/constraint_intersection_test.go) |
+| 9 | Anonymous interface composition | Partial | Method-only anonymous interfaces support structural matching, constraints, other anonymous interfaces and Go method interfaces as bases. Named source interfaces can extend anonymous bases. | **Unimplemented** — embed a named source interface in an anonymous interface. **Unimplemented language extension** — anonymous properties. | [Anonymous interface emission](../internal/compiler/anonymous_interface_source_test.go), [Anonymous interface constraints](../internal/sema/anonymous_interface_constraints_test.go) |
+| 10 | Constant contexts, inference and multiple results | Audit pending | Constant and shift contexts preserve target types. Sole-call forwarding works for covered built-ins, including collection constructors. A single callable type-parameter signature supports variadics, multiple results, Result, defer and Task. | Audit remaining combinations of contextual typing and built-ins. Record deliberate differences in the [Go-facing gaps](#confirmed-go-facing-gaps). | [Shift contexts](../internal/compiler/shift_context_test.go), [Multiple results](../internal/compiler/collection_multiple_results_test.go), [Constrained callback calls](../internal/compiler/constrained_callback_calls_test.go) |
+
+### Generated Go dependency-order bug
+
+A public function such as `Equal<T extends Pair<E>, E extends comparable>`
+can pass semantic checks and emit Go when `Pair<E>` combines `comparable`
+with an imported constraint whose underlying term is `~[2]E`. When a separate
+Go package imports and calls the generated function, both `go build` and
+`go vet` can panic during package import. This was reproduced from generated
+Go on Go 1.23.12 and 1.26.10.
+
+Declaring `E extends comparable` first passed both checks on those
+toolchains. Track this as an open compatibility bug and verify its resolution
+with an external Go consumer of the generated package.
 
 ## Recent patch work and remaining areas
 
@@ -254,26 +297,6 @@ Independent Go coverage, single-evaluation and fixed-array effect checks are in
 `reference_reads_test.go`; checker and editor regressions cover rechecking,
 success-proof joins and navigation. These complete the scoped #117 work; the
 documented raw Go behavior and concrete-type requirements remain intentional.
-
-### Go compatibility areas
-
-v0.4.13 expands the tested subsets across these areas. Each entry records a
-separate compatibility boundary. Accepted subsets need diagnostics for
-unsupported cases, independent runtime comparison where applicable, editor
-support and user documentation.
-
-| # | Work area | Current boundary |
-|---|---|---|
-| 1 | Named results and bare returns | v0.4.13 builds support named results with valid zero values in functions, methods, and block arrows, including bare returns, defer, and try/finally |
-| 2 | Source struct embedding and promoted members | v0.4.13 builds support named source and imported Go structs, source distinct value types, their pointers, and named Go runtime interfaces as embedded fields. This includes generic instances and aliases, promoted selectors and method sets, editor support, and structural assignment to Go interfaces. Go generic calls use native method signatures for interface arguments and method constraints while preserving concrete type arguments. Embedding named source interfaces remains |
-| 3 | Instantiated generic function values | Released in v0.4.7 for full explicit lists; v0.4.12 adds destination-type inference and leading partial lists for source/Go functions, including higher-order callbacks, assignments, returns, typed aggregates, invocation checks for concrete non-null contracts, independent Go comparison and editor support; unresolved callback cycles, private inferred Go type arguments and generic instance method values remain unsupported |
-| 4 | Direct generic receiver instantiation in method expressions | Released in v0.4.7 for full `<T>`/`[T]` applications of native structs/interfaces/defined types and imported Go types. v0.4.13 builds add class instance expressions, including inherited and virtual methods, aliases, invocation boundaries and editor support. Method-local generics remain |
-| 5 | Native enum method expressions | Released in v0.4.7: value/pointer/alias method sets, enum constant precedence, callbacks, nil behavior, linked visibility, editor support and independent Go comparison |
-| 6 | Native source interface constraints | Direct bounds are released in v0.4.7; v0.4.13 builds also compose named source interfaces with type sets, comparable and compatible Go method interfaces, preserving source contracts, dependent inference, generic owner checks, properties and editor support |
-| 7 | Source struct constraint terms | Implemented in v0.4.13: exact named terms, generic instances, aliases, forward references, collection terms, dependent inference and generic method bounds; recursive comparable value bounds remain conservative |
-| 8 | Recursive/dependent constraint composition | v0.4.13 builds also exclude provably disjoint function and record terms, including nested signatures and field shapes. Intersections with substitution-dependent overlap and recursive comparable value bounds remain conservative |
-| 9 | Anonymous interface scope | Method-only anonymous bounds and runtime structural matching are released in v0.4.7. v0.4.13 builds add constraint composition, embedding of Go method interfaces and other anonymous interfaces, and named interfaces extending anonymous bases. Anonymous properties and embedding named source interfaces in anonymous interfaces remain |
-| 10 | Constant, inference and multiple-result combinations | v0.4.13 builds allow direct calls through a type parameter with a single function signature and source contract, including variadics, multiple results, Result handling, defer and Task. Continue testing remaining combinations |
 
 ## Approved implementation queue
 
@@ -688,7 +711,6 @@ complex cases follow Go's first-match behavior. The existing duplicate
 |---|---|---|
 | Receiver-dependent field initializers | Module-scope defaults and reads of earlier initialized or accessible inherited fields through `this.field` are implemented; later local fields, `super`, constructor parameters and receiver capture remain unavailable | Extend only with explicit initialization-order and receiver-escape rules; use the constructor for other dependencies |
 | Go interface inheritance boundary | Exported runtime contracts are supported; private methods, type-set-only bases, and unsupported interop signatures are rejected | Expand anonymous interface interop independently; preserve package identity and unsafe policy |
-| Go 1.23 comparable-bound import order | Forward comparable-dependent bounds are semantically checked, but Go 1.23 vet can panic while importing their export data | Write comparable element parameters before dependent bounds when targeting Go 1.23 tooling |
 | Recursive comparable source bounds | Array/struct comparability that depends on a still-resolving parameter is diagnosed rather than allowed to deadlock Go type resolution; recursive pointer and method contracts remain supported | Break the dependency with an independently constrained element parameter; broader cyclic value-bound solving remains unsupported |
 | Source struct constraint terms | Implemented in v0.4.13: native storage completes before dependent constraints, including generic instances, aliases, forward references, arrays/slices and method bounds; source nullable/text contracts survive inference and record matching | Named terms are exact, not structural wildcards; `~NamedStruct` and cyclic value storage are rejected. Field selection on a type parameter remains unavailable; expose behavior through method contracts |
 | Abstract classes/methods | Explicit abstract method declarations and concrete implementation checks are implemented; abstract classes cannot be constructed directly | Interface requirements must be declared explicitly; direct constructor access to abstract methods is rejected, while indirect access to an unimplemented construction-phase slot panics; method-level generics remain nonvirtual |

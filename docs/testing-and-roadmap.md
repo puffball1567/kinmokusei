@@ -93,7 +93,8 @@ native defined types and aliases including distinct native-struct definitions, s
 constraints, stable generic struct/class JSON, native integer enums, the HTTP/JSON
 dogfood application, the bounded fetch adapter, integer and iterator ranges,
 type-parameter conversions, and generic interface inheritance. This measures the implemented surface, not all Go or
-OOP features; see [the remaining language work](language-remaining-work.md).
+OOP features. The [v0.5 implementation audit](language-remaining-work.md#go-compatibility-areas)
+tracks implemented and remaining scope for each compatibility area.
 
 An automated gate discovers every differential scenario in the compiler tests,
 requires it to be classified in the registry, rejects a registered scenario
