@@ -59,6 +59,8 @@ func (c *Checker) declareStruct(decl *ast.StructDecl) {
 				declarationSpan = alias.declaration.NameSpan
 			} else if declared := c.structs[ref.Name]; declared != nil {
 				declarationSpan = declared.declarationSpan
+			} else if contract := c.interfaces[ref.Name]; contract != nil {
+				declarationSpan = contract.declarationSpan
 			}
 			symbol.embedded = append(symbol.embedded, field.Name)
 		}

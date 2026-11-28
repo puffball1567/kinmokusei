@@ -49,7 +49,7 @@ func receiverTypeParameters(source, owner []ast.TypeParameter, arguments []Type)
 }
 
 func recordReceiverContracts(expr *ast.MemberExpr, owner Type, receiver Type, callable Type, method methodSymbol) {
-	if len(owner.TypeArguments) == 0 {
+	if owner.Kind == Interface || len(owner.TypeArguments) == 0 {
 		return
 	}
 	expr.ReceiverContractArguments = nativeContracts(owner.TypeArguments)

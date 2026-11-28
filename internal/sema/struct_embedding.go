@@ -5,6 +5,7 @@ import (
 	gotypes "go/types"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/puffball1567/kinmokusei/internal/ast"
 )
@@ -52,7 +53,12 @@ func (c *Checker) checkSelectedStructMember(expr *ast.MemberExpr, receiver, base
 		return substituteNativeTypeParameters(field.typeInfo, member.bindings)
 	}
 	method := *member.method
-	c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
+	if owner.Kind != Interface {
+		c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
+	}
+	if method.goDeclaration != nil {
+		c.recordGoReference(expr.NameSpan, method.goDeclaration)
+	}
 	if method.pointerReceiver && !pointer && !member.throughPointer && !c.isAddressableExpression(expr.Object) {
 		c.report(expr.Span, fmt.Sprintf("pointer method %q requires an addressable %s value", expr.Name, base.String()))
 		return invalid
@@ -210,6 +216,12 @@ func (c *Checker) visitStructEmbedding(branch structEmbedding, owner Type, goNam
 			return
 		}
 		methods, methodBindings = structure.methods, nativeStructBindings(structure, owner)
+	} else if owner.Kind == Interface {
+		contract := c.interfaces[owner.Name]
+		if contract == nil {
+			return
+		}
+		methods, methodBindings = contract.methods, nativeInterfaceBindings(contract, owner)
 	} else if defined := c.nativeDefinedSymbol(owner); defined != nil {
 		methods, methodBindings = defined.methods, nativeDefinedTypeBindings(defined, owner)
 		// A defined type retains its underlying fields, including embedded
@@ -312,7 +324,7 @@ func (c *Checker) recordPromotedStructMembers(program *ast.Program) {
 		receiver.TypeArguments = symbol.typeParameters
 		emitted := c.structMemberSet(receiver, true)
 		for name, member := range c.structMemberSet(receiver, false) {
-			if member.ambiguous || len(member.path) == 0 {
+			if member.ambiguous || len(member.path) == 0 || strings.Contains(name, " ") {
 				continue
 			}
 			var goName string

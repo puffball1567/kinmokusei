@@ -13,7 +13,7 @@ func (c *Checker) checkStructEmbeddingType(value Type, span source.Span) bool {
 	if pointer {
 		value = *value.Element
 	}
-	if value.Kind == Struct {
+	if value.Kind == Struct || value.Kind == Interface {
 		return true
 	}
 	if defined := c.nativeDefinedSymbol(value); defined != nil {
@@ -58,7 +58,7 @@ func (c *Checker) checkStructEmbeddingType(value Type, span source.Span) bool {
 		}
 		return true
 	}
-	c.report(span, "embedded field must name a Kinmokusei struct or distinct type, a named Go type, or a supported pointer to one")
+	c.report(span, "embedded field must name a Kinmokusei struct, interface or distinct type, a named Go type, or a supported pointer to one")
 	return false
 }
 
@@ -69,7 +69,7 @@ type structEmbeddingKey struct {
 
 func (e structEmbedding) key() structEmbeddingKey {
 	owner := e.owner()
-	if owner.Kind == Struct {
+	if owner.Kind == Struct || owner.Kind == Interface {
 		return structEmbeddingKey{source: owner.Name}
 	}
 	identity := gotypes.Unalias(owner.GoType)

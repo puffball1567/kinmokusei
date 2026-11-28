@@ -365,6 +365,11 @@ under [nullability](#nullability).
 
 Interfaces are reference-bearing contracts. Kinmokusei classes name contracts explicitly with `implements`; imported Go interface connectivity is checked against the generated public method set. Value versus pointer receiver methods affect native struct method sets just as in Go. A pointer method requires addressable storage when automatic addressing is used.
 
+A struct can satisfy a named Kinmokusei interface by
+[embedding the interface or a derived interface](../book/types-and-values#embedding-a-kinmokusei-interface).
+The effective method set must preserve the source signatures, including their
+text, nullability, and Result contracts.
+
 Source and imported Go callables may have multiple results. A matching result
 list can be destructured, forwarded by `return call();`, or expanded as the sole
 argument to a matching call. An explicit `return first, second;` is also valid.

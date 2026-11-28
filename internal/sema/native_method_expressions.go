@@ -178,7 +178,8 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 		expr.MethodExpressionBoundary = c.functionValueBoundary(callable, expr.Span)
 		return method.typeInfo
 	}
-	if embedded := method.embeddedMember; embedded != nil {
+	embedded := method.embeddedMember
+	if embedded != nil {
 		expr.EmbeddedPath = embedded.path
 		recordReceiverContracts(expr, embedded.owner(), embedded.receiver, method.typeInfo, *embedded.method)
 	} else if owner.Kind != Interface {
@@ -186,7 +187,7 @@ func (c *Checker) checkNativeMethodExpression(expr *ast.MemberExpr, receiver Typ
 	}
 	// Go's initialization dependency graph follows concrete method bodies,
 	// even for stored method expressions; interface dispatch remains indirect.
-	if receiver.Kind != Interface {
+	if receiver.Kind != Interface && (embedded == nil || embedded.owner().Kind != Interface) {
 		c.recordGlobalDependency(nativeMethodDependency(method.declarationSpan))
 	}
 	return method.typeInfo
