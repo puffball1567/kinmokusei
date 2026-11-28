@@ -439,6 +439,32 @@ A nil embedded interface follows Go's runtime behavior and panics when a
 promoted method dispatches through it. The field type must be a named Go
 interface usable as a runtime value.
 
+### Embedding a Kinmokusei interface
+
+Embed a named interface to delegate its methods to an initialized field.
+The struct's promoted methods retain the interface's source types, including
+generic type arguments and `Result` signatures.
+
+```ts
+interface Reader<T> {
+  function read(): T
+}
+
+struct Forward<T> {
+  Reader<T>
+}
+
+function relay(delegate: Reader<string>): Reader<string> {
+  const wrapper = Forward<string> { Reader: delegate }
+  return wrapper
+}
+```
+
+The wrapper can serve as the embedded interface or one of its base interfaces
+when its effective method set matches. An explicit method on the wrapper can
+take precedence over the delegate. Access a property through its interface
+field, such as `wrapper.Reader.value` when `Reader` declares `value`.
+
 ### Embedding a distinct type
 
 ```ts

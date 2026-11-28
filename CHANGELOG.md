@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Embed named Kinmokusei interfaces in structs. Promoted methods delegate to
+  the initialized field and preserve generic and Result signatures.
+
 - Embed named Go non-struct types such as `time.Duration` in structs and use
   their promoted methods, including through pointer aliases.
 

@@ -116,6 +116,34 @@ function take(v: Forward, p: byte[]): (int, error) { const f = Forward.Write; re
 	}
 }
 
+func TestSourceInterfaceEmbeddingEditor(t *testing.T) {
+	t.Parallel()
+	input := `interface Reader<T> { function read(): T; }
+struct Layer<T> { Reader<T>; }
+function show(v: Layer<string>): string { return v.read(); }
+function method(v: Layer<string>): string { const f = Layer<string>.read; return f(v); }
+function delegated(v: Layer<string>): string { return v.Reader.read(); }
+`
+	path := filepath.Join(t.TempDir(), "entry.km")
+	uri := fileURI(path)
+	member := positionOf(input, "read();", 0)
+	messages := serveMessages(t, openDocument(uri, input),
+		requestAt("textDocument/definition", 2, uri, member, ""),
+		requestAt("textDocument/definition", 3, uri, positionOf(input, "read;", 0), ""),
+		requestAt("textDocument/definition", 4, uri, positionOf(input, "Reader.read", 0), ""),
+	)
+	for id := float64(2); id <= 4; id++ {
+		definition, ok := messages[id]["result"].(map[string]any)
+		if !ok || definition["uri"] != uri || definition["range"].(map[string]any)["start"].(map[string]any)["line"] != float64(0) {
+			t.Fatalf("definition=%v", messages[id])
+		}
+	}
+	items := completionLabels(completionItemsAt(t, path, input, member.Line, member.Character))
+	if items["Reader"] == nil || items["read"] == nil || !strings.Contains(items["read"]["detail"].(string), "string") {
+		t.Fatalf("completion=%v", items)
+	}
+}
+
 func TestDistinctTypeEmbeddingEditor(t *testing.T) {
 	t.Parallel()
 	input := `type Count = distinct int

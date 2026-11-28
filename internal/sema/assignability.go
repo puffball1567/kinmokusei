@@ -99,7 +99,7 @@ func (c *Checker) isAssignable(target, value Type) bool {
 	if target.Kind != TypeParameter && !exactType(target, value) && underlyingGoInterface(target.GoType) != nil && c.textEscapesThroughGoInterface(value) {
 		return false
 	}
-	if c.nativeStructSatisfiesGoInterface(target, value) {
+	if c.nativeStructSatisfiesGoInterface(target, value) || c.nativeStructSatisfiesSourceInterface(target, value) {
 		return true
 	}
 	if value.Kind == GoPointer && target.Kind != TypeParameter {
@@ -198,5 +198,6 @@ func exactType(left, right Type) bool { return assignable(left, right) && assign
 // Go can forward directly assignable results without inserting per-slot
 // adapters such as a source class upcast.
 func (c *Checker) isDirectlyAssignable(target, value Type) bool {
-	return c.isAssignable(target, value) && (assignable(target, value) || c.nativeStructSatisfiesGoInterface(target, value))
+	return c.isAssignable(target, value) && (assignable(target, value) ||
+		c.nativeStructSatisfiesGoInterface(target, value) || c.nativeStructSatisfiesSourceInterface(target, value))
 }
