@@ -11,6 +11,9 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Embed named Go non-struct types such as `time.Duration` in structs and use
+  their promoted methods, including through pointer aliases.
+
 - Diagnose forward `comparable` bounds that can crash a Go consumer while
   importing a generated package. Declare the element type parameters before
   the bounds that use them.

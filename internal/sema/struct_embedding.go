@@ -172,6 +172,11 @@ func (c *Checker) structMemberSet(receiver Type, goNames bool) map[string]embedd
 				members[name] = member
 			}
 			addChild := func(value Type, goName string) {
+				// A Go alias can carry a pointer without an explicit star in
+				// the field declaration. Preserve the alias field name.
+				if _, indirect := gotypes.Unalias(value.GoType).(*gotypes.Pointer); indirect && value.Kind != GoPointer {
+					value = goStructEmbeddingReceiver(value.GoType, value)
+				}
 				child := structEmbedding{
 					receiver: value, throughPointer: branch.throughPointer || value.Kind == GoPointer, ambiguous: branch.ambiguous,
 					path: append(slices.Clone(branch.path), goName),
