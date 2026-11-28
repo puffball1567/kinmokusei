@@ -11,6 +11,10 @@ changes source/public APIs and requires the migration described below.
 
 ## [Unreleased]
 
+- Diagnose forward `comparable` bounds that can crash a Go consumer while
+  importing a generated package. Declare the element type parameters before
+  the bounds that use them.
+
 - Inspect console values with `%O` and `%o`, using different depth limits
   and marking circular references.
 - Format console arguments as compact JSON with `%j`, including a marker for

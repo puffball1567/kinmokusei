@@ -52,7 +52,7 @@ function overlap<T extends Overlap>(x:T):T{return x*3;}
 function filtered<T extends Filtered>(x:T):T{return x*4;}
 function copied<S extends Items<E>,E>(xs:S):E[]{let out:E[]=[];for(const x of xs){out=append(out,x);}return out;}
 function equal<T extends Key>(a:T,b:T):boolean{return a===b;}
-function pairEqual<E extends comparable,T extends Pair<E>>(a:T,b:T):boolean{return a===b;}
+export function PairEqual<E extends comparable,T extends Pair<E>>(a:T,b:T):boolean{return a===b;}
 function total<M extends Lookup<K,int>,K extends comparable>(xs:M):int{let result=0;for(const [key,value] of xs){result+=value;}return result;}
 class Holder<E>{public function copy<S extends Items<E>>(xs:S):E[]{return copied(xs);}}
 class Leaf{constructor(public value:int){}}
@@ -65,7 +65,7 @@ function Filter(x:int):int{return filtered(x);}
 function Copy(xs:int[]):int[]{return new Holder<int>().copy(xs);}
 function Equal(a:bstring,b:bstring):boolean{return equal(a,b);}
 function Dynamic(a:c.Any,b:c.Any):boolean{return equal<c.Any>(a,b);}
-function Pairs(a:[2]int,b:[2]int):boolean{return pairEqual(a,b);}
+function Pairs(a:[2]int,b:[2]int):boolean{return PairEqual(a,b);}
 function Total(xs:Map<bstring,int>):int{return total(xs);}
 function Nullable(x:int):int{const xs:Maybe[]=[new Leaf(x),null];const result=copied(xs);let value=0;for(const leaf of result){if(leaf!==null){value+=leaf.value;}else{value+=1;}}return value;}
 `,
@@ -83,6 +83,17 @@ function Nullable(x:int):int{const xs:Maybe[]=[new Leaf(x),null];const result=co
 		if !strings.Contains(string(generated), want) {
 			t.Fatalf("missing %q:\n%s", want, generated)
 		}
+	}
+	entry := filepath.Join(root, "entry.km")
+	forwardBound := strings.Replace(files["entry.km"],
+		"PairEqual<E extends comparable,T extends Pair<E>>", "PairEqual<T extends Pair<E>,E extends comparable>", 1)
+	checked, err := CheckFilesWithOverlay([]string{entry}, map[string]string{entry: forwardBound})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(checked.Diagnostics) != 1 ||
+		!strings.Contains(checked.Diagnostics[0].Message, `Go export data for "PairEqual" would evaluate a comparable constraint`) {
+		t.Fatalf("expected a source diagnostic for the forward bound, got %v", checked.Diagnostics)
 	}
 	reference := `package reference
 import("cmp";"fmt";"strconv")
@@ -113,7 +124,17 @@ func Nullable(x int)int{xs:=[]*Leaf{{x},nil};result:=copied(xs);value:=0;for _,l
 	comparison := `package importedconstraints_test
 import("reflect";"testing";g "imported-constraints.test";r "imported-constraints.test/reference")
 func TestNumbers(t *testing.T){for _,x:=range []int{-8,0,21}{if g.Twice(x)!=r.Twice(x)||g.Format(x)!=r.Format(x)||g.Overlapped(x)!=r.Overlapped(x)||g.Filter(x)!=r.Filter(x)||g.Nullable(x)!=r.Nullable(x){t.Fatalf("numeric mismatch: %d",x)}}}
-func TestCollections(t *testing.T){for _,xs:=range [][]int{nil,{}, {1,-4,9}}{if !reflect.DeepEqual(g.Copy(xs),r.Copy(xs)){t.Fatalf("copy mismatch: %v",xs)}};for _,xs:=range []map[string]int{nil,{}, {"a":2,"b":5}}{if g.Total(xs)!=r.Total(xs){t.Fatal("map mismatch")}};for _,a:=range [][2]int{{1,2},{2,1}}{for _,b:=range [][2]int{{1,2},{2,1}}{if g.Pairs(a,b)!=r.Pairs(a,b){t.Fatal("pair mismatch")}}}}
+func TestCollections(t *testing.T){for _,xs:=range [][]int{nil,{}, {1,-4,9}}{if !reflect.DeepEqual(g.Copy(xs),r.Copy(xs)){t.Fatalf("copy mismatch: %v",xs)}};for _,xs:=range []map[string]int{nil,{}, {"a":2,"b":5}}{if g.Total(xs)!=r.Total(xs){t.Fatal("map mismatch")}}}
+func TestPairs(t *testing.T) {
+  for _, a := range [][2]int{{1,2},{2,1}} {
+    for _, b := range [][2]int{{1,2},{2,1}} {
+      want := r.Pairs(a, b)
+      if g.Pairs(a, b) != want || g.PairEqual(a, b) != want || g.PairEqual[int, [2]int](a, b) != want {
+        t.Fatal("pair mismatch")
+      }
+    }
+  }
+}
 func TestEquality(t *testing.T){for _,a:=range []string{"","alpha","beta"}{if g.Text(a)!=r.Text(a){t.Fatal("text mismatch")};for _,b:=range []string{"","alpha","beta"}{if g.Equal(a,b)!=r.Equal(a,b)||g.Dynamic(a,b)!=r.Dynamic(a,b){t.Fatal("equality mismatch")}}}}
 func panics(f func())(result bool){defer func(){result=recover()!=nil}();f();return}
 func TestDynamicEqualityPanic(t *testing.T){if !panics(func(){g.Dynamic([]int{1},[]int{1})})||!panics(func(){r.Dynamic([]int{1},[]int{1})}){t.Fatal("interface equality must retain Go panic behavior")}}
